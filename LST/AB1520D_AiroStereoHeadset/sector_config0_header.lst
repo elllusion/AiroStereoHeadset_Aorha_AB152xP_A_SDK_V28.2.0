@@ -1,0 +1,91 @@
+C251 COMPILER V5.57.0,  sector_config0_header                                              08/11/20  06:32:03  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_config0_header
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\sector_config0_header.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\Config0\sector_config0_header.c XSMALL HPTR FUNCTIONS(RE
+                    -ENTRANT) ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRI
+                    -VER;.\source\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\s
+                    -ource\ROM\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GA
+                    -P;.\source\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\
+                    -source\SECTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\T
+                    -oolMisc) DEFINE(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520
+                    -D_AiroStereoHeadset\sector_config0_header.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\sector_config0_header.o
+                    -bj) 
+
+stmt  level    source
+
+    1          /*
+    2           * AIROHA Bluetooth Device Firmware
+    3           * COPYRIGHT (C) 2014 AIROHA TECHNOLOGY CORP. CO., LTD. ALL RIGHTS RESERVED
+    4           *
+    5           * sector_config0_header.c defines the AFE, SFR, RF misc and HW misc parameters.
+    6           *
+    7           * Programmer : DingaCheng@airoha.com.tw, Ext.2828
+    8           */
+    9           // -
+   10          #include "config.h"
+   11          #include "cpu.h"
+   12          #include "sectors.h"
+   13          #include "sector_config0_flash.h"
+   14          
+   15          #pragma userclass (HCONST = CFGHEAD)
+   16          
+   17          
+   18          EXTERN SECTOR_AFE_INIT_STRU CODE gSector_AfeInit;
+   19          EXTERN SECTOR_SFR_INIT_STRU CODE gSector_SfrInit;
+   20          EXTERN SECTOR_RF_MISC_CTL_STRU CODE gSector_RfMiscCtl;
+   21          EXTERN SECTOR_HW_MISC_CTL_STRU CODE gSector_HwMiscCtl;
+   22          #ifdef AB1520B
+               #else
+   24          EXTERN SECTOR_UART_PARAMETER_STRU CODE gSector_UartParameterEng;
+   25          #endif
+   26          
+   27          
+   28          #undef SECTORS_ENUM_MACRO
+   29          #define SECTORS_ENUM_MACRO(SECTOR_NAME, SECTOR_INIT, SECTOR_SIZE, ATTR) {(U8 CODE_PTR)SECTOR_INIT, SECTOR
+             -_SIZE, ATTR},
+   30          
+   31          
+   32          ////////////////////////////////////////////////////////////////////////////////
+   33          // Global Variables ////////////////////////////////////////////////////////////
+   34          ////////////////////////////////////////////////////////////////////////////////
+   35          SECTOR_CFG0_HEADER_STRU CODE gSectorConfig0Header =
+   36          {
+   37              NUM_OF_SECTOR_CFG0,
+   38          
+   39              {
+   40                #include "sector_config0_member.h"
+   41            },
+   42          
+   43            //- CRC
+   44            {0x2E,0xFE}
+   45          };
+   46          
+   47          
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+C251 COMPILER V5.57.0,  sector_config0_header                                              08/11/20  06:32:03  PAGE 2   
+
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =        48     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

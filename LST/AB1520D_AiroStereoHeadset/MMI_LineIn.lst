@@ -1,0 +1,678 @@
+C251 COMPILER V5.57.0,  MMI_LineIn                                                         08/11/20  06:33:53  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE MMI_LineIn
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\MMI_LineIn.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\MMI\MMI_LineIn.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) WAR
+                    -NINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\sour
+                    -ce\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\source\
+                    -ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_LE;
+                    -.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspData;
+                    -.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLASH_
+                    -INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoHeadset\MM
+                    -I_LineIn.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\MMI_LineIn.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #define _MMI_LINEIN_C_
+    4          
+    5          #include "rc.h"
+    6          #include "bt_config_profile.h"
+    7          
+    8          #ifdef LINEIN_ENABLE
+    9          #include "align_flash.h"
+   10          #include "MMI.h"
+   11          #include "MMI_LineIn.h"
+   12          #include "MMI_Driver.h"
+   13          #include "MMI_State.h"
+   14          #include "MMI_HCI.h"
+   15          #include "MMI_Protocol.h"
+   16          #include "MMI_AirModule.h"
+   17          #include "MMI_Reconnect.h"
+   18          #include "MMI_A2DP.h"
+   19          #include "..\AVRCP\AVRCP_Interface.h"
+   20          #include "..\A2DP\A2DP_Interface.h"
+   21          #include "MMI_A2DP.h"
+   22          #include "MMI_AVRCP.h"
+   23          
+   24          #ifdef PEQ_ENABLE
+   25          #include "..\Driver\Peq_HPF.h"
+   26          #endif
+   27          
+   28          PRIVATE void MMI_LineIn_KeyPowerOn(U8 linkIndex);
+   29          PRIVATE void MMI_LineIn_KeyPowerOff(U8 linkIndex);
+   30          PRIVATE void MMI_LineIn_KeyMuteToggle(U8 linkIndex);
+   31          PRIVATE U16 MMI_LineIn_CheckKeyPowerOn(U16 keyCode);
+   32          PRIVATE void MMI_LineInEntry(U8 linkIndex);
+   33          PRIVATE void MMI_LineInHandler(U8 linkIndex, MMIMsgType XDATA_PTR msgPtr);
+   34          PRIVATE void MMI_LineInExit(U8 linkIndex);
+   35          PRIVATE U8 MMI_LineIn_SmallStepGainCalculator(U8 gainHigh, U8 gainLow);
+   36          extern PUBLIC void DRIVER_SetLineInMuteUnMute(BOOL isMute);
+   37          extern PUBLIC BOOL DRIVER_IsLineInMute(void);
+   38          
+   39          extern MmiHandlerSetType CODE_PTR XDATA MMI_StateHandlerSet[MMI_TOTAL_STATE_NO];
+   40          
+   41          PRIVATE MmiHandlerSetType CODE  MMI_StateLineInHandler =
+   42          {
+   43            MMI_LineInEntry, MMI_LineInHandler, MMI_LineInExit, //MMI_LINE_IN
+   44          };
+   45          
+   46          
+   47          MmiLineInInfoCtrl XDATA gMMI_LineIn_ctl;
+   48          
+   49          PUBLIC MMI_KEY_EVT CODE MMI_LineIn_KeyEvtHandler[LINE_IN_KEY_EVENT_NO] =
+   50          {
+   51            {MMI_LineIn_KeyPowerOn}, //LINE_IN_KEY_EVENT_KEY_ENTER_LINEIN_MODE
+   52            {MMI_LineIn_KeyPowerOff}, //LINE_IN_KEY_EVENT_KEY_EXIT_LINEIN_MODE
+C251 COMPILER V5.57.0,  MMI_LineIn                                                         08/11/20  06:33:53  PAGE 2   
+
+   53            {MMI_LineIn_KeyMuteToggle}, //LINE_IN_KEY_EVENT_KEY_LINEIN_MUTE_TOGGLE
+   54          };
+   55          
+   56          PUBLIC MMI_KEY_CHECK CODE MMI_LineIn_KeyCheckValidHandler[LINE_IN_KEY_EVENT_NO] =
+   57          {
+   58            {MMI_LineIn_CheckKeyPowerOn}, //LINE_IN_KEY_EVENT_KEY_ENTER_LINEIN_MODE
+   59            {NULL}, //LINE_IN_KEY_EVENT_KEY_EXIT_LINEIN_MODE
+   60            {NULL}, //LINE_IN_KEY_EVENT_KEY_LINEIN_MUTE_TOGGLE
+   61          };
+   62          
+   63          PUBLIC void MMI_LineIn_Init(void)
+   64          {
+   65   1        MMI_StateHandlerSet[MMI_LINE_IN] = &MMI_StateLineInHandler;
+   66   1      
+   67   1        MMI_LineIn_SetVolByLevel(DEFAULT_LINEIN_SOUND_LEVEL, DEFAULT_LINEIN_SMALL_STEP_LEVEL);
+   68   1      
+   69   1        if(MMI_AUX_FS_SEL == PCM_FS_SEL_2KHZ)
+   70   1          gMMI_LineIn_ctl.DSPSoundbarDownsampleSel = SW_DOWNSAMPLE;
+   71   1        else
+   72   1          gMMI_LineIn_ctl.DSPSoundbarDownsampleSel = HW_DOWNSAMPLE;
+   73   1      
+   74   1        #ifdef PEQ_ENABLE
+   75   1        LightDbgPrint("Line-in: PEQ set number %d", (U8)PEQ_GetModeNumber(PEQ_LINE_IN));
+   76   1        #endif
+   77   1      }
+   78          
+   79          PUBLIC void MMI_LineIn_ProcessKeyEvent(U8 linkIndex, U8 index)
+   80          {
+   81   1        if(MMI_LineIn_KeyEvtHandler[index].fKeyEvt)
+   82   1        {
+   83   2          MMI_LineIn_KeyEvtHandler[index].fKeyEvt(linkIndex);
+   84   2        }
+   85   1      }
+   86          
+   87          PUBLIC U16 MMI_LineIn_CheckValidKey(U8 index, U16 keyCode)
+   88          {
+   89   1        if(MMI_LineIn_KeyCheckValidHandler[index].fKeyCheckValid)
+   90   1        {
+   91   2          keyCode = MMI_LineIn_KeyCheckValidHandler[index].fKeyCheckValid(keyCode);
+   92   2        }
+   93   1        return keyCode;
+   94   1      }
+   95          
+   96          PUBLIC void MMI_LineIn_VolumeControl(BOOL isVolumeUp)
+   97          {
+   98   1        U8 XDATA_PTR spkSoundLevelPtr;
+   99   1        U8 currentActiveDev;
+  100   1        spkSoundLevelPtr  = &gMMI_LineIn_ctl.currentsoundLevel;
+  101   1        currentActiveDev = gMMI_ctl.audioDevCtl.currentActiveDev;
+  102   1        if(isVolumeUp)
+  103   1        {
+  104   2          gMMI_LineIn_ctl.smallStepVol = MMI_DRV_IncreaseSmallStepVolume( gMMI_LineIn_ctl.currentsoundLevel, gMMI
+             -_nvram.totalLineInSoundLevel,
+  105   2                                          gMMI_nvram.smallStepVolume.lineInVolumeSmallStep, gMMI_LineIn_ctl.smallStepVol);
+  106   2          if(gMMI_LineIn_ctl.smallStepVol == 0)
+  107   2          {
+  108   3             if(*spkSoundLevelPtr < MMI_MAX_LINE_IN_SOUND_LEVEL())
+  109   3             {
+  110   4              (*spkSoundLevelPtr)++;
+  111   4             }
+  112   3             else if(MMI_LINE_IN_CYCLIC_VOLUME_ENABLED_FEAT)
+  113   3             {
+  114   4              *spkSoundLevelPtr = 0;
+  115   4             }
+  116   3             else
+  117   3             {
+C251 COMPILER V5.57.0,  MMI_LineIn                                                         08/11/20  06:33:53  PAGE 3   
+
+  118   4      #if defined BLUETOOTH_SPEAKER || defined SUPPORT_MIC_IN_A2DP_MODE
+  119   4              LightDbgPrint("Line-in volume reach max");
+  120   4              if(currentActiveDev != AUDIO_DEVICE_MUSIC_CALL_NOTIFY && currentActiveDev != AUDIO_DEVICE_AVRCP_PLAY)
+  121   4              {
+  122   5                MMI_PushMediaEvent(MEDIA_EVT_LINEIN_VOLUME_REACH_MAX);
+  123   5              }
+  124   4      #endif
+  125   4              return;
+  126   4             }
+  127   3          }
+  128   2        }
+  129   1        else
+  130   1        {
+  131   2          if(gMMI_LineIn_ctl.smallStepVol == 0)
+  132   2          {
+  133   3      #ifdef BLUETOOTH_SPEAKER      
+                     if (*spkSoundLevelPtr > 0)
+               #else
+  136   3            if (*spkSoundLevelPtr > 1)
+  137   3      #endif        
+  138   3             {
+  139   4              (*spkSoundLevelPtr)--;
+  140   4             }
+  141   3            else if(MMI_LINE_IN_CYCLIC_VOLUME_ENABLED_FEAT)
+  142   3            {
+  143   4              *spkSoundLevelPtr = MMI_MAX_LINE_IN_SOUND_LEVEL();
+  144   4              goto MMI_SEND_AUX_VOL;
+  145   4            }
+  146   3            else
+  147   3            {
+  148   4      #if defined BLUETOOTH_SPEAKER || defined SUPPORT_MIC_IN_A2DP_MODE
+  149   4              LightDbgPrint("Line-in volume reach min");
+  150   4              if(currentActiveDev != AUDIO_DEVICE_MUSIC_CALL_NOTIFY && currentActiveDev != AUDIO_DEVICE_AVRCP_PLAY)
+  151   4              {
+  152   5                MMI_PushMediaEvent(MEDIA_EVT_LINEIN_VOLUME_REACH_MIN);
+  153   5              }
+  154   4      #endif
+  155   4              return;
+  156   4            }
+  157   3          }
+  158   2          gMMI_LineIn_ctl.smallStepVol = MMI_DRV_DecreaseSmallStepVolume(gMMI_nvram.smallStepVolume.lineInVolumeS
+             -mallStep, gMMI_LineIn_ctl.smallStepVol);
+  159   2      
+  160   2        }
+  161   1        MMI_SEND_AUX_VOL:
+  162   1        MMI_LineIn_SetVolByLevel(gMMI_LineIn_ctl.currentsoundLevel, gMMI_LineIn_ctl.smallStepVol);
+  163   1        MMI_LineIn_SendDriverVolCmd();
+  164   1      
+  165   1        #if defined(AIR_MODULE) && defined(BLUETOOTH_SPEAKER)
+                 MMI_AIR_LineInKeyVolUpDn();
+                 #endif
+  168   1      
+  169   1      #if defined BLUETOOTH_SPEAKER || defined SUPPORT_MIC_IN_A2DP_MODE
+  170   1        if(currentActiveDev != AUDIO_DEVICE_MUSIC_CALL_NOTIFY && currentActiveDev != AUDIO_DEVICE_AVRCP_PLAY)
+  171   1        {
+  172   2          MMI_DRV_Beep(*spkSoundLevelPtr, AUDIO_DEVICE_LINE_IN);
+  173   2        }
+  174   1      #endif
+  175   1        
+  176   1        if(MMI_REMEMBER_SOUND_LEVEL_CHANGE_FEAT)
+  177   1        {
+  178   2          DEFAULT_LINEIN_SOUND_LEVEL = *spkSoundLevelPtr;
+  179   2          DEFAULT_LINEIN_SMALL_STEP_LEVEL = gMMI_LineIn_ctl.smallStepVol;
+  180   2          MMI_SECTOR_SetUpdateFlag(TRUE);
+  181   2        }
+  182   1      }
+C251 COMPILER V5.57.0,  MMI_LineIn                                                         08/11/20  06:33:53  PAGE 4   
+
+  183          
+  184          PUBLIC void MMI_LineIn_SetDriverVolPara(DriverVolumeSetCmd XDATA_PTR volPtr)
+  185          {
+  186   1        U8 spkGainSetIndex, micGainSetIndex;
+  187   1        U8 deltaDigitalGainL, deltaAnalogGainL;
+  188   1        U8 deltaMicDigitalGainL, deltaMicAnalogGainL_R, deltaMicAnalogGainL_L;
+  189   1        U8 soundLevel, isMute;
+  190   1        
+  191   1        soundLevel = gMMI_LineIn_ctl.currentsoundLevel;
+  192   1        volPtr->soundLevel = soundLevel;
+  193   1        isMute = (soundLevel)?FALSE:TRUE;
+  194   1        if(soundLevel)
+  195   1          soundLevel--;
+  196   1      
+  197   1        spkGainSetIndex = GET_LINEIN_SPK_GAIN_BY_LEVEL(soundLevel);
+  198   1        micGainSetIndex = GET_LINEIN_MIC_GAIN_BY_LEVEL(soundLevel);
+  199   1      
+  200   1        volPtr->spkVols = MMI_SPK_GAINSET[spkGainSetIndex].digitalGainL;
+  201   1        volPtr->analogDaGain = MMI_SPK_GAINSET[spkGainSetIndex].analogGainL;
+  202   1        volPtr->micVols = MMI_MIC_GAINSET[micGainSetIndex].digitalGainL;
+  203   1        volPtr->analogAdGain_R = MMI_MIC_GAINSET[micGainSetIndex].analogGainL_R;
+  204   1        volPtr->analogAdGain_L = MMI_MIC_GAINSET[micGainSetIndex].analogGainL_L;
+  205   1        volPtr->smallStepLevel = gMMI_LineIn_ctl.smallStepVol;
+  206   1      
+  207   1        if(gMMI_LineIn_ctl.smallStepVol && gMMI_LineIn_ctl.currentsoundLevel && !isMute)
+  208   1        {
+  209   2          deltaDigitalGainL = MMI_LineIn_SmallStepGainCalculator(MMI_SPK_GAINSET[GET_LINEIN_SPK_GAIN_BY_LEVEL(sou
+             -ndLevel+1)].digitalGainL, MMI_SPK_GAINSET[spkGainSetIndex].digitalGainL);
+  210   2          deltaAnalogGainL = MMI_LineIn_SmallStepGainCalculator(MMI_SPK_GAINSET[GET_LINEIN_SPK_GAIN_BY_LEVEL(soun
+             -dLevel+1)].analogGainL, MMI_SPK_GAINSET[spkGainSetIndex].analogGainL);
+  211   2          deltaMicDigitalGainL = MMI_LineIn_SmallStepGainCalculator(MMI_MIC_GAINSET[GET_LINEIN_MIC_GAIN_BY_LEVEL(
+             -soundLevel+1)].digitalGainL, MMI_MIC_GAINSET[micGainSetIndex].digitalGainL);
+  212   2          deltaMicAnalogGainL_R = MMI_LineIn_SmallStepGainCalculator(MMI_MIC_GAINSET[GET_LINEIN_MIC_GAIN_BY_LEVEL
+             -(soundLevel+1)].analogGainL_R, MMI_MIC_GAINSET[micGainSetIndex].analogGainL_R);
+  213   2          deltaMicAnalogGainL_L = MMI_LineIn_SmallStepGainCalculator(MMI_MIC_GAINSET[GET_LINEIN_MIC_GAIN_BY_LEVEL
+             -(soundLevel+1)].analogGainL_L, MMI_MIC_GAINSET[micGainSetIndex].analogGainL_L);
+  214   2      
+  215   2          volPtr->spkVols += deltaDigitalGainL;
+  216   2          volPtr->analogDaGain += deltaAnalogGainL;
+  217   2          volPtr->micVols += deltaMicDigitalGainL;
+  218   2          volPtr->analogAdGain_R+= deltaMicAnalogGainL_R;
+  219   2          volPtr->analogAdGain_L+= deltaMicAnalogGainL_L;
+  220   2        } 
+  221   1      }
+  222          
+  223          PUBLIC void MMI_LineIn_SendDriverVolCmd(void)
+  224          {
+  225   1        MMIMsgType XDATA_PTR msgPtr = MMI_GetMMIMsgTypeCmdMemory(DRIVER_LINE_IN_VOLUME_SET_CMD);
+  226   1      
+  227   1        if(msgPtr != (MMIMsgType XDATA_PTR)NULL)
+  228   1        {
+  229   2          MMI_LineIn_SetDriverVolPara(&msgPtr->msgBodyPtr.driverCmd.lineInVolSetCmd);
+  230   2          
+  231   2          OSMQ_Put(OSMQ_DRIVER_Command_ptr, (U8 XDATA_PTR)msgPtr);
+  232   2      
+  233   2          LightDbgPrint("LineIn SoundLevel:%d", (U8)gMMI_LineIn_ctl.currentsoundLevel);
+  234   2      
+  235   2          #ifdef AIR_MODULE
+  236   2          MMI_AIR_LineInDriverVolChange();
+  237   2          #endif
+  238   2          #ifdef SUPPORT_MIC_IN_A2DP_MODE
+  239   2          DEFAULT_LINEIN_SOUND_LEVEL = gMMI_LineIn_ctl.currentsoundLevel;
+  240   2          MMI_SECTOR_SetUpdateFlag(TRUE);
+  241   2          #endif
+  242   2        }
+  243   1      }
+C251 COMPILER V5.57.0,  MMI_LineIn                                                         08/11/20  06:33:53  PAGE 5   
+
+  244          
+  245          PUBLIC void MMI_LineIn_SetVolByLevel(U8 soundLevel, U8 smallStep)
+  246          {
+  247   1        gMMI_LineIn_ctl.currentsoundLevel = soundLevel;
+  248   1        gMMI_LineIn_ctl.smallStepVol = smallStep;
+  249   1        gMMI_LineIn_ctl.absVolume = MMI_AVRCP_SoundLevelToAbsoluteVol(gMMI_LineIn_ctl.currentsoundLevel, (U8)MMI
+             -_MAX_LINE_IN_SOUND_LEVEL(), gMMI_LineIn_ctl.smallStepVol, MMI_LINE_IN_SMALL_STEP_LEVELS());
+  250   1      }
+  251          
+  252          PUBLIC void MMI_LineIn_SetDSPSoundbarDownsampleSel(U8 DSPSoundbarDownsampleSel)
+  253          {
+  254   1        gMMI_LineIn_ctl.DSPSoundbarDownsampleSel = DSPSoundbarDownsampleSel;
+  255   1      }
+  256          
+  257          PUBLIC void MMI_LineIn_NotifyDSPStatus(BOOL isEnable)
+  258          {
+  259   1        gMMI_LineIn_ctl.isDSPOpen = isEnable;
+  260   1        if(isEnable)
+  261   1        {
+  262   2          DriverVolumeSetCmd LDATA volPAra;
+  263   2          MMI_LineIn_SetDriverVolPara(&volPAra);
+  264   2          DRIVER_SetLineInVolPara(&volPAra);
+  265   2          MMI_LineIn_SendDriverVolCmd();
+  266   2        }
+  267   1      }
+  268          
+  269          PUBLIC BOOL MMI_LineIn_IsDSPOpen(void)
+  270          {
+  271   1        return gMMI_LineIn_ctl.isDSPOpen;
+  272   1      }
+  273          
+  274          PUBLIC U8 MMI_LineIn_GetSoundLevel(void)
+  275          {
+  276   1        return gMMI_LineIn_ctl.currentsoundLevel;
+  277   1      }
+  278          
+  279          PUBLIC U8 MMI_LineIn_GetSmallStepVol(void)
+  280          {
+  281   1        return gMMI_LineIn_ctl.smallStepVol;
+  282   1      }
+  283          
+  284          PRIVATE void MMI_LineIn_KeyPowerOn(U8 linkIndex)
+  285          {
+  286   1        if(MMI_DRV_AudioDeviceRegister(MMI_EOF, AUDIO_DEVICE_LINE_IN))
+  287   1        {
+  288   2          if(MMI_NO_CONNECTION_IN_LINE_IN_FEAT)
+  289   2          {
+  290   3            MMI_PROTOCOL_RelAllLinks();
+  291   3          }
+  292   2          if (MMI_ENTER_LINEIN_SEND_AVRCP_PAUSE_FEAT)
+  293   2          {
+  294   3            #ifdef AVRCP_Profile
+  295   3            if (MMI_AVRCP_IsMusicPlaying(linkIndex) && MUSIC_EXISTS(linkIndex))
+  296   3            {
+  297   4              MMI_AVRCP_CmdGenerator(linkIndex, AVRCP_SEND_OPERATION, AVC_OPERATION_KEY_PAUSE);
+  298   4            }
+  299   3            #else
+                     UNUSED(linkIndex);
+                     #endif
+  302   3          }
+  303   2          MMI_AddTopState(MMI_EOF, MMI_LINE_IN);
+  304   2        }
+  305   1      }
+  306          
+  307          PRIVATE void MMI_LineIn_KeyPowerOff(U8 linkIndex)
+  308          {
+C251 COMPILER V5.57.0,  MMI_LineIn                                                         08/11/20  06:33:53  PAGE 6   
+
+  309   1        UNUSED(linkIndex);
+  310   1        if (MMI_CheckNestState(MMI_EOF, MMI_LINE_IN))
+  311   1        {   
+  312   2          MMI_RmvState(MMI_EOF, MMI_LINE_IN);
+  313   2          if(!MMI_DRV_IsAudioDeviceRegistered(MMI_EOF, AUDIO_DEVICE_FM))
+  314   2            MMI_PushMediaEvent(MEDIA_EVT_EXIT_LINE_IN_MODE);
+  315   2          
+  316   2      label_clear_line_in:  
+  317   2          MMI_DRV_AudioDeviceDeRegister(MMI_EOF, AUDIO_DEVICE_LINE_IN);
+  318   2          MMI_DRV_ResumeOtherAudioDevice(MMI_EOF, AUDIO_DEVICE_LINE_IN);    
+  319   2          if(MMI_NO_CONNECTABLE_IN_LINE_IN_FEAT)
+  320   2          {
+  321   3            MMI_ConnectabilityHandle(CMD_SET_RESUME_CONNECTABLE);
+  322   3          }
+  323   2      
+  324   2          if(MMI_NO_DISCAVERABLE_IN_LINE_IN_FEAT)
+  325   2          {
+  326   3            MMI_DiscoverabilityHandle(CMD_SET_RESUME_DISCOVERABLE);
+  327   3          }
+  328   2      
+  329   2          if(MMI_NO_CONNECTION_IN_LINE_IN_FEAT)
+  330   2          {
+  331   3            if(gMMI_ctl.miscMask4 & MMI_MASK4_RECONNECT_LINK0)
+  332   3              MMI_Reconnect(RECONNECT_FIRST_ONCE);
+  333   3            if((gMMI_ctl.miscMask4 & MMI_MASK4_RECONNECT_LINK1))
+  334   3              MMI_Reconnect(RECONNECT_SECONDARY_ONCE);
+  335   3            gMMI_ctl.miscMask4 &= ~(MMI_MASK4_RECONNECT_LINK0 |MMI_MASK4_RECONNECT_LINK1);
+  336   3          }
+  337   2        }
+  338   1        else if (!MMI_CheckNestState(MMI_EOF, MMI_LINE_IN)
+  339   1          && MMI_DRV_IsAudioDeviceRegistered(DEFAULT_LINK_IND, AUDIO_DEVICE_LINE_IN))
+  340   1        {
+  341   2          LightDbgPrint("Clear Line-in audiodev only");
+  342   2          goto label_clear_line_in;
+  343   2        }
+  344   1      }
+  345          
+  346          PRIVATE void MMI_LineIn_KeyMuteToggle(U8 linkIndex)
+  347          {
+  348   1        UNUSED(linkIndex);
+  349   1        if(!DRIVER_IsLineInMute())
+  350   1        {
+  351   2          MMI_LineIn_MuteControl(TRUE);
+  352   2          MMI_PushMediaEvent(MEDIA_EVT_MUTE_ON);
+  353   2        }
+  354   1        else
+  355   1        {
+  356   2          MMI_PushMediaEvent(MEDIA_EVT_MUTE_OFF);
+  357   2        }
+  358   1      }
+  359          
+  360          PRIVATE U16 MMI_LineIn_CheckKeyPowerOn(U16 keyCode)
+  361          {
+  362   1        if(!MMI_NO_CONNECTION_IN_LINE_IN_FEAT)
+  363   1        {
+  364   2          if(MMI_EXIT_LINE_IN_WHEN_BT_CONNECED_FEAT && MMI_CheckProfileOnAllLinks())
+  365   2          {
+  366   3            keyCode = KEY_INVALID;
+  367   3          }
+  368   2          else if(MMI_DRV_IsHighPriAudioDeviceRegistered(AUDIO_DEVICE_LINE_IN))
+  369   2          {
+  370   3            keyCode = KEY_INVALID;
+  371   3            DRIVER_ResetLineInKeyTimer();
+  372   3          }
+  373   2        }
+  374   1      
+C251 COMPILER V5.57.0,  MMI_LineIn                                                         08/11/20  06:33:53  PAGE 7   
+
+  375   1        if(MMI_CheckNestState(MMI_EOF, MMI_LINE_IN) 
+  376   1          || gMMI_LineIn_ctl.isLineInProhibited
+  377   1          || MMI_DRV_IsAudioDeviceRegistered(DEFAULT_LINK_IND, AUDIO_DEVICE_LINE_IN))
+  378   1        {
+  379   2          keyCode = KEY_INVALID;
+  380   2        }
+  381   1        #ifdef AIR_MODULE
+  382   1        MMI_AIR_CheckKeyLineInPowerOn(keyCode);
+  383   1        #endif
+  384   1        return keyCode;
+  385   1      }
+  386          
+  387          
+  388          PRIVATE void MMI_LineInEntry(U8 linkIndex)
+  389          {
+  390   1        U8 i;
+  391   1        UNUSED(linkIndex);
+  392   1      
+  393   1        if(MMI_NO_CONNECTABLE_IN_LINE_IN_FEAT)
+  394   1          MMI_ConnectabilityHandle(CMD_SET_NON_CONNECTABLE_ANYWAY);
+  395   1      
+  396   1        if(MMI_NO_DISCAVERABLE_IN_LINE_IN_FEAT)
+  397   1          MMI_DiscoverabilityHandle(CMD_SET_NON_DISCOVERABLE_ANYWAY);
+  398   1      
+  399   1        MMI_PushMediaEvent(MEDIA_EVT_ENTER_LINE_IN_MODE);
+  400   1      
+  401   1        SYS_ReleaseTimer(&gMMI_ctl.audioDevCtl.resumeTimer);
+  402   1      
+  403   1        for(i = 0; i < MAX_MULTI_POINT_NO; i++)
+  404   1        {
+  405   2          if(gMMI_ctl.sdapCtl[i].remoteApplicationID == PRODUCT_AIR_NONE)
+  406   2            MMI_HCI_SendRelSco(i);
+  407   2        }
+  408   1        #ifdef AIR_MODULE
+  409   1        MMI_AIR_EnterLineInState();
+  410   1        #endif
+  411   1      }
+  412          
+  413          PRIVATE void MMI_LineInHandler(U8 linkIndex, MMIMsgType XDATA_PTR msgPtr)
+  414          {
+  415   1        UNUSED(linkIndex);
+  416   1      
+  417   1        if (msgPtr->eventCode== DRIVER_FAKE_MEDIA_VP_RINGTONE_EVENT)
+  418   1        {
+  419   2          if(msgPtr->msgBodyPtr.driverEvt.fakeMediaEvt.id == MEDIA_EVT_ENTER_LINE_IN_MODE)
+  420   2          {
+  421   3            MMI_LineIn_DriverCmd(DRIVER_LINE_IN_CMD);
+  422   3          }
+  423   2          else if(msgPtr->msgBodyPtr.driverEvt.fakeMediaEvt.id == MEDIA_EVT_MUTE_OFF)
+  424   2          {
+  425   3            MMI_LineIn_MuteControl(FALSE);
+  426   3          }
+  427   2        }
+  428   1        gMMI_ctl.msgHandled = NOTPROCD;
+  429   1      }
+  430          
+  431          PRIVATE void MMI_LineInExit(U8 linkIndex)
+  432          {
+  433   1        UNUSED(linkIndex);
+  434   1        #ifdef AIR_MODULE
+  435   1        MMI_AIR_ExitLineInState();
+  436   1        #endif
+  437   1      
+  438   1        MMI_LineIn_DriverCmd(DRIVER_STOP_LINE_IN_CMD);
+  439   1      }
+  440          
+C251 COMPILER V5.57.0,  MMI_LineIn                                                         08/11/20  06:33:53  PAGE 8   
+
+  441          PUBLIC void MMI_LineIn_DriverCmd(U8 LineInCmd)
+  442          {
+  443   1        MMIMsgType XDATA_PTR msgPtr;
+  444   1      
+  445   1        msgPtr = MMI_GetMMIMsgTypeCmdMemory(LineInCmd);
+  446   1      
+  447   1        if(LineInCmd == DRIVER_LINE_IN_CMD )
+  448   1        {
+  449   2          #ifdef AIR_MODULE
+  450   2          if(GET_PRODUCT_AIR_TYPE(MMI_PNP_PRODUCT_VER)== PRODUCT_AIR_SOUNDBAR)
+  451   2          {
+  452   3            msgPtr->msgBodyPtr.driverCmd.auxCmd.m2d_ctl.para.linein_start_para.feature_sel.SOUNDBAR_ESCO_RELAY = S
+             -OUNDBAR_MIX_TWO_CHANNEL;
+  453   3            msgPtr->msgBodyPtr.driverCmd.auxCmd.m2d_ctl.para.linein_start_para.feature_sel.SOUNDBAR_DOWNSAMPLE_MET
+             -HOD = gMMI_LineIn_ctl.DSPSoundbarDownsampleSel;
+  454   3            msgPtr->msgBodyPtr.driverCmd.auxCmd.m2d_ctl.para.linein_start_para.feature_sel.SOUNDBAR_EXTERNAL_MCU =
+             - gMMI_nvram.airPara.relayScoSource;
+  455   3            #ifdef CELT_MODULE
+                     msgPtr->msgBodyPtr.driverCmd.auxCmd.m2d_ctl.para.linein_start_para.feature_sel.SOUNDBAR_ESCO_PACKET_LE
+             -NGTH = 336;  //HCIPKTYPE_AIROHA_PKT_2EV5_FOR_CELT
+                     msgPtr->msgBodyPtr.driverCmd.auxCmd.m2d_ctl.para.linein_start_para.feature_sel.SOUNDBAR_ESCO_BANDWITH 
+             -= 16000L;    //HCIPKTYPE_AIROHA_PKT_2EV5_FOR_CELT
+                     #else
+  459   3            switch(MMI_AUX_FS_SEL)
+  460   3            {
+  461   4              case PCM_FS_SEL_2KHZ:
+  462   4                msgPtr->msgBodyPtr.driverCmd.auxCmd.m2d_ctl.para.linein_start_para.feature_sel.SOUNDBAR_ESCO_PACKET_
+             -LENGTH = 60; //HCIPKTYPE_AIROHA_PKT_24SLOTS
+  463   4                msgPtr->msgBodyPtr.driverCmd.auxCmd.m2d_ctl.para.linein_start_para.feature_sel.SOUNDBAR_ESCO_BANDWIT
+             -H = 4000L;   //HCIPKTYPE_AIROHA_PKT_24SLOTS
+  464   4                break;
+  465   4              case PCM_FS_SEL_8KHZ:
+  466   4                msgPtr->msgBodyPtr.driverCmd.auxCmd.m2d_ctl.para.linein_start_para.feature_sel.SOUNDBAR_ESCO_PACKET_
+             -LENGTH = 60; //HCIPKTYPE_AIROHA_PKT_6SLOTS
+  467   4                msgPtr->msgBodyPtr.driverCmd.auxCmd.m2d_ctl.para.linein_start_para.feature_sel.SOUNDBAR_ESCO_BANDWIT
+             -H = 16000L; //HCIPKTYPE_AIROHA_PKT_6SLOTS
+  468   4                break;
+  469   4              case PCM_FS_SEL_4KHZ:
+  470   4                msgPtr->msgBodyPtr.driverCmd.auxCmd.m2d_ctl.para.linein_start_para.feature_sel.SOUNDBAR_ESCO_PACKET_
+             -LENGTH = 60; //HCIPKTYPE_AIROHA_PKT_12SLOTS
+  471   4                msgPtr->msgBodyPtr.driverCmd.auxCmd.m2d_ctl.para.linein_start_para.feature_sel.SOUNDBAR_ESCO_BANDWIT
+             -H = 8000L; //HCIPKTYPE_AIROHA_PKT_12SLOTS
+  472   4              default:
+  473   4                ASSERT(FALSE);
+  474   4                break;
+  475   4            }
+  476   3            #endif
+  477   3          }
+  478   2          else if(GET_PRODUCT_AIR_TYPE(MMI_PNP_PRODUCT_VER)== PRODUCT_AIR_SCO_WOOFER)
+  479   2          {
+  480   3            msgPtr->msgBodyPtr.driverCmd.auxCmd.m2d_ctl.para.linein_start_para.feature_sel.SOUNDBAR_ESCO_RELAY = S
+             -OUNDBAR_MIX_TWO_CHANNEL;
+  481   3            msgPtr->msgBodyPtr.driverCmd.auxCmd.m2d_ctl.para.linein_start_para.feature_sel.WOOFER_LPF_ENABLE = TRU
+             -E;
+  482   3            msgPtr->msgBodyPtr.driverCmd.auxCmd.m2d_ctl.para.linein_start_para.feature_sel.LPF_CUTOFF_FREQ_SEL = (
+             -U16)gMMI_nvram.airPara.LPFCutFreq;
+  483   3          }
+  484   2          #endif
+  485   2          if(gMMI_LineIn_ctl.isPayloadEncode)
+  486   2          {
+  487   3            msgPtr->msgBodyPtr.driverCmd.auxCmd.m2d_ctl.para.linein_start_para.feature_sel.PAYLOAD_ENCODE = TRUE;
+  488   3          }
+  489   2          #ifdef A2DP_SRC_Profile
+                   msgPtr->msgBodyPtr.driverCmd.auxCmd.m2d_ctl.para.linein_start_para.feature_sel.PAYLOAD_ENCODE = TRUE;
+                   #endif
+  492   2        } 
+C251 COMPILER V5.57.0,  MMI_LineIn                                                         08/11/20  06:33:53  PAGE 9   
+
+  493   1        OSMQ_Put(OSMQ_DRIVER_Command_ptr, (U8 XDATA_PTR)msgPtr);
+  494   1      }
+  495          
+  496          PUBLIC void MMI_LineIn_MuteControl(BOOL isMuteOn)
+  497          {
+  498   1        DRIVER_SetLineInMuteUnMute((isMuteOn)?TRUE:FALSE);
+  499   1      }
+  500          
+  501          PRIVATE U8 MMI_LineIn_SmallStepGainCalculator(U8 gainHigh, U8 gainLow)
+  502          {
+  503   1        return (((gainHigh-gainLow)/(gMMI_nvram.smallStepVolume.lineInVolumeSmallStep+1))*gMMI_LineIn_ctl.smallS
+             -tepVol);
+  504   1      }
+  505          
+  506          PUBLIC void MMI_LineIn_EncodedDataHandler(void)
+  507          {
+  508   1        U8 XDATA_PTR ptr1;
+  509   1        
+  510   1        while(ptr1 = (U8 XDATA_PTR)OSMQ_MCU_DSP_Get(OSMQ_DSP_LineIn_Encoded_Payload_ptr))
+  511   1        {
+  512   2          #ifdef A2DP_Profile
+  513   2          if(MMI_LineIn_IsDSPOpen())
+  514   2          {
+  515   3            if(!MMI_A2DP_EncodedDataHandler(ptr1))
+  516   3              OSMEM_Put(ptr1);
+  517   3          }
+  518   2          else
+  519   2          #endif
+  520   2          {
+  521   3            OSMEM_Put(ptr1);
+  522   3          }
+  523   2        }
+  524   1      }
+  525          
+  526          PUBLIC void MMI_LineIn_DisableFunction(void)
+  527          {
+  528   1        gMMI_LineIn_ctl.isLineInProhibited = TRUE;
+  529   1        if(MMI_CheckNestState(MMI_EOF, MMI_LINE_IN))
+  530   1        {
+  531   2          MMI_PushMediaEvent(KEY_EXIT_LINEIN_MODE);
+  532   2          MMI_DRV_KeyEventHandler(gMMI_ctl.serviceInd, KEY_EXIT_LINEIN_MODE);
+  533   2        }
+  534   1      }
+  535          
+  536          PUBLIC void MMI_LineIn_EnableFunction(void)
+  537          {
+  538   1        gMMI_LineIn_ctl.isLineInProhibited = FALSE;
+  539   1        DRIVER_ResetLineInKeyTimer();
+  540   1      }
+  541          
+  542          PUBLIC void MMI_LineIn_AbsVolToSoundLevel(U8 absVol)
+  543          {
+  544   1        U8 i;
+  545   1      
+  546   1        gMMI_LineIn_ctl.absVolume = absVol;
+  547   1        
+  548   1        if(absVol == 0)
+  549   1          i = 0;
+  550   1        else if(absVol == AVRCP_ABSOLUTE_VOLUME_MAX)
+  551   1          i = MMI_MAX_LINE_IN_SOUND_LEVEL();
+  552   1        else
+  553   1          i = ((U16)absVol * MMI_MAX_LINE_IN_SOUND_LEVEL() + (AVRCP_ABSOLUTE_VOLUME_FULL_RANGE / 2)) 
+  554   1            /AVRCP_ABSOLUTE_VOLUME_FULL_RANGE;
+  555   1      
+  556   1        if(i != MMI_LineIn_GetSoundLevel())
+  557   1        {
+C251 COMPILER V5.57.0,  MMI_LineIn                                                         08/11/20  06:33:53  PAGE 10  
+
+  558   2          gMMI_LineIn_ctl.currentsoundLevel = i;
+  559   2          gMMI_LineIn_ctl.smallStepVol = 0;
+  560   2        }
+  561   1      }
+  562          
+  563          PUBLIC U8 MMI_LineIn_GetAbsVolByLineIn(void)
+  564          {
+  565   1        return gMMI_LineIn_ctl.absVolume;
+  566   1      }
+  567          
+  568          PRIVATE void MMI_LineIn_ResumeEncoder(U8 currState, U8 oldState)
+  569          {
+  570   1        if(oldState != currState && MMI_DRV_IsAudioActiveDev(MMI_EOF, AUDIO_DEVICE_LINE_IN) && !gMMI_ctl.audioDe
+             -vCtl.resumeTimer)
+  571   1        {
+  572   2          MMI_LineIn_DriverCmd(DRIVER_STOP_LINE_IN_CMD);
+  573   2          MMI_LineIn_DriverCmd(DRIVER_LINE_IN_CMD); 
+  574   2        }
+  575   1      }
+  576          
+  577          PUBLIC void MMI_LineIn_EnablePayloadEncoder(void)
+  578          {
+  579   1        U8 oldIsPayloadEncode = gMMI_LineIn_ctl.isPayloadEncode;
+  580   1        
+  581   1        gMMI_LineIn_ctl.isPayloadEncode = TRUE;
+  582   1        
+  583   1        MMI_LineIn_ResumeEncoder(TRUE, oldIsPayloadEncode);
+  584   1      }
+  585          
+  586          PUBLIC void MMI_LineIn_DisablePayloadEncoder(void)
+  587          {
+  588   1        U8 oldIsPayloadEncode = gMMI_LineIn_ctl.isPayloadEncode;
+  589   1        
+  590   1        gMMI_LineIn_ctl.isPayloadEncode = FALSE;
+  591   1        
+  592   1        MMI_LineIn_ResumeEncoder(FALSE, oldIsPayloadEncode);
+  593   1      }
+  594          
+  595          
+  596          #endif
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =      2331     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =         4     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       162     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,94 @@
+C251 COMPILER V5.57.0,  sector_boundary_header                                             08/11/20  06:32:06  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_boundary_header
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\sector_boundary_header.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\SectorBoundary\sector_boundary_header.c XSMALL HPTR FUNC
+                    -TIONS(REENTRANT) ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\sourc
+                    -e\ABSDRIVER;.\source\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\RO
+                    -M\HC;.\source\ROM\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\sourc
+                    -e\ROM\GAP;.\source\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Co
+                    -nfig1;.\source\SECTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\
+                    -SECTOR\ToolMisc) DEFINE(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LS
+                    -T\AB1520D_AiroStereoHeadset\sector_boundary_header.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\sector_boundar
+                    -y_header.obj) 
+
+stmt  level    source
+
+    1          /*
+    2           * AIROHA Bluetooth Device Firmware
+    3           * COPYRIGHT (C) 2014 AIROHA TECHNOLOGY CORP. CO., LTD. ALL RIGHTS RESERVED
+    4           *
+    5           * sector_boundary_header.c defines the mp parameters.
+    6           *
+    7           * Programmer : DingaCheng@airoha.com.tw, Ext.2828
+    8           */
+    9           // -
+   10          #include "config.h"
+   11          #include "cpu.h"
+   12          #include "sectors.h"
+   13          #include "sector_boundary.h"
+   14          
+   15          #pragma userclass (HCONST = CFGHEAD)
+   16          
+   17          
+   18          EXTERN SECTOR_MP_PARAMETER_STRU CODE gSector_MpParameter;
+   19          #ifdef AB1520B
+               EXTERN SECTOR_PATCH_CODE_INIT_STRU CODE gSector_SysPatchCodeInit;
+               #endif
+   22          EXTERN SECTOR_MP_PARAMETER_F_STRU CODE gSector_MpParameter_F;
+   23          
+   24          #ifdef SUPPORT_VOICE_COMMAND
+   25          EXTERN SECTOR_DRIVER_VOICE_COMMAND_APD_STRU CODE gDriverVoiceCommandAPDData;
+   26          #endif
+   27          
+   28          #undef SECTORS_ENUM_MACRO
+   29          #define SECTORS_ENUM_MACRO(SECTOR_NAME, SECTOR_INIT, SECTOR_SIZE, ATTR) {(U8 CODE_PTR)SECTOR_INIT, SECTOR
+             -_SIZE, ATTR},
+   30          
+   31          
+   32          
+   33          ////////////////////////////////////////////////////////////////////////////////
+   34          // Global Variables ////////////////////////////////////////////////////////////
+   35          ////////////////////////////////////////////////////////////////////////////////
+   36          SECTOR_BOUNDARY_HEADER_STRU CODE gSectorBoundaryHeader =
+   37          {
+   38              NUM_OF_SECTOR_BOUNDARY,
+   39          
+   40              {
+   41                #include "sector_boundary_member.h"
+   42            },
+   43          
+   44            //- CRC
+   45            {0,0}
+   46          };
+   47          
+   48          
+   49          
+   50          
+C251 COMPILER V5.57.0,  sector_boundary_header                                             08/11/20  06:32:06  PAGE 2   
+
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =        57     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

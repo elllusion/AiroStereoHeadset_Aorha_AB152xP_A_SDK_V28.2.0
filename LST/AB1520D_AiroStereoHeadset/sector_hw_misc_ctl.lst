@@ -1,0 +1,121 @@
+C251 COMPILER V5.57.0,  sector_hw_misc_ctl                                                 08/11/20  06:32:17  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_hw_misc_ctl
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\sector_hw_misc_ctl.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\Config0\sector_hw_misc_ctl.c XSMALL HPTR FUNCTIONS(REENT
+                    -RANT) ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER
+                    -;.\source\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\sour
+                    -ce\ROM\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.
+                    -\source\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\sou
+                    -rce\SECTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\Tool
+                    -Misc) DEFINE(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_A
+                    -iroStereoHeadset\sector_hw_misc_ctl.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\sector_hw_misc_ctl.obj) 
+
+stmt  level    source
+
+    1          /*
+    2           * AIROHA Bluetooth Device Firmware
+    3           * COPYRIGHT (C) 2014 AIROHA TECHNOLOGY CORP. CO., LTD. ALL RIGHTS RESERVED
+    4           *
+    5           * sector_hw_misc_ctl.c defines the HW parameters.
+    6           *
+    7           * Programmer : CharlesSu@airoha.com.tw, Ext.2882
+    8           */
+    9          #include "config.h"
+   10          #include "cpu.h"
+   11          #include "sector_hw_misc_ctl.h"
+   12          
+   13          #pragma userclass (HCONST = CONFIG)
+   14          
+   15          
+   16          ////////////////////////////////////////////////////////////////////////////////
+   17          // Global Variables ////////////////////////////////////////////////////////////
+   18          ////////////////////////////////////////////////////////////////////////////////
+   19          SECTOR_HW_MISC_CTL_STRU CODE gSector_HwMiscCtl =
+   20          {
+   21              {
+   22              //For Power Control
+   23              //Default in BITE : -36 ~ -56, so we use -36 + 90 = 54 and -56 + 90 = 34.
+   24          
+   25              //Commented by Eric, 09.5.18
+   26              //The RSSI upper and lower bound value we used for LM qualification is 40 and 20
+   27              //BITE settings :
+   28              //    Autennuation  = 32   dB
+   29              //    Lower Limit   = -72  dBm
+   30              //    Upper Limit   = -52  dBm
+   31              //    Fixed Decrease  = -20  dB
+   32              //
+   33              //Besides, there is an autennuator on our RF board, its autennuation is -10 dB
+   34              //
+   35              //To sum up, the final RSSI value we get is :
+   36              //    -72 + 32 - 20 - 10 + 90 = 20
+   37              //    -52 + 32 - 20 - 10 + 90 = 40
+   38          
+   39              0,   //U8 RSSI_GoldenRange_UpperBound;
+   40              -45,    //U8 RSSI_GoldenRange_LowerBound;
+   41              #ifdef TWS_SETTINGS
+   42                  25,
+   43              #else
+                       #ifdef BLUETOOTH_SPEAKER //- no sleep
+                   10,
+                   #else
+                   25,
+                   #endif
+                   #endif
+   50                50,//25,    //- 25 * 10 = 250ppm
+   51          
+   52                  //- ADC0UpdatePeriod;   // in ms. This vaiable is better same as SFR setting
+C251 COMPILER V5.57.0,  sector_hw_misc_ctl                                                 08/11/20  06:32:17  PAGE 2   
+
+   53                  {
+   54                      //- update_period : 0 is disable
+   55                      1000,
+   56                      //- ViChg_avg_depth
+   57                      1,
+   58                      //- VBat_avg_depth
+   59                      1,
+   60                      //- VChg_avg_depth
+   61                      1,
+   62                      //- Temp_avg_depth
+   63                      1,
+   64                      //- VBatCal_avg_depth
+   65                      1,
+   66                      //- Vin_avg_depth
+   67                      1
+   68                  },
+   69          
+   70                  //- TemperatureCompensation;
+   71                  1,
+   72          
+   73              },
+   74          
+   75            //- CRC
+   76              {0x10,0x77}
+   77          
+   78          };
+   79          
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =        15     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

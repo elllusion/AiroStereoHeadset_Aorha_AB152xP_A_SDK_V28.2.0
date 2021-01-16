@@ -1,0 +1,57 @@
+".\output\AB1520D_BootCode\rc_bootcode.obj",
+".\output\AB1520D_BootCode\crc8.obj",
+".\output\AB1520D_BootCode\crc16.obj",
+".\output\AB1520D_BootCode\crc16_speedup.obj",
+".\output\AB1520D_BootCode\drv_3wire.obj",
+".\output\AB1520D_BootCode\drv_spiflash.obj",
+".\output\AB1520D_BootCode\drv_3wire_speedup.obj",
+".\output\AB1520D_BootCode\drv_program_flash.obj",
+".\output\AB1520D_BootCode\drv_flash_AB1520C.obj",
+".\output\AB1520D_BootCode\os_bootcode.obj",
+".\output\AB1520D_BootCode\os_heap.obj",
+".\output\AB1520D_BootCode\dfu_loader.obj",
+".\output\AB1520D_BootCode\flash_descriptor_AtBegin.obj",
+".\output\AB1520D_BootCode\flash_descriptor_bootcode.obj",
+".\output\AB1520D_BootCode\BootCode.obj",
+".\output\AB1520D_BootCode\sector_config0_header_bootcode.obj",
+".\output\AB1520D_BootCode\os_memory_bootcode.obj" 
+TO ".\output\AB1520D_BootCode\BTStereoHeadset_AB1520D_BootCode"
+MERGEPUBLICS
+
+CLASSES (
+        BIT                     (D:0x22-D:0x2F),
+        DATA                    (D:0x08-0x1F,0x30-D:0x7F),
+        EDATA                   (0x8000-0xEFFF),
+        EDATA_HIEDATA           (0xF000-0xFFDF),
+        ;EDATA_PATCH_PARA        (0xFFE0-0xFFFF),
+
+        ECODE_STARTUP           (0x800040-0x801FFF),
+        HCONST_STARTUP          (0x800040-0x801FFF),
+        ;HCONST_MP_PARAM         (0x802000-0x802FFF),
+        ;HCONST_MP_PARAM_F       (0x802000-0x802FFF),
+        HCONST_DESCRIP          (0x803000-0x8030FF),
+        HCONST_CFGHEAD          (0x803100-0x8032FF),
+        CODE                    (0x803300-0x80FFF7),
+        ECODE                   (0x803300-0x87FFF7),
+        HCONST                  (0x803300-0x889FFF)
+        ;ECODE_FLASH             (0x803300-0x87FFF7),
+        ;HCONST_FLASH            (0x803300-0x887FFF)
+)
+
+SEGMENTS (
+		;DFU use
+		?ED?HIEDATA?OS_HEAP,
+		?ED?HIEDATA?DFU_LOADER,
+		?ED?HIEDATA?DRV_SPIFLASH,
+		?ED?HIEDATA?DRV_FLASH_AB1520C,
+		?ED?HIEDATA?BOOTCODE
+		;;;;
+		
+		;?C_INITEDATA,
+		;?C_INITEDATA_END
+
+)
+
+SPEEDOVL
+NOSORTSIZE
+NOOVERLAY

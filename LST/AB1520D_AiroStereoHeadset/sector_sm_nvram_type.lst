@@ -1,0 +1,80 @@
+C251 COMPILER V5.57.0,  sector_sm_nvram_type                                               08/11/20  06:32:15  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_sm_nvram_type
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\sector_sm_nvram_type.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\sector_sm_nvram_type.c XSMALL HPTR FUNCTIONS(REENTRANT) 
+                    -ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\sou
+                    -rce\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM
+                    -\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\sourc
+                    -e\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SE
+                    -CTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) 
+                    -DEFINE(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroSte
+                    -reoHeadset\sector_sm_nvram_type.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\sector_sm_nvram_type.obj) 
+
+stmt  level    source
+
+    1          //////////////////////////////////////////////////////////
+    2          // Copyright@ 2011 Airoha.  All rights reserved.
+    3          //////////////////////////////////////////////////////////
+    4          #include <config.h>
+    5          #include <cpu.h>
+    6          
+    7          #include "sector_sm_nvram.h"
+    8          
+    9          #pragma userclass (HCONST = CONFIG)
+   10          
+   11          
+   12          PUBLIC SECTOR_SM_NVRAM_STRU CODE gSM_nvram_init =
+   13          {
+   14            {
+   15              1,//SM_SECURITY_MODE1_LEVEL2,   //U8 leSecurityRequirement;
+   16              0,                //U8 oobDataFlag:1;
+   17              1,                //U8 bondingFlag:2;
+   18              0,                //U8 MITM:1;
+   19              3,//SM_IO_NO_INPUT_NO_OUTPUT,   //U8 ioCapability:3;
+   20              0,//SM_BD_ADDR_TYPE_PUBLIC,     //U8 bdAddrType:1;
+   21              0x0F,             //U8 keyDistr;
+   22              16,               //U8 encKeySize;
+   23            },
+   24          
+   25            //- CRC
+   26              {0,0}   
+   27          };
+   28          
+   29          
+   30          
+   31          /*
+   32          #define SM_IO_DISPLAY_ONLY      0x00
+   33          #define SM_IO_DISPLAY_YES_NO    0x01
+   34          #define SM_IO_KEYBOARD_ONLY     0x02  
+   35          #define SM_IO_NO_INPUT_NO_OUTPUT  0x03
+   36          #define SM_IO_KEYBOARD_DISPLAY    0x04
+   37          #define SM_IO_CAPABILITY_MAX    0x05
+   38          */
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+C251 COMPILER V5.57.0,  sector_sm_nvram_type                                               08/11/20  06:32:15  PAGE 2   
+
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =         6     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

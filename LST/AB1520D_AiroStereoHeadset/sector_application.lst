@@ -1,0 +1,57 @@
+C251 COMPILER V5.57.0,  sector_application                                                 08/11/20  06:32:18  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_application
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\sector_application.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\sector_application.c XSMALL HPTR FUNCTIONS(REENTRANT) RO
+                    -M(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\sourc
+                    -e\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\L
+                    -L;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\
+                    -ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECT
+                    -OR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DE
+                    -FINE(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStere
+                    -oHeadset\sector_application.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\sector_application.obj) 
+
+stmt  level    source
+
+    1          
+    2          #include "sector_application.h"
+    3          
+    4          #pragma userclass (HCONST = CONFIG)
+    5          
+    6          
+    7          PUBLIC SECTOR_APPLICATION_STRU CODE gApplication_init =
+    8          {
+    9              {
+   10                  0x0000,                 //U16 appType
+   11                  0x0000,                 //U16 size
+   12                  0x00000000,             //U32 version
+   13              },
+   14              //- CRC
+   15              {0,0}
+   16          };
+   17          
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =        10     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

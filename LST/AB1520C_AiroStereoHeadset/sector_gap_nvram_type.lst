@@ -1,0 +1,66 @@
+C251 COMPILER V5.57.0,  sector_gap_nvram_type                                              08/11/20  05:51:28  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_gap_nvram_type
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\sector_gap_nvram_type.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\sector_gap_nvram_type.c XSMALL HPTR FUNCTIONS(REENTRANT)
+                    - ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\so
+                    -urce\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\RO
+                    -M\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\sour
+                    -ce\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\S
+                    -ECTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc)
+                    - DEFINE(FLASH_INIT=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520C_AiroSt
+                    -ereoHeadset\sector_gap_nvram_type.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\sector_gap_nvram_type.obj) 
+
+stmt  level    source
+
+    1          //////////////////////////////////////////////////////////
+    2          // Copyright@ 2009 Airoha.  All right reserved.
+    3          // Init: N95
+    4          // Target: T9
+    5          //////////////////////////////////////////////////////////
+    6          
+    7          #include "config.h"
+    8          #include "cpu.h"
+    9          #include "sector_gap_nvram_type.h"
+   10          
+   11          #pragma userclass (HCONST = CONFIG)
+   12          
+   13          
+   14          PUBLIC SECTOR_GAP_NVRAM_STRU CODE gGAP_nvram_init =
+   15          {
+   16            {
+   17              {0x33, 0x8B, 0x9E}, //GIAC_Lap
+   18            #ifdef TWS_SETTINGS
+   19              {0x11, 0x8B, 0x9E}, //LIAC_Lap
+   20            #else
+                   {0x11, 0x8B, 0x9E}, //LIAC_Lap
+                 #endif
+   23              {0x05, 0x8B, 0x9E}, //LIAC_Lap_Special
+   24            },
+   25            {0,0}, //CRC
+   26          };
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =        11     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

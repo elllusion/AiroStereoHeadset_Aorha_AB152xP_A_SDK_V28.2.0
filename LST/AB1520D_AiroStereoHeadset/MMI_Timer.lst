@@ -1,0 +1,115 @@
+C251 COMPILER V5.57.0,  MMI_Timer                                                          08/11/20  06:33:28  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE MMI_Timer
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\MMI_Timer.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\MMI\MMI_Timer.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) WARN
+                    -INGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\sourc
+                    -e\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\source\R
+                    -OM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_LE;.
+                    -\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspData;.
+                    -\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLASH_I
+                    -NIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoHeadset\MMI
+                    -_Timer.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\MMI_Timer.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #define _MMI_TIMER_C_
+    4          
+    5          #include "rc.h"
+    6          #include "bt_config_profile.h"
+    7            
+    8          #include "MMI.h"
+    9          #include "MMI_Timer.h"
+   10          #include "MMI_HFP.h"
+   11          #include "MMI_Driver.h"
+   12          #include "MMI_AVRCP.h"
+   13          #include "MMI_A2DP.h"
+   14          #include "MMI_State.h"
+   15          
+   16          PUBLIC void MMI_TIMER_Init(void)
+   17          {
+   18   1        //Initialize : Auto Power ON timer
+   19   1        SYS_SetTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.autoPowerOnTimer, (U32)(gMMI_nvram.timerCtl.AutoPowerOnTime
+             -r) * 320L);
+   20   1      }
+   21          
+   22          
+   23          PUBLIC void MMI_TIMER_ReleaseConnectionTimer(U8 linkIndex)
+   24          {
+   25   1        SYS_ReleaseTimer(&gMMI_ctl.mmiTimerInfo.connTimer[linkIndex].sniffTimerPtr);
+   26   1        SYS_ReleaseTimer(&gMMI_ctl.mmiTimerInfo.connTimer[linkIndex].checkRemoteAGAcceptEnterSniffTimer);
+   27   1        SYS_ReleaseTimer(&gMMI_ctl.mmiTimerInfo.connTimer[linkIndex].refreshEncKeyTimer);
+   28   1        SYS_ReleaseTimer(&gMMI_ctl.mmiTimerInfo.connTimer[linkIndex].nfcDetachIfNoProfileTimer);
+   29   1        SYS_ReleaseTimer(&gMMI_ctl.mmiTimerInfo.connTimer[linkIndex].roleSwitchTimer);
+   30   1        SYS_ReleaseTimer(&gMMI_ctl.mmiTimerInfo.connTimer[linkIndex].delaySDPTimer);
+   31   1        SYS_ReleaseTimer(&gMMI_ctl.mmiTimerInfo.connTimer[linkIndex].delayRemoveConnectedTimer);
+   32   1        
+   33   1      }
+   34          
+   35          PUBLIC void MMI_TIMER_ReleaseAllLinksConnectionTimer(void)
+   36          {
+   37   1        U8 i;
+   38   1        for(i = 0; i < MAX_MULTI_POINT_NO ; i++)
+   39   1        {
+   40   2          MMI_TIMER_ReleaseConnectionTimer(i);
+   41   2          SYS_ReleaseTimer(&gMMI_ctl.mmiTimerInfo.connTimer[i].waitDetachTimer);
+   42   2        }
+   43   1      }
+   44          
+   45          PUBLIC void MMI_TIMER_ResetAutoSwitchOffTimer(void)
+   46          {
+   47   1        if(!gMMI_ctl.activeLinkRecord)
+   48   1        {
+   49   2          if(gMMI_nvram.timerCtl.AutoSwitchOffTimer && !MMI_CheckNestState(MMI_EOF, MMI_CONDISCABLE))
+   50   2          {
+   51   3            SYS_SetTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.autoSwitchOffTimer, (U32)(gMMI_nvram.timerCtl.AutoSwitchO
+C251 COMPILER V5.57.0,  MMI_Timer                                                          08/11/20  06:33:28  PAGE 2   
+
+             -ffTimer) * ONE_SEC);
+   52   3          }
+   53   2        }
+   54   1        else
+   55   1        {
+   56   2          SYS_ReleaseTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.autoSwitchOffTimer);
+   57   2        }
+   58   1      }
+   59          
+   60          PUBLIC void MMI_TIMER_ReleaseDetachTimer(U8 linkIndex)
+   61          {
+   62   1        if(MMI_KEY_STATE_POWER_OFF != MMI_GetKeyState())
+   63   1        {
+   64   2          SYS_ReleaseTimer(&gMMI_ctl.mmiTimerInfo.connTimer[linkIndex].waitDetachTimer);
+   65   2        }
+   66   1      }
+   67          
+   68          PUBLIC void MMI_TIMER_SetDetachTimer(U8 linkIndex, U32 time)
+   69          {
+   70   1        SYS_SetTimer(&gMMI_ctl.mmiTimerInfo.connTimer[linkIndex].waitDetachTimer, time);
+   71   1      }
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =       261     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =    ------     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,119 @@
+C251 COMPILER V5.57.0,  Charger                                                            08/11/20  06:34:28  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE Charger
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\Charger.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SDK\IOSYS\Charger.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) 
+                    -WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\s
+                    -ource\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\sour
+                    -ce\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_
+                    -LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspDa
+                    -ta;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLA
+                    -SH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoHeadset
+                    -\Charger.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\Charger.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #include "rc.h"
+    4          #include "..\SDK_Proxy\SDK_Proxy.h"
+    5          #include "..\MMI\MMI_Base.h"
+    6          
+    7          #define EXTERNAL_CHARGER  0
+    8          
+    9          
+   10          #if EXTERNAL_CHARGER
+               
+               #define HW_CHARGER_STATUS_IDLE    0
+               #define HW_CHARGER_STATUS_TRICKLE 1
+               #define HW_CHARGER_STATUS_CC_MODE 2
+               #define HW_CHARGER_STATUS_CV_INIT 3
+               #define HW_CHARGER_STATUS_CV_MODE 4
+               #define HW_CHARGER_STATUS_COMPLETE  5
+               /*  SDK_CB_Charger_ExternalChgStatus: callback function which is called in NDK when inquirying charger st
+             -atus
+                *  <output>
+                *    U8    :   #define HW_CHARGER_STATUS_IDLE    0
+                *          #define HW_CHARGER_STATUS_TRICKLE 1
+                *          #define HW_CHARGER_STATUS_CC_MODE 2
+                *          #define HW_CHARGER_STATUS_CV_INIT 3
+                *          #define HW_CHARGER_STATUS_CV_MODE 4
+                *          #define HW_CHARGER_STATUS_COMPLETE  5
+                */
+               PRIVATE U8 SDK_CB_Charger_ExternalChgStatus(void)
+               {
+               
+               }
+               
+               /*  SDK_CB_Charger_ExternalChgIn: callback function which is called in NDK when inquirying if charger is 
+             -plugged-in
+                *  <output>
+                *    U8    :   0--> no charger; 1: charger is plugged-in
+                */
+               PRIVATE U8 SDK_CB_Charger_ExternalChgIn(void)
+               {
+               
+               }
+               #endif //EXTERNAL_CHARGER
+   41          
+   42          
+   43          /*  SDK_CB_ChgStatus: callback function which is called in NDK when charger status changes
+   44           *  <input 1>
+   45           *    U8 status :   #define CHG_STATUS_NO_CHARGER 1
+   46           *            #define CHG_STATUS_CHARGER_IN 2
+   47           *            #define CHG_STATUS_CHARGER_RECHARGE 3
+   48           *            #define CHG_STATUS_CHARGER_FULL 4
+   49           */
+   50           /*
+C251 COMPILER V5.57.0,  Charger                                                            08/11/20  06:34:28  PAGE 2   
+
+   51          PRIVATE void SDK_CB_ChgStatus(U8 status)
+   52          {
+   53          
+   54          } */
+   55          
+   56          
+   57          /*  SDK_Charger_IsPluggedIn: check if charger is plugged-in
+   58           *  <output>
+   59           *    BOOL  :   0--> no charger; 1: charger is plugged-in
+   60           */
+   61          PUBLIC BOOL SDK_Charger_IsPluggedIn(void)
+   62          {
+   63   1        return (MMI_IsChargerIn()) ? TRUE : FALSE;
+   64   1      }
+   65          
+   66          PUBLIC void SDK_Charger_Init(void)
+   67          {
+   68   1        #if EXTERNAL_CHARGER
+                 SDK_Proxy_RegisterAPI(API_GRP_IOSYS_CB_CHG_EXT_CHG_STATUS,  API_GRP_IOSYS, (VFUN)SDK_CB_Charger_External
+             -ChgStatus);
+                 SDK_Proxy_RegisterAPI(API_GRP_IOSYS_CB_CHG_EXT_CHG_IN,    API_GRP_IOSYS, (VFUN)SDK_CB_Charger_ExternalChg
+             -In);
+                 #endif
+   72   1        //SDK_Proxy_RegisterAPI(API_GRP_IOSYS_CB_CHG_STATUS,      API_GRP_IOSYS, (VFUN)SDK_CB_ChgStatus);
+   73   1      }
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =        12     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =    ------     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

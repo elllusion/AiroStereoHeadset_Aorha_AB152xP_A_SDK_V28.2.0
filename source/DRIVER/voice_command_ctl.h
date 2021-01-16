@@ -1,0 +1,58 @@
+#ifndef _VOICE_COMMAND_CTL_H_
+#define _VOICE_COMMAND_CTL_H_
+
+#include "os.h"
+#include "bt_config_profile.h"
+
+#define TOTAL_VOICE_COMMAND_PATTERNS			32
+#define TOTAL_VOICE_COMMAND_EVENTS				20
+#define VOICE_COMMAND_TRIGGERED_ACTION_PATTERN	2
+#define MAX_VC_LANG_COUNT						2
+#define VC_SET_NO 3
+#define VC_EVT_TOTAL_EVENT_EVT_BIT 0xFFFFFFFF
+
+#define NO_SECOND_LAYER_DATABASE_ROOT_INDEX 32
+
+typedef struct
+{
+	U16 mediaEvent;
+	U8 actionIndex;
+	U32 triggeredState;
+	U8 continueTriggered;
+}DRIVER_VC_EVENT_TYPE;
+
+typedef struct
+{
+	U32 multiLayerBits[VC_SET_NO];
+	U16 triggeredAction[TOTAL_VOICE_COMMAND_PATTERNS];
+}DRIVER_VC_ACTION_TYPE;
+
+typedef struct
+{
+	U32 evtDataMapBits[TOTAL_VOICE_COMMAND_PATTERNS];
+}DRIVER_VOICE_COMMAND_EVT_DATA_MAP_TYPE;
+
+typedef struct
+{
+	U8 GENERIC_PTR vcDataBasePtr;
+	U8 GENERIC_PTR vcEvtDataMapPtr;
+}DRIVER_VOICE_COMMAND_ADDRESS_TABLE;
+	
+typedef struct
+{
+	DRIVER_VOICE_COMMAND_ADDRESS_TABLE vcAddrTable[MAX_VC_LANG_COUNT];
+	U8 eventNo;
+	U8 actionPatternNo;
+	U8 reserved;
+	U8 rootEvtNum[VC_SET_NO];
+	DRIVER_VC_EVENT_TYPE	vcEventTable[TOTAL_VOICE_COMMAND_EVENTS];
+	DRIVER_VC_ACTION_TYPE	actionTable[VOICE_COMMAND_TRIGGERED_ACTION_PATTERN];
+}DRIVER_VOICE_COMMAND_DATA_TYPE;
+
+typedef struct
+{
+	DRIVER_VOICE_COMMAND_DATA_TYPE voiceCmdData;
+	CRC16 CRC;
+}SECTOR_DRIVER_VOICE_COMMAND_STRU;
+
+#endif

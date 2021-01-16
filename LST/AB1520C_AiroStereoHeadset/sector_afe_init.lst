@@ -1,0 +1,1446 @@
+C251 COMPILER V5.57.0,  sector_afe_init                                                    08/11/20  05:51:28  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_afe_init
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\sector_afe_init.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\Config0\sector_afe_init.c XSMALL HPTR FUNCTIONS(REENTRAN
+                    -T) ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\
+                    -source\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\
+                    -ROM\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\so
+                    -urce\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source
+                    -\SECTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMis
+                    -c) DEFINE(FLASH_INIT=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520C_Airo
+                    -StereoHeadset\sector_afe_init.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\sector_afe_init.obj) 
+
+stmt  level    source
+
+    1          /*
+    2           * AIROHA Bluetooth Device Firmware
+    3           * COPYRIGHT (C) 2014 AIROHA TECHNOLOGY CORP. CO., LTD. ALL RIGHTS RESERVED
+    4           *
+    5           * sector_afe_init.c defines the initialization sequence to setup AFE.
+    6           *
+    7           * Programmer : CharlesSu@airoha.com.tw, Ext.2882
+    8           */
+    9          #include "config.h"
+   10          #include "cpu.h"
+   11          #include "bt_config_profile.h"
+   12          #include "sector_afe_init.h"
+   13          
+   14          #pragma userclass (HCONST = CONFIG)
+   15          
+   16          
+   17          /////////////////////////////////
+   18          //#define AB1520S_5x5_1v5_Diff
+   19          #define AB1520S_6x6_3v_LRVCM
+   20          /////////////////////////////////
+   21          
+   22          
+   23          
+   24          ////////////////////////////////////////////////////////////////////////////////
+   25          // Global Variables ////////////////////////////////////////////////////////////
+   26          ////////////////////////////////////////////////////////////////////////////////
+   27          #if (defined OPERATION_IN_RF_AB1500F_FPGA)
+               SECTOR_AFE_INIT_STRU CODE gSector_AfeInit =
+               {
+                 {
+                     130,    //NumOfAfeRegInit
+               
+                     {
+                         {0x00, 0x99, 0x81},
+                         {0x01, 0x00, 0x00},
+                         {0x02, 0xC1, 0x2F},
+                         {0x03, 0x55, 0x01},
+                         {0x04, 0x21, 0x65},
+                         {0X05, 0xFA, 0x14},
+                         {0X06, 0xA0, 0x82},
+                         {0X07, 0x15, 0x01}, //- VCO TX setting
+                         {0X08, 0x54, 0x54},
+                         {0X09, 0xD8, 0xDB},
+                         {0X0A, 0X55, 0XD1}, // RX
+                         {0X0B, 0x9F, 0x3E},
+                         {0X0C, 0x77, 0x01},
+                         {0X0D, 0xFE, 0x25},
+                         {0X0E, 0x0C, 0xA4},
+                         {0X0F, 0x65, 0xEC},
+                         {0X10, 0x38, 0x40},
+                         {0X11, 0x20, 0xBE},
+                         //{0X12, 0x55, 0x0D},   //- Steve
+C251 COMPILER V5.57.0,  sector_afe_init                                                    08/11/20  05:51:28  PAGE 2   
+
+                         {0X12, 0x55, 0xA5},//{0X12, 0x55, 0xDD},
+                         {0x13, 0x7F, 0xBB}, //- RXADC off, MIC bias off},
+                         {0x14, 0xDE, 0xED}, //- TXDAC off
+                         {0x15, 0x29, 0xAC}, //- disable XO16MtoPMU
+                         {0X16, 0x0F, 0x40},
+                         {0X17, 0X68, 0X00}, //- DAC from pio
+                         {0X18, 0x01, 0x18},
+                         {0X19, 0x80, 0x40},
+                         {0X1A, 0xD7, 0x84},
+                         {0X1B, 0XC9, 0X7F},
+                         {0X1C, 0xC4, 0x60},
+                         {0X1D, 0xD4, 0x17},
+                         {0X1E, 0x1D, 0x10},
+                         {0X1F, 0xCE, 0x00},
+                         {0X20, 0x00, 0x23},
+                         {0X21, 0xFC, 0xD8},
+                         {0X22, 0x96, 0x04},
+                         {0x23, 0xD7, 0x81},
+                         {0X24, 0xFC, 0x06},
+                         {0X25, 0xC9, 0x40},
+                         {0X26, 0x5B, 0x41},
+                         {0X27, 0x04, 0x81},
+                         {0X28, 0x94, 0x93}, //-  turn off temp. sensor
+                         {0X29, 0x00, 0xFF},
+                         {0X2A, 0x3D, 0x85},
+                         {0X2B, 0x00, 0x00},
+                         {0X2C, 0x00, 0x01},
+                         {0X2D, 0xC9, 0x22}, //- NEW 48M
+                         {0X2E, 0x8E, 0xC0},
+                         {0X2F, 0x80, 0x11},
+                         {0X30, 0x85, 0x14},
+                         {0X31, 0XD2, 0X56}, //- DSM Gain
+                         {0X32, 0xC1, 0x42},
+                         {0X33, 0x0F, 0x08},
+                         {0X34, 0x00, 0x42},
+                         {0X35, 0x00, 0xD1},
+                         {0X36, 0x55, 0x47},
+                         {0X37, 0x02, 0x3E}, //- NEW 48M
+                         {0X38, 0x08, 0x00},
+                         {0X39, 0x20, 0x41}, //- NEW 48M
+                         {0X3A, 0xFF, 0xFF},
+                         {0X3B, 0xFF, 0xC0},
+                         {0X3C, 0x4F, 0xA8},
+                         {0X3D, 0x00, 0x01},
+                         {0X3E, 0x4E, 0x97}, //- Steve
+                         {0X3F, 0XF0, 0X5F},
+                         {0X40, 0xC2, 0x98},
+                         {0X41, 0x0F, 0x0A},
+                         {0X42, 0x84, 0x3D}, //-  MIC L/R=IF I/Q
+                         {0X43, 0x66, 0x66},
+                         {0X44, 0x71, 0x9F},
+                         {0X45, 0x02, 0x07},
+                         {0X46, 0x0F, 0x5E},
+                         {0X47, 0x4C, 0xA8},
+                         {0X48, 0xC0, 0x87},
+                         {0X49, 0xBD, 0x10},
+                         {0X4A, 0x00, 0x18},
+               
+                         //  AGC table, test for BT 3.0 & BT 4.0
+                         {0X50, 0x0F, 0xCF}, //- UHG
+                         {0X60, 0x0F, 0xDF},
+                         {0X52, 0x0F, 0xD7},
+                         {0X62, 0x0F, 0xCF},
+                         {0X54, 0x0F, 0xC7},
+                         {0X64, 0x0F, 0x4F}, //- HG
+                         {0X56, 0x0F, 0x47},
+C251 COMPILER V5.57.0,  sector_afe_init                                                    08/11/20  05:51:28  PAGE 3   
+
+                         {0X66, 0x0F, 0x3F},
+                         {0X58, 0x0F, 0x37},
+                         {0X68, 0x0E, 0x67},
+                         {0X5A, 0x0E, 0x5F},
+                         {0X6A, 0x0E, 0x57},
+                         {0X5C, 0x0E, 0x4F}, //- MG
+                         {0X6C, 0x0E, 0x47},
+                         {0X5E, 0x0E, 0x3F},
+                         {0X6E, 0x0E, 0x37},
+                         {0X51, 0x0E, 0x2F},
+                         {0X61, 0x0E, 0x27},
+                         {0X53, 0x0E, 0x1F},
+                         {0X63, 0x0A, 0x4F}, //- LG
+                         {0X55, 0x0E, 0x0F},
+                         {0X65, 0x0E, 0x07},
+                         {0X57, 0x0E, 0x16},
+                         {0X67, 0x0A, 0x27},
+                         {0X59, 0x0A, 0x1F},
+                         {0X69, 0x0A, 0x17},
+                         {0X5B, 0x0A, 0x0F},
+                         {0X6B, 0x0A, 0x07},
+                         {0X5D, 0x0A, 0x16},
+                         {0X6D, 0x06, 0x4F}, //- ULG
+                         {0X5F, 0x06, 0x47},
+                         {0X6F, 0x06, 0x3F},
+               
+                         {0X70, 0x06, 0x2F},
+                         {0X71, 0x06, 0x27},
+                         {0X72, 0x06, 0x1F},
+                         {0X73, 0x06, 0x17},
+                         {0X74, 0x06, 0x0F},
+                         {0X75, 0x06, 0x07},
+                         {0X76, 0x06, 0x16},
+                         {0X77, 0x06, 0x0E},
+                         {0X78, 0x06, 0x06},
+                         {0X79, 0x06, 0x14},
+                         {0X7A, 0x06, 0x0C},
+                         {0X7B, 0x06, 0x04},
+                         {0X7C, 0x06, 0x10},
+                         {0X7D, 0x06, 0x08},
+                         {0X7E, 0x06, 0x00},
+                         {0x8A, 0x01, 0x00},
+                         {0X13, 0xFF, 0xBB},
+                         {0XFE,  147,    0},
+                         {0XFE,  148,   79},
+                         {0XFE,  149,    0},
+                         {0XFE,  150,    0},
+               
+                     //- audio gain(Shawn)
+                     {0xA9, 0x00, 0x01},
+                     {0xA0, 0xC3, 0x80},
+                     }
+                 },
+               
+                 //- CRC
+                   {0x00,0x00}
+               
+               };
+               
+               #elif (defined OPERATION_IN_RF_AB1520)
+  179          
+  180          #if (defined AB1520C)
+  181          
+  182          SECTOR_AFE_INIT_STRU CODE gSector_AfeInit =
+  183          {
+  184            {
+C251 COMPILER V5.57.0,  sector_afe_init                                                    08/11/20  05:51:28  PAGE 4   
+
+  185                169,//168, //NumOfAfeRegInit
+  186          
+  187                {
+  188                    //{0x20, 0x78, 0xBC},
+  189                //- MCU clock source=48M
+  190                {0x00, 0x99, 0x81},
+  191                {0x01, 0x00, 0x00},
+  192                {0x02, 0xDD, 0x2F},
+  193                {0x03, 0x55, 0x01},
+  194                {0x04, 0x21, 0x65},
+  195                {0x05, 0x52, 0x14},
+  196                {0x06, 0xF0, 0x82},
+  197                {0x07, 0xAA, 0x17},
+  198                {0x08, 0x66, 0x66},
+  199                {0x09, 0x79, 0x9F},
+  200          
+  201                {0x0A, 0xFA, 0x7D},
+  202                {0x0D, 0xFE, 0x75},
+  203          
+  204                {0x0E, 0xA8, 0xBC},
+  205                {0x0F, 0xE5, 0xEF},
+  206          
+  207                {0x11, 0x5A, 0x3E},
+  208                {0x12, 0x96, 0x97},
+  209                {0x13, 0xC1, 0x4A},
+  210          
+  211                {0x15, 0x00, 0xF9},
+  212                {0x17, 0x45, 0xE7},
+  213                {0x19, 0xC0, 0x00},
+  214                #ifdef AB1122
+                       {0x1B, 0x00, 0x33}, // xo26_settle_time_sel=3b'011
+                       {0x1C, 0x01, 0x2D}, //ifb_ctrl_lv<1:0>11,buck_MV off
+                       {0x10, 0x38, 0x54}, //for 1.25V RF setting
+                       {0x14, 0x40, 0x43}, //for 1.25V RF setting
+                     #else
+  220                  #ifdef BLUETOOTH_SPEAKER
+                         {0x1B, 0x03, 0x33}, // xo26_settle_time_sel=3b'011
+                         {0x1C, 0x01, 0x2D}, //ifb_ctrl_lv<1:0>11,buck_MV off
+                         {0x10, 0x38, 0x54}, //for 1.25V RF setting
+                         {0x14, 0x40, 0x43}, //for 1.25V RF setting
+                       #else
+  226                    {0x1B, 0x00, 0x33}, // xo26_settle_time_sel=3b'011
+  227                    {0x1C, 0x03, 0x2D}, //ifb_ctrl_lv<1:0>11,buck_MV on
+  228                    {0x10, 0x38, 0x54}, //for 1.2V RF setting
+  229                    {0x14, 0x40, 0x43}, //for 1.2V RF setting
+  230                  #endif
+  231                #endif
+  232          
+  233                {0x1D, 0x10, 0x00},
+  234          
+  235                #ifdef EXTERNAL_XO32K
+                       //{0x89, 0x02, 0x46}, //For External_XO32K application
+                       {0x89, 0x01, 0x47}, //int_flash_pwr_mode=auto mode
+                     #else
+  239                  #ifdef BLUETOOTH_SPEAKER
+                         {0x89, 0x01, 0x87}, //int_flash_pwr_mode=auto mode, gpio_linein_mode=1, spi_drv_sel=2b'01 (min=8mA)
+                       #else
+  242                    {0x89, 0x01, 0x07}, //int_flash_pwr_mode=auto mode, gpio_linein_mode=0, spi_drv_sel=2b'01 (min=8mA)
+  243                  #endif
+  244                #endif
+  245                {0x1E, 0x63, 0x01}, //sw_osc_freq_lv:10 1Mhz,buck_out_lv:011 1v25
+  246                #ifdef BLUETOOTH_SPEAKER
+                     {0x1F, 0x63, 0x04}, //pfm_deci_outI_ct_mv<1:0>11,Buck_MV=1.9V,osc_f:0.84MHz
+                     #else
+  249                                  #ifdef AB1528C_ONLY //AB1528 + Headset
+                     {0x1F, 0x63, 0x03}, //pfm_deci_outI_ct_mv<1:0>11,Buck_MV=1.8V,osc_f:0.84MHz
+C251 COMPILER V5.57.0,  sector_afe_init                                                    08/11/20  05:51:28  PAGE 5   
+
+                     #else
+  252                                  {0x1F, 0x63, 0x03}, //pfm_deci_outI_ct_mv<1:0>11,Buck_MV=1.8V,osc_f:0.84MHz
+  253                          #endif
+  254                #endif
+  255                {0x20, 0x78, 0xAC}, //lvstb_en=1, mvstb_en=1, hvstb_en=1
+  256                {0x21, 0x17, 0xB4},
+  257          
+  258                #ifdef EXTERNAL_XO32K
+                       {0x22, 0x0F, 0x01}, //For External_XO32K application
+                     #else
+  261                  {0x22, 0x03, 0x01}, //For other applications
+  262                #endif
+  263          
+  264                {0x24, 0x72, 0xF6},
+  265                {0x25, 0x01, 0x90},
+  266                {0x26, 0x22, 0x49}, //low noise BG power down
+  267                {0x27, 0x72, 0xE4}, //reghv_sel<3:0>1000;cv_threshold<9:0>740;for audio THD+N better
+  268                {0x28, 0x42, 0xD0}, //regmv_sel<3:0>0101;recharge_threshold<9:0>720
+  269                {0x29, 0x43, 0x0C}, //cv_initial_dac_value<9:0>780
+  270                #ifdef AB1122
+                       {0x2A, 0xB3, 0x0C},//cv_chk_ichg:1 cv_stop_current;LDO_MV on;cv_dac_value<9:0>780
+                     #else
+  273                  #ifdef BLUETOOTH_SPEAKER
+                         {0x2A, 0xB3, 0x0C},//cv_chk_ichg:1 cv_stop_current;LDO_MV on;cv_dac_value<9:0>780
+                       #else
+  276                    {0x2A, 0xA3, 0x0C},//cv_chk_ichg:1 cv_stop_current;LDO_MV off;cv_dac_value<9:0>780
+  277                  #endif
+  278                #endif
+  279          
+  280                {0x2B, 0xE2, 0xF8}, //full_bat_threshold<9:0>760
+  281                {0x2C, 0x00, 0x00},
+  282                {0x2D, 0x18, 0xBA}, //xo_always_on, set clk32k_xo_en=1, force 500KHz, set clk32k_xo_div1=0111
+  283                {0x2E, 0x00, 0x00},
+  284                {0x2F, 0x88, 0x01}, //bb_pwsw_mode:0, dsp_pwr_auto:1, dco32k_bias_ct=1
+  285                {0x30, 0x0A, 0xA0},
+  286                {0x31, 0x91, 0x31}, //TRXIQ ON
+  287                {0x32, 0xC9, 0x24},
+  288                {0x33, 0x08, 0xB8},
+  289                {0x34, 0x9F, 0x1F},
+  290                {0x35, 0x75, 0x0D},
+  291                {0x36, 0x7A, 0xBF}, //dummy off, can save about 0.9mA
+  292                {0x37, 0xC2, 0x3E},
+  293                {0x38, 0x08, 0x00},
+  294                {0x39, 0x20, 0x41},
+  295                {0x3A, 0xF8, 0xCD},
+  296                {0x41, 0x30, 0x02},
+  297                {0x42, 0xD4, 0x33},
+  298                {0x43, 0x72, 0xA8},
+  299                {0x44, 0xC6, 0xA8},
+  300                {0x45, 0x12, 0xC5}, //  {0x45, 0x32, 0xC5}, //yugo
+  301                    {0x4B, 0x0F, 0xC7},
+  302                    {0x4C, 0x0E, 0x47},
+  303                    {0x4D, 0x0A, 0x47},
+  304                    {0x4E, 0x0A, 0x3F},
+  305                    {0x4F, 0x06, 0x3F},
+  306                    {0x50, 0x0F, 0xE7},
+  307                    {0x51, 0x0F, 0xDF},
+  308                    {0x52, 0x0F, 0xD7},
+  309                    {0x53, 0x0F, 0xCF},
+  310                    {0x54, 0x0F, 0xC7},
+  311                    {0x55, 0x0F, 0x4F},
+  312                    {0x56, 0x0F, 0x47},
+  313                    {0x57, 0x0F, 0x3F},
+  314                    {0x58, 0x0F, 0x37},
+  315                    {0x59, 0x0E, 0x67},
+  316                    {0x5A, 0x0E, 0x5F},
+C251 COMPILER V5.57.0,  sector_afe_init                                                    08/11/20  05:51:28  PAGE 6   
+
+  317                    {0x5B, 0x0E, 0x57},
+  318                    {0x5C, 0x0E, 0x4F},
+  319                    {0x5D, 0x0E, 0x47},
+  320                    {0x5E, 0x0E, 0x3F},
+  321                    {0x5F, 0x0E, 0x37},
+  322                    {0x60, 0x0E, 0x2F},
+  323                    {0x61, 0x0E, 0x27},
+  324                    {0x62, 0x0E, 0x1F},
+  325                    {0x63, 0x0E, 0x17},
+  326                    {0x64, 0x0E, 0x0F},
+  327                    {0x65, 0x0E, 0x07},
+  328                    {0x66, 0x0E, 0x16},
+  329                    {0x67, 0x0A, 0x27},
+  330                    {0x68, 0x0A, 0x1F},
+  331                    {0x69, 0x0A, 0x17},
+  332                    {0x6A, 0x0A, 0x0F},
+  333                    {0x6B, 0x0A, 0x07},
+  334                    {0x6C, 0x0A, 0x16},
+  335                    {0x6D, 0x06, 0x4F},
+  336                    {0x6E, 0x06, 0x47},
+  337                    {0x6F, 0x06, 0x3F},
+  338                    {0x70, 0x06, 0x37},
+  339                    {0x71, 0x06, 0x2F},
+  340                    {0x72, 0x06, 0x27},
+  341                    {0x73, 0x06, 0x1F},
+  342                    {0x74, 0x06, 0x17},
+  343                    {0x75, 0x06, 0x0F},
+  344                    {0x76, 0x06, 0x07},
+  345                    {0x77, 0x06, 0x16},
+  346                    {0x78, 0x06, 0x0E},
+  347                    {0x79, 0x06, 0x06},
+  348                    {0x7A, 0x06, 0x14},
+  349                    {0x7B, 0x06, 0x0C},
+  350                    {0x7C, 0x06, 0x04},
+  351                    {0x7D, 0x06, 0x10},
+  352                    {0x7E, 0x06, 0x08},
+  353                    {0x80, 0xFF, 0xF0},
+  354              #ifdef AB1122
+                     #ifdef ASIC_DBG_PORT
+                     {0x81, 0xFF, 0xEF},
+                     #elif defined COMPATIBLE_MODULE
+                     {0x81, 0xFF, 0xEF},
+                     #else
+                     {0x81, 0xFF, 0xFE},
+                     #endif
+                   #else
+  363                {0x81, 0xFF, 0xFF},
+  364              #endif
+  365                {0x82, 0xFF, 0xFF},
+  366                    {0x83, 0xFF, 0xFF},
+  367          
+  368              #ifdef AB1528C_ONLY
+                         {0x84, 0x37, 0x00},
+                         {0x85, 0x02, 0x38},
+                   #else
+  372              {0x84, 0x00, 0x00},
+  373                    {0x85, 0x00, 0x00},
+  374              #endif
+  375          
+  376                    {0x86, 0x00, 0x00},
+  377                    {0x87, 0x00, 0x00},
+  378                    {0x88, 0x00, 0x00},
+  379                    {0x8A, 0x11, 0x00}, // steve led_sw=LED controller& debounce enable
+  380          
+  381          
+  382            //- Audio
+C251 COMPILER V5.57.0,  sector_afe_init                                                    08/11/20  05:51:28  PAGE 7   
+
+  383            #if 1
+  384                    {0xA0, 0xC3, 0x90},
+  385                    {0xA1, 0x90, 0x90},
+  386                    {0xA2, 0xB0, 0x00},
+  387              {0xA3, 0x02, 0xF8}, //DSM Butterworth, DEM conventional
+  388                    {0xA4, 0x00, 0xFF},
+  389              {0xA5, 0xA8, 0x00}, //1-mic + ADC 2-order, ear_drv=1b'0
+  390              #ifdef AB1122
+                          {0xA6, 0x80, 0x0B},
+                          {0xA7, 0xA7, 0x6B},
+                   #else
+  394                #ifdef BLUETOOTH_SPEAKER
+                       #ifdef SCO_WOOFER
+                         {0xA6, 0x80, 0x08}, //Audio-in and Audio-out off, Line-in off, mic_bias_en=0, auadc_ref_sel=2b'00 (D
+             -ifferentail 3.0V)
+                       #else
+                         {0xA6, 0x80, 0x0B}, //Audio-in and Audio-out off, Line-in off, mic_bias_en=0, auadc_ref_sel=2b'00 (L
+             -RVCM 3.0V)
+                       #endif
+                       {0xA7, 0xA7, 0x6B}, // MIC bias 2.7V for AB1520
+                     #else
+  402                  {0xA6, 0x80, 0x00}, //Audio-in and Audio-out off, Line-in off, mic_bias_en=0, auadc_ref_sel=2b'00 (Di
+             -fferentail 2.0)
+  403                  {0xA7, 0xB1, 0x5C}, // DAC Vref = 2.3V, Vcm = 1.06V
+  404                #endif
+  405              #endif
+  406              {0xA8, 0x50, 0x55}, // bias_au_dac=2b'00
+  407                    {0xA9, 0x0F, 0x41},
+  408                    {0xAA, 0x00, 0x00},
+  409            #else /* Default Value */
+                         {0xA0, 0xC3, 0x90},
+                         {0xA1, 0x90, 0x90},
+                         {0xA2, 0xB0, 0x00},
+                         {0xA3, 0x02, 0xF8}, //DSM Butterworth, DEM conventional
+                         {0xA4, 0x00, 0xFF},
+                   {0xA5, 0x88, 0x00}, //1-mic + ADC 2-order, ear_drv=1b'0
+                   #ifdef AB1122
+                          {0xA6, 0x80, 0x0B}, //Audio-in and Audio-out off, Line-in off, mic_bias_en=0, auadc_ref_sel=2b'00
+             - (LRVCM 3.0V)
+                          {0xA7, 0xA7, 0x6B},
+                   #else
+                     #ifdef BLUETOOTH_SPEAKER
+                          {0xA6, 0x80, 0x0B}, //Audio-in and Audio-out off, Line-in off, mic_bias_en=0, auadc_ref_sel=2b'00
+             - (LRVCM 3.0V)
+                          {0xA7, 0xA7, 0x6B},
+                     #else
+                          {0xA6, 0x80, 0x00}, //Audio-in and Audio-out off, Line-in off, mic_bias_en=0, auadc_ref_sel=2b'00
+             - (Differentail 2.0)
+                          {0xA7, 0x80, 0x3D},
+                     #endif
+                   #endif
+                   {0xA8, 0x50, 0x55}, // bias_au_dac=2b'00
+                         {0xA9, 0x0F, 0x43},
+                         {0xAA, 0x00, 0x01},
+                 #endif
+  432                    //- Audio end
+  433                    {0xAB, 0x2A, 0x1F}, // Steve ADC0 enable all channel -> Minga change enable channel Vin , Temp a
+             -nd Vbat
+  434                    {0xAC, 0x00, 0x00},
+  435              {0xFF, 0x03, 0x8C},
+  436                    {0xAD, 0x1F, 0xFF},
+  437                    {0xAE, 0x00, 0x00},
+  438                    {0xAF, 0x00, 0x00},
+  439                    {0xB0, 0xC0, 0x00},
+  440                    {0xB1, 0x06, 0xDB},
+  441                    {0xB2, 0x81, 0x4C},
+C251 COMPILER V5.57.0,  sector_afe_init                                                    08/11/20  05:51:28  PAGE 8   
+
+  442                    {0xB3, 0xD0, 0x08},
+  443                //--------------------------
+  444          
+  445              {0xBF, 0x0F, 0x5A},
+  446          
+  447                //- XTAL offset MCU clock source=32k
+  448                    {0xFE, 0xFF, 0x01}, //SFR Clock??32K
+  449                    {0x16, 0x15, 0x47},
+  450                    {0x23, 0xC1, 0x15},//{0x23, 0x41, 0x15}, // {0x23, 0xC1, 0x15}, //{0x23, 0xF1, 0x15},
+  451                    {0x3F, 0x63, 0xAD},//{0x3F, 0x83, 0x2D}, //{0x3F, 0xC3, 0x2D},
+  452                    {0x40, 0x30, 0x01},
+  453                    {0xB4, 0x0F, 0x27}, //{0xB4, 0x2F, 0x85}, //If the register is changed, the follow 0xB4 shall al
+             -so be changed!!!
+  454                    {0xB5, 0x59, 0x59},
+  455                    {0xFF, 0x00, 0x02}, //Delay 1mS
+  456                    {0xFE, 0xFF, 0x00}, //SFR Clock??96M
+  457                    {0xFF, 0x00, 0x8E},
+  458                //----------------------------
+  459          
+  460                //- Power on calibration
+  461                    {0xB3, 0xC0, 0x08}, //ro_en=0
+  462                    {0xFF, 0x08, 0xE6}, //Delay 3ms
+  463                //------------------------
+  464          
+  465                //- 32k Setting
+  466                    #ifdef BLUETOOTH_SPEAKER
+                         {0xE7, 0x46, 0x1F}, //For other applications (MusicBox and External_XO32K)
+                         #elif defined(EXTERNAL_XO32K)
+                         {0xE7, 0x46, 0x1F},
+                         #else
+  471                    {0xE7, 0x46, 0x1E}, //For Headset applications
+  472                    #endif
+  473          
+  474                    {0x1A, 0xD0, 0x01},
+  475          
+  476                    #ifdef BLUETOOTH_SPEAKER
+                         //For Music Box application (32k to FM chip)
+                         {0xB4, 0x0D, 0x27}, //{0xB4, 0x2D, 0x85}, //set pass_xo2pll_en=0 (gating)
+                     /* RF Calibration Workaround */
+                   {0x36, 0xFA, 0xBE}, //set fsys2ctrltop_en=0 (gating), set fsys2mcu_en=0  (gating), dummy off
+                         {0xC2, 0x73, 0x44}, //Tx on
+                         {0xC2, 0x71, 0x01}, //Control by MCU
+                         {0xFF, 0xFF, 0x00}, //AFE Init wait for 0 format
+                         {0xC2, 0x46, 0x01}, //Bit Mask for 0xC2/70 bit0
+                         {0xC2, 0x71, 0x00}, //Control by BTC
+                     /* RF Calibration Workaround */
+                         {0xBF, 0x0F, 0x5B}, //Set complete_rdy, switch clock to divide_from_xo
+                     {0x2D, 0x08, 0xF7}, //Buck_always_on, xo_always_on, disable force 500KHz, set clk32k_xo_div1=0111, set
+             - fsys2dco32k_ctrl_en=1  (can't gating)
+                         #elif defined(EXTERNAL_XO32K)
+                         //For other applications (Headset and External_XO32K)
+                         {0xB4, 0x0F, 0x27}, //{0xB4, 0x2F, 0x85}, //set pass_xo2pll_en=1
+                     /* RF Calibration Workaround */
+                     {0x36, 0xFA, 0xBF}, //set fsys2ctrltop_en=1, set fsys2mcu_en=1, dummy off
+                         {0xC2, 0x73, 0x44}, //Tx on
+                         {0xC2, 0x71, 0x01}, //Control by MCU
+                         {0xFF, 0xFF, 0x00}, //AFE Init wait for 0 format
+                         {0xC2, 0x46, 0x01}, //Bit Mask for 0xC2/70 bit0
+                         {0xC2, 0x71, 0x00}, //Control by BTC
+                     /* RF Calibration Workaround */
+                         {0xBF, 0x0E, 0x5B}, //Set complete_rdy, switch clock to DCO32k or XO32k
+                     {0x2D, 0x08, 0x27}, //disable xo_always_on, disable force 500KHz, set fsys2dco32k_ctrl_en=1
+                         #else
+  503                    //For other applications (Headset and External_XO32K)
+  504                    {0xB4, 0x0F, 0x27}, //{0xB4, 0x2F, 0x85}, //set pass_xo2pll_en=1
+  505                /* RF Calibration Workaround */
+C251 COMPILER V5.57.0,  sector_afe_init                                                    08/11/20  05:51:28  PAGE 9   
+
+  506                {0x36, 0xFA, 0xBF},//{0x36, 0x7A, 0xBF},//{0x36, 0xFA, 0xBF}, //set fsys2ctrltop_en=1, set fsys2mcu_en
+             -=1, dummy off
+  507                    {0xC2, 0x73, 0x44}, //Tx on
+  508                    {0xC2, 0x71, 0x01}, //Control by MCU
+  509                    {0xFF, 0xFF, 0x00}, //AFE Init wait for 0 format
+  510                    {0xC2, 0x46, 0x01}, //Bit Mask for 0xC2/70 bit0
+  511                    {0xC2, 0x71, 0x00}, //Control by BTC
+  512                /* RF Calibration Workaround */
+  513                    {0xBF, 0x0E, 0x5B},//{0xBF, 0x0F, 0x5B}, //Set complete_rdy, switch clock to DCO32k or XO32k
+  514                {0x2D, 0x08, 0x27},//{0x2D, 0x08, 0xF7},//{0x2D, 0x08, 0xB7}, //disable xo_always_on, disable force 50
+             -0KHz, set fsys2dco32k_ctrl_en=1
+  515                      {0xFF, 0x03, 0xE8}, //wait for 1ms
+  516                    #endif
+  517          
+  518                   #ifdef BLUETOOTH_SPEAKER
+                        {0x1E, 0x53, 0x01}, //sw_osc_freq_lv:01 1Mhz,buck_out_lv:001 1v25
+                        #else
+  521                      #ifdef AB1528C_ONLY //AB1528 + Headset
+                           {0x1E, 0x63, 0x00}, //sw_osc_freq_lv:01 1Mhz,buck_out_lv:001 1v2
+                           #else
+  524                      {0x1E, 0x63, 0x00}, //sw_osc_freq_lv:10 1Mhz,buck_out_lv:001 1v2
+  525                      #endif
+  526                   #endif
+  527          
+  528          
+  529                    #ifdef EXTERNAL_XO32K
+                         {0x22, 0x1F, 0x01}, //For External_XO32K application, switch to XO32K
+                         #else
+  532                    {0x22, 0x03, 0x01}, //For Other applications (MusicBox and Headset), switch to DCO32K
+  533                    #endif
+  534                }
+  535            },
+  536          
+  537            //- CRC
+  538              {0x00,0x00}
+  539          };
+  540          
+  541          #elif (defined AB1520D)
+               
+               SECTOR_AFE_INIT_STRU CODE gSector_AfeInit =
+               {
+                 {
+                     169,//168, //NumOfAfeRegInit
+               
+                     {
+                         //{0x20, 0x78, 0xBC},
+                     //- MCU clock source=48M
+                     {0x00, 0x99, 0x81},
+                     {0x01, 0x00, 0x00},
+                     {0x02, 0xDD, 0x2F},
+                     {0x03, 0x55, 0x01},
+               
+                           #ifdef AB1528C_ONLY //AB1528P
+                               #ifdef BLUETOOTH_SPEAKER
+                         {0x04, 0x21, 0x65},
+                         {0x05, 0x52, 0x14},
+                         {0x06, 0xF0, 0x82},
+                         {0x07, 0xAA, 0x17},
+                         {0x08, 0x66, 0x66},
+                         {0x09, 0x79, 0x9F},
+                         {0x0A, 0xFA, 0x7D},
+                         {0x0D, 0xFE, 0x75},
+                         {0x0E, 0xA8, 0xBC},
+                         {0x0F, 0xE5, 0xEF},
+                         {0x11, 0x5A, 0x3E},
+                         {0x12, 0x9E, 0x97},
+C251 COMPILER V5.57.0,  sector_afe_init                                                    08/11/20  05:51:28  PAGE 10  
+
+                         {0x13, 0xC1, 0x4A},
+                         {0x15, 0x00, 0xF9},
+                         {0x17, 0x45, 0xE7},
+                               #else //headset
+                         {0x04, 0x21, 0x45},
+                         {0x05, 0x52, 0x14},
+                         {0x06, 0xF0, 0x82},
+                         {0x07, 0xAA, 0x17},
+                         {0x08, 0x66, 0x66},
+                         {0x09, 0x69, 0x9F},
+                         {0x0A, 0xFA, 0x7D},
+                         {0x0D, 0xFE, 0x45},//{0x0D, 0xFE, 0x25},
+                         {0x0E, 0xA8, 0xBC},
+                         {0x0F, 0x45, 0xEC},//{0x0F, 0x45, 0xEA},
+                         {0x11, 0x5A, 0x10},
+                         {0x12, 0x9E, 0x97},
+                         {0x13, 0x9B, 0x5A},
+                         {0x15, 0x00, 0xB8},
+                         {0x17, 0x45, 0xE7},
+                               #endif
+                           #else
+                               #ifdef BLUETOOTH_SPEAKER
+                         {0x04, 0x21, 0x65},
+                         {0x05, 0x52, 0x14},
+                         {0x06, 0xF0, 0x82},
+                         {0x07, 0xAA, 0x17},
+                         {0x08, 0x66, 0x66},
+                         {0x09, 0x79, 0x9F},
+                         {0x0A, 0xFA, 0x7D},
+                         {0x0D, 0xFE, 0x75},
+                         {0x0E, 0xA8, 0xBC},
+                         {0x0F, 0xE5, 0xEF},
+                         {0x11, 0x5A, 0x3E},
+                         {0x12, 0x9E, 0x97},
+                         {0x13, 0xC1, 0x4A},
+                         {0x15, 0x00, 0xF9},
+                         {0x17, 0x45, 0xE7},
+                               #else //headset
+                         {0x04, 0x21, 0x45},
+                         {0x05, 0x52, 0x14},
+                         {0x06, 0xF0, 0x82},
+                         {0x07, 0xAA, 0x17},
+                         {0x08, 0x66, 0x66},
+                         {0x09, 0x69, 0x9F},
+                         {0x0A, 0xFA, 0x7D},
+                         {0x0D, 0xFE, 0x45},//{0x0D, 0xFE, 0x25},
+                         {0x0E, 0xA8, 0xBC},
+                         {0x0F, 0x45, 0xEC},//{0x0F, 0x45, 0xEA},
+                         {0x11, 0x5A, 0x10},
+                         {0x12, 0x9E, 0x97},
+                         {0x13, 0x9B, 0x5A},
+                         {0x15, 0x00, 0xB8},
+                         {0x17, 0x45, 0xE7},
+                               #endif
+                           #endif
+               
+                     {0x19, 0xC0, 0x00},
+               
+                     #ifdef AB1122
+                       {0x1B, 0x00, 0x33}, // xo26_settle_time_sel=3b'011
+                       {0x1C, 0x01, 0x2D}, //ifb_ctrl_lv<1:0>11,buck_MV off
+                       {0x10, 0x38, 0x54}, //for 1.25V RF setting
+                       //{0x14, 0x40, 0x43}, //for 1.25V RF setting
+                     #else
+                       #ifdef BLUETOOTH_SPEAKER
+                         {0x1B, 0x03, 0x33}, // xo26_settle_time_sel=3b'011
+C251 COMPILER V5.57.0,  sector_afe_init                                                    08/11/20  05:51:28  PAGE 11  
+
+                         {0x1C, 0x01, 0x2D}, //ifb_ctrl_lv<1:0>11,buck_MV off
+                         {0x10, 0x38, 0x54}, //for 1.25V RF setting
+                             //{0x14, 0x40, 0x43}, //for 1.25V RF setting
+                       #else
+                         {0x1B, 0x00, 0x33}, // xo26_settle_time_sel=3b'011
+                         {0x1C, 0x03, 0x2D}, //ifb_ctrl_lv<1:0>11,buck_MV on
+                         {0x10, 0x38, 0x54}, //for 1.2V RF setting
+                             //{0x14, 0x40, 0x43}, //for 1.2V RF setting
+                       #endif
+                     #endif
+               
+                           #ifdef AB1528C_ONLY //AB1528P
+                               #ifdef BLUETOOTH_SPEAKER
+                               {0x14, 0x40, 0x43}, //for 1.25V RF setting
+                               #else //headset
+                               {0x14, 0x40, 0x42}, //for 1.25V RF setting
+                               #endif
+                           #else //AB152XP
+                               #ifdef BLUETOOTH_SPEAKER
+                               {0x14, 0x40, 0x43}, //for 1.25V RF setting
+                               #else //headset
+                               {0x14, 0x40, 0x42}, //for 1.25V RF setting
+                               #endif
+                           #endif
+               
+                     {0x1D, 0x10, 0x00},
+               
+                     #ifdef EXTERNAL_XO32K
+                       //{0x89, 0x02, 0x46}, //For External_XO32K application
+                       {0x89, 0x01, 0x47}, //int_flash_pwr_mode=auto mode
+                     #else
+                       #ifdef BLUETOOTH_SPEAKER
+                         {0x89, 0x01, 0x87}, //int_flash_pwr_mode=auto mode, gpio_linein_mode=1, spi_drv_sel=2b'01 (min=8mA)
+                       #else
+                         {0x89, 0x01, 0x07}, //int_flash_pwr_mode=auto mode, gpio_linein_mode=0, spi_drv_sel=2b'01 (min=8mA)
+                       #endif
+                     #endif
+                     //{0x1E, 0x53, 0x01}, //sw_osc_freq_lv:01 1Mhz,buck_out_lv:011 1v25
+                     {0x1E, 0x63, 0x04},//sw_osc_freq_lv:10 0.8Mhz,buck_out_lv:100 1v35
+               
+                     #ifdef BLUETOOTH_SPEAKER
+                     {0x1F, 0x63, 0x04}, //pfm_deci_outI_ct_mv<1:0>11,Buck_MV=1.9V,osc_f:0.84MHz
+                     #else
+                               #ifdef AB1528C_ONLY //AB1528 + Headset
+                         {0x1F, 0x63, 0x03}, //pfm_deci_outI_ct_mv<1:0>11,Buck_MV=1.8V,osc_f:0.84MHz
+                         #else
+                               {0x1F, 0x63, 0x03}, //pfm_deci_outI_ct_mv<1:0>11,Buck_MV=1.8V,osc_f:0.84MHz
+                               #endif
+                     #endif
+               
+                           {0x20, 0x78, 0xAC}, //lvstb_en=1, mvstb_en=1, hvstb_en=1
+                     {0x21, 0x17, 0xB4},
+               
+                     #ifdef EXTERNAL_XO32K
+                       {0x22, 0x0F, 0x01}, //For External_XO32K application
+                     #else
+                       {0x22, 0x03, 0x01}, //For other applications
+                     #endif
+               
+                     {0x24, 0x72, 0xF6},
+                     {0x25, 0x01, 0x90},
+                     {0x26, 0x22, 0x49}, //low noise BG power down
+                     {0x27, 0x72, 0xE4}, //reghv_sel<3:0>1000;cv_threshold<9:0>740;for audio THD+N better
+                     {0x28, 0x42, 0xD0}, //regmv_sel<3:0>0101;recharge_threshold<9:0>720
+                     {0x29, 0x43, 0x0C}, //cv_initial_dac_value<9:0>780
+                     #ifdef AB1122
+C251 COMPILER V5.57.0,  sector_afe_init                                                    08/11/20  05:51:28  PAGE 12  
+
+                       {0x2A, 0xB3, 0x0C},//cv_chk_ichg:1 cv_stop_current;LDO_MV on;cv_dac_value<9:0>780
+                     #else
+                       #ifdef BLUETOOTH_SPEAKER
+                         {0x2A, 0xB3, 0x0C},//cv_chk_ichg:1 cv_stop_current;LDO_MV on;cv_dac_value<9:0>780
+                       #else
+                         {0x2A, 0xA3, 0x0C},//cv_chk_ichg:1 cv_stop_current;LDO_MV off;cv_dac_value<9:0>780
+                       #endif
+                     #endif
+               
+                     {0x2B, 0xE2, 0xF8}, //full_bat_threshold<9:0>760
+                     {0x2C, 0x00, 0x00},
+                     {0x2D, 0x18, 0xBA}, //xo_always_on, set clk32k_xo_en=1, force 500KHz, set clk32k_xo_div1=0111
+                     {0x2E, 0x00, 0x00},
+                     {0x2F, 0x88, 0x01}, //bb_pwsw_mode:0, dsp_pwr_auto:1, dco32k_bias_ct=1
+                     {0x30, 0x0A, 0xA0},
+                     {0x31, 0x91, 0x31}, //TRXIQ ON
+                     {0x32, 0xC9, 0x24},
+                     {0x33, 0x08, 0xB8},
+                     {0x34, 0x9F, 0x1F},
+                     {0x35, 0x75, 0x0D},
+                     {0x36, 0x7A, 0xBF}, //dummy off, can save about 0.9mA
+                           #ifdef AB1528C_ONLY //AB1528P
+                           {0x37, 0xC2, 0x3E},
+                           #else
+                               #ifdef BLUETOOTH_SPEAKER //only not-1528P speaker
+                         {0x37, 0x42, 0x3E},
+                               #else
+                               {0x37, 0xC2, 0x3E},
+                               #endif
+                           #endif
+                     {0x38, 0x08, 0x00},
+                     {0x39, 0x20, 0x41},
+                     {0x3A, 0xF8, 0xCD},
+                     {0x41, 0x30, 0x02},
+                           #ifdef BLUETOOTH_SPEAKER
+                     {0x42, 0xD4, 0x33},
+                           #else
+                           {0x42, 0xD4, 0x73}, //headset
+                           #endif
+                     {0x43, 0x72, 0xA8},
+                     {0x44, 0xC6, 0xA8},
+                     {0x45, 0x12, 0xC5}, //  {0x45, 0x32, 0xC5}, //yugo
+                         {0x4B, 0x0F, 0xC7},
+                         {0x4C, 0x0E, 0x47},
+                         {0x4D, 0x0A, 0x47},
+                         {0x4E, 0x0A, 0x3F},
+                         {0x4F, 0x06, 0x3F},
+                         {0x50, 0x0F, 0xE7},
+                         {0x51, 0x0F, 0xDF},
+                         {0x52, 0x0F, 0xD7},
+                         {0x53, 0x0F, 0xCF},
+                         {0x54, 0x0F, 0xC7},
+                         {0x55, 0x0F, 0x4F},
+                         {0x56, 0x0F, 0x47},
+                         {0x57, 0x0F, 0x3F},
+                         {0x58, 0x0F, 0x37},
+                         {0x59, 0x0E, 0x67},
+                         {0x5A, 0x0E, 0x5F},
+                         {0x5B, 0x0E, 0x57},
+                         {0x5C, 0x0E, 0x4F},
+                         {0x5D, 0x0E, 0x47},
+                         {0x5E, 0x0E, 0x3F},
+                         {0x5F, 0x0E, 0x37},
+                         {0x60, 0x0E, 0x2F},
+                         {0x61, 0x0E, 0x27},
+                         {0x62, 0x0E, 0x1F},
+C251 COMPILER V5.57.0,  sector_afe_init                                                    08/11/20  05:51:28  PAGE 13  
+
+                         {0x63, 0x0E, 0x17},
+                         {0x64, 0x0E, 0x0F},
+                         {0x65, 0x0E, 0x07},
+                         {0x66, 0x0E, 0x16},
+                         {0x67, 0x0A, 0x27},
+                         {0x68, 0x0A, 0x1F},
+                         {0x69, 0x0A, 0x17},
+                         {0x6A, 0x0A, 0x0F},
+                         {0x6B, 0x0A, 0x07},
+                         {0x6C, 0x0A, 0x16},
+               
+                           #ifdef AB1528C_ONLY //AB1528P
+                               #ifdef BLUETOOTH_SPEAKER
+                             {0x6D, 0x06, 0x4F},
+                             {0x6E, 0x06, 0x47},
+                             {0x6F, 0x06, 0x3F},
+                             {0x70, 0x06, 0x37},
+                             {0x71, 0x06, 0x2F},
+                             {0x72, 0x06, 0x27},
+                             {0x73, 0x06, 0x1F},
+                             {0x74, 0x06, 0x17},
+                             {0x75, 0x06, 0x0F},
+                             {0x76, 0x06, 0x07},
+                             {0x77, 0x06, 0x16},
+                             {0x78, 0x06, 0x0E},
+                             {0x79, 0x06, 0x06},
+                             {0x7A, 0x06, 0x14},
+                             {0x7B, 0x06, 0x0C},
+                             {0x7C, 0x06, 0x04},
+                             {0x7D, 0x06, 0x10},
+                             {0x7E, 0x06, 0x08},
+                               #else
+                             {0x6D, 0x06, 0x47},
+                             {0x6E, 0x06, 0x3F},
+                             {0x6F, 0x06, 0x37},
+                             {0x70, 0x06, 0x2F},
+                             {0x71, 0x06, 0x27},
+                             {0x72, 0x06, 0x1F},
+                             {0x73, 0x06, 0x17},
+                             {0x74, 0x06, 0x0F},
+                             {0x75, 0x06, 0x07},
+                             {0x76, 0x06, 0x07},
+                             {0x77, 0x06, 0x0E},
+                             {0x78, 0x06, 0x06},
+                             {0x79, 0x06, 0x06},
+                             {0x7A, 0x06, 0x0C},
+                             {0x7B, 0x06, 0x04},
+                             {0x7C, 0x06, 0x04},
+                             {0x7D, 0x06, 0x08},
+                             {0x7E, 0x06, 0x00},
+                               #endif
+                           #else //headset
+                               #ifdef BLUETOOTH_SPEAKER
+                             {0x6D, 0x06, 0x4F},
+                             {0x6E, 0x06, 0x47},
+                             {0x6F, 0x06, 0x3F},
+                             {0x70, 0x06, 0x37},
+                             {0x71, 0x06, 0x2F},
+                             {0x72, 0x06, 0x27},
+                             {0x73, 0x06, 0x1F},
+                             {0x74, 0x06, 0x17},
+                             {0x75, 0x06, 0x0F},
+                             {0x76, 0x06, 0x07},
+                             {0x77, 0x06, 0x16},
+                             {0x78, 0x06, 0x0E},
+                             {0x79, 0x06, 0x06},
+C251 COMPILER V5.57.0,  sector_afe_init                                                    08/11/20  05:51:28  PAGE 14  
+
+                             {0x7A, 0x06, 0x14},
+                             {0x7B, 0x06, 0x0C},
+                             {0x7C, 0x06, 0x04},
+                             {0x7D, 0x06, 0x10},
+                             {0x7E, 0x06, 0x08},
+                               #else
+                             {0x6D, 0x06, 0x47},
+                             {0x6E, 0x06, 0x3F},
+                             {0x6F, 0x06, 0x37},
+                             {0x70, 0x06, 0x2F},
+                             {0x71, 0x06, 0x27},
+                             {0x72, 0x06, 0x1F},
+                             {0x73, 0x06, 0x17},
+                             {0x74, 0x06, 0x0F},
+                             {0x75, 0x06, 0x07},
+                             {0x76, 0x06, 0x07},
+                             {0x77, 0x06, 0x0E},
+                             {0x78, 0x06, 0x06},
+                             {0x79, 0x06, 0x06},
+                             {0x7A, 0x06, 0x0C},
+                             {0x7B, 0x06, 0x04},
+                             {0x7C, 0x06, 0x04},
+                             {0x7D, 0x06, 0x08},
+                             {0x7E, 0x06, 0x00},
+                               #endif
+                           #endif
+                         {0x80, 0xFF, 0xF0},
+                   #ifdef AB1122
+                     #ifdef ASIC_DBG_PORT
+                     {0x81, 0xFF, 0xEF},
+                     #elif defined COMPATIBLE_MODULE
+                     {0x81, 0xFF, 0xEF},
+                     #else
+                     {0x81, 0xFF, 0xFE},
+                     #endif
+                   #else
+                     {0x81, 0xFF, 0xFF},
+                   #endif
+                     {0x82, 0xFF, 0xFF},
+                         {0x83, 0xFF, 0xFF},
+               
+                   #ifdef AB1528C_ONLY
+                         {0x84, 0x37, 0x00},
+                         {0x85, 0x02, 0x38},
+                   #else
+                       {0x84, 0x00, 0x00},
+                         {0x85, 0x00, 0x00},
+                   #endif
+               
+                         {0x86, 0x00, 0x00},
+                         {0x87, 0x00, 0x00},
+                         {0x88, 0x00, 0x00},
+                         {0x8A, 0x11, 0x00}, // steve led_sw=LED controller& debounce enable
+               
+               
+                     //- Audio
+                         #if 1
+                         {0xA0, 0xC3, 0x90},
+                         {0xA1, 0x90, 0x90},
+                         {0xA2, 0xB0, 0x00},
+                       {0xA3, 0x02, 0xF8}, //DSM Butterworth, DEM conventional
+                         {0xA4, 0x00, 0xFF},
+                       {0xA5, 0xA8, 0x00}, //1-mic + ADC 2-order, ear_drv=1b'0
+                           #ifdef AB1122
+                         {0xA6, 0x80, 0x0B},
+                         {0xA7, 0xA7, 0x6B},
+C251 COMPILER V5.57.0,  sector_afe_init                                                    08/11/20  05:51:28  PAGE 15  
+
+                           #else
+                             #ifdef BLUETOOTH_SPEAKER
+                               #ifdef SCO_WOOFER
+                                 {0xA6, 0x80, 0x08}, //Audio-in and Audio-out off, Line-in off, mic_bias_en=0, auadc_ref_sel=
+             -2b'00 (Differentail 3.0V)
+                               #else
+                                 {0xA6, 0x80, 0x0B}, //Audio-in and Audio-out off, Line-in off, mic_bias_en=0, auadc_ref_sel=
+             -2b'00 (LRVCM 3.0V)
+                               #endif
+                               {0xA7, 0xA7, 0x6B}, // MIC bias 2.7V for AB1520
+                             #else
+                               {0xA6, 0x80, 0x00}, //Audio-in and Audio-out off, Line-in off, mic_bias_en=0, auadc_ref_sel=2
+             -b'00 (Differentail 2.0)
+                               {0xA7, 0xB1, 0x5C}, // DAC Vref = 2.3V, Vcm = 1.06V
+                             #endif
+                           #endif
+                       {0xA8, 0x50, 0x55}, // bias_au_dac=2b'00
+                         {0xA9, 0x0F, 0x41},
+                         {0xAA, 0x00, 0x00},
+                         #else /* Default Value */
+                         {0xA0, 0xC3, 0x90},
+                         {0xA1, 0x90, 0x90},
+                         {0xA2, 0xB0, 0x00},
+                         {0xA3, 0x02, 0xF8}, //DSM Butterworth, DEM conventional
+                         {0xA4, 0x00, 0xFF},
+                       {0xA5, 0x88, 0x00}, //1-mic + ADC 2-order, ear_drv=1b'0
+                           #ifdef AB1122
+                         {0xA6, 0x80, 0x0B}, //Audio-in and Audio-out off, Line-in off, mic_bias_en=0, auadc_ref_sel=2b'00 
+             -(LRVCM 3.0V)
+                         {0xA7, 0xA7, 0x6B},
+                           #else
+                             #ifdef BLUETOOTH_SPEAKER
+                                  {0xA6, 0x80, 0x0B}, //Audio-in and Audio-out off, Line-in off, mic_bias_en=0, auadc_ref_s
+             -el=2b'00 (LRVCM 3.0V)
+                                  {0xA7, 0xA7, 0x6B},
+                             #else
+                                  {0xA6, 0x80, 0x00}, //Audio-in and Audio-out off, Line-in off, mic_bias_en=0, auadc_ref_s
+             -el=2b'00 (Differentail 2.0)
+                                  {0xA7, 0x80, 0x3D},
+                             #endif
+                           #endif
+                       {0xA8, 0x50, 0x55}, // bias_au_dac=2b'00
+                         {0xA9, 0x0F, 0x43},
+                         {0xAA, 0x00, 0x01},
+                         #endif
+               
+                         //- Audio end
+                         {0xAB, 0x2A, 0x1F}, // Steve ADC0 enable all channel -> Minga change enable channel Vin , Temp a
+             -nd Vbat
+                         {0xAC, 0x00, 0x00},
+                       {0xFF, 0x03, 0x8C},
+                         {0xAD, 0x1F, 0xFF},
+                         {0xAE, 0x00, 0x00},
+                         {0xAF, 0x00, 0x00},
+                         {0xB0, 0xC0, 0x00},
+                         {0xB1, 0x06, 0xDB},
+                         {0xB2, 0x81, 0x4C},
+                         {0xB3, 0xD0, 0x08},
+                     //--------------------------
+               
+                       {0xBF, 0x0F, 0x5A},
+               
+                     //- XTAL offset MCU clock source=32k
+               
+                           {0xFE, 0xFF, 0x01}, //SFR Clock??32K
+                         {0x16, 0x15, 0x47},
+C251 COMPILER V5.57.0,  sector_afe_init                                                    08/11/20  05:51:28  PAGE 16  
+
+                         {0x23, 0xC1, 0x15},//{0x23, 0x41, 0x15}, // {0x23, 0xC1, 0x15}, //{0x23, 0xF1, 0x15},
+                         {0x3F, 0x63, 0xAD},//{0x3F, 0x83, 0x2D}, //{0x3F, 0xC3, 0x2D},
+                         {0x40, 0x30, 0x01},
+               
+                           #ifdef AB1528C_ONLY //AB1528P
+                               #ifdef BLUETOOTH_SPEAKER
+                               {0xB4, 0x0D, 0x27}, //{0xB4, 0x2F, 0x85}, //If the register is changed, the follow 0xB4 s
+             -hall also be changed!!!
+                               {0xB5, 0x59, 0x59},
+                               #else //headset
+                               {0xB4, 0x0F, 0x47}, //{0xB4, 0x2F, 0x85}, //If the register is changed, the follow 0xB4 s
+             -hall also be changed!!!
+                               {0xB5, 0x6C, 0x6C},
+                               #endif
+                           #else  //AB152XP
+                               #ifdef BLUETOOTH_SPEAKER
+                               {0xB4, 0x0D, 0x27}, //{0xB4, 0x2F, 0x85}, //If the register is changed, the follow 0xB4 s
+             -hall also be changed!!!
+                               {0xB5, 0x59, 0x59},
+                               #else //headset
+                               {0xB4, 0x0F, 0x47}, //{0xB4, 0x2F, 0x85}, //If the register is changed, the follow 0xB4 s
+             -hall also be changed!!!
+                               {0xB5, 0x6C, 0x6C},
+                               #endif
+                           #endif
+               
+                         {0xFF, 0x00, 0x02}, //Delay 1mS
+                         {0xFE, 0xFF, 0x00}, //SFR Clock??96M
+                         {0xFF, 0x00, 0x8E},
+                     //----------------------------
+               
+                     //- Power on calibration
+                         {0xB3, 0xC0, 0x08}, //ro_en=0
+                         {0xFF, 0x08, 0xE6}, //Delay 3ms
+                     //------------------------
+               
+                     //- 32k Setting
+                         #ifdef BLUETOOTH_SPEAKER
+                         {0xE7, 0x46, 0x1F}, //For other applications (MusicBox and External_XO32K)
+                         #elif defined(EXTERNAL_XO32K)
+                         {0xE7, 0x46, 0x1F},
+                         #else
+                         {0xE7, 0x46, 0x1E}, //For Headset applications
+                         #endif
+               
+                         {0x1A, 0xD0, 0x01},
+               
+               
+                           #ifdef AB1528C_ONLY //AB1528P
+                               #ifdef BLUETOOTH_SPEAKER
+                               {0xB4, 0x0D, 0x27}, //{0xB4, 0x2D, 0x85}, //set pass_xo2pll_en=0 (gating)
+                               #elif defined(EXTERNAL_XO32K)
+                               {0xB4, 0x0F, 0x27}, //{0xB4, 0x2F, 0x85}, //set pass_xo2pll_en=1
+                               #else //headset
+                               {0xB4, 0x0F, 0x47}, //{0xB4, 0x2F, 0x85}, //set pass_xo2pll_en=1
+                               #endif
+                           #else
+                               #ifdef BLUETOOTH_SPEAKER
+                               {0xB4, 0x0D, 0x27}, //{0xB4, 0x2D, 0x85}, //set pass_xo2pll_en=0 (gating)
+                               #elif defined(EXTERNAL_XO32K)
+                               {0xB4, 0x0F, 0x27}, //{0xB4, 0x2F, 0x85}, //set pass_xo2pll_en=1
+                               #else //headset
+                               {0xB4, 0x0F, 0x47}, //{0xB4, 0x2F, 0x85}, //set pass_xo2pll_en=1
+                               #endif
+                           #endif
+               
+C251 COMPILER V5.57.0,  sector_afe_init                                                    08/11/20  05:51:28  PAGE 17  
+
+               
+                         #ifdef BLUETOOTH_SPEAKER
+                         //For Music Box application (32k to FM chip)
+                             //{0xB4, 0x0D, 0x27}, //{0xB4, 0x2D, 0x85}, //set pass_xo2pll_en=0 (gating)
+                     /* RF Calibration Workaround */
+                       {0x36, 0xFA, 0xBE}, //set fsys2ctrltop_en=0 (gating), set fsys2mcu_en=0  (gating), dummy off
+                         {0xC2, 0x73, 0x44}, //Tx on
+                         {0xC2, 0x71, 0x01}, //Control by MCU
+                         {0xFF, 0xFF, 0x00}, //AFE Init wait for 0 format
+                         {0xC2, 0x46, 0x01}, //Bit Mask for 0xC2/70 bit0
+                         {0xC2, 0x71, 0x00}, //Control by BTC
+                     /* RF Calibration Workaround */
+                         {0xBF, 0x0F, 0x5B}, //Set complete_rdy, switch clock to divide_from_xo
+                     {0x2D, 0x08, 0xF7}, //Buck_always_on, xo_always_on, disable force 500KHz, set clk32k_xo_div1=0111, set
+             - fsys2dco32k_ctrl_en=1  (can't gating)
+                         #elif defined(EXTERNAL_XO32K)
+                         //For other applications (Headset and External_XO32K)
+                             //{0xB4, 0x0F, 0x27}, //{0xB4, 0x2F, 0x85}, //set pass_xo2pll_en=1
+                     /* RF Calibration Workaround */
+                     {0x36, 0xFA, 0xBF}, //set fsys2ctrltop_en=1, set fsys2mcu_en=1, dummy off
+                         {0xC2, 0x73, 0x44}, //Tx on
+                         {0xC2, 0x71, 0x01}, //Control by MCU
+                         {0xFF, 0xFF, 0x00}, //AFE Init wait for 0 format
+                         {0xC2, 0x46, 0x01}, //Bit Mask for 0xC2/70 bit0
+                         {0xC2, 0x71, 0x00}, //Control by BTC
+                     /* RF Calibration Workaround */
+                         {0xBF, 0x0E, 0x5B}, //Set complete_rdy, switch clock to DCO32k or XO32k
+                     {0x2D, 0x08, 0x27}, //disable xo_always_on, disable force 500KHz, set fsys2dco32k_ctrl_en=1
+                         #else
+                         //For other applications (Headset and External_XO32K)
+                             //{0xB4, 0x0F, 0x27}, //{0xB4, 0x2F, 0x85}, //set pass_xo2pll_en=1
+                     /* RF Calibration Workaround */
+                     {0x36, 0xFA, 0xBF},//{0x36, 0x7A, 0xBF},//{0x36, 0xFA, 0xBF}, //set fsys2ctrltop_en=1, set fsys2mcu_en
+             -=1, dummy off
+                         {0xC2, 0x73, 0x44}, //Tx on
+                         {0xC2, 0x71, 0x01}, //Control by MCU
+                         {0xFF, 0xFF, 0x00}, //AFE Init wait for 0 format
+                         {0xC2, 0x46, 0x01}, //Bit Mask for 0xC2/70 bit0
+                         {0xC2, 0x71, 0x00}, //Control by BTC
+                     /* RF Calibration Workaround */
+                         {0xBF, 0x0E, 0x5B},//{0xBF, 0x0F, 0x5B}, //Set complete_rdy, switch clock to DCO32k or XO32k
+                     {0x2D, 0x08, 0x27},//{0x2D, 0x08, 0xF7},//{0x2D, 0x08, 0xB7}, //disable xo_always_on, disable force 50
+             -0KHz, set fsys2dco32k_ctrl_en=1
+                           {0xFF, 0x03, 0xE8}, //wait for 1ms
+                         #endif
+               
+                       #ifdef BLUETOOTH_SPEAKER
+                       {0x1E, 0x53, 0x01}, //sw_osc_freq_lv:01 1.1Mhz,buck_out_lv:001 1v25
+               
+                     #else
+                         #ifdef AB1528C_ONLY //AB1528 + Headset
+                       {0x1E, 0x63, 0x00}, //sw_osc_freq_lv:01 1Mhz,buck_out_lv:001 1v2
+                       #else
+                               //{0x1E, 0x53, 0x00}, //sw_osc_freq_lv:01 1Mhz,buck_out_lv:001 1v2
+                       {0x1E, 0x63, 0x00},//sw_osc_freq_lv:10 0.8Mhz,buck_out_lv:000 1v2
+                       #endif
+                     #endif
+               
+                         #ifdef EXTERNAL_XO32K
+                         {0x22, 0x1F, 0x01}, //For External_XO32K application, switch to XO32K
+                         #else
+                         {0x22, 0x03, 0x01}, //For Other applications (MusicBox and Headset), switch to DCO32K
+                         #endif
+                     }
+                 },
+               
+C251 COMPILER V5.57.0,  sector_afe_init                                                    08/11/20  05:51:28  PAGE 18  
+
+                 //- CRC
+                   {0x00,0x00}
+               };
+               
+               #endif
+ 1089          
+ 1090          
+ 1091          #elif (defined OPERATION_IN_RF_AB1520S)
+               SECTOR_AFE_INIT_STRU CODE gSector_AfeInit =
+               {
+                 {
+                     169, //NumOfAfeRegInit
+               
+                     {
+                                     //- MCU clock source=48M
+                           {0x00, 0x99, 0x81},//1
+                         {0x01, 0x00, 0x00},
+                     {0x02, 0xDD, 0x2F},
+                     {0x03, 0x55, 0x01},
+                     {0x04, 0x21, 0x45},  //{0x04, 0x21, 0x65},  CML workaround for LO spur !!!
+                     {0x05, 0x52, 0x14},
+                     {0x06, 0xF0, 0x82},
+                     {0x07, 0xAA, 0x17},
+                     {0x08, 0x66, 0x66},
+                     {0x09, 0x69, 0x9F},  //10   {0x09, 0x79, 0x9F} CML workaround for LO spur !!!
+                     {0x0A, 0x7B, 0x7D}, //VCO offset work around !!!!!!
+                       {0x0D, 0xFE, 0x75},
+                     {0x0E, 0xA8, 0xBC},
+                     {0x0F, 0xE5, 0xEF},
+                     {0x10, 0x38, 0x54},
+                     {0x11, 0x5A, 0x3E},
+                     {0x12, 0x86, 0x97}, //{0x12, 0x96, 0x97}, LO cal offset work around !!!!!!
+                     {0x13, 0xC1, 0x4A},
+                     {0x14, 0x40, 0x43},
+                     {0x15, 0x00, 0xF9},//20
+                     {0x17, 0x45, 0xE5},  //{0x17, 0x45, 0xE7},  VCO Core=00111 AB1520SA workaround for VCO Range
+                           {0x18, 0x00, 0x12},
+                           {0x19, 0xC0, 0x00},
+               
+               
+                     #ifdef BLUETOOTH_SPEAKER
+                       {0x1B, 0x03, 0x33}, // xo26_settle_time_sel=3b'011, xo26_on_st1_time_sel=2b'11
+                     #else
+                       {0x1B, 0x00, 0x33}, // xo26_settle_time_sel=3b'011, xo26_on_st1_time_sel=2b'00
+                     #endif
+               
+               
+                     {0x1C, 0x01, 0x25},
+                     {0x1F, 0x00, 0x00},
+                     {0x21, 0x07, 0x8C},//30
+                             {0x22, 0x07, 0x20},
+                           {0x24, 0x72, 0xF6},
+                           {0x25, 0x01, 0x90},
+                           {0x26, 0x22, 0x49},
+                     {0x29, 0x43, 0x0C}, //cv_initial_dac_value<9:0>780
+                     {0x2C, 0x00, 0x00},//40
+                     {0x2D, 0x18, 0xF7}, //xo_always_on, buck_always_on, set clk32k_xo_en=1, force 500KHz, set clk32k_xo_di
+             -v1=0111
+                     {0x2E, 0x00, 0x00},
+                     {0x2F, 0xC8, 0x01}, //bb_pwsw_mode:0, dsp_pwr_auto:1, dco32k_bias_ct=1
+                     {0x30, 0x0A, 0xA0},
+                     {0x31, 0x91, 0x31},
+                     {0x32, 0xC9, 0x24},
+                     {0x33, 0x08, 0xB8},
+                     {0x34, 0xBF, 0x3F},
+                     {0x35, 0x78, 0x85},
+C251 COMPILER V5.57.0,  sector_afe_init                                                    08/11/20  05:51:28  PAGE 19  
+
+                     {0x36, 0x7A, 0xBF}, //dummy off, can save about 0.9mA
+                     {0x37, 0xC2, 0x3E}, //51
+                     {0x38, 0x08, 0x00},
+                     {0x39, 0x20, 0x41},
+                     {0x3A, 0xF8, 0xCD},
+                     {0x3B, 0x8C, 0x00}, //{0x3B, 0xCC, 0x00},
+                     {0x3F, 0x00, 0x2D}, //{0x3F, 0x83, 0x2D},
+                     {0x40, 0x30, 0x01},
+                     {0x41, 0x30, 0x02},
+                     {0x42, 0xD4, 0x33},
+                     {0x43, 0x72, 0xA8},//60
+                     {0x44, 0xC6, 0xA8},
+                     {0x45, 0x32, 0xC5},
+               
+                     //- AGC_table
+                     {0x4B, 0x0F, 0xC7},
+                     {0x4C, 0x0E, 0x47},
+                     {0x4D, 0x0A, 0x47},
+                     {0x4E, 0x0A, 0x3F},
+                     {0x4F, 0x06, 0x3F},
+                     {0x50, 0x0F, 0xE7},
+                     {0x51, 0x0F, 0xDF},
+                     {0x52, 0x0F, 0xD7},//70
+                     {0x53, 0x0F, 0xCF},
+                     {0x54, 0x0F, 0xC7},
+                     {0x55, 0x0F, 0x4F},
+                     {0x56, 0x0F, 0x47},
+                     {0x57, 0x0F, 0x3F},
+                     {0x58, 0x0F, 0x37},
+                     {0x59, 0x0E, 0x67},
+                     {0x5A, 0x0E, 0x5F},
+                     {0x5B, 0x0E, 0x57},
+                     {0x5C, 0x0E, 0x4F},//80
+                     {0x5D, 0x0E, 0x47},
+                     {0x5E, 0x0E, 0x3F},
+                     {0x5F, 0x0E, 0x37},
+                     {0x60, 0x0E, 0x2F},
+                     {0x61, 0x0E, 0x27},
+                     {0x62, 0x0E, 0x1F},
+                     {0x63, 0x0E, 0x17},
+                     {0x64, 0x0E, 0x0F},
+                     {0x65, 0x0E, 0x07},
+                     {0x66, 0x0E, 0x16},//90
+                     {0x67, 0x0A, 0x27},
+                     {0x68, 0x0A, 0x1F},
+                     {0x69, 0x0A, 0x17},
+                     {0x6A, 0x0A, 0x0F},
+                     {0x6B, 0x0A, 0x07},
+                     {0x6C, 0x0A, 0x16},
+                     {0x6D, 0x06, 0x4F},
+                     {0x6E, 0x06, 0x47},
+                     {0x6F, 0x06, 0x3F},
+                     {0x70, 0x06, 0x37},//100
+                     {0x71, 0x06, 0x2F},
+                     {0x72, 0x06, 0x27},
+                     {0x73, 0x06, 0x1F},
+                     {0x74, 0x06, 0x17},
+                     {0x75, 0x06, 0x0F},
+                     {0x76, 0x06, 0x07},
+                     {0x77, 0x06, 0x16},
+                     {0x78, 0x06, 0x0E},
+                     {0x79, 0x06, 0x06},
+                     {0x7A, 0x06, 0x14},//110
+                     {0x7B, 0x06, 0x0C},
+                     {0x7C, 0x06, 0x04},
+                     {0x7D, 0x06, 0x10},
+C251 COMPILER V5.57.0,  sector_afe_init                                                    08/11/20  05:51:28  PAGE 20  
+
+                     {0x7E, 0x06, 0x08},
+                     //- AGC_table end
+               
+                             {0x80, 0xFF, 0xF0}, //GPIO_Wakeup_mask
+                     {0x81, 0x00, 0x0F}, //GPIO_Wakeup_mask
+                     {0x82, 0x00, 0x00},
+                       {0x83, 0x00, 0x00},
+                             {0x84, 0x00, 0x00},
+                             {0x85, 0x00, 0x00},//120
+                           {0x86, 0x00, 0x00},
+                           {0x87, 0x00, 0x00},
+                             {0x88, 0x05, 0x00},
+                     {0x89, 0x02, 0x43}, // int_flash_pwr_mode=auto mode, i2c_pullup_en=0
+                             //{0x8A, 0x11, 0x00}, // steve led_sw=LED controller& debounce enable
+                         {0x8A, 0x10, 0x00}, //Mantis 8763, for 1520s 1525s 1520u
+               
+                                 //-Power
+                     #ifdef AB1520S_5x5_1v5_Diff
+                       {0x1D, 0x04, 0x00},
+                       {0x1E, 0x5B, 0x03}, //Buck=1.5V    {0x1E, 0x53, 0x03}
+                                      {0x2A, 0xB3, 0x0C},//reglv_en=1
+                     #elif (defined AB1520S_6x6_3v_LRVCM)
+                       {0x1D, 0x04, 0x12},
+                       {0x1E, 0x5B, 0x00},//Buck=1.25V    {0x1E, 0x53, 0x00},
+                                       {0x2A, 0xA3, 0x0C},//reglv_en=0
+                     #endif
+               
+                                 {0x20, 0x70, 0x00},
+                                 {0x27, 0x52, 0xE4}, //reghv_sel<3:0>1000;cv_threshold<9:0>740;for audio THD+N better
+                                 {0x28, 0x26, 0xD0}, //reglv_sel<3:0>010;recharge_threshold<9:0>720
+                               {0x2B, 0xC2, 0xF8}, //full_bat_threshold<9:0>760
+                                 //- Power end
+               
+               
+                     //- Audio
+                     {0xA0, 0xC3, 0x90},
+                     {0xA1, 0x90, 0x90},
+                     {0xA2, 0xB4, 0x00}, // D10=1 Differential MIC in ; D10=0 Single end input
+                     {0xA3, 0x02, 0xF8},
+                     {0xA4, 0x00, 0xFF},
+                     {0xA5, 0x88, 0x00},
+               
+                     #ifdef AB1520S_5x5_1v5_Diff
+                       {0xA6, 0x80, 0x00}, //Audio-in and Audio-out off, Line-in off, mic_bias_en=0, auadc_ref_sel=2b'00
+                       {0xA7, 0x20, 0x43}, // MIC Bias 1.8V
+                     #elif (defined AB1520S_6x6_3v_LRVCM)
+                       {0xA6, 0x80, 0x0B}, //Audio-in and Audio-out off, Line-in off, mic_bias_en=0, auadc_ref_sel=2b'00
+                       {0xA7, 0xA7, 0x63}, // MIC Bias 1.8V
+                     #endif
+               
+                     {0xA8, 0x50, 0x55}, // bias_au_dac=2b'00
+                         {0xA9, 0x0F, 0x43},
+                           {0xAA, 0x00, 0x01},
+                            //- Audio end
+               
+               
+                     {0xAB, 0x2A, 0x1F},   //      {0xAB, 0x22, 0x1F},  Enable Temp.sensor
+                       {0xAC, 0x00, 0x00},
+                   {0xFF, 0x03, 0x8C},
+                         {0xAD, 0x1F, 0xFF},//140
+                       {0xAE, 0x00, 0x00}, //For ADC issue{0xAE, 0x80, 0x00}
+                         {0xB3, 0xC0, 0x00},
+                           {0xB4, 0x0F, 0x27},
+                   {0xB5, 0x05, 0x40},  //{0xB5, 0x05, 0x4F},
+                   {0xB7, 0x10, 0x31},
+                           {0xB6, 0x48, 0x00},
+C251 COMPILER V5.57.0,  sector_afe_init                                                    08/11/20  05:51:28  PAGE 21  
+
+                           {0xB8, 0x00, 0x5F}, //{0xB8, 0x00, 0x7F},
+                           {0xB9, 0xD5, 0x11}, //{0xB9, 0xD5, 0x71}, //{0xB9, 0xD5, 0x15},
+                           {0xBF, 0x0E, 0x5A},
+                       //--------------------------
+               
+               
+               
+                     //- XTAL offset MCU clock source=32k
+                         {0xFE, 0xFF, 0x01}, //SFR Clock??32K
+                         {0x16, 0x15, 0x47},//151
+                         {0x23, 0xF1, 0x68},
+                         {0x3F, 0x00, 0x2D},  //{0x3F, 0x03, 0x2D},
+                         {0x40, 0x30, 0x49},
+                         {0xFF, 0x00, 0x02}, //Delay 1mS
+                         {0xFE, 0xFF, 0x00}, //SFR Clock??96M
+                         {0xFF, 0x00, 0x8E},//157
+                     //----------------------------
+               
+                     //- Power on calibration
+                         {0xB3, 0xC0, 0x00}, //ro_en=0
+                         {0xFF, 0x08, 0xE6}, //Delay 3ms
+                     //------------------------
+               
+               
+                         {0x1A, 0xC0, 0x01}, //dco_32k_cal_dis=1
+               
+                         #ifdef BLUETOOTH_SPEAKER
+                       //For Music Box application (32k to FM chip)
+                       {0x2D, 0x08, 0xF7}, //xo_always_on, disable force 500KHz, set clk32k_xo_div1=0111, set fsys2dco32k_ct
+             -rl_en=1  (can't gating)
+                       {0xB4, 0x0D, 0x27}, //{0xB4, 0x2D, 0x85}, //set pass_xo2pll_en=0 (gating)
+                       {0xBF, 0x0F, 0x5B}, //Set complete_rdy, switch clock to divide_from_xo
+                         #else
+                       //For other applications (Headset and External_XO32K)
+                       {0x2D, 0x08, 0x27}, //disable xo_always_on, disable force 500KHz, set fsys2dco32k_ctrl_en=1
+                       {0xB4, 0x0F, 0x27}, //{0xB4, 0x2F, 0x85}, //set pass_xo2pll_en=1
+                       {0xBF, 0x0E, 0x5B}, //Set complete_rdy, switch clock to DCO32k or XO32k
+                         #endif
+               
+                     {0x36, 0xFA, 0xBC}, //dummy off, rf_cal_en=enable //164
+               
+                     /* RF Calibration Workaround */
+                     {0xC2, 0x73, 0x44}, //Tx on
+                     {0xC2, 0x71, 0x01}, //Control by MCU
+                     {0xFF, 0xFF, 0x00}, //AFE Init wait for 0 format
+                     {0xC2, 0x46, 0x01}, //Bit Mask for 0xC2/70 bit0
+                     {0xC2, 0x71, 0x00}, //Control by BTC  //169
+                     /* RF Calibration Workaround */
+               
+               
+                       }
+                 },
+               
+                 //- CRC
+                   {0x00,0x00}
+               };
+               
+               #endif
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+C251 COMPILER V5.57.0,  sector_afe_init                                                    08/11/20  05:51:28  PAGE 22  
+
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       513     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

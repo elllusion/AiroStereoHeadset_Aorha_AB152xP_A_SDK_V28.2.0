@@ -1,0 +1,269 @@
+C251 COMPILER V5.57.0,  sector_hc_parameter_type                                           08/11/20  06:32:11  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_hc_parameter_type
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\sector_hc_parameter_type.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\sector_hc_parameter_type.c XSMALL HPTR FUNCTIONS(REENTRA
+                    -NT) ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.
+                    -\source\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source
+                    -\ROM\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\s
+                    -ource\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\sourc
+                    -e\SECTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMi
+                    -sc) DEFINE(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_Air
+                    -oStereoHeadset\sector_hc_parameter_type.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\sector_hc_parameter_type.
+                    -obj) 
+
+stmt  level    source
+
+    1          //////////////////////////////////////////////////////////
+    2          // Copyright@ 2009 Airoha.  All right reserved.
+    3          //////////////////////////////////////////////////////////
+    4          #include "os.h"
+    5          #include "bt_config_profile.h"
+    6          #include "sector_hc_parameter.h"
+    7          
+    8          #pragma userclass (HCONST = CONFIG)
+    9          
+   10          
+   11          SECTOR_HC_PARAMETER_STRU CODE gHC_parameter_init =
+   12          {
+   13          
+   14              0x00,   //  U8  scattrnet_mode      /* Deprecated */
+   15              0x00,   //  U8  scan_enable;        0: inquiry scan 1: page scan
+   16              0x00,   //  U8  sac_scan_enable;    /* Deprecated */
+   17          
+   18          #ifdef HEADSET_SOC
+   19              1,      //  U8  inquiry_scan_type;                  1 : interlace
+   20          #else
+                   1,      //  U8  inquiry_scan_type;                  1 : interlace
+               #endif
+   23              2,      //  U8  inquiry_mode;// 1 means RSSI inquiry
+   24          #ifdef HEADSET_SOC
+   25              1,      //  U8  page_scan_type;                     1 : interlace
+   26          #else
+                   #ifdef HID_MOUSE_IOT
+                   0,      //  U8  page_scan_type;                     1 : interlace
+                   #else
+                   1,      //  U8  page_scan_type;                     1 : interlace
+                   #endif
+               #endif
+   33          
+   34              1,      //  U8  SR,
+   35              0,      //  U8  PIN_type;
+   36              0,      //  U8  authentication_enable;
+   37              0,      //  U8  encryption_mode;
+   38              0,      //  U8  hold_mode_activity;
+   39              0,      //  U8  num_broadcast_retransmissions;
+   40              1,      //  U8  AFH_channel_assessment_mode;
+   41              0,      //  U8  SSP mode
+   42              0,      //  U8  SSP debug mode
+   43              #ifdef  HID_SOC
+                   0,
+                   #else
+   46              0,      //  U8  mmi1_interval
+   47              #endif
+   48              1,      //  U8  number_of_support_iac
+   49              0,      //  U8  current_iac_used_idx
+   50              {
+   51                  {0x33, 0x8B, 0x9E, 0x00, 0x00, 0x00, 0xE2, 0x3A, 0x1A, 0x33, 0x02}, //  giac;
+C251 COMPILER V5.57.0,  sector_hc_parameter_type                                           08/11/20  06:32:11  PAGE 2   
+
+   52                  {0x00, 0x8B, 0x9E, 0x00, 0x00, 0x00, 0x48, 0xC3, 0x45, 0xEB, 0x01}, //  liac;
+   53              },
+   54              {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F},   //  U8  AFH_host_channel_classificati
+             -on[10];
+   55          #ifdef HID_IIM_SOC
+                   0x0400, //  U16 inquiry_scan_interval;
+                   0x00D0, //  U16 inquiry_scan_window;
+                   //0x2000,   //  U16 page_timeout; //2.56s
+                   0x1000,
+                   0x1F40, //  U16 connection_accept_timeout;
+                   0x1F40, //  U16 read_logical_link_accept_timeout;
+                   0x0400, //  U16 page_scan_interval;
+                   0x0200, //  U16 page_scan_window;
+               #else
+   65              #ifdef HEADSET_SOC
+   66              #ifdef ASIC_RELEASE
+                   0x00A0, //  U16 inquiry_scan_interval;
+                   #else
+   69              0x0800, //  U16 inquiry_scan_interval;
+   70              #endif
+   71              0x0012, //  U16 inquiry_scan_window;
+   72              #ifdef PRODUCT_TYPE_K
+                   0x1800, //  U16 page_timeout;
+                   #else
+   75              0x3000, //  U16 page_timeout;
+   76              #endif
+   77              0x1F40, //  U16 connection_accept_timeout;
+   78              0x1F40, //  U16 read_logical_link_accept_timeout;
+   79              0x0800, //  U16 page_scan_interval;
+   80              0x0012, //  U16 page_scan_window;
+   81              #else
+                   0x0800, //  U16 inquiry_scan_interval;
+                   0x0012, //  U16 inquiry_scan_window;
+                   0x3000, //  U16 page_timeout;
+                   0x1F40, //  U16 connection_accept_timeout;
+                   0x1F40, //  U16 read_logical_link_accept_timeout;
+                   0x0800, //  U16 page_scan_interval;
+                   0x0012, //  U16 page_scan_window;
+                   #endif
+   90          #endif
+   91          
+   92          #ifdef  HID_SOC
+                   0x0000, //- U16 sac_scan_interval_in_2slots;
+               #else
+   95              0x0400, //- U16 sac_scan_interval_in_2slots;
+   96          #endif
+   97              0x006C, //  U16 voice_setting;
+   98              0x0007, //  U16 default_link_policy_setting;
+   99              0x01,   //  U8 current_num_of_stored_link_key;
+  100              {
+  101                  0x03,   //max_retry_num;
+  102                  0x01,   //waiting_interval; //100ms
+  103              },
+  104              {
+  105                  {
+  106                      0x0000, //  U16 flush_timeout;
+  107                      0x0000, //  U16 link_policy_setting;
+  108                      0x0000  //  U16 failed_contact_counter;
+  109                  },
+  110          #if MAX_NUM_ACL_LINK > 1
+  111                  {
+  112                      0x0000, //  U16 flush_timeout;
+  113                      0x0000, //  U16 link_policy_setting;
+  114                      0x0000  //  U16 failed_contact_counter;
+  115                  },
+  116          #endif
+C251 COMPILER V5.57.0,  sector_hc_parameter_type                                           08/11/20  06:32:11  PAGE 3   
+
+  117          #if MAX_NUM_ACL_LINK > 2
+  118                  {
+  119                      0x0000, //  U16 flush_timeout;
+  120                      0x0000, //  U16 link_policy_setting;
+  121                      0x0000  //  U16 failed_contact_counter;
+  122                  },
+  123          #endif
+  124          #if MAX_NUM_ACL_LINK > 3
+  125                  {
+  126                      0x0000, //  U16 flush_timeout;
+  127                      0x0000, //  U16 link_policy_setting;
+  128                      0x0000  //  U16 failed_contact_counter;
+  129                  },
+  130          #endif
+  131          #if MAX_NUM_ACL_LINK > 4
+                       {
+                           0x0000, //  U16 flush_timeout;
+                           0x0000, //  U16 link_policy_setting;
+                           0x0000  //  U16 failed_contact_counter;
+                       },
+               #endif
+  138          #if MAX_NUM_ACL_LINK > 5
+                       {
+                           0x0000, //  U16 flush_timeout;
+                           0x0000, //  U16 link_policy_setting;
+                           0x0000  //  U16 failed_contact_counter;
+                       },
+               #endif
+  145          #if MAX_NUM_ACL_LINK > 6
+                       {
+                           0x0000, //  U16 flush_timeout;
+                           0x0000, //  U16 link_policy_setting;
+                           0x0000  //  U16 failed_contact_counter;
+                       },
+               #endif
+  152          #if MAX_NUM_ACL_LINK > 7
+                       {
+                           0x0000, //  U16 flush_timeout;
+                           0x0000, //  U16 link_policy_setting;
+                           0x0000  //  U16 failed_contact_counter;
+                       },
+               #endif
+  159          #if MAX_NUM_ACL_LINK > 8
+                       {
+                           0x0000, //  U16 flush_timeout;
+                           0x0000, //  U16 link_policy_setting;
+                           0x0000  //  U16 failed_contact_counter;
+                       },
+               #endif
+  166          #if MAX_NUM_ACL_LINK > 9
+               #error MAX_NUM_ACL_LINK > 9
+               #endif
+  169              },//HC_LINK_INFO_TYPE   link_info[MAX_NUM_ACL_LINK];
+  170              96000, /*30s*/ // timer interval of bb for page scan enabled mode, detach if timer expired
+  171              192000, /*60s*/// timer interval of bb for discoveriable mode, detach if timer expired
+  172          
+  173              HC_MISC_SUPP_FEA0_AUTO_CONN_ACP             |
+  174          //- HC_MISC_SUPP_FEA0_USB_HUB_SUPPORT           |
+  175          //- HC_MISC_SUPP_FEA0_RESET_SOFT                |
+  176              HC_MISC_SUPP_FEA0_RESET_HARD                |
+  177              0x00,
+  178              #ifdef REMOTE_EEPROM_UPDATE
+                   HC_MISC_SUPP_FEA1_REMOTE_EEPROM_UPDATE      |
+                   #endif
+  181            #ifdef TRSPX_App
+                   HC_MISC_SUPP_FEA1_DISABLE_LIGHT_DBGPRINT |
+C251 COMPILER V5.57.0,  sector_hc_parameter_type                                           08/11/20  06:32:11  PAGE 4   
+
+                 #elif defined AIR_UPDATE_DONGLE
+                 HC_MISC_SUPP_FEA1_DISABLE_LIGHT_DBGPRINT |
+                 #elif defined KB_App
+                 HC_MISC_SUPP_FEA1_DISABLE_LIGHT_DBGPRINT |
+                 #else
+  188            //HC_MISC_SUPP_FEA1_DISABLE_LIGHT_DBGPRINT |
+  189            //HC_MISC_SUPP_FEA1_SPI_LIGHT_DBGPRINT |
+  190            #endif
+  191              0x00,
+  192          
+  193              //- EnableDUT,
+  194              0,
+  195          
+  196            {
+  197              {
+  198                1,
+  199                {
+  200                  {0, 0, 0, 0, 0, 0, 0},
+  201                  {0, 0, 0, 0, 0, 0, 0},
+  202                }
+  203              },
+  204              {
+  205                0,
+  206                {
+  207                  {0, 0x01, 0, 0, 0, 0, 0, 0},
+  208                  {0, 0x01, 0, 0, 0, 0, 0, 0},
+  209                }
+  210              }
+  211            },
+  212          
+  213            4,
+  214            {
+  215              0x00000000,
+  216              0x00000000,
+  217              0x00000000,
+  218            },
+  219              //- CRC
+  220              {0,0}
+  221          };
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       155     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

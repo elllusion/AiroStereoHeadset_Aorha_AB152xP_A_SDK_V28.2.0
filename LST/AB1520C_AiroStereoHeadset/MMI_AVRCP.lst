@@ -1,0 +1,1384 @@
+C251 COMPILER V5.57.0,  MMI_AVRCP                                                          08/11/20  05:52:44  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE MMI_AVRCP
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\MMI_AVRCP.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\MMI\MMI_AVRCP.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) WARN
+                    -INGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\sourc
+                    -e\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\source\R
+                    -OM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_LE;.
+                    -\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspData;.
+                    -\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLASH_I
+                    -NIT=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520C_AiroStereoHeadset\MMI
+                    -_AVRCP.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\MMI_AVRCP.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #define _MMI_AVRCP_C_
+    4          
+    5          #include "rc.h"
+    6          #include "bt_config_profile.h"
+    7          
+    8          #ifdef AVRCP_Profile
+    9          #include "MMI.h"
+   10          #include "MMI_Protocol.h"
+   11          #include "MMI_State.h"
+   12          #include "MMI_AVRCP.h"
+   13          #include "MMI_HCI.h"
+   14          #include "..\HC\HC_Interface.h"
+   15          #include "MMI_SDAP.h"
+   16          #include "MMI_Driver.h"
+   17          #include "MMI_A2DP.h"
+   18          #include "MMI_AirModule.h"
+   19          #include "MMI_LineIn.h"
+   20          #include "MMI_HFP.h"
+   21          #ifdef FAST_CONNECT_DONGLE
+               #include "MMI_FCD.h"
+               #endif
+   24          #include "MMI_Reconnect.h"
+   25          #include "..\A2DP\A2DP_Interface.h"
+   26          #include "..\AVRCP\AVRCP_Interface.h"
+   27          
+   28          #include "..\SDK_Proxy\SDK_Proxy.h"
+   29          extern VFUN XDATA api_profile_func[API_GRP_PF_CB_CNT];
+   30          
+   31          PRIVATE void MMI_AVRCP_RemotePlayStatus(U8 linkIndex, U8 playStatus);
+   32          PRIVATE void MMI_AVRCP_TG_GetKeyVolUpDown(U8 linkIndex);
+   33          PRIVATE void MMI_AVRCP_TG_GetVolChanged(U8 linkIndex, U8 absVol);
+   34          PRIVATE void MMI_AVRCP_TG_GetSetAbsVol(U8 linkIndex, U8 absVol);
+   35          PRIVATE void MMI_AVRCP_SetDrvVolume(U8 linkIndex);
+   36          
+   37          PRIVATE void MMI_AVRCP_KeySwitch(U8 linkIndex);
+   38          PRIVATE void MMI_AVRCP_KeyLeftChannel(U8 linkIndex);
+   39          PRIVATE void MMI_AVRCP_KeyRightChannel(U8 linkIndex);
+   40          PRIVATE void MMI_AVRCP_KeyStereoChannel(U8 linkIndex);
+   41          
+   42          PRIVATE void MMI_AVRCP_ClearAllMissions(U8 linkIndex);
+   43          PRIVATE void MMI_AVRCP_SendTrackChangeUartEvt(U8 linkIndex, U8 avrcpEventId);
+   44          PRIVATE void MMI_AVRCP_SendPlaybackPosUartEvt(U8 linkIndex, U32 PlaybackPos);
+   45          PRIVATE void MMI_AVRCP_SendPlayAppSettingsUartInd(U8 linkIndex, U8 attributeID, U8 attributeValue);
+   46          
+   47          static MMI_KEY_EVT CODE MMI_AVRCP_KeyEvtHandler[AVRCP_KEY_EVENT_NO] =
+   48          {
+   49            {MMI_AVRCP_KeyPlay},      //AVRCP_KEY_EVENT_KEY_AVRCP_PLAY
+   50            {MMI_AVRCP_KeyStop},      //AVRCP_KEY_EVENT_KEY_AVRCP_STOP 
+   51            {MMI_AVRCP_KeyPause},       //AVRCP_KEY_EVENT_KEY_AVRCP_PAUSE
+   52            {NULL},             //AVRCP_KEY_EVENT_KEY_AVRCP_RECORD
+C251 COMPILER V5.57.0,  MMI_AVRCP                                                          08/11/20  05:52:44  PAGE 2   
+
+   53            {MMI_AVRCP_KeyRewindPush},    //AVRCP_KEY_EVENT_KEY_AVRCP_REWIND_PUSH, 
+   54            {MMI_AVRCP_KeyFastForwardPush}, //AVRCP_KEY_EVENT_KEY_AVRCP_FAST_FORWARD_PUSH,     
+   55            {NULL},             //AVRCP_KEY_EVENT_KEY_AVRCP_EJECT,
+   56            {MMI_AVRCP_KeyForward},     //AVRCP_KEY_EVENT_KEY_AVRCP_FORWARD,            
+   57            {MMI_AVRCP_KeyBackward},    //AVRCP_KEY_EVENT_KEY_AVRCP_BACKWARD,   
+   58            {MMI_AVRCP_KeyRewindRelease},   //AVRCP_KEY_EVENT_KEY_AVRCP_REWIND_RELEASE, 
+   59            {MMI_AVRCP_KeyFastForwardRelease}, //AVRCP_KEY_EVENT_KEY_AVRCP_FAST_FORWARD_RELEASE,  
+   60            {MMI_AVRCP_KeyRepeatModeChange}, //AVRCP_KEY_EVENT_KEY_AVRCP_REPEAT_MODE_CHANGE,   
+   61            {MMI_AVRCP_KeyShuffleModeChange}, //AVRCP_KEY_EVENT_KEY_AVRCP_SHUFFLE_MODE_CHANGE,
+   62            {MMI_AVRCP_KeySwitch},      //AVRCP_KEY_EVENT_KEY_AVRCP_ACTIVE_TOGGLE,
+   63            {MMI_AVRCP_KeyLeftChannel}, //AVRCP_KEY_EVENT_KEY_KEY_LEFT_CHANNEL
+   64            {MMI_AVRCP_KeyRightChannel}, //AVRCP_KEY_EVENT_KEY_KEY_RIGHT_CHANNEL
+   65            {MMI_AVRCP_KeyStereoChannel}, //AVRCP_KEY_EVENT_KEY_KEY_STEREO_CHANNEL,
+   66          };
+   67          
+   68          PUBLIC void MMI_AVRCP_ProcessKeyEvent(U8 linkIndex, U8 index)
+   69          {
+   70   1        if(MMI_AVRCP_KeyEvtHandler[index].fKeyEvt && MMI_IsNormalLink(linkIndex))
+   71   1        {
+   72   2          MMI_AVRCP_KeyEvtHandler[index].fKeyEvt(linkIndex);
+   73   2        }
+   74   1      }
+   75          
+   76          PRIVATE void MMI_AVRCP_RemoteNotification(U8 linkIndex, AVRCP_TO_MMI_EVT_PARAM XDATA_PTR paramPtr)
+   77          {
+   78   1        U8 i;
+   79   1        PlayAppElement XDATA_PTR attriPtr;
+   80   1        
+   81   1        switch (paramPtr->Notify.eventID)
+   82   1        {
+   83   2          case AVRCP_EVENT_ID_PLAYBACK_STATUS_CHANGED:
+   84   2            {
+   85   3              MMI_AVRCP_MISSION_PARAM_TYPE LDATA avrcpParam;
+   86   3              
+   87   3              MMI_AVRCP_CancelMission(linkIndex, MMI_AVRCP_MISSION_BACKUP_AND_PUSH_PLAY_STATUS);
+   88   3      
+   89   3              avrcpParam.taskId = MMI_AVRCP_MISSION_BACKUP_AND_PUSH_PLAY_STATUS;
+   90   3              avrcpParam.timer = 160L;
+   91   3              avrcpParam.fcallback = NULL;
+   92   3              avrcpParam.PlayStatus = paramPtr->Notify.eventParams.PlayStatus;
+   93   3              MMI_AVRCP_PushMission(linkIndex, &avrcpParam);
+   94   3              gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].isDisablePlayStatusMonitor = TRUE;
+   95   3              LightDbgPrint("AVRCP Push:BACKUP_AND_PUSH:%d",(U8)paramPtr->Notify.eventParams.PlayStatus);
+   96   3            }
+   97   2            break;
+   98   2          case AVRCP_EVENT_ID_TRACK_CHANGED:
+   99   2          case AVRCP_EVENT_ID_TRACK_REACHED_END:
+  100   2          case AVRCP_EVENT_ID_TRACK_REACHED_START:
+  101   2            MMI_AVRCP_SendTrackChangeUartEvt(linkIndex, paramPtr->Notify.eventID);
+  102   2            break;
+  103   2          case AVRCP_EVENT_ID_PLAYBACK_POS_CHANGED:
+  104   2            MMI_AVRCP_SendPlaybackPosUartEvt(linkIndex, paramPtr->Notify.eventParams.PlaybackPos);
+  105   2            break;
+  106   2          case AVRCP_EVENT_ID_VOLUME_CHANGED:
+  107   2            MMI_AVRCP_TG_GetVolChanged(linkIndex, paramPtr->Notify.eventParams.AbsoluteVolume);
+  108   2            #ifdef FAST_CONNECT_DONGLE
+                     MMI_FCD_ReportVolume(HCI_VEVT_OCF_FCD_VOL_A2DP, paramPtr->Notify.eventParams.AbsoluteVolume);
+                     #else
+  111   2            MMI_HCI_UartSendUnSolicitedIndication(MMI_UART_IND_SET_ABSOLUTE_VOLUME, (U8 XDATA_PTR)&paramPtr->Notif
+             -y.eventParams.AbsoluteVolume, linkIndex);
+  112   2            #endif
+  113   2            break;
+  114   2          case AVRCP_EVENT_ID_PLAYER_APPLICATION_SETTING_CHANGED:
+  115   2            for(i = 0; i < paramPtr->Notify.eventParams.PlayAppSettings.attributeIDNum ; i++)
+  116   2            {
+  117   3              attriPtr = &paramPtr->Notify.eventParams.PlayAppSettings.attribute[i];
+C251 COMPILER V5.57.0,  MMI_AVRCP                                                          08/11/20  05:52:44  PAGE 3   
+
+  118   3              
+  119   3              if(attriPtr->attributeID == AVRCP_REPEAT_MODE_STATUS || attriPtr->attributeID == AVRCP_SHUFFLE_ON_OFF
+             -_STATUS)
+  120   3              {
+  121   4                MMI_AVRCP_SendPlayAppSettingsUartInd(linkIndex, attriPtr->attributeID, attriPtr->attributeValue);
+  122   4                if(api_profile_func[API_GRP_PF_CB_AVRCP_PLAY_APP_CHANGED])
+  123   4                {
+  124   5                  ((API_PROFILE_AVRCP_PLAY_APP_CHANGED_FUNC)api_profile_func[API_GRP_PF_CB_AVRCP_PLAY_APP_CHANGED])(l
+             -inkIndex, attriPtr->attributeID, attriPtr->attributeValue);
+  125   5                }
+  126   4              }
+  127   3            }
+  128   2            break;
+  129   2        }
+  130   1      }
+  131          
+  132          PRIVATE void MMI_AVRCP_GetApplicationSettings(U8 linkIndex, AVRCP_TO_MMI_EVT_PARAM XDATA_PTR paramPtr)
+  133          {
+  134   1        if(paramPtr->GetPlayAppSettings.attributeValue == AVRCP_REPEAT_CMD_REJECT)
+  135   1        {
+  136   2          switch(gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].getAppSettingsOwner)
+  137   2          {
+  138   3            case AVRCP_GET_APP_SETTINGS_UART:
+  139   3              MMI_AVRCP_SendPlayAppSettingsUartInd(linkIndex, AVRCP_REPEAT_CMD_REJECT, 0);
+  140   3              break;
+  141   3            case AVRCP_GET_APP_SETTINGS_SDK:
+  142   3              break;
+  143   3            default:
+  144   3        
+  145   3              break;
+  146   3          }
+  147   2          gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].getAppSettingsOwner = AVRCP_GET_APP_SETTINGS_NONE;
+  148   2          return;
+  149   2        }
+  150   1        
+  151   1        if(paramPtr->GetPlayAppSettings.attributeID == AVRCP_SHUFFLE_ON_OFF_STATUS)
+  152   1        {
+  153   2          switch(gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].getAppSettingsOwner)
+  154   2          {
+  155   3            case AVRCP_GET_APP_SETTINGS_KEY:
+  156   3              MMI_AVRCP_SetPlayAppSettings(linkIndex, AVC_OPERATION_SET_SHUFFLE_MODE, (U8)((paramPtr->GetPlayAppSet
+             -tings.attributeValue%AVRCP_SHUFFLE_MODE_NO)+1));
+  157   3              break;
+  158   3            case AVRCP_GET_APP_SETTINGS_UART:
+  159   3              MMI_AVRCP_SendPlayAppSettingsUartInd(linkIndex, AVRCP_SHUFFLE_ON_OFF_STATUS, paramPtr->GetPlayAppSett
+             -ings.attributeValue);
+  160   3              break;
+  161   3            case AVRCP_GET_APP_SETTINGS_SDK:
+  162   3              if(api_profile_func[API_GRP_PF_CB_AVRCP_PLAY_APP_CHANGED])
+  163   3              {
+  164   4                ((API_PROFILE_AVRCP_PLAY_APP_CHANGED_FUNC)api_profile_func[API_GRP_PF_CB_AVRCP_PLAY_APP_CHANGED])(li
+             -nkIndex, AVRCP_SHUFFLE_ON_OFF_STATUS, paramPtr->GetPlayAppSettings.attributeValue);
+  165   4              }
+  166   3              break;
+  167   3            default:
+  168   3              break;
+  169   3          
+  170   3          }       
+  171   2        }
+  172   1        else if(paramPtr->GetPlayAppSettings.attributeID == AVRCP_REPEAT_MODE_STATUS)
+  173   1        {
+  174   2          switch(gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].getAppSettingsOwner)
+  175   2          {
+  176   3            case AVRCP_GET_APP_SETTINGS_KEY:
+  177   3              MMI_AVRCP_SetPlayAppSettings(linkIndex, AVC_OPERATION_SET_REPEAT_MODE, (U8)((paramPtr->GetPlayAppSett
+             -ings.attributeValue%AVRCP_REPEAT_MODE_NO)+1));
+C251 COMPILER V5.57.0,  MMI_AVRCP                                                          08/11/20  05:52:44  PAGE 4   
+
+  178   3              break;
+  179   3            case AVRCP_GET_APP_SETTINGS_UART:
+  180   3              MMI_AVRCP_SendPlayAppSettingsUartInd(linkIndex, AVRCP_REPEAT_MODE_STATUS, paramPtr->GetPlayAppSetting
+             -s.attributeValue);
+  181   3              break;
+  182   3            case AVRCP_GET_APP_SETTINGS_SDK:
+  183   3              if(api_profile_func[API_GRP_PF_CB_AVRCP_PLAY_APP_CHANGED])
+  184   3              {
+  185   4                ((API_PROFILE_AVRCP_PLAY_APP_CHANGED_FUNC)api_profile_func[API_GRP_PF_CB_AVRCP_PLAY_APP_CHANGED])(li
+             -nkIndex, AVRCP_REPEAT_MODE_STATUS, paramPtr->GetPlayAppSettings.attributeValue);
+  186   4              }
+  187   3              break;
+  188   3            default:
+  189   3              break;
+  190   3          
+  191   3          }
+  192   2        }
+  193   1        gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].getAppSettingsOwner = AVRCP_GET_APP_SETTINGS_NONE;
+  194   1      }
+  195          
+  196          PUBLIC void MMI_AVRCP_EventHandler(U8 linkIndex, U8 evtCode, AVRCP_TO_MMI_EVT_PARAM XDATA_PTR paramPtr)
+  197          {
+  198   1        #ifdef DBG_UART_ENABLE_MMI
+                 LightDbgPrint("MMI-AVRCPEvtOPcode[%d]:%x",(U8)linkIndex,(U8)evtCode);
+                 #endif
+  201   1        switch(evtCode)
+  202   1        { 
+  203   2          case AVRCP_EVT_TO_MMI_GET_STOP_REJECTED:  // the music cant be either paused or stopped.
+  204   2            #ifdef A2DP_Profile
+  205   2            MMI_A2DP_ClearResumeState(linkIndex);
+  206   2            #endif
+  207   2            break;
+  208   2      
+  209   2          case AVRCP_EVT_TO_MMI_GET_KEY_VOLUME_UP_CMD:
+  210   2            MMI_HCI_UartSendUnSolicitedIndication(MMI_UART_IND_AVRCP_UP_DOWN_PASS_THROUGH, &evtCode, linkIndex);
+  211   2            #ifdef AIR_MODULE
+  212   2            if(MMI_AIR_TG_GetKeyVolUp(linkIndex))
+  213   2              break;
+  214   2            #endif
+  215   2            if(CURRENT_A2DP_SOUND_LEVEL(linkIndex) < MMI_MAX_MUSIC_SOUND_LEVEL())
+  216   2            {
+  217   3              #ifdef A2DP_Profile
+  218   3              MMI_A2DP_SetVolByLevel(linkIndex, (U8)(CURRENT_A2DP_SOUND_LEVEL(linkIndex) + 1), 0);
+  219   3              #endif
+  220   3              MMI_AVRCP_TG_GetKeyVolUpDown(linkIndex);
+  221   3            }
+  222   2            break;
+  223   2          case AVRCP_EVT_TO_MMI_GET_KEY_VOLUME_DOWN_CMD:
+  224   2            MMI_HCI_UartSendUnSolicitedIndication(MMI_UART_IND_AVRCP_UP_DOWN_PASS_THROUGH, &evtCode, linkIndex);
+  225   2            #ifdef AIR_MODULE
+  226   2            if(MMI_AIR_TG_GetKeyVolDown(linkIndex))
+  227   2              break;
+  228   2            #endif
+  229   2            if(CURRENT_A2DP_SOUND_LEVEL(linkIndex) > 0)
+  230   2            {
+  231   3              #ifdef A2DP_Profile
+  232   3              MMI_A2DP_SetVolByLevel(linkIndex, (U8)(CURRENT_A2DP_SOUND_LEVEL(linkIndex) - 1), 0);
+  233   3              #endif
+  234   3              MMI_AVRCP_TG_GetKeyVolUpDown(linkIndex);
+  235   3            }
+  236   2            break;
+  237   2      
+  238   2        #ifdef A2DP_SRC_Profile
+                   case AVRCP_EVT_TO_MMI_GET_KEY_PLAY_CMD:
+                     #ifdef FAST_CONNECT_DONGLE
+                     MMI_FCD_ReportAction(HCI_VEVT_OCF_FCD_PLAY_MUSIC);
+C251 COMPILER V5.57.0,  MMI_AVRCP                                                          08/11/20  05:52:44  PAGE 5   
+
+                     #endif
+                     MMI_A2DP_SendCmd(linkIndex, A2DP_PLAY_CMD);
+                     break;
+                   case AVRCP_EVT_TO_MMI_GET_KEY_STOP_CMD:
+                   case AVRCP_EVT_TO_MMI_GET_KEY_PAUSE_CMD:
+                     #ifdef FAST_CONNECT_DONGLE
+                     MMI_FCD_ReportAction(HCI_VEVT_OCF_FCD_PAUSE_MUSIC);
+                     #endif
+                     MMI_A2DP_SendCmd(linkIndex, A2DP_PAUSE_CMD);
+                     break;
+                   case AVRCP_EVT_TO_MMI_GET_KEY_FORWARD_CMD:
+                     #ifdef FAST_CONNECT_DONGLE
+                     MMI_FCD_ReportAction(HCI_VEVT_OCF_FCD_NEXT_TRACK);
+                     #endif
+                     break;
+                   case AVRCP_EVT_TO_MMI_GET_KEY_BACKWARD_CMD:
+                     #ifdef FAST_CONNECT_DONGLE
+                     MMI_FCD_ReportAction(HCI_VEVT_OCF_FCD_PREV_TRACK);
+                     #endif
+                     break;
+                 #endif
+  263   2        
+  264   2          case AVRCP_EVT_TO_MMI_GET_KEY_STOP_RESP:
+  265   2          case AVRCP_EVT_TO_MMI_GET_KEY_PAUSE_RESP:
+  266   2            MMI_AVRCP_SetMusicPlay(linkIndex, FALSE);
+  267   2            break;
+  268   2          case AVRCP_EVT_TO_MMI_GET_KEY_PLAY_RESP:
+  269   2            MMI_AVRCP_SetMusicPlay(linkIndex, TRUE);
+  270   2            break;
+  271   2            
+  272   2          case AVRCP_EVT_TO_MMI_GET_PLAY_STATUS:
+  273   2            LightDbgPrint("MMI-Get play status:%x",(U8)paramPtr->PlayStatus);
+  274   2            
+  275   2            if(paramPtr->PlayStatus != AVRCP_PLAYBACK_STATUS_REJECT)
+  276   2              MMI_AVRCP_CancelMission(linkIndex, MMI_AVRCP_MISSION_BACKUP_AND_PUSH_PLAY_STATUS);
+  277   2            
+  278   2            gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].isGetPlayStatusSupported = (paramPtr->PlayStatus != AVRCP_PLAYBACK_
+             -STATUS_REJECT)?TRUE:FALSE;
+  279   2            gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].isSendingGetPlayStatus = AVRCP_PLAY_STATUS_DONE;   
+  280   2            MMI_AVRCP_RemotePlayStatus(linkIndex, paramPtr->PlayStatus);
+  281   2            break;
+  282   2            
+  283   2          // For Key play and Key pause
+  284   2          case AVRCP_EVT_TO_MMI_PLAY_STATUS_FOR_KEY_PLAY_PAUSE:
+  285   2            switch(paramPtr->PlayStatus)
+  286   2            {
+  287   3              case AVRCP_PLAYBACK_STATUS_PLAYING:
+  288   3              case AVRCP_PLAYBACK_STATUS_FWD_SEEK:
+  289   3              case AVRCP_PLAYBACK_STATUS_REV_SEEK:  
+  290   3                MMI_AVRCP_CmdGenerator(linkIndex,AVRCP_SEND_OPERATION,AVC_OPERATION_PAUSE);
+  291   3                break;
+  292   3              case AVRCP_PLAYBACK_STATUS_STOPPED: 
+  293   3              case AVRCP_PLAYBACK_STATUS_PAUSED:
+  294   3                MMI_AVRCP_CmdGenerator(linkIndex,AVRCP_SEND_OPERATION,AVC_OPERATION_PLAY);
+  295   3                break;
+  296   3              default:
+  297   3                if (MMI_AVRCP_IsMusicPlaying(linkIndex)
+  298   3                  #ifdef A2DP_Profile
+  299   3                  && MUSIC_EXISTS(linkIndex)
+  300   3                  #endif
+  301   3                  )
+  302   3                  MMI_AVRCP_CmdGenerator(linkIndex,AVRCP_SEND_OPERATION,AVC_OPERATION_PAUSE);
+  303   3                else
+  304   3                  MMI_AVRCP_CmdGenerator(linkIndex,AVRCP_SEND_OPERATION,AVC_OPERATION_PLAY);  
+  305   3                break;
+  306   3            }
+C251 COMPILER V5.57.0,  MMI_AVRCP                                                          08/11/20  05:52:44  PAGE 6   
+
+  307   2            break;
+  308   2      
+  309   2          case AVRCP_EVT_TO_MMI_REMOTE_NOTIFICATION_CHANGED:
+  310   2            MMI_AVRCP_RemoteNotification(linkIndex, paramPtr);
+  311   2            break;
+  312   2      
+  313   2          case AVRCP_EVT_TO_MMI_SET_ABSOLUTE_VOLUME:
+  314   2            MMI_AVRCP_TG_GetSetAbsVol(linkIndex, paramPtr->AbsoluteVolume);
+  315   2            MMI_HCI_UartSendUnSolicitedIndication(MMI_UART_IND_SET_ABSOLUTE_VOLUME, (U8 XDATA_PTR)&paramPtr->Absol
+             -uteVolume, linkIndex);
+  316   2            break;
+  317   2      
+  318   2          case AVRCP_EVT_TO_MMI_GET_ELEMENT_ATTRIBUTES:
+  319   2            if(api_profile_func[API_GRP_PF_CB_AVRCP_MEDIA_ATTRIBUTE])
+  320   2            {
+  321   3              ((API_PROFILE_AVRCP_MEDIA_ATTRIBUTE_FUNC)api_profile_func[API_GRP_PF_CB_AVRCP_MEDIA_ATTRIBUTE])(linkI
+             -ndex, (U8 XDATA_PTR)&((MMIMsgType XDATA_PTR)paramPtr)->msgBodyPtr.hciUARTAvrcpMediaAttribute.dataBegin);
+  322   3            }     
+  323   2            if (MMI_CC_UART_ENABLE)
+  324   2            {
+  325   3              MMI_HCI_SendVCmdAvrcpEventToUART(linkIndex, (MMIMsgType XDATA_PTR)paramPtr, HCI_VEVT_OCF_AVRCP_MEDIA_
+             -ATTRIBUTES);
+  326   3              return; //redirect eventPtr, bypass OSMEM_Put()
+  327   3            }
+  328   2            OSMEM_Put((U8 XDATA_PTR)paramPtr);
+  329   2            break;
+  330   2            
+  331   2          case AVRCP_EVT_TO_MMI_VENDOR_UNIQUE:
+  332   2            #ifdef AIR_MODULE
+  333   2            #ifdef LIGHTING_ENABLE
+                     if(paramPtr->VendorUnique.operationId == AVRCP_VENDOR_UNIQ_LIGHT_MODE_CONTROL)
+                     {
+                       //operationParam: LED Mode
+                       gMMI_Air_ctl.ledMode = paramPtr->VendorUnique.operationParam;
+                       gMMI_Air_ctl.ledSyncClkVal = paramPtr->VendorUniqueExtendLighting.syncClk;
+                       OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&(gMMI_Air_ctl.ledPara[0]), 
+                           (U8 XDATA_PTR)&(paramPtr->VendorUniqueExtendLighting.ledPara[0]), 3);
+                     }
+                     else
+                     #endif
+  344   2            MMI_AIR_HandleVendorAVRCPEvt(linkIndex, paramPtr->VendorUnique.operationId, paramPtr->VendorUnique.ope
+             -rationParam);
+  345   2            #endif
+  346   2            break;
+  347   2            
+  348   2          case AVRCP_EVT_TO_MMI_GET_APPLICATION_SETTINGS:
+  349   2            MMI_AVRCP_GetApplicationSettings(linkIndex, paramPtr);
+  350   2            break;
+  351   2      
+  352   2          default:
+  353   2            #ifdef AIR_MODULE
+  354   2            MMI_AIR_HandleAirohaAVRCPEvt(linkIndex, evtCode);
+  355   2            #endif
+  356   2            break;
+  357   2        }
+  358   1      }
+  359          
+  360          PUBLIC void MMI_AVRCP_ConnectedHandle(U8 linkIndex)
+  361          {
+  362   1        gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].playStatus = AVRCP_PLAYBACK_STATUS_NONE;
+  363   1      
+  364   1        #ifdef FAST_CONNECT_DONGLE
+                 MMI_AVRCP_CmdGenerator(linkIndex, AVRCP_SET_ABSOLUTE_VOLUME, MMI_AVRCP_GetAbsVolByMusic(linkIndex));
+                 #else
+  367   1        MMI_AVRCP_CmdGenerator(linkIndex, AVRCP_SEND_OPERATION, AVC_OPERATION_GET_PLAY_STATUS);
+  368   1        #endif
+C251 COMPILER V5.57.0,  MMI_AVRCP                                                          08/11/20  05:52:44  PAGE 7   
+
+  369   1        
+  370   1        #ifdef AIR_MODULE
+  371   1        MMI_AIR_AVRCPConnectedNotify(linkIndex);
+  372   1        #endif
+  373   1      }
+  374          
+  375          PUBLIC BOOL MMI_AVRCP_IsConnected(U8 linkIndex)
+  376          {
+  377   1        return (PROFILE_CONNECTED <= AVRCP_GetState(linkIndex))? TRUE: FALSE;
+  378   1      }
+  379          
+  380          PUBLIC void MMI_AVRCP_CmdGenerator(U8 linkIndex, U8 opCode, U8 opID)
+  381          {
+  382   1        MMI_TO_AVRCP_CMD_PARAM LDATA cmdParam;
+  383   1          
+  384   1        if(!MMI_AVRCP_IsConnected(linkIndex))
+  385   1          return;
+  386   1      
+  387   1        if(opCode == AVRCP_SEND_OPERATION)
+  388   1        {
+  389   2          switch(opID)
+  390   2          {
+  391   3            case AVC_OPERATION_KEY_PAUSE:
+  392   3              opID = AVC_OPERATION_PAUSE;
+  393   3              if(MMI_MUSIC_PLAY_PAUSE_ONEKEY_FEAT)
+  394   3              {
+  395   4              
+  396   4                U8 playStatus = MMI_AVRCP_GetPlayStatus(linkIndex);
+  397   4                if (gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].lastTxOpIDForPlayPause != 0)
+  398   4                {
+  399   5                  if(gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].lastTxOpIDForPlayPause == AVC_OPERATION_PAUSE)
+  400   5                  {
+  401   6                    opID = AVC_OPERATION_PLAY;
+  402   6                  }
+  403   5                  else
+  404   5                  {
+  405   6                    opID = AVC_OPERATION_PAUSE;
+  406   6                  }
+  407   5                } 
+  408   4                else if(gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].isPlayStatusWorking)
+  409   4                {
+  410   5                  if(playStatus == AVRCP_PLAYBACK_STATUS_PLAYING)
+  411   5                    opID = AVC_OPERATION_PAUSE;
+  412   5                  else if(playStatus == AVRCP_PLAYBACK_STATUS_STOPPED || playStatus == AVRCP_PLAYBACK_STATUS_PAUSED)
+  413   5                    opID = AVC_OPERATION_PLAY;
+  414   5                  else
+  415   5                    return;
+  416   5                }
+  417   4                else
+  418   4                {
+  419   5                  if(!MMI_KEY_PLAY_PAUSE_DONT_GET_PLAY_STATUS && (MMI_IS_AVRCP_GET_PLAY_STATUS_SUPPORTED(linkIndex)))
+  420   5                    opID = AVC_OPERATION_KEY_PAUSE;
+  421   5                  else
+  422   5                  {
+  423   6                    if (!gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].isMusicPlay
+  424   6                      #ifdef A2DP_Profile
+  425   6                      || !MUSIC_EXISTS(linkIndex)
+  426   6                      #endif
+  427   6                      )
+  428   6                    {
+  429   7                      opID = AVC_OPERATION_PLAY;
+  430   7                    }
+  431   6                  }
+  432   5                }
+  433   4                gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].lastTxOpIDForPlayPause = opID;
+  434   4              }
+C251 COMPILER V5.57.0,  MMI_AVRCP                                                          08/11/20  05:52:44  PAGE 8   
+
+  435   3              break;
+  436   3            case AVC_OPERATION_KEY_PLAY:
+  437   3              opID = AVC_OPERATION_PLAY;
+  438   3              if (MMI_MUSIC_PLAY_PAUSE_ONEKEY_FEAT)
+  439   3              {
+  440   4                if (gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].lastTxOpIDForPlayPause != 0)
+  441   4                {
+  442   5                  if(gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].lastTxOpIDForPlayPause == AVC_OPERATION_PAUSE)
+  443   5                  {
+  444   6                    opID = AVC_OPERATION_PLAY;
+  445   6                  }
+  446   5                  else
+  447   5                  {
+  448   6                    opID = AVC_OPERATION_PAUSE;
+  449   6                  }
+  450   5                }           
+  451   4                else if(gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].isPlayStatusWorking)
+  452   4                {
+  453   5                  U8 playStatus = MMI_AVRCP_GetPlayStatus(linkIndex);
+  454   5      
+  455   5                  if(playStatus == AVRCP_PLAYBACK_STATUS_PLAYING)
+  456   5                    opID = AVC_OPERATION_PAUSE;
+  457   5                  else if(playStatus == AVRCP_PLAYBACK_STATUS_STOPPED || playStatus == AVRCP_PLAYBACK_STATUS_PAUSED)
+  458   5                    opID = AVC_OPERATION_PLAY;
+  459   5                  else
+  460   5                    return;
+  461   5                }
+  462   4                else
+  463   4                {
+  464   5                  if(!MMI_KEY_PLAY_PAUSE_DONT_GET_PLAY_STATUS &&(MMI_IS_AVRCP_GET_PLAY_STATUS_SUPPORTED(linkIndex)))
+  465   5                    opID = AVC_OPERATION_KEY_PLAY;
+  466   5                  else
+  467   5                  {
+  468   6                    if (MMI_AVRCP_IsMusicPlaying(linkIndex)
+  469   6                      #ifdef A2DP_Profile
+  470   6                      && MUSIC_EXISTS(linkIndex)
+  471   6                      #endif
+  472   6                      )
+  473   6                    {
+  474   7                      opID = AVC_OPERATION_PAUSE;
+  475   7                    }
+  476   6                  }
+  477   5                }
+  478   4                gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].lastTxOpIDForPlayPause = opID;
+  479   4              }
+  480   3              break;
+  481   3      
+  482   3            case AVC_OPERATION_PLAY:
+  483   3              if (!MMI_IS_AVRCP_GET_PLAY_STATUS_SUPPORTED(linkIndex) &&
+  484   3                MMI_AVRCP_IsMusicPlaying(linkIndex)
+  485   3                #ifdef A2DP_Profile
+  486   3                && A2DP_STREAMING == A2DP_GetState(linkIndex)
+  487   3                #endif
+  488   3                )
+  489   3              {
+  490   4                opID = AVC_OPERATION_PAUSE;
+  491   4              }
+  492   3              break;
+  493   3            case AVC_OPERATION_PAUSE:
+  494   3              if ( !MMI_IS_AVRCP_GET_PLAY_STATUS_SUPPORTED(linkIndex) &&
+  495   3                !MMI_AVRCP_IsMusicPlaying(linkIndex)
+  496   3                #ifdef A2DP_Profile
+  497   3                || A2DP_STREAMING != A2DP_GetState(linkIndex)
+  498   3                #endif
+  499   3                )
+  500   3              {
+C251 COMPILER V5.57.0,  MMI_AVRCP                                                          08/11/20  05:52:44  PAGE 9   
+
+  501   4                opID = AVC_OPERATION_PLAY;
+  502   4              }
+  503   3              break;
+  504   3      
+  505   3            case AVC_OPERATION_REWIND:
+  506   3            case AVC_OPERATION_FAST_FORWARD:
+  507   3            case AVC_OPERATION_STOP:
+  508   3            case AVC_OPERATION_FORWARD:
+  509   3            case AVC_OPERATION_BACKWARD:
+  510   3            case AVC_OPERATION_INTERNAL_REWIND_RELEASE:
+  511   3            case AVC_OPERATION_INTERNAL_FAST_FORWARD_RELEASE:
+  512   3              #ifdef A2DP_Profile
+  513   3              if(A2DP_OPEN > A2DP_GetState(linkIndex))
+  514   3                return;
+  515   3              #endif
+  516   3              break;
+  517   3            case AVC_OPERATION_GET_PLAY_STATUS:
+  518   3              if(gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].isSendingGetPlayStatus== AVRCP_PLAY_STATUS_SENT)
+  519   3                return;
+  520   3      
+  521   3              gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].isSendingGetPlayStatus = AVRCP_PLAY_STATUS_SENT;
+  522   3              break;
+  523   3              
+  524   3            case AVC_OPERATION_VOL_UP:
+  525   3            case AVC_OPERATION_VOL_DOWN:      
+  526   3              break;
+  527   3          }
+  528   2        }
+  529   1      
+  530   1        cmdParam.operationId = opID;
+  531   1        AVRCP_MMICommandHandler(linkIndex, opCode, &cmdParam);
+  532   1      }
+  533          
+  534          PUBLIC void MMI_AVRCP_ClearCtlData(U8 linkIndex)
+  535          {
+  536   1        MMI_AVRCP_ClearAllMissions(linkIndex);
+  537   1        OSMEM_memset_xdata((U8 XDATA_PTR)&gMMI_AVRCP_ctl.AvrcpCtl[linkIndex], 0x00, sizeof(MmiAvrcpCtlType));
+  538   1        #ifdef AIR_MODULE
+  539   1        gMMI_Air_ctl.linkInfo[linkIndex].isHoldForMute = FALSE;
+  540   1        #endif
+  541   1      }
+  542          
+  543          PUBLIC void MMI_AVRCP_AbsVolToMusicSoundLevel(U8 linkIndex, U8 absVol)
+  544          {
+  545   1        U8 i;
+  546   1      
+  547   1        CURRENT_AVRCP_VOLUME(linkIndex) = absVol;
+  548   1        
+  549   1        if(absVol == 0)
+  550   1          i = 0;
+  551   1        else if(absVol == AVRCP_ABSOLUTE_VOLUME_MAX)
+  552   1          i = MMI_MAX_MUSIC_SOUND_LEVEL();
+  553   1        else
+  554   1          i = ((U16)absVol * MMI_MAX_MUSIC_SOUND_LEVEL() + (AVRCP_ABSOLUTE_VOLUME_FULL_RANGE / 2)) 
+  555   1            /AVRCP_ABSOLUTE_VOLUME_FULL_RANGE;
+  556   1      
+  557   1        if(i != CURRENT_A2DP_SOUND_LEVEL(linkIndex))
+  558   1        {
+  559   2          CURRENT_A2DP_SOUND_LEVEL(linkIndex) = i;
+  560   2          CURRENT_A2DP_SMALL_STEP(linkIndex) = 0;
+  561   2        }
+  562   1      }
+  563          
+  564          PUBLIC U8 MMI_AVRCP_SoundLevelToAbsoluteVol(U8 soundLevel, U8 maxLevel, U8 smallSteps, U8 steps)
+  565          {
+  566   1        if(soundLevel || smallSteps)
+C251 COMPILER V5.57.0,  MMI_AVRCP                                                          08/11/20  05:52:44  PAGE 10  
+
+  567   1        {
+  568   2          if(soundLevel == maxLevel)
+  569   2          {
+  570   3            soundLevel = AVRCP_ABSOLUTE_VOLUME_MAX;
+  571   3          }
+  572   2          else
+  573   2          {
+  574   3            soundLevel = ((U16)soundLevel * AVRCP_ABSOLUTE_VOLUME_FULL_RANGE) / maxLevel
+  575   3                + ((U16)smallSteps*AVRCP_ABSOLUTE_VOLUME_FULL_RANGE)/(maxLevel*(steps +1));
+  576   3          }
+  577   2        }
+  578   1        return soundLevel;
+  579   1      }
+  580          
+  581          PUBLIC U8 MMI_AVRCP_GetAbsVolByMusic(U8 linkIndex)
+  582          {
+  583   1        return CURRENT_AVRCP_VOLUME(linkIndex);
+  584   1        //remember absolute volume coz sound level cannot recover to exactly same absolute volume [mantis 9140]
+  585   1      }
+  586          
+  587          PUBLIC U8 MMI_AVRCP_GetAbsVolBySCO(U8 linkIndex)
+  588          {
+  589   1        return gMMI_ctl.mmiInfo[linkIndex].linkPara.absVolume;
+  590   1        //return MMI_AVRCP_SoundLevelToAbsoluteVol(CURRENT_SCO_SOUND_LEVEL(linkIndex), (U8)MMI_MAX_SCO_SOUND_LEV
+             -EL(), CURRENT_SCO_SMALL_STEP(linkIndex), MMI_SCO_SMALL_STEP_LEVELS());
+  591   1      }
+  592          
+  593          PUBLIC U8 MMI_AVRCP_GetAbsVolByIdle(void)
+  594          { 
+  595   1        return MMI_AVRCP_SoundLevelToAbsoluteVol(gMMI_ctl.idleStateSoundLevel, (U8)gMMI_nvram.totalSoundLevel, g
+             -MMI_ctl.idleStateSmallStep, MMI_SCO_SMALL_STEP_LEVELS());
+  596   1      }
+  597          
+  598          PRIVATE void MMI_AVRCP_RemotePlayStatus(U8 linkIndex, U8 playStatus)
+  599          {
+  600   1        //For LG phone send pause-->play-->pause event notifycation after sending AVRCP pause
+  601   1        #ifdef A2DP_Profile
+  602   1        if(A2DP_IsMusicSuspending(linkIndex)) 
+  603   1        {
+  604   2          if(gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].playStatus != playStatus && playStatus == AVRCP_PLAYBACK_STATUS_P
+             -LAYING)
+  605   2          { 
+  606   3            gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].playStatus = playStatus;
+  607   3            return;
+  608   3          }
+  609   2        }
+  610   1        #endif
+  611   1        
+  612   1        if(gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].playStatus != AVRCP_PLAYBACK_STATUS_NONE)   //issue #6396
+  613   1        {
+  614   2          if(api_profile_func[API_GRP_PF_CB_AVRCP_PLAY_STATUS])
+  615   2          {
+  616   3            ((API_PROFILE_AVRCP_PLAY_STATUS_FUNC)api_profile_func[API_GRP_PF_CB_AVRCP_PLAY_STATUS])(linkIndex, pla
+             -yStatus);
+  617   3          }
+  618   2      
+  619   2          if(gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].playStatus != playStatus)
+  620   2          {
+  621   3            if(playStatus == AVRCP_PLAYBACK_STATUS_PLAYING)
+  622   3            {
+  623   4              MMI_AVRCP_SetMusicPlay(linkIndex, TRUE);
+  624   4            }
+  625   3            else if(playStatus == AVRCP_PLAYBACK_STATUS_STOPPED || playStatus == AVRCP_PLAYBACK_STATUS_PAUSED)
+  626   3            {
+  627   4              MMI_AVRCP_SetMusicPlay(linkIndex, FALSE);
+  628   4            }
+C251 COMPILER V5.57.0,  MMI_AVRCP                                                          08/11/20  05:52:44  PAGE 11  
+
+  629   3            #ifdef A2DP_Profile
+  630   3            MMI_A2DP_PlayStatusChanged(linkIndex, playStatus);
+  631   3            #endif
+  632   3            gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].isPlayStatusWorking = TRUE;
+  633   3            MMI_AVRCP_ResetKeyPlayToggle(linkIndex);
+  634   3          }
+  635   2          else
+  636   2          {
+  637   3            #ifdef A2DP_Profile
+  638   3            MMI_A2DP_PlayStatusTheSame(linkIndex, playStatus);
+  639   3            #endif
+  640   3          }
+  641   2        }
+  642   1        else
+  643   1        {
+  644   2          #ifdef A2DP_Profile
+  645   2          MMI_A2DP_CheckPlayStatusConsistency(linkIndex, playStatus, TRUE);
+  646   2          #endif
+  647   2        }
+  648   1        gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].playStatus = playStatus;
+  649   1      }
+  650          
+  651          PRIVATE void MMI_AVRCP_TG_GetKeyVolUpDown(U8 linkIndex)
+  652          {
+  653   1        MMI_AVRCP_CmdGenerator(linkIndex, AVRCP_VOLUME_CHANGED, MMI_AVRCP_GetAbsVolByMusic(linkIndex));
+  654   1        MMI_AVRCP_SetDrvVolume(linkIndex);
+  655   1      }
+  656          
+  657          PRIVATE void MMI_AVRCP_TG_GetVolChanged(U8 linkIndex, U8 absVol)
+  658          {
+  659   1        LightDbgPrint("AVRCP_GetVolChanged[%d]:%d",(U8)linkIndex, (U8)absVol);
+  660   1        MMI_AVRCP_CmdGenerator(linkIndex, AVRCP_SET_NOTIFY_MASK, MMI_AVRCP_VOLUME_CHANGED);
+  661   1      #ifdef AIR_MODULE
+  662   1        MMI_AIR_TG_GetVolChanged(linkIndex, absVol);
+  663   1      #endif
+  664   1        
+  665   1      }
+  666          
+  667          PRIVATE void MMI_AVRCP_TG_GetSetAbsVol(U8 linkIndex, U8 absVol)
+  668          {
+  669   1        LightDbgPrint("AVRCP_GetSetAbsVol[%d]:%d",(U8)linkIndex, (U8)absVol);
+  670   1      
+  671   1      #ifdef AIR_MODULE
+  672   1        if(MMI_AIR_TG_GetSetAbsVol(linkIndex, absVol))
+  673   1          return;
+  674   1      #endif
+  675   1        MMI_AVRCP_AbsVolToMusicSoundLevel(linkIndex, absVol);
+  676   1        MMI_AVRCP_SetDrvVolume(linkIndex);
+  677   1      }
+  678          
+  679          PRIVATE void MMI_AVRCP_SetDrvVolume(U8 linkIndex)
+  680          {
+  681   1        if (linkIndex == MMI_DRV_GetAudioInMusicLink() /* && gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].isMusicPlay mant
+             -is 10490*/)
+  682   1        {
+  683   2          LightDbgPrint("GetAVRCPVol[%d]:%d,%d",(U8)linkIndex, (U8)CURRENT_A2DP_SOUND_LEVEL(linkIndex), (U8)CURRE
+             -NT_A2DP_SMALL_STEP(linkIndex));
+  684   2          #ifdef A2DP_Profile
+  685   2          if (!MMI_AVRCP_EXT_MCU_VOLUME_CTRL_FEAT)
+  686   2          {
+  687   3            MMI_A2DP_SendDriverVolCmd(CURRENT_A2DP_SOUND_LEVEL(linkIndex), CURRENT_A2DP_SMALL_STEP(linkIndex));
+  688   3                
+  689   3            if (MMI_REMEMBER_SOUND_LEVEL_CHANGE_IN_RUNTIME_FEAT)
+  690   3            {
+  691   4              MMI_LinkKey_SaveHistoryInRunTime(linkIndex);
+  692   4            }
+C251 COMPILER V5.57.0,  MMI_AVRCP                                                          08/11/20  05:52:44  PAGE 12  
+
+  693   3          }
+  694   2          #endif
+  695   2          #ifdef AIR_MODULE
+  696   2          MMI_AIR_AVRCPSetDriverVol(linkIndex);
+  697   2          #endif
+  698   2        }
+  699   1      }
+  700          
+  701          PUBLIC void MMI_AVRCP_SetMusicPlay(U8 linkIndex, BOOL isPlay)
+  702          {
+  703   1        gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].isMusicPlay = isPlay;
+  704   1      }
+  705          
+  706          PUBLIC void MMI_AVRCP_ResetKeyPlayToggle(U8 linkIndex)
+  707          {
+  708   1        gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].lastTxOpIDForPlayPause = 0;//reset for music play updating
+  709   1      }
+  710          
+  711          PUBLIC BOOL MMI_AVRCP_IsMusicPlaying(U8 linkIndex)
+  712          {
+  713   1        return (gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].isMusicPlay)?TRUE:FALSE;
+  714   1      }
+  715          
+  716          PUBLIC void MMI_AVRCP_KeyPlay(U8 linkIndex)
+  717          {
+  718   1      #ifdef DEMOSOUND
+                 if(!gMMI_ctl.activeLinkRecord
+                   #ifdef AIR_MODULE
+                   || !MMI_IsNormalLink(linkIndex)
+                   #endif
+                 )
+                 {
+                   if(gMMI_ctl.audioableA2DPLink == 0x0A)
+                     MMI_A2DP_KeyDemoSoundPause();
+                   else
+                     MMI_A2DP_KeyDemoSoundPlay();
+                   return;
+                 }
+               #endif
+  732   1        
+  733   1        if(MMI_AVRCP_IsConnected(linkIndex))
+  734   1          MMI_AVRCP_CmdGenerator(linkIndex, AVRCP_SEND_OPERATION, AVC_OPERATION_KEY_PLAY);
+  735   1        #if 0 //IOT with LG G2
+                 else if(MMI_A2DP_IsConnected(linkIndex))
+                   MMI_A2DP_SendCmd(linkIndex, A2DP_PLAY_CMD);
+                 #endif
+  739   1        
+  740   1        #ifdef A2DP_Profile
+  741   1        if(!MMI_A2DP_IsConnected(linkIndex))
+  742   1          MMI_ConnectProfile(linkIndex ,PROFILE_A2DP);
+  743   1        #endif
+  744   1      }
+  745          
+  746          PUBLIC void MMI_AVRCP_KeyStop(U8 linkIndex)
+  747          {
+  748   1      #ifdef DEMOSOUND
+                 if(!gMMI_ctl.activeLinkRecord
+                   #ifdef AIR_MODULE
+                   || !MMI_IsNormalLink(linkIndex)
+                   #endif
+                 )
+                 {
+                   MMI_A2DP_KeyDemoSoundStop();
+                   return;
+                 }
+               #endif
+C251 COMPILER V5.57.0,  MMI_AVRCP                                                          08/11/20  05:52:44  PAGE 13  
+
+  759   1      
+  760   1        if(MMI_AVRCP_IsConnected(linkIndex))
+  761   1          MMI_AVRCP_CmdGenerator(linkIndex, AVRCP_SEND_OPERATION, AVC_OPERATION_STOP);
+  762   1        else
+  763   1          MMI_A2DP_SendCmd(linkIndex, A2DP_PAUSE_CMD);
+  764   1      }
+  765          
+  766          PUBLIC void MMI_AVRCP_KeyPause(U8 linkIndex)
+  767          {
+  768   1      #ifdef DEMOSOUND
+                 if(!gMMI_ctl.activeLinkRecord
+                   #ifdef AIR_MODULE
+                   || !MMI_IsNormalLink(linkIndex)
+                   #endif
+                 )
+                 {
+                   if(gMMI_ctl.audioableA2DPLink == 0xAA)
+                     MMI_A2DP_KeyDemoSoundPause();
+                   else
+                     MMI_A2DP_KeyDemoSoundPlay();
+                   return;
+                 }
+               #endif
+  782   1        
+  783   1        if(MMI_AVRCP_IsConnected(linkIndex))
+  784   1          MMI_AVRCP_CmdGenerator(linkIndex, AVRCP_SEND_OPERATION, AVC_OPERATION_KEY_PAUSE);
+  785   1        #ifdef A2DP_Profile
+  786   1        else if(MMI_A2DP_IsConnected(linkIndex))
+  787   1          MMI_A2DP_SendCmd(linkIndex, A2DP_PAUSE_CMD);
+  788   1        #endif
+  789   1        
+  790   1        #ifdef A2DP_Profile
+  791   1        if(!MMI_A2DP_IsConnected(linkIndex))
+  792   1          MMI_ConnectProfile(linkIndex ,PROFILE_A2DP);
+  793   1        #endif
+  794   1      }
+  795          
+  796          PUBLIC void MMI_AVRCP_KeyRewindPush(U8 linkIndex)
+  797          {
+  798   1        MMI_AVRCP_CmdGenerator(linkIndex, AVRCP_SEND_OPERATION, AVC_OPERATION_REWIND);
+  799   1      }
+  800          
+  801          PUBLIC void MMI_AVRCP_KeyFastForwardPush(U8 linkIndex)
+  802          {
+  803   1        MMI_AVRCP_CmdGenerator(linkIndex, AVRCP_SEND_OPERATION, AVC_OPERATION_FAST_FORWARD);
+  804   1      }
+  805          
+  806          PUBLIC void MMI_AVRCP_KeyForward(U8 linkIndex)
+  807          {
+  808   1      #ifdef DEMOSOUND
+                 if(!gMMI_ctl.activeLinkRecord
+                   #ifdef AIR_MODULE
+                   || !MMI_IsNormalLink(linkIndex)
+                   #endif
+                 )
+                 {
+                   MMI_A2DP_KeyDemoSoundForward();
+                 }
+               #endif
+  818   1      
+  819   1        MMI_AVRCP_CmdGenerator(linkIndex, AVRCP_SEND_OPERATION, AVC_OPERATION_FORWARD);
+  820   1      }
+  821          
+  822          PUBLIC void MMI_AVRCP_KeyBackward(U8 linkIndex)
+  823          {
+  824   1      #ifdef DEMOSOUND
+C251 COMPILER V5.57.0,  MMI_AVRCP                                                          08/11/20  05:52:44  PAGE 14  
+
+                 if(!gMMI_ctl.activeLinkRecord
+                   #ifdef AIR_MODULE
+                   || !MMI_IsNormalLink(linkIndex)
+                   #endif
+                 )
+                 {
+                   MMI_A2DP_KeyDemoSoundBackward();
+                 }
+               #endif
+  834   1        MMI_AVRCP_CmdGenerator(linkIndex, AVRCP_SEND_OPERATION, AVC_OPERATION_BACKWARD);
+  835   1      }
+  836          
+  837          PUBLIC void MMI_AVRCP_KeyRewindRelease(U8 linkIndex)
+  838          {
+  839   1        MMI_AVRCP_CmdGenerator(linkIndex, AVRCP_SEND_OPERATION, AVC_OPERATION_INTERNAL_REWIND_RELEASE);
+  840   1      }
+  841          
+  842          PUBLIC void MMI_AVRCP_KeyFastForwardRelease(U8 linkIndex)
+  843          {
+  844   1        MMI_AVRCP_CmdGenerator(linkIndex, AVRCP_SEND_OPERATION, AVC_OPERATION_INTERNAL_FAST_FORWARD_RELEASE);
+  845   1      }
+  846          
+  847          PUBLIC void MMI_AVRCP_KeyRepeatModeChange(U8 linkIndex)
+  848          {
+  849   1        if(gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].getAppSettingsOwner == AVRCP_GET_APP_SETTINGS_NONE)
+  850   1        {
+  851   2          gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].getAppSettingsOwner = AVRCP_GET_APP_SETTINGS_KEY;
+  852   2          MMI_AVRCP_CmdGenerator(linkIndex, AVRCP_SEND_OPERATION, AVC_OPERATION_GET_REPEAT_MODE);
+  853   2        }
+  854   1      }
+  855          
+  856          PUBLIC void MMI_AVRCP_KeyShuffleModeChange(U8 linkIndex)
+  857          {
+  858   1        if(gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].getAppSettingsOwner == AVRCP_GET_APP_SETTINGS_NONE)
+  859   1        {
+  860   2          gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].getAppSettingsOwner = AVRCP_GET_APP_SETTINGS_KEY;
+  861   2          MMI_AVRCP_CmdGenerator(linkIndex, AVRCP_SEND_OPERATION, AVC_OPERATION_GET_SHUFFLE_MODE);
+  862   2        } 
+  863   1      }
+  864          
+  865          PRIVATE void MMI_AVRCP_KeySwitch(U8 linkIndex)
+  866          {
+  867   1        UNUSED(linkIndex);
+  868   1      }
+  869          
+  870          PRIVATE void MMI_AVRCP_KeyLeftChannel(U8 linkIndex)
+  871          {
+  872   1        #ifdef A2DP_Profile
+  873   1        MMI_A2DP_SendCmd(linkIndex, A2DP_HW_AUDIO_CHANNEL_MONO_L);
+  874   1        #else
+                 UNUSED(linkIndex);
+                 #endif
+  877   1        MMI_PushMediaEvent(MEDIA_EVT_TWS_LEFT_CHANNEL);
+  878   1      }
+  879          
+  880          PRIVATE void MMI_AVRCP_KeyRightChannel(U8 linkIndex)
+  881          {
+  882   1        #ifdef A2DP_Profile
+  883   1        MMI_A2DP_SendCmd(linkIndex, A2DP_HW_AUDIO_CHANNEL_MONO_R);
+  884   1        #else
+                 UNUSED(linkIndex);
+                 #endif
+  887   1        MMI_PushMediaEvent(MEDIA_EVT_TWS_RIGHT_CHANNEL);
+  888   1      }
+  889          
+  890          PRIVATE void MMI_AVRCP_KeyStereoChannel(U8 linkIndex)
+C251 COMPILER V5.57.0,  MMI_AVRCP                                                          08/11/20  05:52:44  PAGE 15  
+
+  891          {
+  892   1        #ifdef A2DP_Profile
+  893   1        MMI_A2DP_SendCmd(linkIndex, A2DP_HW_AUDIO_CHANNEL_STEREO);
+  894   1        #else
+                 UNUSED(linkIndex);
+                 #endif
+  897   1      }
+  898          
+  899          PUBLIC void MMI_AVRCP_SendVendorUnique(U8 linkIndex, U8 operationId, U8 operationParam)
+  900          {
+  901   1        MMI_TO_AVRCP_CMD_PARAM LDATA cmdParam;
+  902   1        
+  903   1        if(!MMI_AVRCP_IsConnected(linkIndex))
+  904   1        {
+  905   2          LightDbgPrint("ASSERT - Send Vendor Cmd Fail");
+  906   2          return;
+  907   2        }
+  908   1        
+  909   1        cmdParam.VendorUnique.operationId = operationId;
+  910   1        cmdParam.VendorUnique.operationParam = operationParam;
+  911   1      
+  912   1        AVRCP_MMICommandHandler(linkIndex, AVRCP_SEND_VENDOR_UNIQUE, &cmdParam);
+  913   1      }
+  914          
+  915          PUBLIC void MMI_AVRCP_SetPlayAppSettings(U8 linkIndex, U8 attributeID, U8 attributeValue)
+  916          {
+  917   1        MMI_TO_AVRCP_CMD_PARAM LDATA cmdParam;
+  918   1        
+  919   1        if(!MMI_AVRCP_IsConnected(linkIndex))
+  920   1        {
+  921   2          LightDbgPrint("ASSERT - Send Vendor Cmd Fail");
+  922   2          return;
+  923   2        }
+  924   1        cmdParam.PlayAppSettings.attributeID = attributeID;
+  925   1        cmdParam.PlayAppSettings.attributeValue = attributeValue;
+  926   1        AVRCP_MMICommandHandler(linkIndex, AVRCP_SEND_OPERATION, &cmdParam);
+  927   1      }
+  928          
+  929          PUBLIC void MMI_AVRCP_UartSetAbsVol(U8 vol)
+  930          {
+  931   1        U8 linkIndex;
+  932   1        for(linkIndex = 0; linkIndex < MAX_MULTI_POINT_NO; linkIndex++)
+  933   1        {
+  934   2          if(gMMI_ctl.sdapCtl[linkIndex].remoteApplicationID == PRODUCT_AIR_NONE)
+  935   2          {
+  936   3            MMI_AVRCP_AbsVolToMusicSoundLevel(linkIndex, vol);
+  937   3            MMI_AVRCP_CmdGenerator(linkIndex, AVRCP_VOLUME_CHANGED, vol);
+  938   3            MMI_AVRCP_SetDrvVolume(linkIndex);
+  939   3          }
+  940   2        }
+  941   1      }
+  942          
+  943          #ifdef AIRAPP_Profile
+  944          PUBLIC void MMI_AVRCP_AppSetAbsVol(U8 linkIndex, U8 vol)
+  945          {
+  946   1        MMI_AVRCP_AbsVolToMusicSoundLevel(linkIndex, vol);
+  947   1        MMI_AVRCP_CmdGenerator(linkIndex, AVRCP_VOLUME_CHANGED, vol);
+  948   1        MMI_AVRCP_SetDrvVolume(linkIndex);
+  949   1      }
+  950          #endif
+  951          
+  952          PRIVATE void MMI_AVRCP_ClearAllMissions(U8 linkIndex)
+  953          {
+  954   1        MMIMsgType XDATA_PTR msgPtr;
+  955   1        while(OSMQ_Entries(&gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].Task_Que))
+  956   1        {
+C251 COMPILER V5.57.0,  MMI_AVRCP                                                          08/11/20  05:52:44  PAGE 16  
+
+  957   2          msgPtr = (MMIMsgType XDATA_PTR)OSMQ_Get(&gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].Task_Que);
+  958   2          if(msgPtr->msgBodyPtr.avrcpTaskCmd.fcallback)
+  959   2          {
+  960   3            msgPtr->msgBodyPtr.avrcpTaskCmd.fcallback(linkIndex, FALSE);
+  961   3          }
+  962   2          OSMEM_Put((U8 XDATA_PTR)msgPtr);
+  963   2        }
+  964   1      }
+  965          
+  966          PRIVATE BOOL MMI_AVRCP_CheckRepeatMission(U8 linkIndex, U8 taskId)
+  967          {
+  968   1        MMIMsgType XDATA_PTR msgPtr;
+  969   1        U8 i = OSMQ_Entries(&gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].Task_Que);
+  970   1        BOOL isRepeat = FALSE;
+  971   1        
+  972   1        while(i--)
+  973   1        {
+  974   2          msgPtr = (MMIMsgType XDATA_PTR)OSMQ_Get(&gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].Task_Que);
+  975   2          OSMQ_Put(&gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].Task_Que, (U8 XDATA_PTR)msgPtr);
+  976   2          if(msgPtr->msgOpcode == taskId)
+  977   2            isRepeat = TRUE;
+  978   2        }
+  979   1        return isRepeat;
+  980   1      }
+  981          
+  982          PUBLIC void MMI_AVRCP_PushMission(U8 linkIndex, MMI_AVRCP_MISSION_PARAM_TYPE XDATA_PTR paramPtr)
+  983          {
+  984   1        MMIMsgType XDATA_PTR msgPtr;
+  985   1      
+  986   1        if(MMI_AVRCP_CheckRepeatMission(linkIndex, paramPtr->taskId))
+  987   1          return;
+  988   1        
+  989   1        if((msgPtr = MMI_GetMMIMsgTypeCmdMemory(paramPtr->taskId)) != (MMIMsgType XDATA_PTR)NULL)
+  990   1        {
+  991   2          OST_SetTimer(&msgPtr->msgBodyPtr.avrcpTaskCmd.waitingTimer, paramPtr->timer);
+  992   2          msgPtr->msgBodyPtr.avrcpTaskCmd.fcallback = paramPtr->fcallback;
+  993   2          
+  994   2          if(paramPtr->taskId == MMI_AVRCP_MISSION_BACKUP_AND_PUSH_PLAY_STATUS 
+  995   2            || paramPtr->taskId == MMI_AVRCP_MISSION_CHECK_STREAMING_STATE_LATER)
+  996   2          {
+  997   3            msgPtr->msgBodyPtr.avrcpTaskCmd.PlayStatus = paramPtr->PlayStatus;
+  998   3          }
+  999   2          
+ 1000   2          OSMQ_Put(&gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].Task_Que, (U8 XDATA_PTR)msgPtr);
+ 1001   2        }
+ 1002   1      }
+ 1003          
+ 1004          PRIVATE void MMI_AVRCP_PopMissions(U8 linkIndex)
+ 1005          {
+ 1006   1        MMIMsgType XDATA_PTR msgPtr;
+ 1007   1        U8 i = OSMQ_Entries(&gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].Task_Que);
+ 1008   1      
+ 1009   1        while(i--)
+ 1010   1        {
+ 1011   2          msgPtr = (MMIMsgType XDATA_PTR)OSMQ_Get(&gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].Task_Que);
+ 1012   2          
+ 1013   2          if(!msgPtr)
+ 1014   2          {
+ 1015   3            break; // clear mission might occur, memory in queue might be clear in this while loop. mantis 8796
+ 1016   3          }
+ 1017   2          
+ 1018   2          if(OST_TimerExpired(&msgPtr->msgBodyPtr.avrcpTaskCmd.waitingTimer))
+ 1019   2          {
+ 1020   3            switch(msgPtr->msgOpcode)
+ 1021   3            {
+ 1022   4              case MMI_AVRCP_MISSION_SEND_GET_PLAY_STATUS_TO_PAUSE_MUSIC:
+C251 COMPILER V5.57.0,  MMI_AVRCP                                                          08/11/20  05:52:44  PAGE 17  
+
+ 1023   4              case MMI_AVRCP_MISSION_MONITOR_PLAY_STATUS:
+ 1024   4                MMI_AVRCP_CmdGenerator(linkIndex, AVRCP_SEND_OPERATION, AVC_OPERATION_GET_PLAY_STATUS);
+ 1025   4                if(msgPtr->msgBodyPtr.avrcpTaskCmd.fcallback)
+ 1026   4                {
+ 1027   5                  msgPtr->msgBodyPtr.avrcpTaskCmd.fcallback(linkIndex, TRUE);
+ 1028   5                }
+ 1029   4                break;
+ 1030   4                
+ 1031   4              case MMI_AVRCP_MISSION_SEND_PAUSE_MUSIC:
+ 1032   4                if(msgPtr->msgBodyPtr.avrcpTaskCmd.fcallback)
+ 1033   4                {
+ 1034   5                  msgPtr->msgBodyPtr.avrcpTaskCmd.fcallback(linkIndex, FALSE);
+ 1035   5                }       
+ 1036   4                break;
+ 1037   4                
+ 1038   4              case MMI_AVRCP_MISSION_QUERY_CURRENT_PLAY_STATUS:
+ 1039   4                #ifdef A2DP_Profile
+ 1040   4                MMI_A2DP_PlayStatusTheSame(linkIndex, gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].playStatus);
+ 1041   4                #endif
+ 1042   4                break;
+ 1043   4                
+ 1044   4              case MMI_AVRCP_MISSION_BACKUP_AND_PUSH_PLAY_STATUS:
+ 1045   4                LightDbgPrint("AVRCP Pop:PLAY_STATUS:%d,%d",(U8)linkIndex, (U8)msgPtr->msgBodyPtr.avrcpTaskCmd.PlayS
+             -tatus);
+ 1046   4                MMI_AVRCP_RemotePlayStatus(linkIndex, msgPtr->msgBodyPtr.avrcpTaskCmd.PlayStatus);
+ 1047   4                break;
+ 1048   4                
+ 1049   4              case MMI_AVRCP_MISSION_CHECK_STREAMING_STATE_LATER:
+ 1050   4                LightDbgPrint("AVRCP chk streaming later TO");
+ 1051   4                if (msgPtr->msgBodyPtr.avrcpTaskCmd.PlayStatus == gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].playStatus)
+ 1052   4                {
+ 1053   5                  if (msgPtr->msgBodyPtr.avrcpTaskCmd.PlayStatus == AVRCP_PLAYBACK_STATUS_PLAYING 
+ 1054   5                    #ifdef A2DP_Profile
+ 1055   5                    && A2DP_OPEN == A2DP_GetState(linkIndex)
+ 1056   5                    #endif
+ 1057   5                    )
+ 1058   5                  {
+ 1059   6                    if(!MMI_DRV_IsActiveAudioDevInFM() && !MMI_DRV_IsActiveAudioDevInAUX() && !MMI_DRV_IsActiveAudioDe
+             -vInCall()
+ 1060   6                      #ifdef DEMOSOUND
+                               && gMMI_ctl.audioDevCtl.currentActiveDev != AUDIO_DEVICE_DEMO_SOUND
+                               #endif
+ 1063   6                      && !(MMI_A2DP_MEMPUT_WHEN_OTHER_IN_MUSIC_FEAT && MMI_DRV_IsActiveAudioDevInMusic()))
+ 1064   6                    {               
+ 1065   7                      MMI_A2DP_SendCmd(linkIndex, A2DP_PLAY_CMD);
+ 1066   7                    }
+ 1067   6                  }
+ 1068   5                }
+ 1069   4                break;
+ 1070   4                
+ 1071   4              default:
+ 1072   4                
+ 1073   4                break;
+ 1074   4            }
+ 1075   3            OSMEM_Put((U8 XDATA_PTR)msgPtr);
+ 1076   3          }
+ 1077   2          else
+ 1078   2          {
+ 1079   3            OSMQ_Put(&gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].Task_Que, (U8 XDATA_PTR)msgPtr);
+ 1080   3          }
+ 1081   2        }
+ 1082   1      }
+ 1083          
+ 1084          PUBLIC void MMI_AVRCP_CancelMission(U8 linkIndex, U8 taskId)
+ 1085          {
+ 1086   1        MMIMsgType XDATA_PTR msgPtr;
+C251 COMPILER V5.57.0,  MMI_AVRCP                                                          08/11/20  05:52:44  PAGE 18  
+
+ 1087   1        U8 i = OSMQ_Entries(&gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].Task_Que);
+ 1088   1      
+ 1089   1        while(i--)
+ 1090   1        {
+ 1091   2          msgPtr = (MMIMsgType XDATA_PTR)OSMQ_Get(&gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].Task_Que);
+ 1092   2          if(msgPtr->msgOpcode == taskId)
+ 1093   2          {
+ 1094   3            OSMEM_Put((U8 XDATA_PTR)msgPtr);
+ 1095   3          }
+ 1096   2          else
+ 1097   2          {
+ 1098   3            OSMQ_Put(&gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].Task_Que, (U8 XDATA_PTR)msgPtr);
+ 1099   3          }
+ 1100   2        }
+ 1101   1      }
+ 1102          
+ 1103          PUBLIC BOOL MMI_AVRCP_CheckMission(U8 linkIndex, U8 taskId)
+ 1104          {
+ 1105   1        BOOL isTaskMatched = FALSE;
+ 1106   1        MMIMsgType XDATA_PTR msgPtr;
+ 1107   1        U8 i = OSMQ_Entries(&gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].Task_Que);
+ 1108   1      
+ 1109   1        while(i--)
+ 1110   1        {
+ 1111   2          msgPtr = (MMIMsgType XDATA_PTR)OSMQ_Get(&gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].Task_Que);
+ 1112   2          if(msgPtr->msgOpcode == taskId)
+ 1113   2          {
+ 1114   3            OSMEM_Put((U8 XDATA_PTR)msgPtr);
+ 1115   3            isTaskMatched = TRUE;
+ 1116   3          }
+ 1117   2          else
+ 1118   2          {
+ 1119   3            OSMQ_Put(&gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].Task_Que, (U8 XDATA_PTR)msgPtr);
+ 1120   3          }
+ 1121   2        }
+ 1122   1        return isTaskMatched;
+ 1123   1      }
+ 1124          
+ 1125          
+ 1126          PUBLIC void MMI_AVRCP_Handle(void)
+ 1127          {
+ 1128   1        U8 linkIndex;
+ 1129   1        for (linkIndex = 0; linkIndex < MAX_MULTI_POINT_NO; linkIndex++)
+ 1130   1        {
+ 1131   2          if(MMI_IsProfileConnected(linkIndex, PROFILE_AVRCP))
+ 1132   2          {
+ 1133   3            MMI_AVRCP_PopMissions(linkIndex);
+ 1134   3          }
+ 1135   2        }
+ 1136   1      }
+ 1137          
+ 1138          PUBLIC U8 MMI_AVRCP_GetPlayStatus(U8 linkIndex)
+ 1139          {
+ 1140   1        if(gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].isDisablePlayStatusMonitor)
+ 1141   1        {
+ 1142   2          return gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].playStatus;
+ 1143   2        }
+ 1144   1        else
+ 1145   1        {
+ 1146   2          return AVRCP_PLAYBACK_STATUS_NONE;
+ 1147   2        }
+ 1148   1      }
+ 1149          
+ 1150          PUBLIC void MMI_AVRCP_CheckStreamingStateLater(U8 linkIndex, U8 playStatus, U8 needDelay)
+ 1151          {
+ 1152   1        MMI_AVRCP_MISSION_PARAM_TYPE LDATA avrcpParam;
+C251 COMPILER V5.57.0,  MMI_AVRCP                                                          08/11/20  05:52:44  PAGE 19  
+
+ 1153   1          
+ 1154   1        MMI_AVRCP_CancelMission(linkIndex, MMI_AVRCP_MISSION_CHECK_STREAMING_STATE_LATER);
+ 1155   1      
+ 1156   1        avrcpParam.taskId = MMI_AVRCP_MISSION_CHECK_STREAMING_STATE_LATER;
+ 1157   1        if (needDelay)
+ 1158   1        {
+ 1159   2          avrcpParam.timer = ONE_SEC * 2;   
+ 1160   2        }
+ 1161   1        else
+ 1162   1        {
+ 1163   2          avrcpParam.timer = ONE_SEC/2;   
+ 1164   2        }
+ 1165   1          
+ 1166   1        avrcpParam.fcallback = NULL;
+ 1167   1        avrcpParam.PlayStatus = playStatus;
+ 1168   1        MMI_AVRCP_PushMission(linkIndex, &avrcpParam);
+ 1169   1      }
+ 1170          
+ 1171          PUBLIC void MMI_HCI_SendAVRCPCmdResponse(U8 cmdOpcode, U8 resultCode)
+ 1172          {
+ 1173   1        MMIMsgType XDATA_PTR msgPtr;
+ 1174   1        msgPtr = MMI_GetCommandMessageMem(HCI_VCMD_AIROHA_TO_UART);
+ 1175   1        if(msgPtr)
+ 1176   1        {
+ 1177   2          msgPtr->paraLen = 3;
+ 1178   2          msgPtr->msgBodyPtr.hciVCmd.VOpCode.VCmdOcf = cmdOpcode;
+ 1179   2          msgPtr->msgBodyPtr.hciVCmd.VOpCode.VCmdOgf = HCI_VENDOR_OGF_UART_AVRCP;
+ 1180   2          msgPtr->msgBodyPtr.hciVCmd.VPara.respVEvtCmd.resultCode = resultCode;
+ 1181   2          MMI_HCI_SendCmd(msgPtr);
+ 1182   2        }
+ 1183   1      }
+ 1184          
+ 1185          PUBLIC void MMI_AVRCP_HCICommand(MMIMsgType XDATA_PTR msgPtr)
+ 1186          {
+ 1187   1        if(msgPtr->msgBodyPtr.hciVEvt.VOpCode.VCmdOcf == HCI_VCMD_OCF_AVRCP_APPLICATION_SETTINGS)
+ 1188   1        {
+ 1189   2          U8 linkIndex;
+ 1190   2      
+ 1191   2          MMI_SwitchEndianBDAddr((U8 XDATA_PTR)&msgPtr->msgBodyPtr.hciUARTAvrcpCmd.bdAddr.member);
+ 1192   2          if((linkIndex = MMI_GetLinkIndexByBdA((U8 XDATA_PTR)&msgPtr->msgBodyPtr.hciUARTAvrcpCmd.bdAddr)) < MAX_
+             -MULTI_POINT_NO)
+ 1193   2          {
+ 1194   3            U8 attributeID = msgPtr->msgBodyPtr.hciUARTAvrcpCmd.dataBegin;
+ 1195   3      
+ 1196   3            if(gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].getAppSettingsOwner == AVRCP_GET_APP_SETTINGS_NONE)
+ 1197   3            {
+ 1198   4              if(attributeID == AVRCP_REPEAT_MODE_STATUS)
+ 1199   4              {
+ 1200   5                gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].getAppSettingsOwner = AVRCP_GET_APP_SETTINGS_UART;
+ 1201   5                MMI_AVRCP_CmdGenerator(linkIndex, AVRCP_SEND_OPERATION, AVC_OPERATION_GET_REPEAT_MODE);
+ 1202   5                MMI_HCI_SendAVRCPCmdResponse(HCI_VCMD_OCF_AVRCP_APPLICATION_SETTINGS, HCI_VEVT_OCF_RESULT_CODE_SUCCE
+             -SS);
+ 1203   5                OSMEM_Put((U8 XDATA_PTR)msgPtr);
+ 1204   5                return;
+ 1205   5              }
+ 1206   4              else if(attributeID == AVRCP_SHUFFLE_ON_OFF_STATUS)
+ 1207   4              {
+ 1208   5                gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].getAppSettingsOwner = AVRCP_GET_APP_SETTINGS_UART;
+ 1209   5                MMI_AVRCP_CmdGenerator(linkIndex, AVRCP_SEND_OPERATION, AVC_OPERATION_GET_SHUFFLE_MODE);
+ 1210   5                MMI_HCI_SendAVRCPCmdResponse(HCI_VCMD_OCF_AVRCP_APPLICATION_SETTINGS, HCI_VEVT_OCF_RESULT_CODE_SUCCE
+             -SS);
+ 1211   5                OSMEM_Put((U8 XDATA_PTR)msgPtr);
+ 1212   5                return;
+ 1213   5              }
+ 1214   4            }
+ 1215   3          }
+C251 COMPILER V5.57.0,  MMI_AVRCP                                                          08/11/20  05:52:44  PAGE 20  
+
+ 1216   2        }
+ 1217   1        MMI_HCI_SendAVRCPCmdResponse(msgPtr->msgBodyPtr.hciVEvt.VOpCode.VCmdOcf, HCI_VEVT_OCF_RESULT_CODE_FAIL);
+ 1218   1        OSMEM_Put((U8 XDATA_PTR)msgPtr);
+ 1219   1      }
+ 1220          
+ 1221          PRIVATE void MMI_AVRCP_SendTrackChangeUartEvt(U8 linkIndex, U8 avrcpEventId)
+ 1222          {
+ 1223   1        MMIMsgType XDATA_PTR msgPtr;
+ 1224   1        
+ 1225   1        if (!MMI_CC_UART_ENABLE)
+ 1226   1          return;
+ 1227   1          
+ 1228   1        if(msgPtr = MMI_GetCommandMessageMem( HCI_VCMD_AIROHA_TO_UART ))
+ 1229   1        {
+ 1230   2          msgPtr->paraLen = sizeof(HciUARTAvrcpChangedNotify);
+ 1231   2          msgPtr->msgBodyPtr.hciUARTAvrcpChangedNotify.avrcpEventId = avrcpEventId;
+ 1232   2      
+ 1233   2          MMI_HCI_SendVCmdAvrcpEventToUART(linkIndex, msgPtr, HCI_VEVT_OCF_AVRCP_CHANGED_NOTIFY);
+ 1234   2        }
+ 1235   1      }
+ 1236          
+ 1237          PRIVATE void MMI_AVRCP_SendPlaybackPosUartEvt(U8 linkIndex, U32 PlaybackPos)
+ 1238          {
+ 1239   1        MMIMsgType XDATA_PTR msgPtr;
+ 1240   1        
+ 1241   1        if (!MMI_CC_UART_ENABLE)
+ 1242   1          return;
+ 1243   1          
+ 1244   1        if(msgPtr = MMI_GetCommandMessageMem( HCI_VCMD_AIROHA_TO_UART ))
+ 1245   1        {
+ 1246   2          msgPtr->paraLen = sizeof(HciUARTAvrcpPlaybackPos);
+ 1247   2          msgPtr->msgBodyPtr.hciUARTAvrcpPlaybackPos.playbackPos = PlaybackPos;
+ 1248   2      
+ 1249   2          MMI_HCI_SendVCmdAvrcpEventToUART(linkIndex, msgPtr, HCI_VEVT_OCF_AVRCP_PLAYBACK_POS);
+ 1250   2        }
+ 1251   1      }
+ 1252          
+ 1253          PRIVATE void MMI_AVRCP_SendPlayAppSettingsUartInd(U8 linkIndex, U8 attributeID, U8 attributeValue)
+ 1254          {
+ 1255   1        MMIMsgType XDATA_PTR msgPtr;
+ 1256   1        
+ 1257   1        if(!MMI_CC_UART_ENABLE)
+ 1258   1          return;
+ 1259   1          
+ 1260   1        if(msgPtr = MMI_GetCommandMessageMem( HCI_VCMD_AIROHA_TO_UART ))
+ 1261   1        {
+ 1262   2          msgPtr->paraLen = sizeof(HciUARTAvrcpPlayAppSetting);
+ 1263   2          msgPtr->msgBodyPtr.hciUARTAvrcpPlayApp.attributeID = attributeID;
+ 1264   2          msgPtr->msgBodyPtr.hciUARTAvrcpPlayApp.attributeValue = attributeValue;
+ 1265   2          MMI_HCI_SendVCmdAvrcpEventToUART(linkIndex, msgPtr, HCI_VEVT_OCF_AVRCP_APPLICATION_SETTINGS_IND);
+ 1266   2        }
+ 1267   1      }
+ 1268          
+ 1269          PUBLIC BOOL MMI_AVRCP_IsGetAppSettingsIdle(U8 linkIndex)
+ 1270          {
+ 1271   1        return (gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].getAppSettingsOwner == AVRCP_GET_APP_SETTINGS_NONE)?TRUE:FALS
+             -E;
+ 1272   1      }
+ 1273          
+ 1274          PUBLIC void MMI_AVRCP_SDK_SetGetAppSettingsOwner(U8 linkIndex)
+ 1275          {
+ 1276   1        gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].getAppSettingsOwner = AVRCP_GET_APP_SETTINGS_SDK;
+ 1277   1      }
+ 1278          #endif
+
+
+C251 COMPILER V5.57.0,  MMI_AVRCP                                                          08/11/20  05:52:44  PAGE 21  
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =      4484     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =        28     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       283     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,87 @@
+C251 COMPILER V5.57.0,  voice_command_data_1                                               08/11/20  06:32:41  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE voice_command_data_1
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\voice_command_data_1.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\DRIVER\voice_command_data_1.c XSMALL HPTR FUNCTIONS(REENTRANT) 
+                    -ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\sou
+                    -rce\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM
+                    -\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\sourc
+                    -e\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SE
+                    -CTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) 
+                    -DEFINE(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroSte
+                    -reoHeadset\voice_command_data_1.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\voice_command_data_1.obj) 
+
+stmt  level    source
+
+    1          #include <config.h>
+    2          #include <cpu.h>
+    3          
+    4          #include "bt_config_profile.h"
+    5          #include "voice_command_ctl.h"
+    6          
+    7          #pragma userclass (HCONST = VO_DAT)
+    8          
+    9          
+   10          #ifdef SUPPORT_VOICE_COMMAND
+   11          
+   12          #if VC_PLAN_MODEL
+   13          #pragma INCDIR(.\source\DRIVER\VC_DATA\PLAN)
+   14          #else
+               #pragma INCDIR(.\source\DRIVER\VC_DATA\AIROHA)
+               #endif
+   17          
+   18          
+   19          
+   20          #if VOICE_LANG_CHI
+   21          
+   22          #define VC_DATA_DEFINE(NAME)        vc_dat_##NAME##_c,
+   23          enum
+   24          {
+   25            #include <vc_data_define_cht.h>
+   26          };
+   27          #undef VC_DATA_DEFINE
+   28          
+   29          #define VC_EVT_DATA_MAP(EVTNAME,DATANAME1,DATANAME2,DATANAME3,DATANAME4,DATANAME5) ((0x00000001L << (vc_d
+             -at_##DATANAME1##_c)) | (0x00000001L << (vc_dat_##DATANAME2##_c)) | (0x00000001L << (vc_dat_##DATANAME3##_c)) | (0x000000
+             -01L << (vc_dat_##DATANAME4##_c)) | (0x00000001L << (vc_dat_##DATANAME5##_c))),
+   30          
+   31          DRIVER_VOICE_COMMAND_EVT_DATA_MAP_TYPE CODE gVoiceCommand_CHINESE_EvtDataMap =
+   32          {
+   33            {
+   34              #include <vc_data_evt_map_cht.h>
+   35            },
+   36          };
+   37          
+   38          U16 CODE dataBase_C[] ALIGN(2) ={
+   39            #include <database_cht.txt>
+   40          };
+   41          #endif
+   42          
+   43          #endif //#ifdef SUPPORT_VOICE_COMMAND
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+C251 COMPILER V5.57.0,  voice_command_data_1                                               08/11/20  06:32:41  PAGE 2   
+
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =     10042     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

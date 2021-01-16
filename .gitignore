@@ -1,0 +1,11 @@
+# Windows:
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+
+*.obj
+*.__i
+*._ia
+*.crf
+*.build_log.htm

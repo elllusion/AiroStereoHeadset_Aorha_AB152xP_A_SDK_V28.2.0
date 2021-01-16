@@ -1,0 +1,288 @@
+C251 COMPILER V5.57.0,  sector_mmi_nvram_keymap                                            08/11/20  06:32:12  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_mmi_nvram_keymap
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\sector_mmi_nvram_keymap.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\sector_mmi_nvram_keymap.c XSMALL HPTR FUNCTIONS(REENTRAN
+                    -T) ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\
+                    -source\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\
+                    -ROM\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\so
+                    -urce\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source
+                    -\SECTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMis
+                    -c) DEFINE(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_Airo
+                    -StereoHeadset\sector_mmi_nvram_keymap.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\sector_mmi_nvram_keymap.obj
+                    -) 
+
+stmt  level    source
+
+    1          
+    2          #include "config.h"
+    3          #include "cpu.h"
+    4          #include "sector_mmi_nvram_keymap.h"
+    5          
+    6          #pragma userclass (HCONST = CONFIG)
+    7          
+    8          
+    9          #define KEY_MAP_MMI_OFF                         (U32)1<<MMI_OFF
+   10          #define KEY_MAP_MMI_CONDISCABLE                 (U32)1<<MMI_CONDISCABLE
+   11          #define KEY_MAP_MMI_CONNECTABLE                 (U32)1<<MMI_CONNECTABLE
+   12          #define KEY_MAP_MMI_CONNECTED                   (U32)1<<MMI_CONNECTED
+   13          #define KEY_MAP_MMI_HFP_INCOMMING               (U32)1<<MMI_HFP_INCOMMING
+   14          #define KEY_MAP_MMI_HFP_OUTGOING                (U32)1<<MMI_HFP_OUTGOING
+   15          #define KEY_MAP_MMI_HFP_CALLACTIVE              (U32)1<<MMI_HFP_CALLACTIVE
+   16          #define KEY_MAP_MMI_HFP_CALLACTIVE_WITHOUT_SCO  (U32)1<<MMI_HFP_CALLACTIVE_WITHOUT_SCO
+   17          #define KEY_MAP_MMI_HFP_CAIMG                   (U32)1<<MMI_HFP_CAIMG
+   18          #define KEY_MAP_MMI_HFP_CAOGG                   (U32)1<<MMI_HFP_CAOGG
+   19          #define KEY_MAP_MMI_HFP_CAMULTY                 (U32)1<<MMI_HFP_CAMULTY
+   20          #define KEY_MAP_MMI_FAKEON                      (U32)1<<MMI_FAKEON    
+   21          #define KEY_MAP_MMI_FAKEOFF                     (U32)1<<MMI_FAKEOFF
+   22          #define KEY_MAP_MMI_DETACHING_LINK              (U32)1<<MMI_DETACHING_LINK
+   23          #define KEY_MAP_MMI_TEST_MODE                   (U32)1<<MMI_TEST_MODE
+   24          #define KEY_MAP_MMI_FM                          (U32)1<<MMI_FM
+   25          #define KEY_MAP_MMI_LINE_IN                     (U32)1<<MMI_LINE_IN
+   26          #define KEY_MAP_MMI_EEPROM_UPDATING             (U32)1<<MMI_UPDATING
+   27          #define KEY_MAP_MMI_EEPROM_UPDATED_OK         (U32)1<<MMI_UPDATED_OK
+   28          #define KEY_MAP_MMI_EEPROM_UPDATED_FAIL         (U32)1<<MMI_UPDATED_FAIL
+   29          #define KEY_MAP_MMI_VOICE_PROMPT_LANG_SELECT  (U32)1<<MMI_VOICE_PROMPT_LANG_SELECT
+   30          #define KEY_MAP_MMI_TWS_PAIRING         (U32)1<<MMI_TWS_PAIRING
+   31          
+   32          #define KEY_MAP_MMI_ALL_STATES 0xFFFFFFFF
+   33          
+   34          
+   35          /*
+   36          declare forward let linker locate key map as the required order
+   37          */
+   38          extern U8 CODE gMMI_nvram_keymap_init[KEY_ACTIONTOTALNUMBER]; //mmiKeyMapPairNo locate first
+   39          extern MmiKeyMapType CODE gMmiKeyTapMap[];
+   40          extern MmiKeyMapType CODE gMmiKeyPressMap[];
+   41          extern MmiKeyMapType CODE gMmiKeyPressReleaseMap[];
+   42          extern MmiKeyMapType CODE gMmiKeyLongPressMap[];
+   43          extern MmiKeyMapType CODE gMmiKeyLongPressReleaseMap[];
+   44          extern MmiKeyMapType CODE gMmiKeyDoubleMap[];
+   45          extern MmiKeyMapType CODE gMmiKeyTripleMap[];
+   46          extern MmiKeyMapType CODE gMmiKeyLongLongPressMap[];
+   47          extern MmiKeyMapType CODE gMmiKeyLongLongPressReleaseMap[];
+   48          extern MmiKeyMapType CODE gMmiKeyExtremelyLongPressMap[];
+   49          extern MmiKeyMapType CODE gMmiKeyExtremelyLongPressReleaseMap[];
+   50          extern MmiKeyMapType CODE gMmiKeyRepeatMap[];
+   51          extern MmiKeyMapType CODE gMmiKeyDownMap[];
+C251 COMPILER V5.57.0,  sector_mmi_nvram_keymap                                            08/11/20  06:32:12  PAGE 2   
+
+   52          extern MmiKeyMapType CODE gMmiKeyUpMap[];
+   53          extern MmiKeyMapType CODE gMmiKeyNoActMap[];
+   54          
+   55          
+   56          #ifdef BLUETOOTH_SPEAKER
+                 #ifdef SOUND_BAR
+                   #include "sample_speaker_soundbar_keymap.h"
+                 #elif defined SCO_WOOFER
+                   #include "sample_speaker_scowoofer_keymap.h"
+                 #elif defined TWS_SETTINGS
+                   #if defined PRODUCT_TYPE_A || defined PRODUCT_TYPE_K
+                     #include "air_stereo_A_keymap.h"
+                   #else
+                     #include "sample_speaker_tws_keymap.h"
+                   #endif
+                 #elif defined SAME_SW_DIFF_MODULE
+                   #include "sample_speaker_scowoofer_keymap.h"
+                 #else
+                   #include "sample_speaker_keymap.h"
+                 #endif
+               #else
+   73            #ifdef TWS_SETTINGS
+   74              #if defined PRODUCT_TYPE_A || defined PRODUCT_TYPE_K
+   75                #include "air_stereo_A_keymap.h"
+   76              #else
+                     #include "sample_speaker_tws_keymap.h"
+                   #endif
+   79            #else
+                   #include "ForceLinkN95_keymap.h"
+                 #endif
+   82          #endif
+   83          
+   84          
+   85          
+   86          #ifdef KEY_TAP_ACTION
+   87            static MmiKeyMapType CODE gMmiKeyTapMap[] = { KEY_TAP_ACTION };
+   88            #define KEY_TAP_ACTION_NUM                (sizeof(gMmiKeyTapMap)/sizeof(MmiKeyMapType))
+   89          #else
+                 #define KEY_TAP_ACTION_NUM                0
+               #endif
+   92          
+   93          #ifdef KEY_PRESS_ACTION
+   94            static MmiKeyMapType CODE gMmiKeyPressMap[] = { KEY_PRESS_ACTION };
+   95            #define KEY_PRESS_ACTION_NUM              (sizeof(gMmiKeyPressMap)/sizeof(MmiKeyMapType))
+   96          #else
+                 #define KEY_PRESS_ACTION_NUM              0
+               #endif
+   99          
+  100          #ifdef KEY_PRESS_RELEASE_ACTION
+  101            static MmiKeyMapType CODE gMmiKeyPressReleaseMap[] = { KEY_PRESS_RELEASE_ACTION };
+  102            #define KEY_PRESS_RELEASE_ACTION_NUM          (sizeof(gMmiKeyPressReleaseMap)/sizeof(MmiKeyMapType))
+  103          #else
+                 #define KEY_PRESS_RELEASE_ACTION_NUM          0
+               #endif
+  106          
+  107          #ifdef KEY_LONG_PRESS_ACTION
+  108            static MmiKeyMapType CODE gMmiKeyLongPressMap[] = { KEY_LONG_PRESS_ACTION };
+  109            #define KEY_LONG_PRESS_ACTION_NUM           (sizeof(gMmiKeyLongPressMap)/sizeof(MmiKeyMapType))
+  110          #else
+                 #define KEY_LONG_PRESS_ACTION_NUM           0
+               #endif
+  113          
+  114          #ifdef KEY_LONG_PRESS_RELEASE_ACTION
+  115            static MmiKeyMapType CODE gMmiKeyLongPressReleaseMap[] = { KEY_LONG_PRESS_RELEASE_ACTION };
+  116            #define KEY_LONG_PRESS_RELEASE_ACTION_NUM       (sizeof(gMmiKeyLongPressReleaseMap)/sizeof(MmiKeyMapType))
+  117          #else
+C251 COMPILER V5.57.0,  sector_mmi_nvram_keymap                                            08/11/20  06:32:12  PAGE 3   
+
+                 #define KEY_LONG_PRESS_RELEASE_ACTION_NUM       0
+               #endif
+  120          
+  121          #ifdef KEY_DOUBLE_ACTION
+  122            static MmiKeyMapType CODE gMmiKeyDoubleMap[] = { KEY_DOUBLE_ACTION };
+  123            #define KEY_DOUBLE_ACTION_NUM             (sizeof(gMmiKeyDoubleMap)/sizeof(MmiKeyMapType))
+  124          #else
+                 #define KEY_DOUBLE_ACTION_NUM             0
+               #endif
+  127          
+  128          #ifdef KEY_TRIPLE_ACTION
+  129            static MmiKeyMapType CODE gMmiKeyTripleMap[] = { KEY_TRIPLE_ACTION };
+  130            #define KEY_TRIPLE_ACTION_NUM             (sizeof(gMmiKeyTripleMap)/sizeof(MmiKeyMapType))
+  131          #else
+                 #define KEY_TRIPLE_ACTION_NUM             0
+               #endif
+  134          
+  135          #ifdef KEY_LONG_LONG_PRESS_ACTION
+  136            static MmiKeyMapType CODE gMmiKeyLongLongPressMap[] = { KEY_LONG_LONG_PRESS_ACTION };
+  137            #define KEY_LONG_LONG_PRESS_ACTION_NUM          (sizeof(gMmiKeyLongLongPressMap)/sizeof(MmiKeyMapType))
+  138          #else
+                 #define KEY_LONG_LONG_PRESS_ACTION_NUM          0
+               #endif
+  141          
+  142          #ifdef KEY_LONG_LONG_PRESS_RELEASE_ACTION
+                 static MmiKeyMapType CODE gMmiKeyLongLongPressReleaseMap[] = { KEY_LONG_LONG_PRESS_RELEASE_ACTION };
+                 #define KEY_LONG_LONG_PRESS_RELEASE_ACTION_NUM      (sizeof(gMmiKeyLongLongPressReleaseMap)/sizeof(MmiKeyMa
+             -pType))
+               #else
+  146            #define KEY_LONG_LONG_PRESS_RELEASE_ACTION_NUM      0
+  147          #endif
+  148          
+  149          #ifdef KEY_EXTREMELY_LONG_PRESS_ACTION
+                 static MmiKeyMapType CODE gMmiKeyExtremelyLongPressMap[] = { KEY_EXTREMELY_LONG_PRESS_ACTION };
+                 #define KEY_EXTREMELY_LONG_PRESS_ACTION_NUM       (sizeof(gMmiKeyExtremelyLongPressMap)/sizeof(MmiKeyMapTyp
+             -e))
+               #else
+  153            #define KEY_EXTREMELY_LONG_PRESS_ACTION_NUM       0
+  154          #endif
+  155          
+  156          #ifdef KEY_EXTREMELY_LONG_PRESS_RELEASE_ACTION
+                 static MmiKeyMapType CODE gMmiKeyExtremelyLongPressReleaseMap[] = { KEY_EXTREMELY_LONG_PRESS_RELEASE_ACT
+             -ION };
+                 #define KEY_EXTREMELY_LONG_PRESS_RELEASE_ACTION_NUM   (sizeof(gMmiKeyExtremelyLongPressReleaseMap)/sizeof
+             -(MmiKeyMapType))
+               #else
+  160            #define KEY_EXTREMELY_LONG_PRESS_RELEASE_ACTION_NUM   0
+  161          #endif
+  162          
+  163          #ifdef KEY_REPEAT_ACTION
+  164            static MmiKeyMapType CODE gMmiKeyRepeatMap[] = { KEY_REPEAT_ACTION };
+  165            #define KEY_REPEAT_ACTION_NUM             (sizeof(gMmiKeyRepeatMap)/sizeof(MmiKeyMapType))
+  166          #else
+                 #define KEY_REPEAT_ACTION_NUM             0
+               #endif
+  169          
+  170          #ifdef KEY_DOWN_ACTION
+                 static MmiKeyMapType CODE gMmiKeyDownMap[] = { KEY_DOWN_ACTION };
+                 #define KEY_DOWN_ACTION_NUM               (sizeof(gMmiKeyDownMap)/sizeof(MmiKeyMapType))
+               #else
+  174            #define KEY_DOWN_ACTION_NUM               0
+  175          #endif
+  176          
+  177          #ifdef KEY_UP_ACTION
+                 static MmiKeyMapType CODE gMmiKeyUpMap[] = { KEY_UP_ACTION };
+                 #define KEY_UP_ACTION_NUM               (sizeof(gMmiKeyUpMap)/sizeof(MmiKeyMapType))
+C251 COMPILER V5.57.0,  sector_mmi_nvram_keymap                                            08/11/20  06:32:12  PAGE 4   
+
+               #else
+  181            #define KEY_UP_ACTION_NUM               0
+  182          #endif
+  183          
+  184          #ifdef KEY_NOACT_ACTION
+                 static MmiKeyMapType CODE gMmiKeyNoActMap[] = { KEY_NOACT_ACTION };
+                 #define KEY_NOACT_ACTION_NUM              (sizeof(gMmiKeyNoActMap)/sizeof(MmiKeyMapType))
+               #else
+  188            #define KEY_NOACT_ACTION_NUM              0
+  189          #endif
+  190          
+  191          #define TOTAL_KEY_ACTION_NUM  ( KEY_TAP_ACTION_NUM              \
+  192                          + KEY_PRESS_ACTION_NUM              \
+  193                          + KEY_PRESS_RELEASE_ACTION_NUM          \
+  194                          + KEY_LONG_PRESS_ACTION_NUM           \
+  195                          + KEY_LONG_PRESS_RELEASE_ACTION_NUM       \
+  196                          + KEY_DOUBLE_ACTION_NUM             \
+  197                          + KEY_TRIPLE_ACTION_NUM             \
+  198                          + KEY_LONG_LONG_PRESS_ACTION_NUM        \
+  199                          + KEY_LONG_LONG_PRESS_RELEASE_ACTION_NUM    \
+  200                          + KEY_EXTREMELY_LONG_PRESS_ACTION_NUM     \
+  201                          + KEY_EXTREMELY_LONG_PRESS_RELEASE_ACTION_NUM \
+  202                          + KEY_REPEAT_ACTION_NUM             \
+  203                          + KEY_DOWN_ACTION_NUM             \
+  204                          + KEY_UP_ACTION_NUM               \
+  205                          + KEY_NOACT_ACTION_NUM )
+  206          
+  207          PUBLIC U8 CODE gMMI_nvram_keymap_init[KEY_ACTIONTOTALNUMBER] = 
+  208          {
+  209            KEY_TAP_ACTION_NUM,
+  210            KEY_PRESS_ACTION_NUM,
+  211            KEY_PRESS_RELEASE_ACTION_NUM,
+  212            KEY_LONG_PRESS_ACTION_NUM,
+  213            KEY_LONG_PRESS_RELEASE_ACTION_NUM,
+  214            KEY_DOUBLE_ACTION_NUM,
+  215            KEY_TRIPLE_ACTION_NUM,
+  216            KEY_LONG_LONG_PRESS_ACTION_NUM,
+  217            KEY_LONG_LONG_PRESS_RELEASE_ACTION_NUM,
+  218            KEY_EXTREMELY_LONG_PRESS_ACTION_NUM,
+  219            KEY_EXTREMELY_LONG_PRESS_RELEASE_ACTION_NUM,
+  220            KEY_REPEAT_ACTION_NUM,
+  221            KEY_DOWN_ACTION_NUM,
+  222            KEY_UP_ACTION_NUM,
+  223            KEY_NOACT_ACTION_NUM
+  224          };
+  225          
+  226          static MmiKeyMapType CODE _mmi_nvram_keymap_reserved[MAX_KEY_ACTION_NUM - TOTAL_KEY_ACTION_NUM];
+  227          
+  228          /*
+  229          Key Map Sector CRC
+  230          */
+  231          static CRC16 CODE _mmi_nvram_keymap_init_crc =
+  232          {
+  233              //- CRC
+  234              {0,0}
+  235          };
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+C251 COMPILER V5.57.0,  sector_mmi_nvram_keymap                                            08/11/20  06:32:12  PAGE 5   
+
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       437     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

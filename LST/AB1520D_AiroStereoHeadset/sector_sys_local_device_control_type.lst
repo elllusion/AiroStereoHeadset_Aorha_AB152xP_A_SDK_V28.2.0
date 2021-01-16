@@ -1,0 +1,244 @@
+C251 COMPILER V5.57.0,  sector_sys_local_device_control_type                               08/11/20  06:32:13  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_sys_local_device_control_type
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\sector_sys_local_device_control_type.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\sector_sys_local_device_control_type.c XSMALL HPTR FUNCT
+                    -IONS(REENTRANT) ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source
+                    -\ABSDRIVER;.\source\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM
+                    -\HC;.\source\ROM\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source
+                    -\ROM\GAP;.\source\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Con
+                    -fig1;.\source\SECTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\S
+                    -ECTOR\ToolMisc) DEFINE(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST
+                    -\AB1520D_AiroStereoHeadset\sector_sys_local_device_control_type.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\s
+                    -ector_sys_local_device_control_type.obj) 
+
+stmt  level    source
+
+    1          /*
+    2           * AIROHA Bluetooth Device Firmware
+    3           * COPYRIGHT (C) 2014 AIROHA TECHNOLOGY CORP. CO., LTD. ALL RIGHTS RESERVED
+    4           *
+    5           * sector_sys_local_device_control.c defines the control options of device.
+    6           *
+    7           * Programmer : CharlesSu@airoha.com.tw, Ext.2882
+    8           */
+    9          #include "sector_sys_local_device_control.h"
+   10          #include "bt_config_profile.h"
+   11          
+   12          #pragma userclass (HCONST = CONFIG)
+   13          
+   14          
+   15          ////////////////////////////////////////////////////////////////////////////////
+   16          // Global Variables ////////////////////////////////////////////////////////////
+   17          ////////////////////////////////////////////////////////////////////////////////
+   18          SECTOR_SYS_LOCAL_DEVICE_CONTROL_STRU CODE gSector_SysLocalDeviceControl =
+   19          {
+   20              {
+   21                  0x0014,     //- os_power_saving_waiting_timer_in_half_slot;
+   22          
+   23                  #ifdef HID_SOC
+                   //- SYS_MISC_SUPP_FEA0_HID_TESTMODE_SUPPORT_3_5_EDR |
+                       #endif
+   26                  #ifdef HEADSET_SOC
+   27              //  SYS_MISC_SUPP_FEA0_CUSTOMER_CHARGER         |
+   28                  #endif
+   29          
+   30                  #ifdef OPERATION_IN_BB_FPGA_VERSION
+                       #endif
+   32                  0x00,       //- misc_ctl0;
+   33          
+   34                  #ifdef HID_SOC
+                       #endif
+   36                  #if (defined OPERATION_IN_BB_ASIC_VERSION)
+   37                  #endif
+   38                  0x00,       //- misc_ctl1;
+   39          
+   40                  //- misc_ctl2
+   41                  //SYS_MISC_SUPP_FEA2_FORCE_BT_CONTROLLER_MODE |
+   42                  SYS_MISC_SUPP_FEA2_NOT_ALLOW_RST_BY_HCI_CMD |
+   43                  0x00,
+   44          
+   45                  //- GPIO
+   46                  #if defined (OPERATION_IN_BB_FPGA_VERSION)
+                           //- Choose PCM Interface
+                           #ifdef HID_IIM_SOC
+                           {0x00, 0x00, 0x00, 0x00, 0x30, 0x40, 0xE4 | 0x04, 0x08, 0xCF, 0x81, 0x13, 0x03, 0x00, 0x00, 0
+             -x01},
+                           #elif defined (APP_PJ001_MOUSE)
+C251 COMPILER V5.57.0,  sector_sys_local_device_control_type                               08/11/20  06:32:13  PAGE 2   
+
+                           {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08 | 0x04, 0x10, 0xC7, 0x01, 0x10, 0x07, 0x12, 0x00, 0
+             -x01},
+                           #elif defined (HID_SOC)
+                           {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08 | 0x04, 0x00, 0xC7, 0x01, 0x10, 0x03, 0x12, 0x00, 0
+             -x01},
+                           #elif defined (STEREO_SOC)
+                           {0x00, 0x00, 0x00, 0x00, 0x00, 0xC0, 0x06, 0x00, 0x6E, 0x07, 0x00, 0x00, 0x20, 0x30, 0x01},
+                           #else
+                           {0x00, 0x00, 0x00, 0x00, 0x00, 0xC0, 0x06, 0x00, 0xcE, 0x00, 0x00, 0x00, 0x20, 0x30, 0x01},
+                           #endif
+                       #else //- OPERATION_IN_BB_ASIC_VERSION
+   60                      #ifdef HID_IIM_SOC
+                           //{0x00, 0x00, 0x00, 0x00, 0x30, 0x40, 0xE4, 0x08, 0xCF, 0x81, 0x13, 0x00, 0x00, 0x00},
+                           {0x30, 0x00, 0x00, 0x00, 0x70, 0xC0, 0x0E | 0x04, 0x00, 0x8F, 0x01, 0xF0, 0x07, 0x00, 0x00, 0
+             -x01},//for led input first
+                           #elif defined (APP_PJ001_MOUSE)
+                           {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08 | 0x04, 0x10, 0xC7, 0x01, 0x10, 0x04, 0x12, 0x00, 0
+             -x01},
+                           #elif defined (HID_SOC)
+                           {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08 | 0x04, 0x00, 0xC7, 0x01, 0x10, 0x00, 0x12, 0x00, 0
+             -x01},
+                           #elif defined (STEREO_SOC)
+   68                      //{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0xCF, 0x07, 0x00, 0x00, 0x20, 0x30, 0x01},
+   69                  #ifdef ASIC_DBG_PORT
+                       {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0e, 0x10, 0x00, 0x00, 0xC4, 0x00, 0x01},//-ice
+                       #elif defined TWS_SETTINGS && defined BLUETOOTH_SPEAKER
+                           #ifdef SELFIE_App
+                               #ifdef PRODUCT_TYPE_A         
+                             {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3e, 0x08, 0x00, 0x00, 0xC4, 0x00, 0x01},//-ic
+             -e
+                             #else
+                             {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1e, 0x08, 0x00, 0x00, 0xC4, 0x00, 0x01},//-ic
+             -e
+                             #endif
+                           #else           
+                             #ifdef PRODUCT_TYPE_A         
+                             {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1e, 0x08, 0x00, 0x00, 0xC4, 0x00, 0x01},//-ic
+             -e
+                             #else
+                             {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1e, 0x08, 0x00, 0x00, 0xC4, 0x00, 0x01},//-ic
+             -e
+                             #endif
+                         #endif
+                       #elif defined TWS_SETTINGS
+   86                  {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01},//AiroSter
+             -eo Headset
+   87                          #elif defined BLUETOOTH_SPEAKER
+                         #ifdef SOUND_BAR
+                             #ifdef SELFIE_App
+                                 {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3e, 0x08, 0x00, 0x00, 0xC4, 0x00, 0x01},/
+             -/-ice
+                             #else
+                                 {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x2e, 0x08, 0x00, 0x00, 0xC4, 0x00, 0x01},/
+             -/-ice
+                             #endif
+                         #else
+                             #ifdef SELFIE_App
+                                 {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3e, 0x08, 0x00, 0x00, 0xC4, 0x00, 0x01},/
+             -/-ice
+                             #else
+                                 {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x2e, 0x00, 0x00, 0x00, 0xC4, 0x00, 0x01},/
+             -/-ice
+                             #endif
+                         #endif
+                               #elif defined TRSPX_App
+                       {0x00, 0x00, 0x04, 0x00, 0x00, 0x01, 0x04, 0x00, 0x0E, 0x10, 0x00, 0x00, 0x00, 0x00, 0x01},//-ice  wp
+C251 COMPILER V5.57.0,  sector_sys_local_device_control_type                               08/11/20  06:32:13  PAGE 3   
+
+             - gpio18
+                       #else
+                               {0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x04, 0x00, 0x3E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
+             -},//-ice  wp gpio18  //AB1520 SERIES EVK V2
+                               //{0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x01, 0x00, 0xce, 0x00, 0x00, 0x00, 0x00, 0x00, 0x
+             -01},//-ice  wp gpio16
+                               //{0x00, 0x00, 0x00, 0x00, 0xF0, 0xFF, 0xFF, 0xFF, 0x0e, 0x00, 0x00, 0x00, 0x00, 0x03, 0x
+             -01},//-ice and tpout_sel = 30
+                               #endif
+  108                      #elif defined (HEADSET_SOC)
+                           {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 | 0x00, 0x00, 0x0F, 0x00, 0x00, 0x00, 0x08, 0x00, 0
+             -x01},
+                           #else
+                               #ifdef VIRTEX6
+                               {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x00, 0x01
+             -},
+                               #else
+                               {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x01
+             -},
+                               #endif
+                           #endif
+  117                  #endif
+  118          
+  119                  0, //- reserved2;
+  120                  0, //reserved3
+  121          
+  122          
+  123                  {0,0,0},
+  124          
+  125                  0x04,       //reserved;
+  126                  4, //U8 WatchDogTimer  //unit: 1s
+  127          
+  128                  0x00,  // powerOnLedEnable
+  129                  {
+  130                  {  //0 : //Fast Blue Flash
+  131                      {0, 0, 0, 0, 0, 0,  0, LED_OFF, 0, 0},
+  132                      {0, (0xf0|0x02), 50, 50, 0, 0, 0, LED_ON, 0, 0},
+  133                      {0, 0, 0, 0, 0, 0,  0, LED_OFF, 0, 0},
+  134                      {0, 0, 0, 0, 0, 0,  0, LED_OFF, 0, 0},
+  135                  }
+  136                  },
+  137                  0x00,  //powerOnLedDisable
+  138          
+  139              /* Only work when ASIC_DBG_PORT is defined */
+  140                  #ifdef ASIC_DBG_PORT
+                   0, //tpout_sel
+                       {
+                           { /* Do not modify, only for debug use!!!!!! */
+                               0x00, 0x00, 0x00,  //grp_sel_b0, grp_sel_b1, grp_sel_b2,
+                               0x90, 0x99, 0x09, 0x00, //sig_sel_0304, sig_sel_0506, sig_sel_0708, sig_sel_0910,
+                               0x00, 0x90, 0x99, 0x09, //sig_sel_1112, sig_sel_1314, sig_sel_1516, sig_sel_1718,
+                               0x00, 0x00, 0x00, 0x00, //sig_sel_1920, sig_sel_2122, sig_sel_2324, sig_sel_25,
+                               0x10, 0x00, //dbg_sel_0to3, dbg_sel_4,
+                               0x00, //U8 led_scl_en;
+                               0x00, 0x00, //U8 dmic_di0_sel, U8 dmic_di1_sel;
+                               0x00, 0x00, //U8 i2s0_di_sel; U8 i2s1_di_sel;
+                               0x00, //U8 uart_ncts_sel;
+                           }, //gpio_mux_sel
+                       }
+                       #elif defined KB_App
+                       0, //tpout_sel
+                       {
+                           { /* Do not modify, only for debug use!!!!!! */
+                               0x00, 0x00, 0x00,  //grp_sel_b0, grp_sel_b1, grp_sel_b2,
+                               0x00, 0x00, 0x00, 0x00, //sig_sel_0304, sig_sel_0506, sig_sel_0708, sig_sel_0910,
+                               0x00, 0x70, 0x00, 0x00, //sig_sel_1112, sig_sel_1314, sig_sel_1516, sig_sel_1718,
+C251 COMPILER V5.57.0,  sector_sys_local_device_control_type                               08/11/20  06:32:13  PAGE 4   
+
+                               0x00, 0x00, 0x00, 0x00, //sig_sel_1920, sig_sel_2122, sig_sel_2324, sig_sel_25,
+                               0x00, 0x00, //dbg_sel_0to3, dbg_sel_4,
+                               0x00, //U8 led_scl_en;
+                               0x00, 0x00, //U8 dmic_di0_sel, U8 dmic_di1_sel;
+                               0x00, 0x00, //U8 i2s0_di_sel; U8 i2s1_di_sel;
+                               0x0F, //U8 uart_ncts_sel;
+                           }, //gpio_mux_sel
+                       }
+                       #endif
+  171              },
+  172          
+  173              //- CRC
+  174              {0,0}
+  175          };
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       105     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

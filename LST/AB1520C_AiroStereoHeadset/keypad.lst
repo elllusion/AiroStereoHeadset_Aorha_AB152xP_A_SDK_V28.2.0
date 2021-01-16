@@ -1,0 +1,281 @@
+C251 COMPILER V5.57.0,  keypad                                                             08/11/20  05:51:38  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE keypad
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\keypad.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\DRIVER\keypad.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) WARN
+                    -INGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\sourc
+                    -e\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\source\R
+                    -OM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_LE;.
+                    -\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspData;.
+                    -\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLASH_I
+                    -NIT=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520C_AiroStereoHeadset\key
+                    -pad.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\keypad.obj) 
+
+stmt  level    source
+
+    1          //////////////////////////////////////////////////////////
+    2          // Copyright@ 2009 Airoha.  All right reserved.
+    3          //////////////////////////////////////////////////////////
+    4          #include "reside_flash.inc"
+    5          
+    6          #define _KEYPAD_C_
+    7          
+    8          #include "keypad.h"
+    9          #include "..\MMI\MMI.h"
+   10          
+   11          #define DEFAULT_WAKE_PIO  0
+   12          
+   13          #define KEY_MASK  (gMMI_nvram.keypadGpioCtl.keyMask)
+   14          
+   15          #define KEYB0_MASK ((U8)KEY_MASK)
+   16          #define KEYB1_MASK ((U8)(KEY_MASK>>8))
+   17          #define KEYB2_MASK ((U8)(KEY_MASK>>16))
+   18          #define KEYB3_MASK ((U8)(KEY_MASK>>24))
+   19          
+   20          #define KEY_WAKEUP_MASK 0x01
+   21          
+   22          #define KEY_GPIO_INDEX(keyIndex)  (Keypad_GetGPIOIndex(keyIndex))
+   23          
+   24          void KeypadInit(void)
+   25          {
+   26   1        KeypadSetDebounce(TRUE);
+   27   1      }
+   28          
+   29          U8 Keypad_GetGPIOIndex(KeyIndex keyIndex)
+   30          {
+   31   1        if(keyIndex == KEY1)
+   32   1          return (gMMI_nvram.key1GpioIndex & KEY_GPIO_MASK);
+   33   1        else
+   34   1          return (gMMI_nvram.keypadGpioCtl.keyGpioIndex[keyIndex-1] & KEY_GPIO_MASK);
+   35   1      }
+   36          
+   37          BOOL KeypadScanKeyDebounce(U32 XDATA_PTR keymapPtr)
+   38          {
+   39   1        U8 keyB0BitmapLatch, keyB0BitmapDeb;
+   40   1        U8 keyB1BitmapLatch, keyB1BitmapDeb;
+   41   1        U8 keyB2BitmapLatch, keyB2BitmapDeb;
+   42   1        U8 keyB3BitmapLatch, keyB3BitmapDeb;
+   43   1        U8 keyWakeUpLatch, keyWakeUpDeb;
+   44   1        U32 chgKeyBitmap, keyDeb;
+   45   1        
+   46   1        /// WAKE UP Key SFR READ/////////
+   47   1        READ_WAKEUP_LATCH(keyWakeUpLatch);
+   48   1        keyWakeUpLatch &= KEY_WAKEUP_MASK;
+   49   1        if(keyWakeUpLatch)
+   50   1        {
+   51   2          SET_WAKEUP_LATCHRD(keyWakeUpLatch);
+   52   2        }
+C251 COMPILER V5.57.0,  keypad                                                             08/11/20  05:51:38  PAGE 2   
+
+   53   1        READ_WAKEUP_DEBOUNCE(keyWakeUpDeb);
+   54   1        keyWakeUpDeb &= KEY_WAKEUP_MASK;
+   55   1        keyWakeUpDeb |= keyWakeUpLatch;
+   56   1        
+   57   1        /////Key Map : GPIO 0~7///////////////
+   58   1        READ_KEYB0LATCH(keyB0BitmapLatch);
+   59   1        keyB0BitmapLatch &= KEYB0_MASK;
+   60   1        if (keyB0BitmapLatch)
+   61   1        {
+   62   2          SET_KEYB0LATCHRD(keyB0BitmapLatch);
+   63   2        } 
+   64   1        READ_KEYB0DEBOUNCE(keyB0BitmapDeb);
+   65   1        keyB0BitmapDeb &= KEYB0_MASK;
+   66   1        keyB0BitmapDeb |= keyB0BitmapLatch;
+   67   1      
+   68   1        /////Key Map : GPIO 8~15///////////////
+   69   1        READ_KEYB1LATCH(keyB1BitmapLatch);
+   70   1        keyB1BitmapLatch &= KEYB1_MASK;
+   71   1        if (keyB1BitmapLatch)
+   72   1        {
+   73   2          SET_KEYB1LATCHRD(keyB1BitmapLatch);
+   74   2        } 
+   75   1        READ_KEYB1DEBOUNCE(keyB1BitmapDeb);
+   76   1        keyB1BitmapDeb &= KEYB1_MASK;
+   77   1        keyB1BitmapDeb |= keyB1BitmapLatch;
+   78   1      
+   79   1        /////Key Map : GPIO 16~23///////////////
+   80   1        READ_KEYB2LATCH(keyB2BitmapLatch);
+   81   1        keyB2BitmapLatch &= KEYB2_MASK;
+   82   1        if (keyB2BitmapLatch)
+   83   1        {
+   84   2          SET_KEYB2LATCHRD(keyB2BitmapLatch);
+   85   2        } 
+   86   1        READ_KEYB2DEBOUNCE(keyB2BitmapDeb);
+   87   1        keyB2BitmapDeb &= KEYB2_MASK;
+   88   1        keyB2BitmapDeb |= keyB2BitmapLatch;
+   89   1        
+   90   1        /////Key Map : GPIO 24~30///////////////
+   91   1        READ_KEYB3LATCH(keyB3BitmapLatch);
+   92   1        keyB3BitmapLatch &= KEYB3_MASK;
+   93   1        if (keyB3BitmapLatch)
+   94   1        {
+   95   2          SET_KEYB3LATCHRD(keyB3BitmapLatch);
+   96   2        } 
+   97   1        READ_KEYB3DEBOUNCE(keyB3BitmapDeb);
+   98   1        keyB3BitmapDeb &= KEYB3_MASK;
+   99   1        keyB3BitmapDeb |= keyB3BitmapLatch;
+  100   1        
+  101   1        
+  102   1        keyDeb  = (((U32)keyWakeUpDeb<<31)|((U32)keyB3BitmapDeb<<24)|((U32)keyB2BitmapDeb<<16)|((U32)keyB1Bitmap
+             -Deb<<8)|(U32)keyB0BitmapDeb);
+  103   1        chgKeyBitmap =  keyDeb ^ gKeypadCtrl.keyOldBitmap;
+  104   1      
+  105   1        if (chgKeyBitmap)
+  106   1        {
+  107   2          //key bitmap is different from old state
+  108   2          gKeypadCtrl.keyOldBitmap = keyDeb;
+  109   2          *keymapPtr = gKeypadCtrl.keyOldBitmap;
+  110   2          return TRUE;
+  111   2        }
+  112   1      
+  113   1        return FALSE;
+  114   1      }
+  115          
+  116          U32 KeypadCheckKeyEvent(U32 oldKeyBitmap)
+  117          {
+C251 COMPILER V5.57.0,  keypad                                                             08/11/20  05:51:38  PAGE 3   
+
+  118   1        U32 chgKeyBitmap, keyEvent;
+  119   1        U8  keyIndex;
+  120   1        U32 chgKeyBitmap31BitsUsed;
+  121   1      
+  122   1        keyEvent = 0;
+  123   1        chgKeyBitmap = oldKeyBitmap ^ gKeypadCtrl.keyOldBitmap;
+  124   1        keyIndex = KEY1;
+  125   1        if(gKeypadCtrl.isConfiged)
+  126   1        {
+  127   2          if(KEY_GPIO_INDEX(KEY1) == DEFAULT_WAKE_PIO)
+  128   2          {
+  129   3            if((chgKeyBitmap >> 31 )& KEY_WAKEUP_MASK)
+  130   3            {   
+  131   4              //key with index "scanInd" is changed
+  132   4              if (((U8)(oldKeyBitmap>>31)) & KEY_WAKEUP_MASK)
+  133   4              {
+  134   5                //key press in earlier time, now it's key release
+  135   5                keyEvent |= KEY1_RELEASE >> KEY1;
+  136   5              }
+  137   4              else
+  138   4              {
+  139   5                //key pressed
+  140   5                keyEvent |= KEY1_PRESS >> KEY1;
+  141   5              }
+  142   4            }
+  143   3            keyIndex = KEY2;    
+  144   3          }
+  145   2          
+  146   2          chgKeyBitmap31BitsUsed = (chgKeyBitmap & 0x7FFFFFFF);
+  147   2          for( ; keyIndex < TOTAL_KEY_NO; keyIndex++)
+  148   2          {
+  149   3            if(chgKeyBitmap31BitsUsed & U32_BIT_MASK(KEY_GPIO_INDEX(keyIndex)) & KEY_MASK)
+  150   3            {     
+  151   4              //key with index "scanInd" is changed
+  152   4              if ((oldKeyBitmap & 0x7FFFFFFF )& U32_BIT_MASK(KEY_GPIO_INDEX(keyIndex)))
+  153   4              {
+  154   5                //key press in earlier time, now it's key release
+  155   5                keyEvent |= KEY1_RELEASE >> keyIndex;
+  156   5              }
+  157   4              else
+  158   4              {
+  159   5                //key pressed
+  160   5                keyEvent |= KEY1_PRESS >> keyIndex;
+  161   5              }
+  162   4            }
+  163   3          }
+  164   2        }
+  165   1        else
+  166   1        {
+  167   2          ASSERT(FALSE);
+  168   2        }
+  169   1        return keyEvent;
+  170   1      }
+  171          
+  172          BOOL KeypadCheckKeyPressed(KeyIndex keyIndex)
+  173          {
+  174   1        U8 keyBitmap = 0;
+  175   1        U8 keyMask = 0;
+  176   1        U8 keyGPIOIndex = KEY_GPIO_INDEX(keyIndex);
+  177   1      
+  178   1        if(keyIndex == KEY1 && keyGPIOIndex == DEFAULT_WAKE_PIO)
+  179   1        {
+  180   2          READ_WAKEUP_DEBOUNCE(keyBitmap);
+  181   2          keyMask = KEY_WAKEUP_MASK;
+  182   2        }
+  183   1        else if(keyGPIOIndex < 8)
+C251 COMPILER V5.57.0,  keypad                                                             08/11/20  05:51:38  PAGE 4   
+
+  184   1        {
+  185   2          READ_KEYB0DEBOUNCE(keyBitmap);
+  186   2          keyMask = U8_BIT_MASK(keyGPIOIndex);
+  187   2        }
+  188   1        else if(keyGPIOIndex < 16)
+  189   1        {
+  190   2          READ_KEYB1DEBOUNCE(keyBitmap);
+  191   2          keyMask = U8_BIT_MASK((keyGPIOIndex-8)) ;
+  192   2        }
+  193   1        else if(keyGPIOIndex < 24)
+  194   1        {
+  195   2          READ_KEYB2DEBOUNCE(keyBitmap);
+  196   2          keyMask = U8_BIT_MASK((keyGPIOIndex-16)) ;
+  197   2        }
+  198   1        else if(keyGPIOIndex < 31)
+  199   1        {
+  200   2          READ_KEYB3DEBOUNCE(keyBitmap);
+  201   2          keyMask = U8_BIT_MASK((keyGPIOIndex-24)) ;
+  202   2        }
+  203   1      
+  204   1        return (keyBitmap & keyMask) ? TRUE : FALSE;
+  205   1      }
+  206          
+  207          BOOL Keypad_IsSwitch(KeyIndex keyIndex)
+  208          {
+  209   1        if(keyIndex == KEY1)
+  210   1          return ((gMMI_nvram.key1GpioIndex & KEY_TYPE_MASK) == KEY_TYPE_SWITCH) ? TRUE : FALSE;
+  211   1        else
+  212   1          return ((gMMI_nvram.keypadGpioCtl.keyGpioIndex[keyIndex-1] & KEY_TYPE_MASK) == KEY_TYPE_SWITCH) ? TRUE 
+             -: FALSE;
+  213   1      }
+  214          
+  215          BOOL Keypad_IsRotary(KeyIndex keyIndex)
+  216          {
+  217   1        if(keyIndex == KEY1)
+  218   1          return ((gMMI_nvram.key1GpioIndex & KEY_TYPE_MASK) == KEY_TYPE_ROTARY) ? TRUE : FALSE;
+  219   1        else
+  220   1          return ((gMMI_nvram.keypadGpioCtl.keyGpioIndex[keyIndex-1] & KEY_TYPE_MASK) == KEY_TYPE_ROTARY) ? TRUE 
+             -: FALSE;
+  221   1      }
+  222          
+  223          BOOL Keypad_IsToggle(KeyIndex keyIndex)
+  224          {
+  225   1        if(keyIndex == KEY1)
+  226   1          return ((gMMI_nvram.key1GpioIndex & KEY_TYPE_MASK) == KEY_TYPE_TOGGLE) ? TRUE : FALSE;
+  227   1        else
+  228   1          return ((gMMI_nvram.keypadGpioCtl.keyGpioIndex[keyIndex-1] & KEY_TYPE_MASK) == KEY_TYPE_TOGGLE) ? TRUE 
+             -: FALSE;
+  229   1      }
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =      1432     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =         5     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+C251 COMPILER V5.57.0,  keypad                                                             08/11/20  05:51:38  PAGE 5   
+
+  const size           =    ------     ------
+  hconst size          =    ------     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

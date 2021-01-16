@@ -1,0 +1,55 @@
+#include "config.h"
+
+EXTRN DATA (gOS_NestCriticalLv)
+
+; // MACRO
+; // OS_SPIN_LOCK_ASM: Same as OS_SPIN_LOCK()
+OS_SPIN_LOCK_ASM MACRO
+LOCAL OS_SPIN_LOCK_ASM_1
+OS_SPIN_LOCK_ASM_1 :
+#if (FEA_SUPP_DSP)
+    MOV     A,SFR_WR_TEST_AND_SET
+    JNZ     OS_SPIN_LOCK_ASM_1
+#endif
+ENDM
+
+; // MACRO
+; // OS_SPIN_UNLOCK_ASM: Same as OS_SPIN_UNLOCK()
+OS_SPIN_UNLOCK_ASM MACRO
+#if (FEA_SUPP_DSP)
+    MOV     SFR_WR_TEST_AND_SET,#0
+#endif
+ENDM
+
+; // MACRO
+; // OS_ENTER_CRITICAL_ASM: Same as OS_ENTER_CRITICAL()
+OS_ENTER_CRITICAL_ASM MACRO
+; // PUSH    IE
+; // CLR     EA
+    CLR     EA
+    CLR     EA
+    CLR     EA
+    CLR     EA
+    NOP
+    NOP
+    NOP
+    NOP
+    NOP
+    NOP
+    NOP
+    NOP
+    NOP
+    NOP
+    INC     gOS_NestCriticalLv
+ENDM
+
+; // MACRO
+; // OS_EXIT_CRITICAL_ASM: Same as OS_EXIT_CRITICAL()
+OS_EXIT_CRITICAL_ASM MACRO
+LOCAL OS_EXIT_CRITICAL_ASM_1
+; // POP     IE
+    DJNZ    gOS_NestCriticalLv,OS_EXIT_CRITICAL_ASM_1
+    SETB    EA
+OS_EXIT_CRITICAL_ASM_1 :
+ENDM
+

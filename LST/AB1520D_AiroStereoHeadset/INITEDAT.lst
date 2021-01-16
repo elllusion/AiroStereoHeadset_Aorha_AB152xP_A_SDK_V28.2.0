@@ -1,0 +1,79 @@
+A251 MACRO ASSEMBLER  INITEDAT                                                              08/11/20 06:32:03 PAGE     1
+
+
+MACRO ASSEMBLER A251 V4.69.5.0
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\INITEDAT.obj
+ASSEMBLER INVOKED BY: C:\Keil_v5\C251\BIN\A251.EXE source\STARTUP251\INITEDAT.A51 MODSRC INCDIR(.\source\common;.\source
+                      \ROM\COMMON) SET(XSMALL,ROMHUGE,FLASH_INIT=1,AB1520D=1,MIGRATE_ROM_TO_FLASH=1,DFU_LOADER_IN_BOOT_C
+                      ODE=1) DEBUG PRINT(.\LST\AB1520D_AiroStereoHeadset\INITEDAT.lst) OBJECT(.\output\AB1520D_AiroStere
+                      oHeadset\INITEDAT.obj) EP
+
+LOC    OBJ             LINE     SOURCE
+
+                          1     ;----------------------------------------------------------------------------
+                          2     ;
+                          3     ; Init records for EDATA (near) memory.  The record structure is as follows:
+                          4     ;
+                          5     ;    Byte 0  Byte 1  Byte 2  Byte 3  Byte 4
+                          6     ;   +-------+-------+-------+-------+-------+
+                          7     ;   |Len MSB|Len LSB|Adr MSB|Adr LSB|Content|
+                          8     ;   +-------+-------+-------+-------+-------+
+                          9     ;   |                               +Rep Len+
+                         10     ;   +--- Repeated for each Object ----------+
+                         11     ;
+                         12     ; The complete EDATA initilization is placed into the segment ?C_INITEDATA 
+                         13     ; (segment class is HCONST).  
+                         14     ;
+                         15     ;----------------------------------------------------------------------------
+                         16     
+                         17                     NAME    ?C?INITEDATA
+                         18     PUBLIC          ?C?INITEDATA
+                         19     EXTRN HCONST (?C?INITEDATA_END)
+                         20     
+                         21     
+------                   22     ?C_C51STARTUP?2 SEGMENT   CODE          ; Code for table driven Init 
+------                   23     ?C_INITEDATA    SEGMENT   HCONST        ; Segment with init tables (records)
+                         24     
+------                   25                     RSEG    ?C_C51STARTUP?2
+000000 7E040000   F      26     ?C?INITEDATA:   MOV     WR0,#WORD2 ?C_INITEDATA
+000004 7E140000   F      27                     MOV     WR2,#WORD0 ?C_INITEDATA
+000008 0B0A40            28     INIT_LOOP:      MOV     WR8,@DR0        ; WR8 contains Length
+00000B 5D44              29                     ANL     WR8,WR8
+00000D 6800       F      30                     JE      INIT_END
+00000F 69200002          31                     MOV     WR4,@DR0+2      ; WR4 contains Address
+000013 0B0E              32                     INC     DR0,#4
+000015 0B44              33                     INC     WR8,#1
+000017 8000       F      34                     SJMP    INIT_OBJ1
+000019 7E0BB0            35     INIT_OBJ0:      MOV     R11,@DR0
+00001C 7A29B0            36                     MOV     @WR4,R11
+00001F 0B24              37                     INC     WR4,#1
+000021 0B0C              38                     INC     DR0,#1
+000023 1B44              39     INIT_OBJ1:      DEC     WR8,#1
+000025 7800       F      40                     JNE     INIT_OBJ0
+000027 8000       F      41                     SJMP    INIT_LOOP
+000029                   42     INIT_END:
+                         43     
+                         44                     END
+                         45     
+A251 MACRO ASSEMBLER  INITEDAT                                                              08/11/20 06:32:03 PAGE     2
+
+SYMBOL TABLE LISTING
+------ ----- -------
+
+
+N A M E           T Y P E  V A L U E     ATTRIBUTES
+
+?C?INITEDATA . . .  C  ADDR  0000H     R   SEG=?C_C51STARTUP?2
+?C?INITEDATA_END .  HC ADDR  -------       EXT
+?C_C51STARTUP?2. .  C  SEG   000029H       REL=UNIT, ALN=BYTE
+?C_INITEDATA . . .  HC SEG   000000H       REL=UNIT, ALN=BYTE
+INIT_END . . . . .  C  ADDR  0029H     R   SEG=?C_C51STARTUP?2
+INIT_LOOP. . . . .  C  ADDR  0008H     R   SEG=?C_C51STARTUP?2
+INIT_OBJ0. . . . .  C  ADDR  0019H     R   SEG=?C_C51STARTUP?2
+INIT_OBJ1. . . . .  C  ADDR  0023H     R   SEG=?C_C51STARTUP?2
+
+
+REGISTER BANK(S) USED: 0 
+
+
+ASSEMBLY COMPLETE.  0 WARNING(S), 0 ERROR(S).

@@ -1,0 +1,508 @@
+C251 COMPILER V5.57.0,  MMI_FM                                                             08/11/20  06:33:50  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE MMI_FM
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\MMI_FM.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\MMI\MMI_FM.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) WARNING
+                    -LEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\source\H
+                    -C;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\source\ROM\
+                    -LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_LE;.\so
+                    -urce\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspData;.\so
+                    -urce\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLASH_INIT
+                    -=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoHeadset\MMI_FM
+                    -.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\MMI_FM.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #define _MMI_FM_C_
+    4          
+    5          #include "rc.h"
+    6          #include "bt_config_profile.h"
+    7          
+    8          #ifdef FM_ENABLE
+    9          #include "MMI.h"
+   10          #include "MMI_FM.h"
+   11          #include "MMI_State.h"
+   12          #include "MMI_HCI.h"
+   13          #include "MMI_Driver.h"
+   14          #include "MMI_Protocol.h"
+   15          #include "MMI_Reconnect.h"
+   16          
+   17          #ifdef SUPPORT_VOICE_PROMPT
+   18            #include "..\Driver\VoicePrompt.h"
+   19          #endif
+   20          #include "..\Driver\Driver_FM.h"
+   21          
+   22          #include "..\ROM\DRIVER\drv_gpio.h"
+   23          #include "..\SECTOR\Config1\sector_config1.h"
+   24          
+   25          
+   26          PRIVATE void MMI_FMEntry(U8 linkIndex);
+   27          PRIVATE void MMI_FMHandler(U8 linkIndex, MMIMsgType XDATA_PTR msgPtr);
+   28          PRIVATE void MMI_FMExit(U8 linkIndex);
+   29          PRIVATE void MMI_FM_SaveHistoryFreq(void);
+   30          PRIVATE S16 MMI_FM_GetCurFreq(void);
+   31          PRIVATE void MMI_FM_KeyPowerOn(U8 linkIndex);
+   32          PRIVATE void MMI_FM_KeyPowerOff(U8 linkIndex);
+   33          PRIVATE void MMI_FM_KeySeekTune(U8 linkIndex);
+   34          PRIVATE void MMI_FM_KeyMuteToggle(U8 linkIndex);
+   35          PRIVATE U16 MMI_FM_CheckKeyPowerOn(U16 keyCode);
+   36          PRIVATE U16 MMI_FM_CheckKeyPowerOff(U16 keyCode);
+   37          PRIVATE U16 MMI_FM_CheckKeyFunction(U16 keyCode);
+   38          
+   39          extern MmiHandlerSetType CODE_PTR XDATA MMI_StateHandlerSet[MMI_TOTAL_STATE_NO];
+   40          
+   41          PRIVATE MmiHandlerSetType CODE  MMI_StateFMHandler = 
+   42          {
+   43            MMI_FMEntry, MMI_FMHandler, MMI_FMExit, //MMI_FM
+   44          };
+   45          
+   46          static MMI_KEY_EVT CODE MMI_FM_KeyEvtHandler[FM_KEY_EVENT_NO] =
+   47          {
+   48            {MMI_FM_KeyPowerOn}, //FM_KEY_EVENT_KEY_FM_POWERON
+   49            {MMI_FM_KeyPowerOff}, //FM_KEY_EVENT_KEY_FM_POWEROFF 
+   50            {MMI_FM_KeySeekTune}, //FM_KEY_EVENT_KEY_SEEKUP 
+   51            {MMI_FM_KeySeekTune}, //FM_KEY_EVENT_KEY_SEEKDOWN
+   52            {MMI_FM_KeySeekTune}, //FM_KEY_EVENT_KEY_TUNEUP, 
+C251 COMPILER V5.57.0,  MMI_FM                                                             08/11/20  06:33:50  PAGE 2   
+
+   53            {MMI_FM_KeySeekTune}, //FM_KEY_EVENT_KEY_TUNEDN,     
+   54            {MMI_FM_KeyMuteToggle}, //FM_KEY_EVENT_KEY_FM_MUTETOGGLE, 
+   55          };
+   56          
+   57          static MMI_KEY_CHECK CODE MMI_FM_KeyCheckValidHandler[FM_KEY_EVENT_NO] =
+   58          {
+   59            {MMI_FM_CheckKeyPowerOn}, //FM_KEY_EVENT_KEY_FM_POWERON
+   60            {MMI_FM_CheckKeyPowerOff}, //FM_KEY_EVENT_KEY_FM_POWEROFF 
+   61            {MMI_FM_CheckKeyFunction}, //FM_KEY_EVENT_KEY_SEEKUP 
+   62            {MMI_FM_CheckKeyFunction}, //FM_KEY_EVENT_KEY_SEEKDOWN
+   63            {MMI_FM_CheckKeyFunction}, //FM_KEY_EVENT_KEY_TUNEUP, 
+   64            {MMI_FM_CheckKeyFunction}, //FM_KEY_EVENT_KEY_TUNEDN,    
+   65            {MMI_FM_CheckKeyFunction}, //FM_KEY_EVENT_KEY_FM_MUTETOGGLE,
+   66          };
+   67          
+   68          PUBLIC void MMI_FM_Init(void)
+   69          {
+   70   1        MMI_StateHandlerSet[MMI_FM] = &MMI_StateFMHandler;
+   71   1      }
+   72          
+   73          PUBLIC void MMI_FM_ProcessKeyEvent(U8 linkIndex, U8 index)
+   74          {
+   75   1        if(MMI_FM_KeyEvtHandler[index].fKeyEvt)
+   76   1        {
+   77   2          MMI_FM_KeyEvtHandler[index].fKeyEvt(linkIndex);
+   78   2        }
+   79   1      }
+   80          
+   81          PUBLIC U16 MMI_FM_CheckValidKey(U8 index, U16 keyCode)
+   82          {
+   83   1        if(MMI_FM_KeyCheckValidHandler[index].fKeyCheckValid)
+   84   1        {
+   85   2          keyCode = MMI_FM_KeyCheckValidHandler[index].fKeyCheckValid(keyCode);
+   86   2        }
+   87   1        return keyCode;
+   88   1      }
+   89          
+   90          PUBLIC void MMI_FM_DriverCmd(U8 FMCmd)
+   91          {
+   92   1        switch(FMCmd)
+   93   1        {
+   94   2          case DRIVER_FM_POWERON_CMD:
+   95   2            gMMI_FM_ctl.curFMSoundLevel = gMMI_driver_variation_nvram.misc_para.init.FMHistoryVol;
+   96   2            gMMI_FM_ctl.volumeSmallStepCount = gMMI_driver_variation_nvram.misc_para.init.FMSmallStepVol;
+   97   2            DRIVER_FM_PowerOnCmd(gMMI_driver_variation_nvram.misc_para.init.FM_history_Freq, gMMI_driver_variation
+             -_nvram.misc_para.init.FMHistoryVol);
+   98   2            break;
+   99   2          case DRIVER_FM_POWEROFF_CMD:
+  100   2            gMMI_FM_ctl.isDriverFMBusy = FALSE;
+  101   2            MMI_FM_SaveHistoryFreq();
+  102   2            DRIVER_FM_PowerOffCmd();
+  103   2            break;
+  104   2          case DRIVER_FM_TUNEUP_CMD:
+  105   2            DRIVER_FM_TuneCmd(TRUE);
+  106   2            break;
+  107   2          case DRIVER_FM_TUNEDN_CMD:
+  108   2            DRIVER_FM_TuneCmd(FALSE);
+  109   2            break;
+  110   2          case DRIVER_FM_HWSEEKUP_CMD:
+  111   2            DRIVER_FM_SeekCmd(TRUE);
+  112   2            break;
+  113   2          case DRIVER_FM_HWSEEKDN_CMD:
+  114   2            DRIVER_FM_SeekCmd(FALSE);
+  115   2            break;
+  116   2          case DRIVER_FM_MUTETOGGLE_CMD:
+  117   2            DRIVER_FM_MuteCmd(FM_MUTE_MODE_TOGGLE);
+C251 COMPILER V5.57.0,  MMI_FM                                                             08/11/20  06:33:50  PAGE 3   
+
+  118   2            break;
+  119   2          case DRIVER_FM_MUTE_ON_CMD:
+  120   2            DRIVER_FM_MuteCmd(FM_MUTE_MODE_ON);
+  121   2            break;
+  122   2          case DRIVER_FM_MUTE_OFF_CMD:
+  123   2            DRIVER_FM_MuteCmd(FM_MUTE_MODE_OFF);
+  124   2            break;
+  125   2          case DRIVER_FM_VOLUME_CMD:
+  126   2            gMMI_FM_ctl.isDriverFMBusy = TRUE;
+  127   2            DRIVER_FM_VolumeCmd(gMMI_FM_ctl.curFMSoundLevel);
+  128   2            break ;
+  129   2          default:
+  130   2            break;
+  131   2        }
+  132   1      }
+  133          
+  134          PUBLIC void MMI_FM_VolumeControl(BOOL isVolumeUp)
+  135          {
+  136   1        U8 XDATA_PTR spkSoundLevelPtr;
+  137   1        spkSoundLevelPtr  = &gMMI_FM_ctl.curFMSoundLevel;
+  138   1        if(isVolumeUp)
+  139   1        {
+  140   2          gMMI_FM_ctl.volumeSmallStepCount = MMI_DRV_IncreaseSmallStepVolume(gMMI_FM_ctl.curFMSoundLevel, SOUND_L
+             -EVEL_NO, gMMI_nvram.smallStepVolume.fmVolumeSmallStep, gMMI_FM_ctl.volumeSmallStepCount);
+  141   2      
+  142   2          // Only 16 levels are supported.
+  143   2          if(gMMI_FM_ctl.volumeSmallStepCount ==0)
+  144   2          {
+  145   3            if(*spkSoundLevelPtr < (SOUND_LEVEL_NO-1))
+  146   3            {
+  147   4              (*spkSoundLevelPtr)++;
+  148   4            }
+  149   3            else if(MMI_FM_CYCLIC_VOLUME_ENABLED_FEAT)
+  150   3            {
+  151   4              *spkSoundLevelPtr = 0;
+  152   4            }
+  153   3            else
+  154   3            {
+  155   4              MMI_PushMediaEvent(MEDIA_EVT_FM_VOLUME_REACH_MAX);
+  156   4              return;
+  157   4            }
+  158   3          }
+  159   2        }
+  160   1        else
+  161   1        {
+  162   2          if(gMMI_FM_ctl.volumeSmallStepCount ==0)
+  163   2          {
+  164   3            if (*spkSoundLevelPtr > 0)
+  165   3             {
+  166   4              (*spkSoundLevelPtr)--;
+  167   4             }
+  168   3            else if(MMI_FM_CYCLIC_VOLUME_ENABLED_FEAT)
+  169   3            {
+  170   4              *spkSoundLevelPtr = SOUND_LEVEL_NO-1;
+  171   4              goto MMI_SEND_FM_VOL;
+  172   4            }
+  173   3            else
+  174   3            {
+  175   4              MMI_PushMediaEvent(MEDIA_EVT_FM_VOLUME_REACH_MIN);
+  176   4              return;
+  177   4            }
+  178   3          }
+  179   2          gMMI_FM_ctl.volumeSmallStepCount = MMI_DRV_DecreaseSmallStepVolume(gMMI_nvram.smallStepVolume.fmVolumeS
+             -mallStep, gMMI_FM_ctl.volumeSmallStepCount);
+  180   2        }
+  181   1        MMI_SEND_FM_VOL:
+C251 COMPILER V5.57.0,  MMI_FM                                                             08/11/20  06:33:50  PAGE 4   
+
+  182   1      
+  183   1        if(gMMI_FM_ctl.volumeSmallStepCount)
+  184   1          return;
+  185   1      
+  186   1        MMI_FM_DriverCmd(DRIVER_FM_VOLUME_CMD);
+  187   1      }
+  188          
+  189          PUBLIC void MMI_FM_SendChannelVoicePromptCmd(S16 curFreq)
+  190          {
+  191   1      #ifdef SUPPORT_VOICE_PROMPT
+  192   1        U8 index;
+  193   1        U8 digitLen;
+  194   1        MMIMsgType XDATA_PTR msgPtr;
+  195   1      
+  196   1        if (!MMI_PlayVoicePromptIsAvailable(MEDIA_EVT_FM_NOT_BUSY))
+  197   1          goto MMI_FM_SEND_FAKE_CMD;
+  198   1      
+  199   1        if ((U16)curFreq >=  MIN_FREQUENCE && (U16)curFreq <= 999)
+  200   1        {
+  201   2          digitLen = 3;
+  202   2        }
+  203   1        else if((U16)curFreq > 999 && (U16)curFreq <= MAX_FREQUENCE)
+  204   1        {
+  205   2          digitLen = 4;
+  206   2        }
+  207   1        else
+  208   1        {
+  209   2          goto MMI_FM_SEND_FAKE_CMD;
+  210   2        }
+  211   1      
+  212   1        msgPtr = MMI_GetMMIMsgTypeCmdMemory(DRIVER_VOICEPROMPT_CMD);
+  213   1      
+  214   1        if (msgPtr == (MMIMsgType XDATA_PTR)NULL)
+  215   1          goto MMI_FM_SEND_FAKE_CMD;
+  216   1      
+  217   1        for (index = digitLen; index > 0; index--)
+  218   1        {
+  219   2          msgPtr->msgBodyPtr.driverCmd.voicePromptCmd.vpData.fmChannel.number[index-1] = curFreq % 10;
+  220   2          curFreq /= 10;
+  221   2        }
+  222   1      
+  223   1        msgPtr->msgBodyPtr.driverCmd.voicePromptCmd.id = MEDIA_EVT_FM_NOT_BUSY;
+  224   1        msgPtr->msgBodyPtr.driverCmd.voicePromptCmd.vpIndex = VP_EVT_FM_CHANNEL_NUMBER;
+  225   1        msgPtr->msgBodyPtr.driverCmd.voicePromptCmd.vpData.fmChannel.digitLength = digitLen;
+  226   1      
+  227   1        OSMQ_PutFront(OSMQ_DRIVER_Command_ptr, (U8 XDATA_PTR)msgPtr);
+  228   1        gMMI_FM_ctl.isDriverFMBusy = TRUE;
+  229   1      
+  230   1        MMI_FM_SEND_FAKE_CMD:
+  231   1        MMI_DRV_SendFakeMediaCmd(MEDIA_EVT_FM_NOT_BUSY);
+  232   1      #else
+                 UNUSED(curFreq);
+               #endif
+  235   1      }
+  236          
+  237          
+  238          PRIVATE void MMI_FMEntry(U8 linkIndex)
+  239          {
+  240   1        UNUSED(linkIndex);
+  241   1        
+  242   1        if(MMI_NO_CONNECTABLE_IN_FM_FEAT)
+  243   1          MMI_ConnectabilityHandle(CMD_SET_NON_CONNECTABLE_ANYWAY);
+  244   1      
+  245   1        if(MMI_NO_DISCAVERABLE_IN_FM_FEAT)
+  246   1          MMI_DiscoverabilityHandle(CMD_SET_NON_DISCOVERABLE_ANYWAY);
+  247   1      
+C251 COMPILER V5.57.0,  MMI_FM                                                             08/11/20  06:33:50  PAGE 5   
+
+  248   1        MMI_PushMediaEvent(MEDIA_EVT_FM_ENABLE);
+  249   1        SYS_ReleaseTimer(&gMMI_ctl.audioDevCtl.resumeTimer);
+  250   1      }
+  251          
+  252          PRIVATE void MMI_FMHandler(U8 linkIndex, MMIMsgType XDATA_PTR msgPtr)
+  253          {
+  254   1        UNUSED(linkIndex);
+  255   1        
+  256   1        if (msgPtr->eventCode== DRIVER_FAKE_MEDIA_VP_RINGTONE_EVENT)
+  257   1        {
+  258   2          switch(msgPtr->msgBodyPtr.driverEvt.fakeMediaEvt.id)
+  259   2          {
+  260   3            case MEDIA_EVT_FM_ENABLE:
+  261   3              MMI_FM_DriverCmd(DRIVER_FM_POWERON_CMD);
+  262   3              break;
+  263   3            case MEDIA_EVT_KEY_SEEKUP:
+  264   3              MMI_FM_DriverCmd(DRIVER_FM_HWSEEKUP_CMD);
+  265   3              break;
+  266   3            case MEDIA_EVT_KEY_SEEKDOWN:
+  267   3              MMI_FM_DriverCmd(DRIVER_FM_HWSEEKDN_CMD);
+  268   3              break;
+  269   3            case MEDIA_EVT_KEY_TUNEUP:
+  270   3              MMI_FM_DriverCmd(DRIVER_FM_TUNEUP_CMD);
+  271   3              break;
+  272   3            case MEDIA_EVT_KEY_TUNEDN:
+  273   3              MMI_FM_DriverCmd(DRIVER_FM_TUNEDN_CMD);
+  274   3              break;
+  275   3            case MEDIA_EVT_FM_MUTE_OFF:
+  276   3              MMI_FM_DriverCmd(DRIVER_FM_MUTE_OFF_CMD);
+  277   3              break;
+  278   3            case MEDIA_EVT_FM_MUTE_ON:
+  279   3              MMI_FM_DriverCmd(DRIVER_FM_MUTE_ON_CMD);
+  280   3              break;
+  281   3            case MEDIA_EVT_FM_NOT_BUSY:
+  282   3              gMMI_FM_ctl.isDriverFMBusy = FALSE;
+  283   3              break;
+  284   3          }
+  285   2        }
+  286   1        else if(msgPtr->eventCode== DRIVER_FM_BUSY_EVENT)
+  287   1        {
+  288   2          gMMI_FM_ctl.isDriverFMBusy = TRUE;
+  289   2        }
+  290   1        else if(msgPtr->eventCode== DRIVER_FM_NOT_BUSY_EVENT)
+  291   1        {
+  292   2          MMI_FM_SendChannelVoicePromptCmd(MMI_FM_GetCurFreq());
+  293   2        }
+  294   1        else if(msgPtr->eventCode== DRIVER_FM_MUTE_ON_EVENT )
+  295   1        {
+  296   2          MMI_PushMediaEvent(MEDIA_EVT_FM_MUTE_OFF); //toggle
+  297   2        }
+  298   1        else if(msgPtr->eventCode== DRIVER_FM_MUTE_OFF_EVENT)
+  299   1        {
+  300   2          MMI_PushMediaEvent(MEDIA_EVT_FM_MUTE_ON); //toggle
+  301   2        }
+  302   1        gMMI_ctl.msgHandled = NOTPROCD;
+  303   1      }
+  304          
+  305          PRIVATE void MMI_FMExit(U8 linkIndex)
+  306          {
+  307   1        UNUSED(linkIndex);
+  308   1        MMI_FM_DriverCmd(DRIVER_FM_POWEROFF_CMD);
+  309   1      }
+  310          
+  311          PRIVATE void MMI_FM_SaveHistoryFreq(void)
+  312          {
+  313   1        S16 curFreq;
+C251 COMPILER V5.57.0,  MMI_FM                                                             08/11/20  06:33:50  PAGE 6   
+
+  314   1        curFreq = MMI_FM_GetCurFreq();
+  315   1        if ((U16)curFreq> MAX_FREQUENCE || (U16)curFreq< MIN_FREQUENCE)
+  316   1        {
+  317   2          gMMI_driver_variation_nvram.misc_para.init.FM_history_Freq = 875;
+  318   2          gMMI_driver_variation_nvram.misc_para.init.FMHistoryVol = gMMI_FM_ctl.curFMSoundLevel;
+  319   2          gMMI_driver_variation_nvram.misc_para.init.FMSmallStepVol = gMMI_FM_ctl.volumeSmallStepCount;
+  320   2        }
+  321   1        else
+  322   1        {
+  323   2          gMMI_driver_variation_nvram.misc_para.init.FM_history_Freq = curFreq;
+  324   2          gMMI_driver_variation_nvram.misc_para.init.FMHistoryVol = gMMI_FM_ctl.curFMSoundLevel;
+  325   2          gMMI_driver_variation_nvram.misc_para.init.FMSmallStepVol = gMMI_FM_ctl.volumeSmallStepCount;
+  326   2        }
+  327   1        MMI_SECTOR_SetUpdateFlag(TRUE);
+  328   1      }
+  329          
+  330          PRIVATE S16 MMI_FM_GetCurFreq(void)
+  331          {
+  332   1        return DRIVER_FM_GetFreq();
+  333   1      }
+  334          
+  335          PRIVATE void MMI_FM_KeyPowerOn(U8 linkIndex)
+  336          {
+  337   1        UNUSED(linkIndex);
+  338   1        if(MMI_DRV_AudioDeviceRegister(MMI_EOF, AUDIO_DEVICE_FM))
+  339   1        {
+  340   2          if(MMI_NO_CONNECTION_IN_FM_FEAT)
+  341   2          {
+  342   3            MMI_PROTOCOL_RelAllLinks();
+  343   3          }
+  344   2          MMI_AddTopState(MMI_EOF, MMI_FM); 
+  345   2        }
+  346   1      }
+  347          
+  348          PRIVATE void MMI_FM_KeyPowerOff(U8 linkIndex)
+  349          {
+  350   1        UNUSED(linkIndex);
+  351   1        MMI_DRV_AudioDeviceDeRegister(MMI_EOF, AUDIO_DEVICE_FM);
+  352   1        MMI_RmvState(MMI_EOF, MMI_FM);
+  353   1      
+  354   1        if(MMI_NO_CONNECTABLE_IN_FM_FEAT)
+  355   1        {
+  356   2          MMI_ConnectabilityHandle(CMD_SET_RESUME_CONNECTABLE);
+  357   2        }
+  358   1      
+  359   1        if(MMI_NO_DISCAVERABLE_IN_FM_FEAT)
+  360   1        {
+  361   2          MMI_DiscoverabilityHandle(CMD_SET_RESUME_DISCOVERABLE);
+  362   2        }
+  363   1      
+  364   1        if(MMI_NO_CONNECTION_IN_FM_FEAT)
+  365   1        {
+  366   2          if(gMMI_ctl.miscMask4& MMI_MASK4_RECONNECT_LINK0)
+  367   2            MMI_Reconnect(RECONNECT_FIRST_ONCE);
+  368   2          if((gMMI_ctl.miscMask4& MMI_MASK4_RECONNECT_LINK1))
+  369   2            MMI_Reconnect(RECONNECT_SECONDARY_ONCE);
+  370   2          gMMI_ctl.miscMask4 &= ~(MMI_MASK4_RECONNECT_LINK0 | MMI_MASK4_RECONNECT_LINK1);
+  371   2        }
+  372   1        
+  373   1        MMI_DRV_ResumeOtherAudioDevice(MMI_EOF, AUDIO_DEVICE_FM);
+  374   1      }
+  375          
+  376          PRIVATE void MMI_FM_KeySeekTune(U8 linkIndex)
+  377          {
+  378   1        UNUSED(linkIndex);
+  379   1        gMMI_FM_ctl.isDriverFMBusy = TRUE;
+C251 COMPILER V5.57.0,  MMI_FM                                                             08/11/20  06:33:50  PAGE 7   
+
+  380   1      }
+  381          
+  382          PRIVATE void MMI_FM_KeyMuteToggle(U8 linkIndex)
+  383          {
+  384   1        UNUSED(linkIndex);
+  385   1        gMMI_FM_ctl.isDriverFMBusy = TRUE;
+  386   1        MMI_FM_DriverCmd(DRIVER_FM_MUTETOGGLE_CMD);
+  387   1      }
+  388          
+  389          PRIVATE U16 MMI_FM_CheckKeyPowerOn(U16 keyCode)
+  390          {
+  391   1        if(MMI_DRV_IsHighPriAudioDeviceRegistered(AUDIO_DEVICE_LINE_IN))
+  392   1        {
+  393   2          keyCode = KEY_INVALID;
+  394   2        }
+  395   1        return keyCode;
+  396   1      }
+  397          
+  398          PRIVATE U16 MMI_FM_CheckKeyPowerOff(U16 keyCode)
+  399          {
+  400   1        if(!MMI_CheckInFMState())
+  401   1        {
+  402   2          keyCode = KEY_INVALID;
+  403   2        }
+  404   1        return keyCode;
+  405   1      }
+  406          
+  407          PRIVATE U16 MMI_FM_CheckKeyFunction(U16 keyCode)
+  408          {
+  409   1        if(gMMI_FM_ctl.isDriverFMBusy)
+  410   1          keyCode = KEY_INVALID;
+  411   1          
+  412   1        return keyCode;
+  413   1      }
+  414          
+  415          PRIVATE void MMI_FM_DRV_Event_PassThruMsg(MMIMsgType XDATA_PTR msgPtr)
+  416          {
+  417   1        gMMI_ctl.msgHandled = NOTPROCD;
+  418   1        MMI_STATE_PassThruMsg(gMMI_ctl.serviceInd, msgPtr);
+  419   1        if (gMMI_ctl.msgHandled != PROCD_TRANSIT)
+  420   1        {
+  421   2          OSMEM_Put ((U8 XDATA_PTR)msgPtr);
+  422   2        }
+  423   1      }
+  424          
+  425          PRIVATE void MMI_FM_DRV_NotBusy_Event(MMIMsgType XDATA_PTR msgPtr)
+  426          {
+  427   1        gMMI_FM_ctl.isDriverFMBusy = FALSE;
+  428   1        MMI_FM_DRV_Event_PassThruMsg(msgPtr);
+  429   1      }
+  430          
+  431          PRIVATE void MMI_FM_DRV_Disabled_Event(void)
+  432          {
+  433   1        gMMI_FM_ctl.isDriverFMBusy = FALSE;
+  434   1      }
+  435          
+  436          PRIVATE void MMI_FM_DRV_CmdSet_Event(void)
+  437          {
+  438   1        gMMI_FM_ctl.isDriverFMBusy = FALSE;
+  439   1      }
+  440          
+  441          MMI_FM_DRV_HANDLE_TYPE CODE gMMI_FM_Drv_Handler =
+  442          {
+  443            MMI_FM_DRV_Event_PassThruMsg, //fDriverFMBusyEvent,
+  444            MMI_FM_DRV_NotBusy_Event,   //fDriverFMNotBusyEvent,
+  445            MMI_FM_DRV_Disabled_Event,    //fDriverFMDisabledEvent
+C251 COMPILER V5.57.0,  MMI_FM                                                             08/11/20  06:33:50  PAGE 8   
+
+  446            MMI_FM_DRV_CmdSet_Event,    //fDriverFMCmdSetEvent
+  447            MMI_FM_DRV_Event_PassThruMsg, //fDriverFMMuteOnEvent,
+  448            MMI_FM_DRV_Event_PassThruMsg, //fDriverFMMuteOffEvent,
+  449          };
+  450          
+  451          #endif //FM_ENABLE
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =      1098     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =         4     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =        92     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

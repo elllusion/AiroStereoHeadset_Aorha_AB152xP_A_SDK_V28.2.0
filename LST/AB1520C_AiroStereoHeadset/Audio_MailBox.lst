@@ -1,0 +1,552 @@
+C251 COMPILER V5.57.0,  Audio_MailBox                                                      08/11/20  05:51:35  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE Audio_MailBox
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\Audio_MailBox.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\DRIVER\Audio_MailBox.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUG
+                    -E) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;
+                    -.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\s
+                    -ource\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\M
+                    -MI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\Ds
+                    -pData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(
+                    -FLASH_INIT=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520C_AiroStereoHead
+                    -set\Audio_MailBox.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\Audio_MailBox.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          #include "drv_sector.h"
+    3          #include "bt_config_profile.h"
+    4          #include "Audio_MailBox.h"
+    5          #include "Audio_Transparency.h"
+    6          #ifdef RINGTONE_ENABLE
+    7          #include "ringtone.h"
+    8          #endif
+    9          #ifdef SUPPORT_VOICE_PROMPT
+   10          #include "VoicePrompt.h"
+   11          #endif
+   12          #ifdef SUPPORT_VOICE_COMMAND
+   13          #include "VoiceCommand.h"
+   14          #endif
+   15          #include "Driver_1520.h"
+   16          
+   17          #define EVT_CODE 0x4
+   18          
+   19          #define OGF_PROMPT_NUM    4
+   20          
+   21          enum
+   22          {
+   23            PROMPT_OGF_VP,
+   24            PROMPT_OGF_RT,
+   25            PROMPT_OGF_VC,
+   26            PROMPT_OGF_AT,
+   27          };
+   28          
+   29          MAILBOX_PROMPT_STRU gPrompt_ctl[OGF_PROMPT_NUM];
+   30          
+   31          MAILBOX_STATE_STRU XDATA MailBox_State[OGF_MAX_NUM];
+   32          
+   33          MAILBOX_CTL_TYPE XDATA gMailBox_ctl;
+   34          #define OSMQ_MAILBOX_PTR    &MAILBOX_QUEUE
+   35          void SetPrompVPStatus(U8 status)    {gPrompt_ctl[PROMPT_OGF_VP].end_status = status;}
+   36          void SetPrompRTStatus(U8 status)    {gPrompt_ctl[PROMPT_OGF_RT].end_status = status;}
+   37          void SetPrompVCStatus(U8 status)    {gPrompt_ctl[PROMPT_OGF_VC].end_status = status;}
+   38          void SetPrompATStatus(U8 status)    {gPrompt_ctl[PROMPT_OGF_AT].end_status = status;}
+   39          static void (*Set_Prompt_Ctl[OGF_MAX_NUM])(U8 status) = 
+   40          {
+   41            {SetPrompVPStatus},
+   42            {SetPrompRTStatus},
+   43            {SetPrompVCStatus},
+   44            {(void *)0},
+   45            {(void *)0},
+   46            {SetPrompATStatus},
+   47          };
+   48          
+   49          U8 GetPrompVPStatus(void)   {return gPrompt_ctl[PROMPT_OGF_VP].end_status;}
+   50          U8 GetPrompRTStatus(void)   {return gPrompt_ctl[PROMPT_OGF_RT].end_status;}
+   51          U8 GetPrompVCStatus(void)   {return gPrompt_ctl[PROMPT_OGF_VC].end_status;}
+   52          U8 GetPrompATStatus(void)   {return gPrompt_ctl[PROMPT_OGF_AT].end_status;}
+C251 COMPILER V5.57.0,  Audio_MailBox                                                      08/11/20  05:51:35  PAGE 2   
+
+   53          static U8 (*Get_Prompt_Ctl[OGF_MAX_NUM])(void) = 
+   54          {
+   55            {GetPrompVPStatus},
+   56            {GetPrompRTStatus},
+   57            {GetPrompVCStatus},
+   58            {(void *)0},
+   59            {(void *)0},
+   60            {GetPrompATStatus},
+   61          };
+   62          
+   63          void MailBox_Init(void);
+   64          
+   65          void SubState_Init_Handler(DRIVERMSG_WITH_MAILBOXCMD_STRU XDATA_PTR CMD_PTR) compact REENTRANT;
+   66          void SubState_Completing_Handler(DRIVERMSG_WITH_MAILBOXCMD_STRU XDATA_PTR CMD_PTR) compact REENTRANT;
+   67          
+   68          void PromptStart_SubStateHandler(DRIVERMSG_WITH_MAILBOXCMD_STRU XDATA_PTR CMD_PTR) compact REENTRANT;
+   69          void PromptStop_SubStateHandler(DRIVERMSG_WITH_MAILBOXCMD_STRU XDATA_PTR CMD_PTR) compact REENTRANT;
+   70          void OneStep_SubStateHandler(DRIVERMSG_WITH_MAILBOXCMD_STRU XDATA_PTR CMD_PTR) compact REENTRANT;
+   71          void MailboxState_Reset(U8 OGF);
+   72          
+   73          
+   74          void CMD_REPLY_EvtHandler(void);
+   75          void VP_END_EvtHandler(void);
+   76          void RT_END_EvtHandler(void);
+   77          void VC_END_EvtHandler(void);
+   78          void APP_END_EvtHandler(void);
+   79          void AT_END_EvtHandler(void);
+   80          void MailboxSendEvtToDriver(DRIVERMSG_STRU XDATA_PTR EVT_PTR, U8 ogf, U8 ocf);
+   81          
+   82          MAILBOXFUN CODE DSP_StateHandler[OCF_DSP_MAX_NUM] =
+   83          {
+   84            OneStep_SubStateHandler,
+   85            OneStep_SubStateHandler,
+   86            OneStep_SubStateHandler,
+   87            OneStep_SubStateHandler,
+   88          };
+   89          
+   90          
+   91          MAILBOXFUN CODE VP_StateHandler[OCF_VP_MAX_NUM] =
+   92          {
+   93            PromptStart_SubStateHandler,
+   94            PromptStop_SubStateHandler,
+   95            OneStep_SubStateHandler
+   96          };
+   97          MAILBOXFUN CODE RT_StateHandler[OCF_RT_MAX_NUM] =
+   98          {
+   99            PromptStart_SubStateHandler,
+  100            PromptStop_SubStateHandler
+  101          };
+  102          MAILBOXFUN CODE VC_StateHandler[OCF_VC_MAX_NUM] =
+  103          {
+  104            PromptStart_SubStateHandler,
+  105            PromptStop_SubStateHandler
+  106          };
+  107          
+  108          MAILBOXFUN CODE APP_StateHandler[OCF_APP_MAX_NUM] =
+  109          {
+  110            OneStep_SubStateHandler,
+  111            OneStep_SubStateHandler,
+  112            OneStep_SubStateHandler,
+  113            OneStep_SubStateHandler,
+  114            OneStep_SubStateHandler,
+  115            OneStep_SubStateHandler,
+  116            OneStep_SubStateHandler,
+  117          };
+  118          
+C251 COMPILER V5.57.0,  Audio_MailBox                                                      08/11/20  05:51:35  PAGE 3   
+
+  119          MAILBOXFUN CODE AT_StateHandler[OCF_AT_MAX_NUM] =
+  120          {
+  121            PromptStart_SubStateHandler,
+  122            PromptStop_SubStateHandler
+  123          };
+  124          
+  125          MAILBOXFUN CODE_PTR CODE Mailbox_StateHandler[] =
+  126          {
+  127            VP_StateHandler,
+  128            RT_StateHandler,
+  129            VC_StateHandler,
+  130            APP_StateHandler,
+  131            DSP_StateHandler,
+  132            AT_StateHandler,
+  133          };
+  134          VFUN CODE Mailbox_EVENTCB_Handler[] =
+  135          {
+  136            CMD_REPLY_EvtHandler,
+  137            VP_END_EvtHandler,
+  138            RT_END_EvtHandler,
+  139              VC_END_EvtHandler,
+  140            APP_END_EvtHandler,
+  141            AT_END_EvtHandler,
+  142          };
+  143          
+  144          void MailBox_Init(void)
+  145          {
+  146   1        U8 i;
+  147   1        for(i=0 ; i<OGF_MAX_NUM ; ++i)
+  148   1        {
+  149   2          MailBox_State[i].state = SUBSTATE_INIT;
+  150   2          MailBox_State[i].ocf = 0xff;
+  151   2          MailBox_State[i].CmdPtr = (DRIVERMSG_WITH_MAILBOXCMD_STRU XDATA_PTR)NULL;
+  152   2        }
+  153   1        gAlignDSP.Mailbox.m2d_ctl.rw_word = MCU_Owned;
+  154   1        gAlignDSP.Mailbox.d2m_ctl.rw_word = DSP_Owned;
+  155   1      }
+  156          
+  157          void MailBox_CmdHandler(DRIVERMSG_WITH_MAILBOXCMD_STRU XDATA_PTR CMD_PTR)
+  158          {
+  159   1          #ifdef OS_PRINT_ASSERT
+  160   1          U16 cnt = 0;
+  161   1          #endif
+  162   1      
+  163   1          #ifdef OS_PRINT_ASSERT
+  164   1        while(gAlignDSP.Mailbox.m2d_ctl.rw_word == DSP_Owned)
+  165   1        {
+  166   2            if (!(cnt % 2000))
+  167   2            {
+  168   3                LightDbgPrint("MailBox Jam:%d, %d",(U8)CMD_PTR->m2d_ctl.cmd.Ogf, (U8)CMD_PTR->m2d_ctl.cmd.Ocf);
+  169   3            }
+  170   2            cnt++;
+  171   2        }
+  172   1        #else
+                 while(gAlignDSP.Mailbox.m2d_ctl.rw_word == DSP_Owned){}
+                 #endif
+  175   1      
+  176   1          if(CMD_PTR->m2d_ctl.cmd.Ogf == OGF_APP && CMD_PTR->m2d_ctl.cmd.Ocf == OCF_APP_ASYNC_MONO_MODE)
+  177   1        {
+  178   2          LightDbgPrint("MailCMD:ogf:OGF_APP,ocf:ASYNC_MONO");
+  179   2        }
+  180   1        else
+  181   1          {
+  182   2              LightDbgPrintWithOpcode((U8)HCI_VEVT_OCF_DRIVER_MAILBOX_CMD,
+  183   2                                      (U8)HCI_VENDOR_OGF_UART_DRIVER_DBGPRINT,
+  184   2                                      (U8)CMD_PTR->m2d_ctl.cmd.Ogf, (U8)CMD_PTR->m2d_ctl.cmd.Ocf);
+C251 COMPILER V5.57.0,  Audio_MailBox                                                      08/11/20  05:51:35  PAGE 4   
+
+  185   2          }
+  186   1      
+  187   1        if(gAlignDSP.Mailbox.m2d_ctl.rw_word == MCU_Owned && MailBox_State[CMD_PTR->m2d_ctl.cmd.Ogf].state == SU
+             -BSTATE_INIT)
+  188   1        {
+  189   2          Mailbox_StateHandler[CMD_PTR->m2d_ctl.cmd.Ogf][CMD_PTR->m2d_ctl.cmd.Ocf] (CMD_PTR);
+  190   2        }
+  191   1        else
+  192   1        {
+  193   2          LightDbgPrintWithOpcode((U8)HCI_VEVT_OCF_DRIVER_MAILBOX_CMD_STATE_ERROR,
+  194   2                      (U8)HCI_VENDOR_OGF_UART_DRIVER_DBGPRINT,
+  195   2                      (U8)gAlignDSP.Mailbox.m2d_ctl.rw_word,
+  196   2                      (U8)MailBox_State[CMD_PTR->m2d_ctl.cmd.Ogf].state);
+  197   2          ASSERT(FALSE);
+  198   2        }
+  199   1      }
+  200          
+  201          void MailBox_EvtHandler(void)
+  202          {
+  203   1        if(gAlignDSP.Mailbox.d2m_ctl.rw_word == MCU_Owned && gAlignDSP.Mailbox.d2m_ctl.evt_word.Evt >= EVT_CODE)
+  204   1        {
+  205   2          Mailbox_EVENTCB_Handler[gAlignDSP.Mailbox.d2m_ctl.evt_word.Evt-EVT_CODE] ();
+  206   2          gAlignDSP.Mailbox.d2m_ctl.rw_word = DSP_Owned;
+  207   2        }
+  208   1        else
+  209   1        {
+  210   2          ASSERT(FALSE);
+  211   2        }
+  212   1      }
+  213          
+  214          void SubState_Init_Handler(DRIVERMSG_WITH_MAILBOXCMD_STRU XDATA_PTR CMD_PTR) compact REENTRANT
+  215          {
+  216   1      
+  217   1        DSP_Enable(CMD_PTR->m2d_ctl.para.dsp_gain_para.DspClock);
+  218   1      
+  219   1        //HC_SFR_WRITE_BY_FB (FBOFFS_WO_DSP_AUDIO_CTL, 0x90);
+  220   1        MailBox_State[CMD_PTR->m2d_ctl.cmd.Ogf].ocf = CMD_PTR->m2d_ctl.cmd.Ocf;
+  221   1        MailBox_State[CMD_PTR->m2d_ctl.cmd.Ogf].state = SUBSTATE_COMPLETING;
+  222   1        MailBox_State[CMD_PTR->m2d_ctl.cmd.Ogf].CmdPtr = CMD_PTR;
+  223   1      
+  224   1        DSP_EnableDSPInterruptForAudio();
+  225   1        OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)(&gAlignDSP.Mailbox.m2d_ctl), (U8 XDATA_PTR)(&CMD_PTR->m2d_ctl),s
+             -izeof(M2D_CTL_STRU));
+  226   1        gAlignDSP.Mailbox.m2d_ctl.rw_word = DSP_Owned;
+  227   1          //CPU_INT_CH9
+  228   1        HC_SFR_WRITE_BY_FB (FBOFFS_WO_DSP_INT_CTL,0x8);
+  229   1      }
+  230          
+  231          void SubState_Completing_Handler(DRIVERMSG_WITH_MAILBOXCMD_STRU XDATA_PTR CMD_PTR) compact REENTRANT
+  232          {
+  233   1        MailboxState_Reset(CMD_PTR->m2d_ctl.cmd.Ogf);
+  234   1      
+  235   1        if (((CMD_PTR->m2d_ctl.cmd.Ogf == OGF_VC) && (CMD_PTR->m2d_ctl.cmd.Ocf == OCF_VC_STOP))
+  236   1         || ((CMD_PTR->m2d_ctl.cmd.Ogf == OGF_VP) && (CMD_PTR->m2d_ctl.cmd.Ocf == OCF_VP_STOP))
+  237   1         || ((CMD_PTR->m2d_ctl.cmd.Ogf == OGF_RT) && (CMD_PTR->m2d_ctl.cmd.Ocf == OCF_RT_STOP))
+  238   1         || ((CMD_PTR->m2d_ctl.cmd.Ogf == OGF_AT) && (CMD_PTR->m2d_ctl.cmd.Ocf == OCF_AT_STOP)))
+  239   1        {
+  240   2          OSMEM_Put((U8 XDATA_PTR)CMD_PTR);
+  241   2        }
+  242   1        else
+  243   1        {
+  244   2          MailboxSendEvtToDriver((DRIVERMSG_STRU XDATA_PTR)CMD_PTR,CMD_PTR->m2d_ctl.cmd.Ogf, CMD_PTR->m2d_ctl.cmd
+             -.Ocf);
+  245   2        }
+  246   1      }
+  247          
+C251 COMPILER V5.57.0,  Audio_MailBox                                                      08/11/20  05:51:35  PAGE 5   
+
+  248          
+  249          void OneStep_SubStateHandler(DRIVERMSG_WITH_MAILBOXCMD_STRU XDATA_PTR CMD_PTR) compact REENTRANT
+  250          {
+  251   1        if(!CMD_PTR)
+  252   1        {
+  253   2          ASSERT(FALSE);
+  254   2        }
+  255   1      
+  256   1        switch(MailBox_State[CMD_PTR->m2d_ctl.cmd.Ogf].state)
+  257   1        {
+  258   2          case SUBSTATE_INIT:
+  259   2            SubState_Init_Handler(CMD_PTR);
+  260   2            break;
+  261   2      
+  262   2          case SUBSTATE_COMPLETING:
+  263   2            SubState_Completing_Handler(CMD_PTR);
+  264   2            break;
+  265   2      
+  266   2          default:
+  267   2            break;
+  268   2        }
+  269   1      }
+  270          void PromptStart_SubStateHandler(DRIVERMSG_WITH_MAILBOXCMD_STRU XDATA_PTR CMD_PTR) compact REENTRANT
+  271          {
+  272   1        if(!CMD_PTR)
+  273   1        {
+  274   2          ASSERT(FALSE);
+  275   2        }
+  276   1      
+  277   1        switch(MailBox_State[CMD_PTR->m2d_ctl.cmd.Ogf].state)
+  278   1        {
+  279   2          case SUBSTATE_INIT:
+  280   2            if(Set_Prompt_Ctl[CMD_PTR->m2d_ctl.cmd.Ogf] != NULL)
+  281   2              Set_Prompt_Ctl[CMD_PTR->m2d_ctl.cmd.Ogf](0);
+  282   2            SubState_Init_Handler(CMD_PTR);
+  283   2            break;
+  284   2          case SUBSTATE_COMPLETING:
+  285   2            SubState_Completing_Handler(CMD_PTR);
+  286   2            break;
+  287   2      
+  288   2          default:
+  289   2            break;
+  290   2        }
+  291   1      }
+  292          void PromptStop_SubStateHandler(DRIVERMSG_WITH_MAILBOXCMD_STRU XDATA_PTR CMD_PTR) compact REENTRANT
+  293          {
+  294   1        if(!CMD_PTR)
+  295   1        {
+  296   2          ASSERT(FALSE);
+  297   2        }
+  298   1      
+  299   1        switch(MailBox_State[CMD_PTR->m2d_ctl.cmd.Ogf].state)
+  300   1        {
+  301   2          case SUBSTATE_INIT:
+  302   2            if((Get_Prompt_Ctl[CMD_PTR->m2d_ctl.cmd.Ogf] != NULL) && !Get_Prompt_Ctl[CMD_PTR->m2d_ctl.cmd.Ogf]())
+  303   2            {
+  304   3              SubState_Init_Handler(CMD_PTR);
+  305   3            }
+  306   2            else
+  307   2            {
+  308   3              MailboxState_Reset(OGF_APP);
+  309   3              OSMEM_Put((U8 XDATA_PTR)CMD_PTR);
+  310   3            }
+  311   2            break;
+  312   2      
+  313   2          case SUBSTATE_COMPLETING:
+C251 COMPILER V5.57.0,  Audio_MailBox                                                      08/11/20  05:51:35  PAGE 6   
+
+  314   2            SubState_Completing_Handler(CMD_PTR);
+  315   2            break;
+  316   2      
+  317   2          default:
+  318   2            break;
+  319   2        }
+  320   1      }
+  321          
+  322          void CMD_REPLY_EvtHandler(void)
+  323          {
+  324   1        U8 ogf = gAlignDSP.Mailbox.d2m_ctl.evt_word.Cmd.Ogf;
+  325   1        U8 ocf = gAlignDSP.Mailbox.d2m_ctl.evt_word.Cmd.Ocf;
+  326   1      
+  327   1        if(MailBox_State[ogf].ocf == ocf && gAlignDSP.Mailbox.d2m_ctl.evt_word.Sta == CMD_COMPL)
+  328   1        {
+  329   2              if(ogf == OGF_APP && ocf == OCF_APP_ASYNC_MONO_MODE)
+  330   2          {
+  331   3            LightDbgPrint("MailEvt:ogf:OGF_APP,ocf:ASYNC_MONO");
+  332   3          }
+  333   2          else
+  334   2              {
+  335   3                  LightDbgPrintWithOpcode((U8)HCI_VEVT_OCF_DRIVER_MAILBOX_EVT,
+  336   3                                          (U8)HCI_VENDOR_OGF_UART_DRIVER_DBGPRINT,
+  337   3                                          (U8)ogf, (U8)ocf);
+  338   3              }
+  339   2      
+  340   2          Mailbox_StateHandler[ogf][ocf] (MailBox_State[ogf].CmdPtr);//(Mailbox_StateHandler[CMD_PTR->m2d_ctl.cmd
+             -.Ogf]+sizeof(U8 CODE_PTR)*(CMD_PTR->m2d_ctl.cmd.Ocf));
+  341   2        }
+  342   1        else
+  343   1        {
+  344   2          ASSERT(FALSE);
+  345   2        }
+  346   1      }
+  347          
+  348          void VP_END_EvtHandler(void)
+  349          {
+  350   1        DRIVERMSG_STRU XDATA_PTR EVT_PTR;
+  351   1      
+  352   1        LightDbgPrint("DSP - DSP VP_END");
+  353   1        if(Set_Prompt_Ctl[OGF_VP] != NULL)
+  354   1          Set_Prompt_Ctl[OGF_VP](gAlignDSP.Mailbox.d2m_ctl.evt_word.Sta);
+  355   1        #ifdef SUPPORT_VOICE_PROMPT
+  356   1        gVP_ctl.end_status = gAlignDSP.Mailbox.d2m_ctl.evt_word.Sta;
+  357   1        #endif
+  358   1      
+  359   1        EVT_PTR = (DRIVERMSG_STRU XDATA_PTR)OSMEM_Get(OSMEM_ptr1);
+  360   1        MailboxSendEvtToDriver(EVT_PTR, OGF_VP, OCF_VP_STOP);
+  361   1      
+  362   1      }
+  363          void RT_END_EvtHandler(void)
+  364          {
+  365   1        DRIVERMSG_STRU XDATA_PTR EVT_PTR;
+  366   1      
+  367   1        LightDbgPrint("DSP - DSP RT_END");
+  368   1        if(Set_Prompt_Ctl[OGF_RT] != NULL)
+  369   1          Set_Prompt_Ctl[OGF_RT](gAlignDSP.Mailbox.d2m_ctl.evt_word.Sta);
+  370   1        #ifdef RINGTONE_ENABLE
+  371   1        gRT_ctl.end_status = gAlignDSP.Mailbox.d2m_ctl.evt_word.Sta;
+  372   1        #endif
+  373   1      
+  374   1        EVT_PTR = (DRIVERMSG_STRU XDATA_PTR)OSMEM_Get(OSMEM_ptr1);
+  375   1        MailboxSendEvtToDriver(EVT_PTR, OGF_RT, OCF_RT_STOP);
+  376   1      }
+  377          void VC_END_EvtHandler(void)
+  378          {
+C251 COMPILER V5.57.0,  Audio_MailBox                                                      08/11/20  05:51:35  PAGE 7   
+
+  379   1        DRIVERMSG_STRU XDATA_PTR EVT_PTR;
+  380   1      
+  381   1        LightDbgPrintWithOpcode((U8)HCI_VEVT_OCF_DRIVER_MAILBOX_VOICE_CMD_RESULT,
+  382   1                    (U8)HCI_VENDOR_OGF_UART_DRIVER_DBGPRINT,
+  383   1                    (U32)gAlignDSP.Mailbox.d2m_ctl.evt_word.para.vc_evt_para.vc_result);
+  384   1      
+  385   1        if(Set_Prompt_Ctl[OGF_VC] != NULL)
+  386   1          Set_Prompt_Ctl[OGF_VC](gAlignDSP.Mailbox.d2m_ctl.evt_word.Sta);
+  387   1        #ifdef SUPPORT_VOICE_COMMAND
+  388   1        gVC_ctl.end_status = gAlignDSP.Mailbox.d2m_ctl.evt_word.Sta;
+  389   1        gVC_ctl.result = gAlignDSP.Mailbox.d2m_ctl.evt_word.para.vc_evt_para.vc_result;
+  390   1        LightDbgPrint("VC result: %d", (U8)gVC_ctl.result);
+  391   1        #endif
+  392   1      
+  393   1        EVT_PTR = (DRIVERMSG_STRU XDATA_PTR)OSMEM_Get(OSMEM_ptr1);
+  394   1        MailboxSendEvtToDriver(EVT_PTR, OGF_VC, OCF_VC_STOP);
+  395   1      }
+  396          
+  397          void APP_END_EvtHandler(void)
+  398          {
+  399   1        LightDbgPrint("APPEND");
+  400   1      }
+  401          
+  402          void AT_END_EvtHandler(void)
+  403          {
+  404   1        DRIVERMSG_STRU XDATA_PTR EVT_PTR;
+  405   1      
+  406   1        LightDbgPrint("DSP - DSP AT_END:%d",(U8) gAlignDSP.Mailbox.d2m_ctl.evt_word.Sta);
+  407   1        if(Set_Prompt_Ctl[OGF_AT] != NULL)
+  408   1          Set_Prompt_Ctl[OGF_AT](gAlignDSP.Mailbox.d2m_ctl.evt_word.Sta);
+  409   1      
+  410   1        EVT_PTR = (DRIVERMSG_STRU XDATA_PTR)OSMEM_Get(OSMEM_ptr1);
+  411   1        MailboxSendEvtToDriver(EVT_PTR, OGF_AT, OCF_AT_STOP);
+  412   1      }
+  413          
+  414          void MailboxState_Reset(U8 OGF)
+  415          {
+  416   1      
+  417   1        MailBox_State[OGF].state = SUBSTATE_INIT;
+  418   1        MailBox_State[OGF].ocf = 0xff;
+  419   1        MailBox_State[OGF].CmdPtr = (DRIVERMSG_WITH_MAILBOXCMD_STRU XDATA_PTR)NULL;
+  420   1      
+  421   1      }
+  422          
+  423          void MailboxSendEvtToDriver(DRIVERMSG_STRU XDATA_PTR EVT_PTR, U8 ogf, U8 ocf)
+  424          {
+  425   1        if(!EVT_PTR)
+  426   1        {
+  427   2          //process for MEMGET FAIL, to do...
+  428   2          ASSERT(FALSE);
+  429   2        }
+  430   1        else
+  431   1        {
+  432   2          //OSMEM_memset_xdata((U8 XDATA_PTR)EVT_PTR, 0, OSMEM1_BLKSIZE);
+  433   2          EVT_PTR->ogf = ogf;
+  434   2          EVT_PTR->ocf = ocf;
+  435   2          DRIVER_ProcMailboxEvent((U8 XDATA_PTR)EVT_PTR);
+  436   2        }
+  437   1      }
+  438          
+  439          PUBLIC void Mailbox_TaskOgfVPRTAT(DriverMsg XDATA_PTR msgPtr, U8 ogf, U8 ocf)
+  440          {
+  441   1        msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.task = TASK_VPRTAT;
+  442   1        msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.cmd.Ogf = ogf;
+  443   1        msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.cmd.Ocf = ocf;
+  444   1        gMailBox_ctl.waitingDSPRingToneVPAT = TRUE;
+C251 COMPILER V5.57.0,  Audio_MailBox                                                      08/11/20  05:51:35  PAGE 8   
+
+  445   1      }
+  446          
+  447          PUBLIC void Mailbox_TaskOgfAPP(DriverMsg XDATA_PTR msgPtr, U8 ocf)
+  448          {
+  449   1        msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.task = TASK_APP;
+  450   1        msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.cmd.Ogf = OGF_APP;
+  451   1        msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.cmd.Ocf = ocf;
+  452   1        gMailBox_ctl.waitingDSPVoiceMusicAUX = TRUE;
+  453   1      }
+  454          
+  455          PUBLIC void Mailbox_TaskOgfDSP(DriverMsg XDATA_PTR msgPtr, U8 ocf)
+  456          {
+  457   1        msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.task = TASK_DSP;
+  458   1        msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.cmd.Ogf = OGF_DSP;
+  459   1        msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.cmd.Ocf = ocf;
+  460   1        gMailBox_ctl.waitingDSPVolumeSet = TRUE;
+  461   1        gMailBox_ctl.setVolumeAgain = FALSE;
+  462   1      }
+  463          
+  464          #ifdef SUPPORT_VOICE_COMMAND
+  465          PUBLIC void Mailbox_TaskOgfVC(DriverMsg XDATA_PTR msgPtr, U8 ogf, U8 ocf)
+  466          {
+  467   1        msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.task = TASK_VC;
+  468   1        msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.cmd.Ogf = ogf;
+  469   1        msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.cmd.Ocf = ocf;
+  470   1        gMailBox_ctl.waitingDSPVC = TRUE;
+  471   1      }
+  472          #endif
+  473          
+  474          PUBLIC void Mailbox_ReleaseTASKVPRTATBusyFlag(void)
+  475          {
+  476   1        gMailBox_ctl.waitingDSPRingToneVPAT = FALSE;
+  477   1      }
+  478          
+  479          PUBLIC void Mailbox_ReleaseTASKAppBusyFlag(void)
+  480          {
+  481   1        gMailBox_ctl.waitingDSPVoiceMusicAUX = FALSE;
+  482   1      }
+  483          
+  484          PUBLIC void Mailbox_ReleaseTASKDSPBusyFlag(void)
+  485          {
+  486   1        gMailBox_ctl.waitingDSPVolumeSet = FALSE;
+  487   1      }
+  488          
+  489          PUBLIC void Mailbox_ReleaseTASKVCBusyFlag(void)
+  490          {
+  491   1        gMailBox_ctl.waitingDSPVC = FALSE;
+  492   1      }
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =      1452     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =        77     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+C251 COMPILER V5.57.0,  Audio_MailBox                                                      08/11/20  05:51:35  PAGE 9   
+
+  hconst size          =       348     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

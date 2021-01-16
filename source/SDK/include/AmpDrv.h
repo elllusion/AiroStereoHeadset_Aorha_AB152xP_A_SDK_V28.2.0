@@ -1,0 +1,1 @@
+PUBLIC void SDK_AMP_DRV_Init(void);

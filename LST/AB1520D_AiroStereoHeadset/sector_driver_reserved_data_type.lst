@@ -1,0 +1,59 @@
+C251 COMPILER V5.57.0,  sector_driver_reserved_data_type                                   08/11/20  06:32:20  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_driver_reserved_data_type
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\sector_driver_reserved_data_type.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\sector_driver_reserved_data_type.c XSMALL HPTR FUNCTIONS
+                    -(REENTRANT) ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABS
+                    -DRIVER;.\source\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;
+                    -.\source\ROM\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM
+                    -\GAP;.\source\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1
+                    -;.\source\SECTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTO
+                    -R\ToolMisc) DEFINE(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1
+                    -520D_AiroStereoHeadset\sector_driver_reserved_data_type.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\sector_dr
+                    -iver_reserved_data_type.obj) 
+
+stmt  level    source
+
+    1          //////////////////////////////////////////////////////////
+    2          // Copyright@ 2011 Airoha.  All right reserved.
+    3          //////////////////////////////////////////////////////////
+    4          #include <config.h>
+    5          #include <cpu.h>
+    6          
+    7          #include "sector_driver_reserved_data.h"
+    8          
+    9          #pragma userclass (HCONST = CONFIG)
+   10          
+   11          SECTOR_DRIVER_RESERVED_DATA_STRU CODE gDriver_reserved_data_init =
+   12          {
+   13            {
+   14              0,
+   15            },
+   16              //- CRC
+   17              {0,0}
+   18          };
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =         3     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

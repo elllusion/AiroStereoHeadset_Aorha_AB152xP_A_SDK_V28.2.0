@@ -1,0 +1,76 @@
+C251 COMPILER V5.57.0,  Spi                                                                08/11/20  06:34:26  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE Spi
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\Spi.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SDK\IOSYS\Spi.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) WARN
+                    -INGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\sourc
+                    -e\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\source\R
+                    -OM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_LE;.
+                    -\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspData;.
+                    -\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLASH_I
+                    -NIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoHeadset\Spi
+                    -.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\Spi.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #include "rc.h"
+    4          #include "drv_spi_flash.h"
+    5          #include "..\SDK\include\Spi.h"
+    6          
+    7          
+    8          U8 SPI_WriteReadBlockingCmd(U8 devID, U16 txLen, U8 XDATA_PTR txBufPtr, U16 rxLen, U8 XDATA_PTR rxBufPtr)
+    9          {
+   10   1        return DVR_SPI_WriteReadBlockingCmd(devID, txLen, txBufPtr, rxLen, rxBufPtr);
+   11   1      }
+   12          
+   13          void SPI_WriteReadNonBlockingCmd(U8 devID, U16 txLen, U8 XDATA_PTR txBufPtr, U16 rxLen, U8 XDATA_PTR rxBu
+             -fPtr, VFUN callback)
+   14          { 
+   15   1        SPINonBlockingStru XDATA_PTR spiNonBlkParaPtr;
+   16   1        spiNonBlkParaPtr = SYS_MemoryGet(txLen + sizeof(SPINonBlockingStru) -1);
+   17   1        if(spiNonBlkParaPtr)
+   18   1        {
+   19   2          spiNonBlkParaPtr->para.devID    = devID;
+   20   2          spiNonBlkParaPtr->para.callbackFunc = (SPICBFunc)callback;
+   21   2          spiNonBlkParaPtr->para.txLen    = txLen;
+   22   2          spiNonBlkParaPtr->para.txBufPtr   = &spiNonBlkParaPtr->dataBegin[0];
+   23   2          OS_memcpy(&spiNonBlkParaPtr->dataBegin[0], txBufPtr, txLen);
+   24   2          spiNonBlkParaPtr->para.rxLen    = rxLen;
+   25   2          spiNonBlkParaPtr->para.rxBufPtr   = rxBufPtr;
+   26   2          DRV_SPI_WriteReadNonBlockingCmd(spiNonBlkParaPtr);
+   27   2        }
+   28   1        else
+   29   1        {
+   30   2          if(callback)
+   31   2            ((SPICBFunc)callback)(SPI_BLOCKING_CMD_STATUS_NO_MEMORY, 0, NULL);
+   32   2        }
+   33   1      }
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =       172     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+C251 COMPILER V5.57.0,  Spi                                                                08/11/20  06:34:26  PAGE 2   
+
+  hconst size          =    ------     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

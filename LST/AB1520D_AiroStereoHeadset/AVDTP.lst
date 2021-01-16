@@ -1,0 +1,824 @@
+C251 COMPILER V5.57.0,  AVDTP                                                              08/11/20  06:33:59  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE AVDTP
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\AVDTP.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\AVDTP\AVDTP.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) WARNIN
+                    -GLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\source\
+                    -HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\source\ROM
+                    -\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_LE;.\s
+                    -ource\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspData;.\s
+                    -ource\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLASH_INI
+                    -T=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoHeadset\AVDTP
+                    -.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\AVDTP.obj) 
+
+stmt  level    source
+
+    1          //////////////////////////////////////////////////////////
+    2          // Copyright@ 2009 Airoha.  All right reserved.
+    3          //////////////////////////////////////////////////////////
+    4          #include "reside_flash.inc"
+    5          
+    6          #ifndef _AVDTP_C_
+    7          #define _AVDTP_C_
+    8          
+    9          #include "AVDTP_interface.h"
+   10          #include "AVDTP.h"
+   11          #include "..\HC\HC_Interface.h"
+   12          #include "..\MMI\MMI_Base.h"
+   13          #include "..\MMI\MMI_PSM.h"
+   14          #include "..\MMI\MMI_SCN.h"
+   15          #include "..\MMI\MMI_A2DP.h"
+   16          #include "..\A2DP\A2DP.h"
+   17          #include "..\A2DP\A2DP_interface.h"
+   18          #include "..\LC\LC_interface.h"
+   19          
+   20          #include "align_flash.h"
+   21          
+   22          
+   23          #ifdef A2DP_Profile
+   24          
+   25          static AVDTP_CTL_TYPE XDATA gAVDTP_ctl;
+   26          
+   27          
+   28          PRIVATE AVDTP_LINK_INFO XDATA_PTR AVDTP_GetLinkInfo(U8 linkIndex)
+   29          {
+   30   1        return &gAVDTP_ctl.linkInfo[linkIndex];
+   31   1      }
+   32          
+   33          PRIVATE AvdtpSignalType XDATA_PTR AVDTP_GetSignalCmdBuffer(U8 linkIndex, U8 opCode, U8 size)
+   34          {
+   35   1        AvdtpSignalType XDATA_PTR cmdPtr;
+   36   1      
+   37   1        cmdPtr = (AvdtpSignalType XDATA_PTR)OSMEM_Get(OSMEM_ptr1);
+   38   1        cmdPtr->offset = AVDTP_TX_OFFSET;
+   39   1        cmdPtr->l2capLength = size;
+   40   1      
+   41   1        cmdPtr->signalHeader.f.messageType = AVDTP_COMMAND_MSG;
+   42   1        cmdPtr->signalHeader.f.packetType = AVDTP_SINGLE_PACKET;
+   43   1        cmdPtr->signalHeader.f.transactionLabel = (AVDTP_GetLinkInfo(linkIndex)->misc.bits.transactionLabel++) &
+             - 0x0F;
+   44   1        cmdPtr->signalIdentifier = opCode;
+   45   1        return cmdPtr;
+   46   1      }
+   47          
+   48          PUBLIC BOOL AVDTP_IsAacAllowedInLink(U8 linkIndex)
+   49          {
+   50   1        L2CAP_CHANNEL_HDL l2capChannelHdl;
+   51   1        l2capChannelHdl = AVDTP_GetLinkInfo(linkIndex)->l2capChannelHdl[AVDTPSignalChannelType];
+C251 COMPILER V5.57.0,  AVDTP                                                              08/11/20  06:33:59  PAGE 2   
+
+   52   1        if (MMI_A2DP_BYPASS_IPHONE_CHECK_FOR_AAC_FUNCTION_FEAT || (l2capChannelHdl->DCID & 0xFF00))
+   53   1        //Apple iOS
+   54   1        {
+   55   2          return TRUE;
+   56   2        }
+   57   1        else
+   58   1        {
+   59   2          return FALSE;
+   60   2        }
+   61   1      }
+   62          
+   63          PRIVATE void AVDTP_SendSignalPacket(U8 linkIndex, AvdtpSignalType XDATA_PTR pktPtr)
+   64          {
+   65   1        L2CAP_CHANNEL_HDL l2capChannelHdl;
+   66   1      
+   67   1        pktPtr->l2capLength = ENDIAN_TRANSFORM_U16(pktPtr->l2capLength);
+   68   1      
+   69   1        LightDbgPrintWithConnectionHandle (
+   70   1          HCI_VOPCODE_VOGF(HCI_VENDOR_OGF_UART_AVDTP_DBGPRINT,HCI_VEVT_OCF_AVDTP_DBGPRINT_TX_SIGNALLING_PACKET),
+   71   1          MMI_GetConnHandleByLinkIndex(linkIndex),
+   72   1          (U8 XDATA_PTR)&pktPtr->l2capLength);
+   73   1      
+   74   1        if(pktPtr->signalHeader.f.messageType == AVDTP_COMMAND_MSG)
+   75   1        {
+   76   2          MMI_SniffDisable(linkIndex, MMI_SNIFF_AVDTP_SIGNAL);
+   77   2        }
+   78   1        else
+   79   1        {
+   80   2          MMI_SniffEnable(linkIndex, MMI_SNIFF_AVDTP_SIGNAL);
+   81   2        }
+   82   1      
+   83   1        l2capChannelHdl = AVDTP_GetLinkInfo(linkIndex)->l2capChannelHdl[AVDTPSignalChannelType];
+   84   1        UpperLayer_SendL2capChannelData(l2capChannelHdl, (U8 XDATA_PTR)pktPtr);
+   85   1      }
+   86          
+   87          PUBLIC void AVDTP_SendSingleSeidCmd(U8 linkIndex, U8 acpSeid, U8 cmd)
+   88          {
+   89   1        AvdtpSignalType XDATA_PTR cmdPtr = AVDTP_GetSignalCmdBuffer(linkIndex, cmd, 3);
+   90   1        cmdPtr->para[0] = acpSeid << 2;
+   91   1        AVDTP_SendSignalPacket(linkIndex, cmdPtr);
+   92   1      }
+   93          
+   94          PUBLIC void AVDTP_SendDiscoverCmd(U8 linkIndex)
+   95          {
+   96   1        AVDTP_SendSignalPacket(linkIndex, AVDTP_GetSignalCmdBuffer(linkIndex, AVDTP_DISCOVER, 2));
+   97   1      }
+   98          
+   99          PUBLIC void AVDTP_SendGetCapabilitiesCmd(U8 linkIndex, U8 acpSeid)
+  100          {
+  101   1        AVDTP_SendSingleSeidCmd(linkIndex, acpSeid, AVDTP_GET_CAPABILITIES);
+  102   1      }
+  103          
+  104          PUBLIC void AVDTP_SendGetAllCapabilitiesCmd(U8 linkIndex, U8 acpSeid)
+  105          {
+  106   1        AVDTP_SendSingleSeidCmd(linkIndex, acpSeid, AVDTP_GET_ALL_CAPABILITIES);
+  107   1      }
+  108          
+  109          PUBLIC void AVDTP_SendSetConfigurationCmd(U8 linkIndex, U8 acpSeid, U8 intSeid, U8 configLen, U8 XDATA_PT
+             -R configParam)
+  110          {
+  111   1        AvdtpSignalType XDATA_PTR cmdPtr = AVDTP_GetSignalCmdBuffer(linkIndex, AVDTP_SET_CONFIGURATION, (U8)(4 +
+             - configLen));
+  112   1        cmdPtr->para[0] = acpSeid << 2;
+  113   1        cmdPtr->para[1] = intSeid << 2;
+  114   1        OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&cmdPtr->para[2], configParam, configLen);
+  115   1        AVDTP_SendSignalPacket(linkIndex, cmdPtr);
+C251 COMPILER V5.57.0,  AVDTP                                                              08/11/20  06:33:59  PAGE 3   
+
+  116   1      }
+  117          
+  118          PUBLIC void AVDTP_SendGetConfigurationCmd(U8 linkIndex, U8 acpSeid)
+  119          {
+  120   1        AvdtpSignalType XDATA_PTR cmdPtr = AVDTP_GetSignalCmdBuffer(linkIndex, AVDTP_GET_CONFIGURATION, 3);
+  121   1        cmdPtr->para[0] = acpSeid << 2;
+  122   1        AVDTP_SendSignalPacket(linkIndex, cmdPtr);
+  123   1      }
+  124          
+  125          PUBLIC void AVDTP_SendReconfigureCmd(U8 linkIndex, U8 acpSeid, U8 configLen, U8 XDATA_PTR configParam)
+  126          {
+  127   1        AvdtpSignalType XDATA_PTR cmdPtr = AVDTP_GetSignalCmdBuffer(linkIndex, AVDTP_RECONFIGURE, (U8)(3 + confi
+             -gLen));
+  128   1        cmdPtr->para[0] = acpSeid << 2;
+  129   1        OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&cmdPtr->para[1], configParam, configLen);
+  130   1        AVDTP_SendSignalPacket(linkIndex, cmdPtr);
+  131   1      }
+  132          
+  133          PUBLIC void AVDTP_SendOpenCmd(U8 linkIndex, U8 acpSeid)
+  134          {
+  135   1        AVDTP_SendSingleSeidCmd(linkIndex, acpSeid, AVDTP_OPEN);
+  136   1      }
+  137          
+  138          PUBLIC void AVDTP_SendCloseCmd(U8 linkIndex, U8 acpSeid)
+  139          {
+  140   1        AVDTP_SendSingleSeidCmd(linkIndex, acpSeid, AVDTP_CLOSE);
+  141   1      }
+  142          
+  143          PUBLIC void AVDTP_SendStartCmd(U8 linkIndex, U8 acpSeid)
+  144          {
+  145   1        AVDTP_SendSingleSeidCmd(linkIndex, acpSeid, AVDTP_START);
+  146   1      }
+  147          
+  148          PUBLIC void AVDTP_SendSuspendCmd(U8 linkIndex, U8 acpSeid)
+  149          {
+  150   1        AVDTP_SendSingleSeidCmd(linkIndex, acpSeid, AVDTP_SUSPEND);
+  151   1      }
+  152          
+  153          PUBLIC void AVDTP_SendAbortCmd(U8 linkIndex, U8 acpSeid)
+  154          {
+  155   1        AVDTP_SendSingleSeidCmd(linkIndex, acpSeid, AVDTP_ABORT);
+  156   1      }
+  157          
+  158          PUBLIC void AVDTP_SendDelayReportCmd(U8 linkIndex, U8 acpSeid, U16 delay)
+  159          {
+  160   1        AvdtpSignalType XDATA_PTR cmdPtr = AVDTP_GetSignalCmdBuffer(linkIndex, AVDTP_DELAYREPORT, 5);
+  161   1        cmdPtr->para[0] = acpSeid << 2;
+  162   1        *(U16 XDATA_PTR)&cmdPtr->para[1] = delay;
+  163   1        AVDTP_SendSignalPacket(linkIndex, cmdPtr);
+  164   1      }
+  165          
+  166          PUBLIC void AVDTP_SendSecurityControlCmd(U8 linkIndex, U8 acpSeid, U8 cpDataLen, U8 XDATA_PTR cpDataPtr)
+  167          {
+  168   1        AvdtpSignalType XDATA_PTR cmdPtr = AVDTP_GetSignalCmdBuffer(linkIndex, AVDTP_SECURITY_CONTROL, (U8)(3 + 
+             -cpDataLen));
+  169   1        cmdPtr->para[0] = acpSeid << 2;
+  170   1        if (cpDataLen)
+  171   1        {
+  172   2          OSMEM_memcpy_xdata_xdata(&cmdPtr->para[1], cpDataPtr, cpDataLen);
+  173   2        }
+  174   1        AVDTP_SendSignalPacket(linkIndex, cmdPtr);
+  175   1      }
+  176          
+  177          PRIVATE void AVDTP_SetAcceptRspHeader(AvdtpSignalType XDATA_PTR cmdPtr, U8 size)
+  178          {
+  179   1        cmdPtr->offset = AVDTP_TX_OFFSET;
+C251 COMPILER V5.57.0,  AVDTP                                                              08/11/20  06:33:59  PAGE 4   
+
+  180   1        cmdPtr->l2capLength = size;
+  181   1      
+  182   1        cmdPtr->signalHeader.f.messageType = AVDTP_RESPONSE_ACCEPT_MSG;
+  183   1        cmdPtr->signalHeader.f.packetType = AVDTP_SINGLE_PACKET;
+  184   1      }
+  185          
+  186          #include "..\SDK_Proxy\SDK_Proxy.h"
+  187          extern VFUN XDATA api_profile_func[API_GRP_PF_CB_CNT];
+  188          
+  189          PRIVATE void AVDTP_SendDiscoverRsp(U8 linkIndex, AvdtpSignalType XDATA_PTR cmdPtr)
+  190          {
+  191   1        AcpStreamEndPointIdCtl XDATA_PTR seidPtr;
+  192   1        U8 i, sep_num;
+  193   1      
+  194   1        seidPtr = (AcpStreamEndPointIdCtl XDATA_PTR)&cmdPtr->para[0];
+  195   1        for (sep_num = 0, i = 0; i < gA2DP_nvram.seidCtl.a2dp_sep_num; i++)
+  196   1        {
+  197   2          if (MMI_A2DP_IsHighQualityCodecDisbaled() || !AVDTP_IsAacAllowedInLink(linkIndex))
+  198   2          {
+  199   3            if (gA2DP_nvram.seidCtl.asepidCtl[i].firstAcpSEID == AAC_SNK_SEID)
+  200   3              continue; //skip
+  201   3          }
+  202   2      
+  203   2          A2DP_ReadNvramDataChunk((U8 XDATA_PTR)seidPtr, &gA2DP_nvram.seidCtl.asepidCtl[i], sizeof(AcpStreamEndPo
+             -intIdCtl));
+  204   2          if ( A2DP_CheckSeidInUse(linkIndex, seidPtr->firstAcpSEID) )
+  205   2          {
+  206   3            seidPtr->inUse = 1; //inUse bit
+  207   3          }
+  208   2          seidPtr++;
+  209   2          sep_num++;
+  210   2        }
+  211   1      
+  212   1        if(api_profile_func[API_GRP_PF_CB_AVDTP_DISCOVER_CMD])
+  213   1        {
+  214   2          sep_num += ((API_PROFILE_AVDTP_DISCOVER_CMD_FUNC)api_profile_func[API_GRP_PF_CB_AVDTP_DISCOVER_CMD])(li
+             -nkIndex, (U8 XDATA_PTR)seidPtr);
+  215   2        }
+  216   1      
+  217   1        AVDTP_SetAcceptRspHeader(cmdPtr, (U8)(sizeof(AcpStreamEndPointIdCtl) * sep_num + 2));
+  218   1        AVDTP_SendSignalPacket(linkIndex, cmdPtr);
+  219   1      }
+  220          
+  221          PRIVATE void AVDTP_SendGetCapabilitiesRsp(U8 linkIndex, AvdtpSignalType XDATA_PTR cmdPtr)
+  222          {
+  223   1        U8 acpSeid = cmdPtr->para[0] >> 2;
+  224   1        U8 size = 2;
+  225   1      
+  226   1        AVDTP_SetAcceptRspHeader(cmdPtr, 0/*size was calculated later*/);
+  227   1      
+  228   1        switch (acpSeid)
+  229   1        {
+  230   2          #if SUPPORT_SBC_SNK
+  231   2          case SBC_SNK_SEID:
+  232   2          #endif
+  233   2          #if SUPPORT_SBC_SRC
+                   case SBC_SRC_SEID:
+                   #endif
+  236   2            A2DP_ReadNvramDataChunk((U8 XDATA_PTR)&cmdPtr->para[0], &gA2DP_nvram.seidCtl.sbcServiceCapabilities, s
+             -izeof(SBCServiceCapabilities));
+  237   2            size += sizeof(SBCServiceCapabilities);
+  238   2            break;
+  239   2      
+  240   2          #if SUPPORT_AAC_SNK
+  241   2          case AAC_SNK_SEID:
+  242   2            A2DP_ReadNvramDataChunk((U8 XDATA_PTR)&cmdPtr->para[0], &gA2DP_nvram.seidCtl.aacServiceCapabilities, s
+C251 COMPILER V5.57.0,  AVDTP                                                              08/11/20  06:33:59  PAGE 5   
+
+             -izeof(AACServiceCapabilities));
+  243   2            size += sizeof(AACServiceCapabilities);
+  244   2            break;
+  245   2          #endif
+  246   2      
+  247   2          default:
+  248   2            if(api_profile_func[API_GRP_PF_CB_AVDTP_GET_CAPABILITY_CMD])
+  249   2            {
+  250   3              size += ((API_PROFILE_AVDTP_GET_CAPABILITY_CMD_FUNC)api_profile_func[API_GRP_PF_CB_AVDTP_GET_CAPABILI
+             -TY_CMD])(acpSeid, (U8 XDATA_PTR)&cmdPtr->para[0]);
+  251   3            }
+  252   2            break;
+  253   2        }
+  254   1      
+  255   1        if (!(MMI_A2DP_DELAY_REPORT_FEAT && (cmdPtr->signalIdentifier & 0x3F) == AVDTP_GET_ALL_CAPABILITIES))
+  256   1        {
+  257   2          size -= 2; //eliminating delay report
+  258   2        }
+  259   1        cmdPtr->l2capLength = size;
+  260   1      
+  261   1        AVDTP_SendSignalPacket(linkIndex, cmdPtr);
+  262   1      }
+  263          
+  264          PRIVATE void AVDTP_SendSimpleAcceptRsp(U8 linkIndex, AvdtpSignalType XDATA_PTR cmdPtr)
+  265          {
+  266   1        AVDTP_SetAcceptRspHeader(cmdPtr, 2);
+  267   1        AVDTP_SendSignalPacket(linkIndex, cmdPtr);
+  268   1      }
+  269          
+  270          PRIVATE void AVDTP_SendGetConfigurationRsp(U8 linkIndex, AvdtpSignalType XDATA_PTR cmdPtr)
+  271          {
+  272   1        AVDTP_SetAcceptRspHeader(cmdPtr, (U8)(cmdPtr->l2capLength + 2));
+  273   1        AVDTP_SendSignalPacket(linkIndex, cmdPtr);
+  274   1      }
+  275          
+  276          PUBLIC void AVDTP_SendSecurityControlRsp(U8 linkIndex, AvdtpSignalType XDATA_PTR cmdPtr)
+  277          {
+  278   1        U8 content_size = cmdPtr->l2capLength - 3; /*1byte(signal header) + 1byte(signal identifier) + 1bytes(ac
+             -pSeid)*/
+  279   1      
+  280   1        AVDTP_SetAcceptRspHeader(cmdPtr, (U8)(content_size + 2));
+  281   1        if (content_size)
+  282   1        {
+  283   2          OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&cmdPtr->para[0], (U8 XDATA_PTR)&cmdPtr->para[1], content_size);
+  284   2        }
+  285   1        AVDTP_SendSignalPacket(linkIndex, cmdPtr);
+  286   1      }
+  287          
+  288          PUBLIC void AVDTP_SendAcceptRsp(U8 linkIndex, AvdtpSignalType XDATA_PTR cmdPtr)
+  289          {
+  290   1        switch (cmdPtr->signalIdentifier & 0x3F)
+  291   1        {
+  292   2          case AVDTP_DISCOVER:
+  293   2            AVDTP_SendDiscoverRsp(linkIndex, cmdPtr);
+  294   2            break;
+  295   2          case AVDTP_GET_CAPABILITIES:
+  296   2          case AVDTP_GET_ALL_CAPABILITIES:
+  297   2            AVDTP_SendGetCapabilitiesRsp(linkIndex, cmdPtr);
+  298   2            break;
+  299   2          case AVDTP_GET_CONFIGURATION:
+  300   2            AVDTP_SendGetConfigurationRsp(linkIndex, cmdPtr);
+  301   2            break;
+  302   2          case AVDTP_SECURITY_CONTROL:
+  303   2            AVDTP_SendSecurityControlRsp(linkIndex, cmdPtr);
+  304   2            break;
+  305   2          case AVDTP_SET_CONFIGURATION:
+C251 COMPILER V5.57.0,  AVDTP                                                              08/11/20  06:33:59  PAGE 6   
+
+  306   2          case AVDTP_RECONFIGURE:
+  307   2          case AVDTP_OPEN:
+  308   2          case AVDTP_START:
+  309   2          case AVDTP_CLOSE:
+  310   2          case AVDTP_SUSPEND:
+  311   2          case AVDTP_ABORT:
+  312   2          case AVDTP_DELAYREPORT:
+  313   2            AVDTP_SendSimpleAcceptRsp(linkIndex, cmdPtr);
+  314   2            break;
+  315   2        }
+  316   1      }
+  317          
+  318          PUBLIC void AVDTP_SendRejectRsp(U8 linkIndex, AvdtpSignalType XDATA_PTR cmdPtr, U8 errorCode)
+  319          {
+  320   1        cmdPtr->offset = AVDTP_TX_OFFSET;
+  321   1      
+  322   1        cmdPtr->signalHeader.f.messageType = AVDTP_RESPONSE_REJECT_MSG;
+  323   1        cmdPtr->signalHeader.f.packetType = AVDTP_SINGLE_PACKET;
+  324   1      
+  325   1        if (errorCode == AVDTP_NOT_SUPPORT_COMMAND)
+  326   1          goto label_send_general_reject;
+  327   1      
+  328   1        switch (cmdPtr->signalIdentifier & 0x3F)
+  329   1        {
+  330   2          case AVDTP_DISCOVER:
+  331   2          case AVDTP_GET_CAPABILITIES:
+  332   2          case AVDTP_GET_CONFIGURATION:
+  333   2          case AVDTP_OPEN:
+  334   2          case AVDTP_CLOSE:
+  335   2          case AVDTP_SECURITY_CONTROL:
+  336   2          case AVDTP_GET_ALL_CAPABILITIES:
+  337   2            cmdPtr->para[0] = errorCode;
+  338   2            cmdPtr->l2capLength = 3;
+  339   2            break;
+  340   2      
+  341   2          case AVDTP_START:
+  342   2          case AVDTP_SUSPEND:
+  343   2            cmdPtr->para[1] = errorCode;
+  344   2            cmdPtr->l2capLength = 4;
+  345   2            break;
+  346   2      
+  347   2          case AVDTP_SET_CONFIGURATION:
+  348   2          case AVDTP_RECONFIGURE:
+  349   2            cmdPtr->para[0] = 0;
+  350   2            cmdPtr->para[1] = errorCode;
+  351   2            cmdPtr->l2capLength = 4;
+  352   2            break;
+  353   2      
+  354   2          default:
+  355   2            label_send_general_reject:
+  356   2            cmdPtr->signalHeader.f.messageType = AVDTP_GENERAL_REJECT_MSG;
+  357   2            cmdPtr->l2capLength = 2;
+  358   2            break;
+  359   2        }
+  360   1        AVDTP_SendSignalPacket(linkIndex, cmdPtr);
+  361   1      }
+  362          
+  363          PRIVATE U8 AVDTP_RemoveChannelHdl(AVDTP_LINK_INFO XDATA_PTR avdtpLinkInfo, L2CAP_CHANNEL_HDL l2capChannel
+             -Hdl)
+  364          {
+  365   1        if(l2capChannelHdl == avdtpLinkInfo->l2capChannelHdl[AVDTPSignalChannelType])
+  366   1        {
+  367   2          avdtpLinkInfo->l2capChannelHdl[AVDTPSignalChannelType] = INVALID_L2CAP_CHANNEL;
+  368   2          avdtpLinkInfo->state = AVDTP_STATE_CONNECTING;
+  369   2          return AVDTPSignalChannelType;
+  370   2        }
+C251 COMPILER V5.57.0,  AVDTP                                                              08/11/20  06:33:59  PAGE 7   
+
+  371   1        else if(l2capChannelHdl == avdtpLinkInfo->l2capChannelHdl[AVDTPMediaChannelType])
+  372   1        {
+  373   2          avdtpLinkInfo->l2capChannelHdl[AVDTPMediaChannelType] = INVALID_L2CAP_CHANNEL;
+  374   2          avdtpLinkInfo->state = AVDTP_STATE_IDLE_SIGNAL_CHANNEL;
+  375   2          return AVDTPMediaChannelType;
+  376   2        }
+  377   1        return MAX_AVDTP_CHANNEL_TYPE_NUM;
+  378   1      }
+  379          
+  380          PRIVATE void AVDTP_ClearLinkInfo(U8 linkIndex)
+  381          {
+  382   1        AVDTP_LINK_INFO XDATA_PTR avdtpLinkInfo = AVDTP_GetLinkInfo(linkIndex);
+  383   1      
+  384   1        if(avdtpLinkInfo->l2capChannelHdl[AVDTPMediaChannelType] != INVALID_L2CAP_CHANNEL)
+  385   1        {
+  386   2          AVDTP_RemoveChannelHdl(avdtpLinkInfo, avdtpLinkInfo->l2capChannelHdl[AVDTPMediaChannelType]);
+  387   2        }
+  388   1        if(avdtpLinkInfo->l2capChannelHdl[AVDTPSignalChannelType] != INVALID_L2CAP_CHANNEL)
+  389   1        {
+  390   2          AVDTP_RemoveChannelHdl(avdtpLinkInfo, avdtpLinkInfo->l2capChannelHdl[AVDTPSignalChannelType]);
+  391   2        }
+  392   1      
+  393   1        avdtpLinkInfo->state = AVDTP_STATE_IDLE;
+  394   1        avdtpLinkInfo->misc.byte = 0;
+  395   1      }
+  396          
+  397          PRIVATE U8 AVDTP_SearchChannelTypeByChannelHdl(AVDTP_LINK_INFO XDATA_PTR avdtpLinkInfo, L2CAP_CHANNEL_HDL
+             - l2capChannelHdl)
+  398          {
+  399   1        U8 channelType;
+  400   1      
+  401   1        for(channelType = 0; channelType < MAX_AVDTP_CHANNEL_TYPE_NUM ;channelType++)
+  402   1        {
+  403   2          if(avdtpLinkInfo->l2capChannelHdl[channelType] == l2capChannelHdl)
+  404   2            break;
+  405   2        }
+  406   1        return channelType;
+  407   1      }
+  408          
+  409          PRIVATE void AVDTP_SignalChannelDataHandler(L2CAP_CHANNEL_HDL l2capChannelHdl, U8 XDATA_PTR dataPtr)
+  410          {
+  411   1        U8 linkIndex = L2CAP_GetChannelLinkIndex(l2capChannelHdl);
+  412   1        AVDTP_LINK_INFO XDATA_PTR avdtpLinkInfo = AVDTP_GetLinkInfo(linkIndex);
+  413   1        U8 XDATA_PTR srcPtr, XDATA_PTR dstPtr;
+  414   1        U16 copyLength;
+  415   1      
+  416   1        if(avdtpLinkInfo->state && avdtpLinkInfo->l2capChannelHdl[AVDTPSignalChannelType] == l2capChannelHdl)
+  417   1        {
+  418   2          copyLength = *(U16 XDATA_PTR)(dataPtr+*dataPtr);
+  419   2          copyLength = ENDIAN_TRANSFORM_U16(copyLength) + L2CAP_HEADER_LEN;
+  420   2      
+  421   2          srcPtr = dataPtr + copyLength + (L2CAP_RX_PDU_OFFSET - 1);
+  422   2          dstPtr = dataPtr + copyLength + (L2CAP_TX_PDU_OFFSET - 1);
+  423   2      
+  424   2          for(; copyLength>0; copyLength--)
+  425   2          {
+  426   3            *dstPtr-- = *srcPtr--; //Right Shift Two Bytes
+  427   3          }
+  428   2      
+  429   2          LightDbgPrintWithConnectionHandle (
+  430   2            HCI_VOPCODE_VOGF(HCI_VENDOR_OGF_UART_AVDTP_DBGPRINT,HCI_VEVT_OCF_AVDTP_DBGPRINT_RX_SIGNALLING_PACKET),
+  431   2            MMI_GetConnHandleByLinkIndex(linkIndex),
+  432   2            (U8 XDATA_PTR)&((AvdtpSignalType XDATA_PTR)dataPtr)->l2capLength);
+  433   2      
+  434   2          ((AvdtpSignalType XDATA_PTR)dataPtr)->l2capLength = ENDIAN_TRANSFORM_U16(((AvdtpSignalType XDATA_PTR)da
+             -taPtr)->l2capLength);
+C251 COMPILER V5.57.0,  AVDTP                                                              08/11/20  06:33:59  PAGE 8   
+
+  435   2      
+  436   2          if(((AvdtpSignalType XDATA_PTR)dataPtr)->signalHeader.f.messageType == AVDTP_COMMAND_MSG)
+  437   2          {
+  438   3            MMI_SniffDisable(linkIndex, MMI_SNIFF_AVDTP_SIGNAL);
+  439   3          }
+  440   2          else
+  441   2          {
+  442   3            MMI_SniffEnable(linkIndex, MMI_SNIFF_AVDTP_SIGNAL);
+  443   3          }
+  444   2          avdtpLinkInfo->avdtpProfileDesc->mmiProfileDesc.ProfileDataEvent(linkIndex, (U8 XDATA_PTR)dataPtr);
+  445   2          return;
+  446   2        }
+  447   1        OSMEM_Put(dataPtr);
+  448   1      }
+  449          
+  450          PRIVATE void AVDTP_MediaChannelDataHandler(L2CAP_CHANNEL_HDL l2capChannelHdl, U8 XDATA_PTR dataPtr)
+  451          {
+  452   1        U8 linkIndex = L2CAP_GetChannelLinkIndex(l2capChannelHdl);
+  453   1        AVDTP_LINK_INFO XDATA_PTR avdtpLinkInfo = AVDTP_GetLinkInfo(linkIndex);
+  454   1      
+  455   1        if(avdtpLinkInfo->l2capChannelHdl[AVDTPMediaChannelType] == l2capChannelHdl)
+  456   1        {
+  457   2          avdtpLinkInfo->avdtpProfileDesc->MediaDataEvent(linkIndex, dataPtr);
+  458   2        }
+  459   1        else
+  460   1        {
+  461   2          OSMEM_Put(dataPtr);
+  462   2        }
+  463   1      }
+  464          
+  465          /*
+  466          PRIVATE void AVDTP(L2CAP_CHANNEL_HDL l2capChannelHdl)
+  467          {
+  468            U8 linkIndex = L2CAP_GetChannelLinkIndex(l2capChannelHdl);
+  469          }*/
+  470          
+  471          PRIVATE void AVDTP_SetL2capConnReqParamsForSignalChannel(L2CAPConnReqParams XDATA_PTR paramPtr)
+  472          {
+  473   1        paramPtr->needAuth = TRUE;
+  474   1        paramPtr->mtuSize = A2DP_SIGNAL_MTU_SIZE;
+  475   1        paramPtr->ChannelDataHandler = AVDTP_SignalChannelDataHandler;
+  476   1      }
+  477          
+  478          PRIVATE void AVDTP_SetL2capConnReqParamsForMediaChannel(L2CAPConnReqParams XDATA_PTR paramPtr, U8 linkInd
+             -ex)
+  479          {
+  480   1          A2DP_LINK_INFO XDATA_PTR a2dpLinkInfo = A2DP_GetLinkInfo(linkIndex);
+  481   1      
+  482   1        paramPtr->needAuth = FALSE;
+  483   1          paramPtr->mtuSize = A2DP_MEDIA_MTU_SIZE;
+  484   1          #if SUPPORT_AAC_SNK
+  485   1          if(a2dpLinkInfo->fA2DPRxMediaCodec == A2DP_AACDecoderRxMediaPacket)
+  486   1          {
+  487   2              paramPtr->mtuSize = A2DP_MEDIA_AAC_MTU_SIZE;
+  488   2          }
+  489   1        #endif
+  490   1          LightDbgPrint("MTU size:%h",(U16)(paramPtr->mtuSize));
+  491   1        paramPtr->ChannelDataHandler = AVDTP_MediaChannelDataHandler;
+  492   1      }
+  493          
+  494          PRIVATE void AVDTP_RemoteConnReqEvt(L2CAP_CHANNEL_HDL l2capChannelHdl, L2CAPRemoteConnReqType XDATA_PTR r
+             -eqPtr)
+  495          {
+  496   1        U8 linkIndex = L2CAP_GetChannelLinkIndex(l2capChannelHdl);
+  497   1        AVDTP_LINK_INFO XDATA_PTR avdtpLinkInfo = AVDTP_GetLinkInfo(linkIndex);
+  498   1        LINK_EVENT_PARAMS LDATA evtParams;
+C251 COMPILER V5.57.0,  AVDTP                                                              08/11/20  06:33:59  PAGE 9   
+
+  499   1        U8 channelType;
+  500   1      
+  501   1        if (avdtpLinkInfo->state == AVDTP_STATE_IDLE)
+  502   1        {
+  503   2          if (avdtpLinkInfo->avdtpProfileDesc = (AVDTP_PROFILE_DESC CODE_PTR)MMI_GetProfileDesc(PROFILE_A2DP))
+  504   2          {
+  505   3            evtParams.connRequest.profileId = avdtpLinkInfo->avdtpProfileDesc->mmiProfileDesc.profileId;
+  506   3            avdtpLinkInfo->avdtpProfileDesc->mmiProfileDesc.ProfileLinkEvent(linkIndex, PROFILE_LINK_EVENT_CONN_RE
+             -QUEST, &evtParams);
+  507   3            if (evtParams.connRequest.result == PROFILE_LINK_RESULT_CONN_ACCEPT)
+  508   3            {
+  509   4              MMI_LoadProfile(linkIndex, evtParams.connRequest.profileInfo, &avdtpLinkInfo->avdtpProfileDesc->mmiPr
+             -ofileDesc);
+  510   4      
+  511   4              reqPtr->status = L2CAP_STATUS_SUCCESS;
+  512   4              AVDTP_SetL2capConnReqParamsForSignalChannel(&reqPtr->params);
+  513   4      
+  514   4              avdtpLinkInfo->state = AVDTP_STATE_CONNECTING;
+  515   4              avdtpLinkInfo->l2capChannelHdl[AVDTPSignalChannelType] = l2capChannelHdl;
+  516   4              avdtpLinkInfo->misc.bits.isPassive = TRUE;
+  517   4              return;
+  518   4            }
+  519   3          }
+  520   2        }
+  521   1        else if (avdtpLinkInfo->state == AVDTP_STATE_IDLE_SIGNAL_CHANNEL)
+  522   1        {
+  523   2          if((channelType = AVDTP_SearchChannelTypeByChannelHdl(avdtpLinkInfo, INVALID_L2CAP_CHANNEL)) < MAX_AVDT
+             -P_CHANNEL_TYPE_NUM &&
+  524   2            avdtpLinkInfo->avdtpProfileDesc != (AVDTP_PROFILE_DESC CODE_PTR)NULL)
+  525   2          {
+  526   3            evtParams.connRequest.profileId = avdtpLinkInfo->avdtpProfileDesc->mmiProfileDesc.profileId;
+  527   3            avdtpLinkInfo->avdtpProfileDesc->MediaLinkEvent(linkIndex, PROFILE_LINK_EVENT_CONN_REQUEST, &evtParams
+             -);
+  528   3            if (evtParams.connRequest.result == PROFILE_LINK_RESULT_CONN_ACCEPT)
+  529   3            {
+  530   4              reqPtr->status = L2CAP_STATUS_SUCCESS;
+  531   4              AVDTP_SetL2capConnReqParamsForMediaChannel(&reqPtr->params,linkIndex);
+  532   4      
+  533   4              avdtpLinkInfo->l2capChannelHdl[channelType] = l2capChannelHdl;
+  534   4              return;
+  535   4            }
+  536   3          }
+  537   2        }
+  538   1        reqPtr->status = L2CAP_STATUS_CONNECTION_REFUSED_NO_RESOURCE;
+  539   1      }
+  540          
+  541          PRIVATE void AVDTP_ConnCplEvt(L2CAP_CHANNEL_HDL l2capChannelHdl, U8 status)
+  542          {
+  543   1        U8 linkIndex = L2CAP_GetChannelLinkIndex(l2capChannelHdl);
+  544   1        AVDTP_LINK_INFO XDATA_PTR avdtpLinkInfo = AVDTP_GetLinkInfo(linkIndex);
+  545   1        LINK_EVENT_PARAMS LDATA evtParams;
+  546   1        U8 channelType;
+  547   1      
+  548   1        if((channelType = AVDTP_SearchChannelTypeByChannelHdl(avdtpLinkInfo, l2capChannelHdl)) < MAX_AVDTP_CHANN
+             -EL_TYPE_NUM)
+  549   1        {
+  550   2          if (status == L2CAP_STATUS_SUCCESS)
+  551   2          {
+  552   3            evtParams.connComplete.status = NO_ERROR;
+  553   3          }
+  554   2          else
+  555   2          {
+  556   3            if (status == L2CAP_STATUS_CONNECTION_REFUSED_SECURITY_BLOCK)
+  557   3            {
+  558   4              evtParams.connComplete.status = SECURITY_BLOCK;
+  559   4            }
+C251 COMPILER V5.57.0,  AVDTP                                                              08/11/20  06:33:59  PAGE 10  
+
+  560   3            else
+  561   3            {
+  562   4              evtParams.connComplete.status = PROTOCOL_CONNECTION_ERROR;
+  563   4            }
+  564   3          }
+  565   2          evtParams.connComplete.isPassive = avdtpLinkInfo->misc.bits.isPassive;
+  566   2      
+  567   2          if (channelType == AVDTPSignalChannelType)
+  568   2          {
+  569   3            avdtpLinkInfo->avdtpProfileDesc->mmiProfileDesc.ProfileLinkEvent(linkIndex, PROFILE_LINK_EVENT_CONN_CO
+             -MPLETE, &evtParams);
+  570   3          }
+  571   2          else
+  572   2          {
+  573   3            avdtpLinkInfo->avdtpProfileDesc->MediaLinkEvent(linkIndex, PROFILE_LINK_EVENT_CONN_COMPLETE, &evtParam
+             -s);
+  574   3          }
+  575   2      
+  576   2          if (status == L2CAP_STATUS_SUCCESS)
+  577   2          {
+  578   3            avdtpLinkInfo->state = AVDTP_STATE_IDLE_SIGNAL_CHANNEL + 2*channelType;
+  579   3          }
+  580   2          else
+  581   2          {
+  582   3            if(AVDTP_RemoveChannelHdl(avdtpLinkInfo, l2capChannelHdl) == AVDTPSignalChannelType)
+  583   3            {
+  584   4              AVDTP_ClearLinkInfo(linkIndex);
+  585   4            }
+  586   3          }
+  587   2        }
+  588   1      }
+  589          
+  590          PRIVATE void AVDTP_DisconnectCplEvt(L2CAP_CHANNEL_HDL l2capChannelHdl, U8 reason)
+  591          {
+  592   1        U8 linkIndex = L2CAP_GetChannelLinkIndex(l2capChannelHdl);
+  593   1        AVDTP_LINK_INFO XDATA_PTR avdtpLinkInfo = AVDTP_GetLinkInfo(linkIndex);
+  594   1        U8 channelType;
+  595   1      
+  596   1        channelType = AVDTP_RemoveChannelHdl(avdtpLinkInfo, l2capChannelHdl);
+  597   1        if (channelType < MAX_AVDTP_CHANNEL_TYPE_NUM)
+  598   1        {
+  599   2          if (channelType == AVDTPSignalChannelType)
+  600   2          {
+  601   3            avdtpLinkInfo->avdtpProfileDesc->mmiProfileDesc.ProfileLinkEvent(linkIndex, reason, (LINK_EVENT_PARAMS
+             - XDATA_PTR)NULL);
+  602   3            AVDTP_ClearLinkInfo(linkIndex);
+  603   3          }
+  604   2          else
+  605   2          {
+  606   3            avdtpLinkInfo->avdtpProfileDesc->MediaLinkEvent(linkIndex, reason, (LINK_EVENT_PARAMS XDATA_PTR)NULL);
+  607   3          }
+  608   2        }
+  609   1      }
+  610          
+  611          PUBLIC L2CAP_CHANNEL_HDL AVDTP_ConnectSignalChannel(U8 linkIndex)
+  612          {
+  613   1        AVDTP_LINK_INFO XDATA_PTR avdtpLinkInfo = AVDTP_GetLinkInfo(linkIndex);
+  614   1        L2CAP_CHANNEL_HDL l2capChannelHdl;
+  615   1        L2CAPLocalConnReqType LDATA reqMsg;
+  616   1      
+  617   1        if( avdtpLinkInfo->state == AVDTP_STATE_IDLE &&
+  618   1          (avdtpLinkInfo->avdtpProfileDesc = (AVDTP_PROFILE_DESC CODE_PTR)MMI_GetProfileDesc(PROFILE_A2DP)))
+  619   1        {
+  620   2          reqMsg.psm = PSM_AVDTP;
+  621   2          AVDTP_SetL2capConnReqParamsForSignalChannel(&reqMsg.params);
+  622   2      
+C251 COMPILER V5.57.0,  AVDTP                                                              08/11/20  06:33:59  PAGE 11  
+
+  623   2          l2capChannelHdl = UpperLayer_SendL2capConnectionRequest(linkIndex, &reqMsg);
+  624   2          if (l2capChannelHdl != INVALID_L2CAP_CHANNEL)
+  625   2          {
+  626   3            avdtpLinkInfo->state = AVDTP_STATE_CONNECTING;
+  627   3            avdtpLinkInfo->l2capChannelHdl[AVDTPSignalChannelType] = l2capChannelHdl;
+  628   3            return l2capChannelHdl;
+  629   3          }
+  630   2        }
+  631   1        return INVALID_L2CAP_CHANNEL;
+  632   1      }
+  633          
+  634          PUBLIC U8 AVDTP_DisconnectSignalChannel(U8 linkIndex)
+  635          {
+  636   1        AVDTP_LINK_INFO XDATA_PTR avdtpLinkInfo = AVDTP_GetLinkInfo(linkIndex);
+  637   1        L2CAP_CHANNEL_HDL l2capChannelHdl;
+  638   1        U8 channelType;
+  639   1        U8 cmdResult = CMD_COMPLETE;
+  640   1      
+  641   1        for(channelType = 0; channelType < MAX_AVDTP_CHANNEL_TYPE_NUM; channelType++)
+  642   1        {
+  643   2          l2capChannelHdl = avdtpLinkInfo->l2capChannelHdl[MAX_AVDTP_CHANNEL_TYPE_NUM-1-channelType];
+  644   2          if(l2capChannelHdl != INVALID_L2CAP_CHANNEL)
+  645   2          {
+  646   3            if(CMD_WAITING == UpperLayer_SendL2capDisconnectionRequest(l2capChannelHdl))
+  647   3              cmdResult = CMD_WAITING;
+  648   3            else
+  649   3              AVDTP_RemoveChannelHdl(avdtpLinkInfo, l2capChannelHdl);
+  650   3          }
+  651   2        }
+  652   1        if(cmdResult == CMD_COMPLETE)
+  653   1        {
+  654   2          AVDTP_ClearLinkInfo(linkIndex);
+  655   2        }
+  656   1        return cmdResult;
+  657   1      }
+  658          
+  659          PUBLIC L2CAP_CHANNEL_HDL AVDTP_ConnectMediaChannel(U8 linkIndex)
+  660          {
+  661   1        AVDTP_LINK_INFO XDATA_PTR avdtpLinkInfo = AVDTP_GetLinkInfo(linkIndex);
+  662   1        L2CAP_CHANNEL_HDL l2capChannelHdl;
+  663   1        L2CAPLocalConnReqType LDATA reqMsg;
+  664   1      
+  665   1        if(avdtpLinkInfo->state == AVDTP_STATE_IDLE_SIGNAL_CHANNEL)
+  666   1        {
+  667   2          reqMsg.psm = PSM_AVDTP;
+  668   2          AVDTP_SetL2capConnReqParamsForMediaChannel(&reqMsg.params,linkIndex);
+  669   2      
+  670   2          l2capChannelHdl = UpperLayer_SendL2capConnectionRequest(linkIndex, &reqMsg);
+  671   2          if (l2capChannelHdl != INVALID_L2CAP_CHANNEL)
+  672   2          {
+  673   3            avdtpLinkInfo->l2capChannelHdl[AVDTPMediaChannelType] = l2capChannelHdl;
+  674   3            return l2capChannelHdl;
+  675   3          }
+  676   2        }
+  677   1        return INVALID_L2CAP_CHANNEL;
+  678   1      }
+  679          
+  680          PUBLIC U8 AVDTP_DisconnectMediaChannel(U8 linkIndex)
+  681          {
+  682   1        AVDTP_LINK_INFO XDATA_PTR avdtpLinkInfo = AVDTP_GetLinkInfo(linkIndex);
+  683   1      
+  684   1        if(avdtpLinkInfo->l2capChannelHdl[AVDTPMediaChannelType] != INVALID_L2CAP_CHANNEL)
+  685   1        {
+  686   2          if(CMD_WAITING == UpperLayer_SendL2capDisconnectionRequest(avdtpLinkInfo->l2capChannelHdl[AVDTPMediaCha
+             -nnelType]))
+  687   2          {
+C251 COMPILER V5.57.0,  AVDTP                                                              08/11/20  06:33:59  PAGE 12  
+
+  688   3            return CMD_WAITING;
+  689   3          }
+  690   2          AVDTP_RemoveChannelHdl(avdtpLinkInfo, avdtpLinkInfo->l2capChannelHdl[AVDTPMediaChannelType]);
+  691   2        }
+  692   1        return CMD_COMPLETE;
+  693   1      }
+  694          
+  695          PUBLIC void AVDTP_SendMediaChannelData(U8 linkIndex, AvdtpMediaType XDATA_PTR dataPtr)
+  696          {
+  697   1        L2CAP_CHANNEL_HDL l2capChannelHdl = AVDTP_GetLinkInfo(linkIndex)->l2capChannelHdl[AVDTPMediaChannelType]
+             -;
+  698   1      
+  699   1        if (l2capChannelHdl != INVALID_L2CAP_CHANNEL)
+  700   1        {
+  701   2          dataPtr->l2capLength = ENDIAN_TRANSFORM_U16(dataPtr->l2capLength);
+  702   2          UpperLayer_SendL2capChannelData(l2capChannelHdl, (U8 XDATA_PTR)dataPtr);
+  703   2        }
+  704   1        else
+  705   1        {
+  706   2          OSMEM_Put(dataPtr);
+  707   2        }
+  708   1      }
+  709          //////////////////////////////////////////////////////////////////////
+  710          //////////////////////////////////////////////////////////////////////
+  711          /*                       AVDTP Utility              */
+  712          //////////////////////////////////////////////////////////////////////
+  713          //////////////////////////////////////////////////////////////////////
+  714          static L2CAP_PROTOCOL_DESC CODE gAVDTP_ProtocolDesc = {
+  715            PSM_AVDTP,
+  716            NULL, /*AVDTP,  */        //TaskEntry
+  717            AVDTP_RemoteConnReqEvt, //RemoteConnReqEvt
+  718            AVDTP_ConnCplEvt,   //ConnCplEvt
+  719            AVDTP_DisconnectCplEvt, //DisconnectCplEvt
+  720          };
+  721          
+  722          static L2CAP_PROTOCOL_NODE XDATA gAVDTP_ProtocolNode = {
+  723            &gAVDTP_ProtocolDesc,
+  724            NULL
+  725          };
+  726          
+  727          PUBLIC void AVDTP_Init(void)
+  728          {
+  729   1        L2CAP_RegisterProtocol(&gAVDTP_ProtocolNode);
+  730   1      }
+  731          #endif
+  732          
+  733          
+  734          #endif
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =      3078     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =        26     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+C251 COMPILER V5.57.0,  AVDTP                                                              08/11/20  06:33:59  PAGE 13  
+
+  hconst size          =        40     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

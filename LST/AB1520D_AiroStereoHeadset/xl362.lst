@@ -1,0 +1,96 @@
+C251 COMPILER V5.57.0,  xl362                                                              08/11/20  06:34:24  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE xl362
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\xl362.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SDK\example\Pedometer\xl362.c XSMALL HPTR FUNCTIONS(REENTRANT) 
+                    -ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\sou
+                    -rce\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM
+                    -\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\sourc
+                    -e\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SE
+                    -CTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) 
+                    -DEFINE(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroSte
+                    -reoHeadset\xl362.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\xl362.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          #include "os.h"
+    3          #include "xl362.h"
+    4          
+    5          #ifdef SDK_SUPPORTED_PEDOMETER
+               #include "..\SDK\include\Spi.h"
+               #include "sector_spi_config.h"
+               
+               //-------------------------------------------------------------------------/
+               /*Macro and Defines*/
+               #define GS_BUFFER_SIZE                  4
+               #define GS_SPI_RX_BUFFER_SIZE           2
+               
+               //-------------------------------------------------------------------------/
+               /*Variables*/
+               
+               static U8 gTxBuf[GS_BUFFER_SIZE];
+               static U8 gRxBuf[GS_SPI_RX_BUFFER_SIZE];
+               
+               void xl362_ReadMultiReg(U8 regName, U8 XDATA_PTR dataPtr, U8 rxLen)
+               {
+               
+                   gTxBuf[0] = XL362_CMD_R_REG;
+                   gTxBuf[1] = regName;
+                   SPI_WriteReadBlockingCmd(SPI_DEVICE_ID_CUSTOM1, 2, gTxBuf, rxLen, dataPtr);
+               }
+               
+               U8 xl362_ReadReg(U8 regName)
+               {
+                   xl362_ReadMultiReg(regName, gRxBuf, 1);
+                   return gRxBuf[0];
+               }
+               
+               void xl362_ReadMultiFIFO(U8 XDATA_PTR dataPtr, U8 rxLen)
+               {
+                   gTxBuf[0] = XL362_CMD_R_FIFO;
+                   SPI_WriteReadBlockingCmd(SPI_DEVICE_ID_CUSTOM1, 1, gTxBuf, rxLen, dataPtr);
+               }
+               
+               void xl362_WriteReg(U8 regName, U8 regData)
+               {
+                   gTxBuf[0] = XL362_CMD_W_REG;
+                   gTxBuf[1] = regName;
+                   gTxBuf[2] = regData;
+                   xl362_WriteMultiReg((XL362_WRITE_MULTI_DATA_t XDATA_PTR)gTxBuf, 3);
+               }
+               
+               void xl362_WriteMultiReg(XL362_WRITE_MULTI_DATA_t XDATA_PTR ptr, U8 txLen)
+               {
+                   SPI_WriteReadBlockingCmd(SPI_DEVICE_ID_CUSTOM1, txLen, (U8 XDATA_PTR)ptr, 0, gRxBuf);
+               }
+               
+C251 COMPILER V5.57.0,  xl362                                                              08/11/20  06:34:24  PAGE 2   
+
+               #endif /* SDK_SUPPORTED_PEDOMETER */
+   54          
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =    ------     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

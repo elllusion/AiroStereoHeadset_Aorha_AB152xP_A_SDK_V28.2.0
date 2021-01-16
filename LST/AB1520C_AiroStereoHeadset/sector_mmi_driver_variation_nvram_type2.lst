@@ -1,0 +1,117 @@
+C251 COMPILER V5.57.0,  sector_mmi_driver_variation_nvram_type2                            08/11/20  05:51:31  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_mmi_driver_variation_nvram_type2
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\sector_mmi_driver_variation_nvram_type2.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\sector_mmi_driver_variation_nvram_type2.c XSMALL HPTR FU
+                    -NCTIONS(REENTRANT) ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\sou
+                    -rce\ABSDRIVER;.\source\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\
+                    -ROM\HC;.\source\ROM\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\sou
+                    -rce\ROM\GAP;.\source\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\
+                    -Config1;.\source\SECTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\sourc
+                    -e\SECTOR\ToolMisc) DEFINE(FLASH_INIT=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\
+                    -LST\AB1520C_AiroStereoHeadset\sector_mmi_driver_variation_nvram_type2.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHea
+                    -dset\sector_mmi_driver_variation_nvram_type2.obj) 
+
+stmt  level    source
+
+    1          //////////////////////////////////////////////////////////
+    2          // Copyright@ 2009 Airoha.  All right reserved.
+    3          //////////////////////////////////////////////////////////
+    4          #include <config.h>
+    5          #include <cpu.h>
+    6          #include "sector_mmi_driver_variation_nvram.h"
+    7          
+    8          #pragma userclass (HCONST = MMI_V_NVRAM2)
+    9          
+   10          
+   11          PUBLIC MMI_DRIVER_VARIATION_NVRAM_STRU CODE gMMI_Driver_v_nvram_init2 = 
+   12          {
+   13            { 
+   14              MMI_SECTOR_DATA_INVALID,
+   15              {
+   16                //non-zero init variables;
+   17                {
+   18                  MMI_DRIVER_VARIATION_NVRAM_NONZERO_DEFAULT_ISMISCENABLED, // isMiscEnabled
+   19                  MMI_DRIVER_VARIATION_NVRAM_NONZERO_DEFAULT_FM_HISTORY_FREQ,//Fm history
+   20                  MMI_DRIVER_VARIATION_NVRAM_NONZERO_DEFAULT_FMHISTORYVOL, //FMHistoryVol
+   21                  MMI_DRIVER_VARIATION_NVRAM_NONZERO_DEFAULT_FMSMALLSTEPVOL, //FMSmallStepVol
+   22                  MMI_DRIVER_VARIATION_NVRAM_NONZERO_DEFAULT_LINEINHISTORYVOL, // LineInHistoryVol
+   23                  MMI_DRIVER_VARIATION_NVRAM_NONZERO_DEFAULT_LINEINSMALLSTEPVOL, //LineInSmallStepVol
+   24                  MMI_DRIVER_VARIATION_NVRAM_NONZERO_DEFAULT_DEFAULTSCOSOUNDLEVEL,  //defaultSCOSoundLevel
+   25                  0, //smallStepSoundLevelIdle
+   26                  MMI_DRIVER_VARIATION_NVRAM_NONZERO_DEFAULT_VPLANGINDEX, //vpLangIndex
+   27                  { //local_name
+   28                    #ifdef SOUND_BAR
+                         8, //len
+                         {'S', 'O', 'U', 'N', 'D', 'B', 'A', 'R'},
+                         #elif defined SCO_WOOFER
+                         6, //len
+                         {'W', 'O', 'O', 'F', 'E', 'R'},
+                         #elif defined TWS_SETTINGS
+   35                      #ifdef PRODUCT_TYPE_A
+   36                        7, //len
+   37                        {'A', 'i', 'r', 'o', 'S', '-', 'A'},
+   38                      #elif defined PRODUCT_TYPE_K
+                             7, //len
+                             {'A', 'i', 'r', 'o', 'S', '-', 'K'},
+                           #else
+                             6, //len
+                             {'T', 'W', 'S', 'Y', 'O', 'Y'},
+                           #endif
+   45                    #elif defined FAST_CONNECT_DONGLE
+                         8, //len
+                         {'F', 'C', 'D', 'O', 'N', 'G', 'L', 'E'},
+                         #else
+                         6, //len
+                         {'A', 'I', 'R', 'O', 'H', 'A'},
+                         #endif
+C251 COMPILER V5.57.0,  sector_mmi_driver_variation_nvram_type2                            08/11/20  05:51:31  PAGE 2   
+
+   52                  },
+   53                },
+   54          
+   55                {{0,0,0,0,0,0}, {0,0,0,0,0,0}}, //agInd[MAX_MULTI_POINT_NO];
+   56                {0,0},    //PEQRecord
+   57                {0,0},      //sectorMode 0->default PEQ, 1->custom PEQ
+   58              },
+   59              {
+   60                {0, {{0, 0, 0, 0, 0, 0}, {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},0},{0,0,0},0,0,0,0,0,0},
+   61                {0, {{0, 0, 0, 0, 0, 0}, {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},0},{0,0,0},0,0,0,0,0,0},
+   62              }, //air_link_history_info
+   63              {0, {{0x88, 0x99, 0xCC, 0x66, 0x00, 0x00}, {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},0},{0,0,0},0,0,0,0,0,0},//
+             -fast_dongle_link_history_info
+   64              {
+   65                {0, {{0, 0, 0, 0, 0, 0}, {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},0},{0,0,0},0,0,0,0,0,0},
+   66                {0, {{0, 0, 0, 0, 0, 0}, {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},0},{0,0,0},0,0,0,0,0,0},
+   67                //{0, {{0, 0, 0, 0, 0, 0}, {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},0},{0,0,0},0,0,0,0,0,0},
+   68                //{0, {{0, 0, 0, 0, 0, 0}, {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},0},{0,0,0},0,0,0,0,0,0},
+   69              }, //link_history_info
+   70            },
+   71            {0,0} //CRC
+   72          };
+   73          
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       503     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

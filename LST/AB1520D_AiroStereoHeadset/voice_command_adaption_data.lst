@@ -1,0 +1,97 @@
+C251 COMPILER V5.57.0,  voice_command_adaption_data                                        08/11/20  06:33:02  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE voice_command_adaption_data
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\voice_command_adaption_data.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\DRIVER\voice_command_adaption_data.c XSMALL HPTR FUNCTIONS(REEN
+                    -TRANT) ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVE
+                    -R;.\source\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\sou
+                    -rce\ROM\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;
+                    -.\source\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\so
+                    -urce\SECTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\Too
+                    -lMisc) DEFINE(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_
+                    -AiroStereoHeadset\voice_command_adaption_data.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\voice_command_adapt
+                    -ion_data.obj) 
+
+stmt  level    source
+
+    1          #include <config.h>
+    2          #include <cpu.h>
+    3          #include "bt_config_profile.h"
+    4          #include "voice_command_ctl.h"
+    5          
+    6          #pragma userclass (HCONST = VO_APD)
+    7          
+    8          #ifdef SUPPORT_VOICE_COMMAND
+    9          
+   10          #if VC_PLAN_MODEL
+   11          #pragma INCDIR(.\source\DRIVER\VC_DATA\PLAN)
+   12          #else
+               #pragma INCDIR(.\source\DRIVER\VC_DATA\AIROHA)
+               #endif
+   15          
+   16          
+   17          #define VC_DATA_DEFINE(NAME)        vc_dat_##NAME##_apd,
+   18          
+   19          enum 
+   20          {
+   21            #include <vc_data_define_apd.h> 
+   22          };
+   23          #undef VC_DATA_DEFINE 
+   24            
+   25          #define VC_EVT_DATA_MAP(EVTNAME,DATANAME1,DATANAME2,DATANAME3,DATANAME4,DATANAME5) ((0x00000001L << (vc_d
+             -at_##DATANAME1##_apd)) | (0x00000001L << (vc_dat_##DATANAME2##_apd)) | (0x00000001L << (vc_dat_##DATANAME3##_apd)) | (0x
+             -00000001L << (vc_dat_##DATANAME4##_apd)) | (0x00000001L << (vc_dat_##DATANAME5##_apd))),
+   26          
+   27          DRIVER_VOICE_COMMAND_EVT_DATA_MAP_TYPE CODE gVoiceCommand_APD_EvtDataMap =
+   28          {
+   29            {
+   30              #include <vc_data_evt_map_apd.h>
+   31            },
+   32          };
+   33          
+   34          U16 CODE dataBase_APD[] ALIGN(2) ={
+   35            #include <database_apd.txt>
+   36          };
+   37          
+   38          #else
+               DRIVER_VOICE_COMMAND_EVT_DATA_MAP_TYPE CODE gVoiceCommand_APD_EvtDataMap =
+               {
+                 {
+                   0
+                 },
+               };
+               
+               U16 CODE dataBase_APD[] ALIGN(2) =
+               {
+                 0
+               };
+C251 COMPILER V5.57.0,  voice_command_adaption_data                                        08/11/20  06:33:02  PAGE 2   
+
+               
+               #endif
+   52          
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       980     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

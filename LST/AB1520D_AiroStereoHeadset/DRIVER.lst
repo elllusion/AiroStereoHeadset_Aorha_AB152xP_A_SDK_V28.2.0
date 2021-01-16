@@ -1,0 +1,2450 @@
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE DRIVER
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\DRIVER.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\DRIVER\DRIVER.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) WARN
+                    -INGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\sourc
+                    -e\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\source\R
+                    -OM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_LE;.
+                    -\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspData;.
+                    -\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLASH_I
+                    -NIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoHeadset\DRI
+                    -VER.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\DRIVER.obj) 
+
+stmt  level    source
+
+    1          //////////////////////////////////////////////////////////
+    2          // Copyright@ 2009 Airoha.  All right reserved.
+    3          //////////////////////////////////////////////////////////
+    4          #include "reside_flash.inc"
+    5          
+    6          #define _DRIVER_C_
+    7          #define _SOUND_EFFECT_C
+    8          #define _DBB_ON_OFF_C
+    9          
+   10          #include <rc.h>
+   11          
+   12          #include "..\MMI\MMI.h"
+   13          #include "..\MMI\MMI_SectorManager.h"
+   14          #include "..\MMI\MMI_Driver.h"
+   15          #include "..\HC\hc_interface.h"
+   16          #include "Audio_Mailbox.h"
+   17          #include "Driver_1520.h"
+   18          
+   19          #include "sector_config1.h"
+   20          #include "sector_voice_data.h"
+   21          #include "sector_boundary.h"
+   22          
+   23          #include "Driver.h"
+   24          #include "AudioControl.h"
+   25          #include "Driver_FM.h"
+   26          #include "Driver_Key.h"
+   27          #include "drv_sector.h"
+   28          #include "Audio_Transparency.h"
+   29          #ifdef RINGTONE_ENABLE
+   30            #include "ringtone.h"
+   31          #endif
+   32          #ifdef SUPPORT_VOICE_PROMPT
+   33            #include "VoicePrompt.h"
+   34          #endif
+   35          #ifdef SUPPORT_VOICE_COMMAND
+   36            #include "VoiceCommand.h"
+   37            #include "voice_command_adaption_data_ctl.h"
+   38          #endif
+   39          #ifdef PEQ_ENABLE
+   40            #include "Peq_HPF.h"
+   41          #endif
+   42          
+   43          #ifdef DEMOSOUND
+               #include "DemoSound.h"
+               #endif
+   46          
+   47          #include "Driver_LED.h"
+   48          #include "Driver_Temp.h"
+   49          #if (HW_SPI_SUPPORTED)
+   50          #include "ExternalFlash_Sector.h"
+   51          #endif
+   52          
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 2   
+
+   53          #ifdef OPERATION_IN_BB_ASIC_VERSION
+   54          #include "audiocontrol_1520HW.h"
+   55          #endif
+   56          
+   57          OSMQ XDATA OSMQ_AUDIO_Prompt_Command;
+   58          #define OSMQ_AUDIO_Prompt_Command_ptr   &OSMQ_AUDIO_Prompt_Command
+   59          
+   60          DriverCtrlInfo XDATA gDriver_ctl;
+   61          
+   62          #if (HW_SPI_SUPPORTED)
+   63          PRIVATE void ExtFlash_Init(void)
+   64          {
+   65   1        U8 LDATA numOfSector;
+   66   1        U8 XDATA_PTR headerPtr;
+   67   1        U32 flhPtr;
+   68   1      
+   69   1        //DRV_SPI_BusInitial_Flash();
+   70   1        if(!DRV_SPIFLH_IsExtFlhExist())
+   71   1          return;
+   72   1      
+   73   1        if(DRV_SPIFLH_ReadBytes(0, &numOfSector, 1) || numOfSector == 0xFF)
+   74   1          return;
+   75   1      
+   76   1        flhPtr = 1;
+   77   1      
+   78   1        headerPtr = OSMEM_Get(OSMEM_ptr1);
+   79   1      
+   80   1        while(numOfSector--)
+   81   1        {
+   82   2          DRV_SPIFLH_ReadBytes(flhPtr, headerPtr, sizeof(SECTOR_SCRIPT));
+   83   2      
+   84   2          if(((SECTOR_SCRIPT XDATA_PTR)headerPtr)->sectorID == EXTERNAL_FLASH_SECTOR_VOICE_PROMPT_DATA_ID)
+   85   2          {
+   86   3            gDriver_ctl.extFlashCtl.vpDataSector = ((SECTOR_SCRIPT XDATA_PTR)headerPtr)->sectorAddress;
+   87   3            LightDbgPrint("Get ExtVP!!:%X",(U32)gDriver_ctl.extFlashCtl.vpDataSector);
+   88   3            break;
+   89   3          }
+   90   2          flhPtr += sizeof(SECTOR_SCRIPT);
+   91   2        }
+   92   1        OSMEM_Put(headerPtr);
+   93   1      
+   94   1        gDriver_ctl.extFlashCtl.status = DRIVER_EXT_FLASH_OK;
+   95   1      }
+   96          #endif
+   97          
+   98          extern PUBLIC void LED_Init(void);
+   99          extern PUBLIC void DRIVER_LED_Init(void);
+  100          #ifdef DEMOSOUND
+               extern PUBLIC void DemoSound_Init(void);
+               #endif
+  103          extern BOOL IsSectorMemberValid(U8 CODE_PTR pSectorAddr, U32 Size);
+  104          
+  105          PUBLIC void DRIVER_Init(void)
+  106          {
+  107   1        LED_Init();
+  108   1        DRIVER_LED_Init();
+  109   1      
+  110   1        MailBox_Init();
+  111   1      
+  112   1        #ifdef RINGTONE_ENABLE
+  113   1        Ring_Init();
+  114   1        #endif
+  115   1      
+  116   1        AUDIO_Init();
+  117   1        DRIVER_Key_Init();
+  118   1      
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 3   
+
+  119   1        gDriver_ctl.dspLink = 0xFF;
+  120   1      
+  121   1        gSYS_allow_updating = TRUE;
+  122   1        gDriver_ctl.isReadyToDSPwOff |= DRIVER_READY;
+  123   1        gDriver_ctl.OTAVoicepromptsExist = FALSE;
+  124   1        
+  125   1        #ifdef PEQ_ENABLE
+  126   1        PEQ_SetRealtimeEnableMode(INIT_ENABLED_MODE);
+  127   1        PEQ_SetPeqHpfLoadSectorAddress(PEQ_GetSectorMode(PEQ_A2DP));
+  128   1        #endif
+  129   1      
+  130   1        #if (HW_SPI_SUPPORTED)
+  131   1        ExtFlash_Init();
+  132   1        #endif
+  133   1        #ifdef DEMOSOUND
+                 DemoSound_Init();
+                 #endif
+  136   1      }
+  137          
+  138          extern PUBLIC BOOL DRIVER_LED_IsFGLEDOn(void);
+  139          PRIVATE void DRIVER_CheckPwrKey()
+  140          {
+  141   1        if (gDriver_ctl.isReadyToDSPwOff == READY_TO_POWEROFF)
+  142   1        {
+  143   2          if (!DRIVER_LED_IsFGLEDOn())
+  144   2          {
+  145   3            gDriver_ctl.isReadyToDSPwOff = FALSE;
+  146   3            gMMI_Drv_Handler.fDriverReadyPowerOffEvent();
+  147   3          }
+  148   2        }
+  149   1      }
+  150          
+  151          extern PUBLIC BOOL MMI_DRV_IsSpeakerMuteByLink(U8 linkIndex);
+  152          extern PUBLIC BOOL MMI_DRV_IsSpeakerMute(void);
+  153          PRIVATE void DRIVER_MuteUnMuteAmpOpenCloseHandler(void)
+  154          {
+  155   1        if(gAlignDSP.DSPOUT_MUTE)
+  156   1        {
+  157   2          if(!gAUDIO_CtrlInfo.isMuteForVPRingtone)
+  158   2          {
+  159   3            if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_LINE_IN))
+  160   3            {
+  161   4              if(!gAUDIO_CtrlInfo.isMuteForPEQ && !gAUDIO_CtrlInfo.isMuteForRedial && !gAUDIO_CtrlInfo.isLineInMute
+             - &&  !(gAUDIO_CtrlInfo.isMuteBySoundLevel && MMI_MUTE_LINE_IN_WHEN_VOLUME_IS_ZERO_FEAT))
+  162   4              {
+  163   5                gAlignDSP.DSPOUT_MUTE = 0;
+  164   5                LightDbgPrint("DSPOUT_MUTE = 0");
+  165   5              }
+  166   4            }
+  167   3            else if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_A2DP))
+  168   3            {
+  169   4              if(!gAUDIO_CtrlInfo.isMuteForPEQ && !gAUDIO_CtrlInfo.isMuteForRedial && !(gAUDIO_CtrlInfo.isMuteBySou
+             -ndLevel && MMI_MUTE_A2DP_WHEN_VOLUME_IS_ZERO_FEAT) &&
+  170   4                !MMI_DRV_IsSpeakerMuteByLink(gDriver_ctl.dspLink))
+  171   4              {
+  172   5                gAlignDSP.DSPOUT_MUTE = 0;
+  173   5                LightDbgPrint("1DSPOUT_MUTE = 0");
+  174   5              }
+  175   4            }
+  176   3            else if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_SCO) || AUDIO_COMPONENT_IS_ACTIVE(AUDIO_ASYNC_SCO))
+  177   3            {
+  178   4              if( !gAUDIO_CtrlInfo.isMuteForRedial && !(gAUDIO_CtrlInfo.isMuteBySoundLevel && MMI_MUTE_SPEAKER_WHEN
+             -_VOLUME_IS_ZERO_FEAT) &&
+  179   4                !MMI_DRV_IsSpeakerMuteByLink(gDriver_ctl.dspLink) && !gDriver_ctl.rejectCallMuteSCOCmd)
+  180   4              {
+  181   5                gAlignDSP.DSPOUT_MUTE = 0;
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 4   
+
+  182   5                LightDbgPrint("2DSPOUT_MUTE = 0");
+  183   5              }
+  184   4            }
+  185   3          }
+  186   2        }
+  187   1      
+  188   1        //AMP Control
+  189   1        switch(gAUDIO_CtrlInfo.muteCloseAmpState)
+  190   1        {
+  191   2          case AMP_OFF:
+  192   2            SYS_ReleaseTimer(&gDriver_ctl.spkMuteAmpTimerPtr);
+  193   2            if(MMI_CLOSE_AMP_WHILE_SPEAKER_MUTED_FEAT)
+  194   2            {
+  195   3              if((AUDIO_PURE_ON > AUDIO_CheckAnyAudioEnabled() &&  !gAlignDSP.DSPOUT_MUTE) || AUDIO_COMPONENT_IS_AC
+             -TIVE(AUDIO_FM))
+  196   3                AUDIO_Open_AMP();
+  197   3            }
+  198   2            break;
+  199   2          case AMP_ON:
+  200   2            SYS_ReleaseTimer(&gDriver_ctl.spkMuteAmpTimerPtr);
+  201   2            if(MMI_CLOSE_AMP_WHILE_SPEAKER_MUTED_FEAT && gAlignDSP.DSPOUT_MUTE && !DRIVER_IsRingToneOrVPOrATPlayin
+             -g() &&  !AUDIO_COMPONENT_IS_ACTIVE(AUDIO_FM) && !AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICECOMMAND) && OSMQ_Entries(OSMQ_AUDI
+             -O_Prompt_Command_ptr) == 0)
+  202   2            {
+  203   3              #ifdef PEQ_ENABLE
+  204   3              if(gDriver_ctl.peqMuteTimer == (OST XDATA_PTR)NULL)
+  205   3              #endif
+  206   3              {
+  207   4                SYS_SetTimer(&gDriver_ctl.spkMuteAmpTimerPtr,(U32)gMMI_nvram.timerCtl.CloseAmpAfterMuteSpkTime * 320
+             -L);
+  208   4                gAUDIO_CtrlInfo.muteCloseAmpState= AMP_WAIT_CLOSE;
+  209   4              }
+  210   3            }
+  211   2            break;
+  212   2          case AMP_WAIT_CLOSE:
+  213   2            if(!gAlignDSP.DSPOUT_MUTE || DRIVER_IsRingToneOrVPOrATPlaying() || AUDIO_COMPONENT_IS_ACTIVE(AUDIO_FM)
+             - ||AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICECOMMAND))
+  214   2            {
+  215   3              SYS_ReleaseTimer(&gDriver_ctl.spkMuteAmpTimerPtr);
+  216   3              gAUDIO_CtrlInfo.muteCloseAmpState= AMP_ON;
+  217   3            }
+  218   2            if(SYS_IsTimerExpired(&gDriver_ctl.spkMuteAmpTimerPtr))
+  219   2            {
+  220   3              AUDIO_Close_AMP();
+  221   3            }
+  222   2            break;
+  223   2        }
+  224   1      }
+  225          
+  226          extern PUBLIC U16 AUDIO_Get3Wire0xA5(U16 HiLo, U8 mask);
+  227          PRIVATE void DRIVER_CheckStartAnchor(void)
+  228          {
+  229   1        if(gAlignDSP.DEC_A2DP_START_ANCHOR == 0x0002)
+  230   1        {
+  231   2          #ifdef OPERATION_IN_BB_ASIC_VERSION
+  232   2          if(AUDIO_COMPONENT_NO != AUDIO_CheckAnyAudioEnabled() && gAUDIO_CtrlInfo.isDAEnabled &&
+  233   2          ((gAUDIO_CtrlInfo.AUDIO_OUT_SCENARIO_SEL == AU_OUT_DA) || (gAUDIO_CtrlInfo.AUDIO_OUT_SCENARIO_SEL == AU
+             -_OUT_DA_96K)))
+  234   2          {
+  235   3            #ifdef AB1520S
+                     U16 HiLo;
+                     SYS_3WireRead(0xA5, HiLo);
+                     HiLo &= 0xFFFC;
+                     HiLo = AUDIO_Get3Wire0xA5(HiLo, 0x03);
+                     SYS_3WireWrite(0xA5, ((U8)(HiLo>>8)), ((U8)HiLo)); //A5 D1,D0
+                     #else
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 5   
+
+  242   3            if ( !(gMMI_nvram.gpioAmpGeneral > 2 && gMMI_nvram.gpioAmpGeneral < 29) )
+  243   3                  {
+  244   4                      AUDIO_SetAudioOut(TRUE);
+  245   4                  }
+  246   3            #endif
+  247   3          }
+  248   2          #endif
+  249   2      
+  250   2          gAlignDSP.DEC_A2DP_START_ANCHOR = 0;
+  251   2          if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_A2DP))
+  252   2            gMMI_Drv_Handler.fDriverA2DPStartAnchorEvent();
+  253   2        }
+  254   1      }
+  255          
+  256          
+  257          
+  258          extern PUBLIC void DRIVER_LED_Scheduler(void);
+  259          extern PUBLIC void LED_CheckTimer(void);
+  260          
+  261          PUBLIC void DRIVER(void)
+  262          {
+  263   1        DRIVER_ProcMmiCmd(); // ProcMMICmd must be prior than keypolling coz the key para init issue
+  264   1      #ifdef FM_ENABLE
+  265   1        DRIVER_FM_Handler();
+  266   1      #endif
+  267   1        DRIVER_Key_Polling();
+  268   1        DRIVER_RingtoneVPFMATCmdScheduler();
+  269   1        DRIVER_MailBoxHandler();
+  270   1        DRIVER_CheckStartAnchor();
+  271   1        DRIVER_CheckTimer();
+  272   1        DRIVER_CheckPwrKey();
+  273   1      
+  274   1        DRIVER_MuteUnMuteAmpOpenCloseHandler();
+  275   1        DRIVER_LED_Scheduler();
+  276   1        LED_CheckTimer();
+  277   1      
+  278   1        DRIVER_TEMP_Check();
+  279   1      
+  280   1        #ifdef TWO_STEP_CHARGING_FUNCTION
+  281   1        DRIVER_TEMP_TwoStepsCharging();
+  282   1        #endif
+  283   1      
+  284   1        #ifdef NTC_RATIO_FUNCTION
+  285   1        DRIVER_TEMP_NTCRatio();
+  286   1        #endif
+  287   1      
+  288   1        #ifdef DEMOSOUND
+                 DemoSound_Polling();
+                 #endif
+  291   1      
+  292   1          #ifdef DSP_ENABLE
+  293   1        DSP_DebugPrint();
+  294   1        #endif
+  295   1      }
+  296          
+  297          #if defined RINGTONE_ENABLE || defined SUPPORT_VOICE_PROMPT
+  298          PRIVATE void DRIVER_CheckMuteByMediaID(U16 ID)
+  299          {
+  300   1        if( ID == MEDIA_EVT_KEY_RDIAL ||ID == MEDIA_EVT_KEY_RDIAL_SECONDARY ||ID== MEDIA_EVT_KEY_SET_VOICE_RECOG
+             -NITION ||
+  301   1          ID == MEDIA_EVT_KEY_SET_VOICE_RECOGNITION_SECONDARY||ID ==MEDIA_EVT_REDIAL_SUCCESSFUL_EVT)
+  302   1        {
+  303   2          gAUDIO_CtrlInfo.isMuteForRedial =TRUE;
+  304   2          gAlignDSP.DSPOUT_MUTE = 1;
+  305   2          LightDbgPrint("6DSPOUT_MUTE = 1");
+  306   2          SYS_SetTimer(&gDriver_ctl.redialMuteTimerPtr,2*ONE_SEC);
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 6   
+
+  307   2        }
+  308   1        else if(MMI_POWER_DROP_SAVE_LINK_HISTORY_FEAT)
+  309   1        {
+  310   2          gAUDIO_CtrlInfo.isMuteForVPRingtone = TRUE;
+  311   2          gAlignDSP.DSPOUT_MUTE = 1;
+  312   2          LightDbgPrint("5DSPOUT_MUTE = 1");
+  313   2        }
+  314   1      }
+  315          #endif
+  316          
+  317          PUBLIC void DRIVER_RejectCallMuteSCOCmd(BOOL value)
+  318          {
+  319   1        gDriver_ctl.rejectCallMuteSCOCmd = value;
+  320   1      }
+  321          
+  322          PUBLIC void DRIVER_RingtoneVPFMATCmdScheduler(void)
+  323          {
+  324   1        DriverMsg XDATA_PTR msgPtr;
+  325   1        if(!DRIVER_IsRingToneOrVPOrATPlaying() || AUDIO_COMPONENT_IS_ACTIVE(AUDIO_TRANSPARENCY))
+  326   1        {
+  327   2          if(gDriver_ctl.isAudioHandlingPending || gDriver_ctl.suspendDSPReason)
+  328   2            return;
+  329   2      
+  330   2          if(!DRIVER_IsMiscCtrlTypeEnabled(DRIVER_VP_RING_LOCKED_FOR_FM) && !(IS_DSP_BUSY)) // FM is in On or Off
+             - state
+  331   2          {
+  332   3            GET_AUDIO_PROMPT_CMD:
+  333   3            if((msgPtr = (DriverMsg XDATA_PTR)OSMQ_Get (OSMQ_AUDIO_Prompt_Command_ptr)) != (DriverMsg XDATA_PTR)NU
+             -LL)
+  334   3            {
+  335   4              if(msgPtr->msgOpcode == DRIVER_FAKE_MEDIA_VP_RINGTONE_CMD)
+  336   4              {
+  337   5                msgPtr->dataOffset = EVT_OFFSET;
+  338   5                msgPtr->eventCode = DRIVER_FAKE_MEDIA_VP_RINGTONE_EVENT;
+  339   5                gMMI_Drv_Handler.fDriverFakeMediaEvent((MMIMsgType XDATA_PTR)msgPtr);
+  340   5                goto GET_AUDIO_PROMPT_CMD;
+  341   5              }
+  342   4              #ifdef FM_ENABLE
+  343   4              if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_FM) && !DRIVER_IsMiscCtrlTypeEnabled(DRIVER_IS_RESUME_FM))
+  344   4              {
+  345   5                OSMQ_PutFront(OSMQ_AUDIO_Prompt_Command_ptr, (U8 XDATA_PTR)msgPtr);
+  346   5                DRIVER_FM_InternalPowerOff();
+  347   5                DRIVER_SetMiscCtrlMap(DRIVER_IS_RESUME_FM, TRUE);
+  348   5                return;
+  349   5              }
+  350   4              #endif
+  351   4              switch(msgPtr->msgOpcode)
+  352   4              {
+  353   5                case DRIVER_RINGTONE_CMD:
+  354   5                  if(DRIVER_RingtoneCmdHandler(msgPtr))
+  355   5                    OSMEM_Put((U8 XDATA_PTR)msgPtr);
+  356   5                  else
+  357   5                    OSMQ_PutFront(OSMQ_AUDIO_Prompt_Command_ptr, (U8 XDATA_PTR)msgPtr);
+  358   5                  break;
+  359   5      
+  360   5                case DRIVER_VOICEPROMPT_CMD:
+  361   5                  #ifdef SUPPORT_VOICE_PROMPT
+  362   5                  if(!DRIVER_VoicePromptCmdHandler(msgPtr))
+  363   5                    OSMQ_PutFront(OSMQ_AUDIO_Prompt_Command_ptr, (U8 XDATA_PTR)msgPtr);
+  364   5                  else
+  365   5                  #endif
+  366   5                    OSMEM_Put((U8 XDATA_PTR)msgPtr);
+  367   5                  break;
+  368   5      
+  369   5                case DRIVER_AUDIO_TRANSPARENCY_CMD:
+  370   5                  if(!DRIVER_AudioTransparencyCmdHandler(msgPtr))
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 7   
+
+  371   5                    OSMQ_Put(OSMQ_AUDIO_Prompt_Command_ptr, (U8 XDATA_PTR)msgPtr);
+  372   5                  else
+  373   5                    OSMEM_Put((U8 XDATA_PTR)msgPtr);
+  374   5                  break;
+  375   5                default:
+  376   5                  OSMEM_Put((U8 XDATA_PTR)msgPtr);
+  377   5                  break;
+  378   5              }
+  379   4            }
+  380   3            else
+  381   3            {
+  382   4              gAUDIO_CtrlInfo.isMuteForVPRingtone = FALSE;
+  383   4              #ifdef FM_ENABLE
+  384   4              if(gDriver_ctl.resumeFMTimerPtr == (OST XDATA_PTR)NULL  && DRIVER_IsMiscCtrlTypeEnabled(DRIVER_IS_RES
+             -UME_FM) )
+  385   4              {
+  386   5                SYS_SetTimer(&gDriver_ctl.resumeFMTimerPtr, ONE_SEC);
+  387   5              }
+  388   4              else if(SYS_IsTimerExpired(&gDriver_ctl.resumeFMTimerPtr))
+  389   4              {
+  390   5                DRIVER_FM_Resume();
+  391   5              }
+  392   4              #endif
+  393   4            }
+  394   3          }
+  395   2        }
+  396   1      
+  397   1        if(SYS_IsTimerExpired(&gDriver_ctl.resumeAppTimer))
+  398   1        {
+  399   2          if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_RINGTONE) || AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICEPROMPT) || gDriver
+             -_ctl.isAudioHandlingPending ||AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICECOMMAND))
+  400   2          {
+  401   3            SYS_SetTimer(&gDriver_ctl.resumeAppTimer, ONE_SEC);
+  402   3          }
+  403   2          else if(gDriver_ctl.backUpAudioCmdPtr)
+  404   2          {
+  405   3            OSMQ_PutFront(OSMQ_DRIVER_Command_ptr, (U8 XDATA_PTR)gDriver_ctl.backUpAudioCmdPtr);
+  406   3            gDriver_ctl.backUpAudioCmdPtr = NULL;
+  407   3            DRIVER_ProcMmiCmd();
+  408   3            #ifdef SUPPORT_MIC_IN_A2DP_MODE
+  409   3            if(DRIVER_CheckATEnablePlay())
+  410   3              AudioTrspr_Start();
+  411   3            #endif
+  412   3          }
+  413   2        }
+  414   1      }
+  415          
+  416          PUBLIC void DRIVER_CheckTimer(void)
+  417          {
+  418   1        //Mute Reminder, send event to MMI every n secs if MIC is mute.
+  419   1        if(SYS_IsTimerExpired(&gDriver_ctl.muteReminderTimerPtr))
+  420   1        {
+  421   2          gMMI_Drv_Handler.fDriverMuteReminderEvent();
+  422   2          SYS_SetTimer(&gDriver_ctl.muteReminderTimerPtr, (U32)gMMI_nvram.timerCtl.MuteReminderTime * ONE_SEC);
+  423   2        }
+  424   1      
+  425   1        Driver_Key_CheckTimer();
+  426   1      
+  427   1        #ifdef PEQ_ENABLE
+  428   1        if(SYS_IsTimerExpired(&gDriver_ctl.peqMuteTimer))
+  429   1        {
+  430   2          gAUDIO_CtrlInfo.isMuteForPEQ = FALSE;
+  431   2        }
+  432   1        #endif
+  433   1      
+  434   1        if(SYS_IsTimerExpired(&gDriver_ctl.redialMuteTimerPtr))
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 8   
+
+  435   1        {
+  436   2          gAUDIO_CtrlInfo.isMuteForRedial = FALSE;
+  437   2        }
+  438   1        AUDIO_CheckTimer();
+  439   1        
+  440   1        if(SYS_IsTimerExpired(&gDriver_ctl.checkATSwitchDelayTimer))
+  441   1        {
+  442   2              #ifdef SUPPORT_MIC_IN_A2DP_MODE
+  443   2          if(MMI_GetAudioTransparencyEnable())
+  444   2          {
+  445   3            if(DRIVER_CheckATEnablePlay() && !(IS_DSP_BUSY) && OSMQ_Entries(OSMQ_AUDIO_Prompt_Command_ptr) == 0)
+  446   3            {
+  447   4              gMMI_Drv_Handler.fDriverATSwitchEvent();
+  448   4              AudioTrspr_Start();
+  449   4              SYS_ReleaseTimer(&gDriver_ctl.checkATSwitchDelayTimer);
+  450   4            }
+  451   3            else if(gDriver_ctl.checkATSwitchDelayTimer == (OST XDATA_PTR)NULL)
+  452   3            {
+  453   4              SYS_SetTimer(&gDriver_ctl.checkATSwitchDelayTimer, (U32) 320L);
+  454   4            }     
+  455   3          }
+  456   2              #endif        
+  457   2        }
+  458   1      }
+  459          
+  460          PUBLIC void DRIVER_SetA2DPVolPara(DriverVolumeSetCmd XDATA_PTR volPtr)
+  461          {
+  462   1        gDriver_ctl.a2dpSpkCtl.soundLevel   = volPtr->soundLevel;
+  463   1        gDriver_ctl.a2dpSpkCtl.spkVols      = volPtr->spkVols ;
+  464   1        gDriver_ctl.a2dpSpkCtl.analogDaGain   = volPtr->analogDaGain;
+  465   1        gDriver_ctl.a2dpSpkCtl.smallStepLevel = volPtr->smallStepLevel;
+  466   1        gDriver_ctl.a2dpSpkCtl.micVols      = volPtr->micVols;
+  467   1        gDriver_ctl.a2dpSpkCtl.analogAdGain_L   = volPtr->analogAdGain_L;
+  468   1        gDriver_ctl.a2dpSpkCtl.analogAdGain_R   = volPtr->analogAdGain_R;
+  469   1      }
+  470          
+  471          PUBLIC void DRIVER_SetLineInVolPara(DriverVolumeSetCmd XDATA_PTR volPtr)
+  472          {
+  473   1        gDriver_ctl.lineInSpkMicCtl.soundLevel      = volPtr->soundLevel;
+  474   1        gDriver_ctl.lineInSpkMicCtl.spkVols       = volPtr->spkVols;
+  475   1        gDriver_ctl.lineInSpkMicCtl.analogDaGain    = volPtr->analogDaGain;
+  476   1        gDriver_ctl.lineInSpkMicCtl.analogAdGain_R    = volPtr->analogAdGain_R;
+  477   1        gDriver_ctl.lineInSpkMicCtl.analogAdGain_L    = volPtr->analogAdGain_L;
+  478   1        gDriver_ctl.lineInSpkMicCtl.smallStepLevel    = volPtr->smallStepLevel;
+  479   1        gDriver_ctl.lineInSpkMicCtl.micVols       = volPtr->micVols;
+  480   1      }
+  481          
+  482          PUBLIC void DRIVER_SetNormalVolPara(DriverVolumeSetCmd XDATA_PTR volPtr)
+  483          {
+  484   1        if(volPtr->soundLevel != VOLUME_DONT_CARE)
+  485   1          gDriver_ctl.normalSpkMicCtl.soundLevel    = volPtr->soundLevel;
+  486   1      
+  487   1        if(volPtr->spkVols != VOLUME_DONT_CARE)
+  488   1        {
+  489   2          gDriver_ctl.normalSpkMicCtl.spkVols     = volPtr->spkVols;
+  490   2          gDriver_ctl.normalSpkMicCtl.analogDaGain  = volPtr->analogDaGain;
+  491   2          gDriver_ctl.normalSpkMicCtl.smallStepLevel  = volPtr->smallStepLevel;
+  492   2          #ifdef AB1500
+                   gDriver_ctl.normalSpkMicCtl.spkDigitalGain  = 7;
+                   gDriver_ctl.normalSpkMicCtl.spkDigitalGainM = volPtr->digitalGainM;
+                   gDriver_ctl.normalSpkMicCtl.spkDigitalGainE = volPtr->digitalGainE;
+                   #endif
+  497   2        }
+  498   1      
+  499   1        #ifdef SUPPORT_VOICE_COMMAND
+  500   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICECOMMAND))
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 9   
+
+  501   1        {
+  502   2          gDriver_ctl.normalSpkMicCtl.micVols = gDriver_ctl.voiceCmdMiscCtl.micVols;
+  503   2          gDriver_ctl.normalSpkMicCtl.analogAdGain_R = gDriver_ctl.voiceCmdMiscCtl.analogAdGain_R;
+  504   2          gDriver_ctl.normalSpkMicCtl.analogAdGain_L = gDriver_ctl.voiceCmdMiscCtl.analogAdGain_L;
+  505   2        }
+  506   1        else
+  507   1        #endif
+  508   1        {
+  509   2          gDriver_ctl.normalSpkMicCtl.micVols = volPtr->micVols;
+  510   2          gDriver_ctl.normalSpkMicCtl.analogAdGain_R = volPtr->analogAdGain_R;
+  511   2          gDriver_ctl.normalSpkMicCtl.analogAdGain_L = volPtr->analogAdGain_L;
+  512   2        }
+  513   1      }
+  514          
+  515          PRIVATE U8 DRIVER_MMIReadyCmdHandler(DriverMsg XDATA_PTR msgPtr)
+  516          {
+  517   1        UNUSED(msgPtr);
+  518   1        gDriver_ctl.isReadyToDSPwOff |= MMI_READY;
+  519   1        DRIVER_TurnOffPureOn();
+  520   1      
+  521   1        return MEMORY_PUT;
+  522   1      }
+  523          
+  524          PRIVATE U8 DRIVER_UpdateGeneralParaCmdHandler(DriverMsg XDATA_PTR msgPtr)
+  525          {
+  526   1        //MMI gets into FakeON state.
+  527   1        //This maybe move to some where(Dsleep CMD) in the future.
+  528   1        #ifdef PEQ_ENABLE
+  529   1        PEQ_HPF_UpdateParameters();
+  530   1        #endif
+  531   1      
+  532   1        UNUSED(msgPtr);
+  533   1        return MEMORY_PUT;
+  534   1      }
+  535          
+  536          PUBLIC void DRIVER_SetInbandSCOMuteUnMute(BOOL isMute)
+  537          {
+  538   1        UNUSED(isMute);
+  539   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_SCO) || AUDIO_COMPONENT_IS_ACTIVE(AUDIO_ASYNC_SCO))
+  540   1          DRIVER_SetNormalVolumeToHW();
+  541   1        else if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_A2DP))
+  542   1          DRIVER_SetA2DPVolumeToHW();
+  543   1      }
+  544          
+  545          PUBLIC void DRIVER_SetMicMuteUnMute(BOOL isMute)
+  546          {
+  547   1        UNUSED(isMute);
+  548   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_SCO))
+  549   1          DRIVER_SetNormalVolumeToHW();
+  550   1      }
+  551          
+  552          PRIVATE U8 DRIVER_SetNormalVolumeCmdHandler(DriverMsg XDATA_PTR msgPtr)
+  553          {
+  554   1        BOOL isDiff = FALSE;
+  555   1        DriverVolumeSetCmd XDATA_PTR volPtr = &msgPtr->msgBodyPtr.driverCmd.volSetCmd;
+  556   1      
+  557   1        if(volPtr->soundLevel != VOLUME_DONT_CARE && gDriver_ctl.normalSpkMicCtl.soundLevel != volPtr->soundLeve
+             -l)
+  558   1          isDiff = TRUE;
+  559   1      
+  560   1        if(volPtr->spkVols != VOLUME_DONT_CARE)
+  561   1        {
+  562   2          if( gDriver_ctl.normalSpkMicCtl.spkVols != volPtr->spkVols ||
+  563   2            gDriver_ctl.normalSpkMicCtl.analogDaGain != volPtr->analogDaGain ||
+  564   2            gDriver_ctl.normalSpkMicCtl.smallStepLevel  != volPtr->smallStepLevel)
+  565   2            isDiff = TRUE;
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 10  
+
+  566   2        }
+  567   1      
+  568   1        if(volPtr->analogAdGain_R != VOLUME_DONT_CARE)
+  569   1        {
+  570   2          if( gDriver_ctl.normalSpkMicCtl.micVols != volPtr->micVols ||
+  571   2            gDriver_ctl.normalSpkMicCtl.analogAdGain_R != volPtr->analogAdGain_R ||
+  572   2            gDriver_ctl.normalSpkMicCtl.analogAdGain_L != volPtr->analogAdGain_L)
+  573   2            isDiff = TRUE;
+  574   2        }
+  575   1      
+  576   1        DRIVER_SetNormalVolPara(volPtr);
+  577   1        if(!AUDIO_COMPONENT_IS_ACTIVE (AUDIO_A2DP)  &&  !AUDIO_COMPONENT_IS_ACTIVE (AUDIO_LINE_IN) && isDiff)
+  578   1          DRIVER_SetNormalVolumeToHW();
+  579   1      
+  580   1        return MEMORY_PUT;
+  581   1      }
+  582          
+  583          PRIVATE U8 DRIVER_SetA2DPVolumeCmdHandler(DriverMsg XDATA_PTR msgPtr)
+  584          {
+  585   1        DRIVER_SetA2DPVolPara(&msgPtr->msgBodyPtr.driverCmd.a2dpVolSetCmd);
+  586   1      
+  587   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_A2DP))
+  588   1        {
+  589   2          DRIVER_SetA2DPVolumeToHW();
+  590   2        }
+  591   1        return MEMORY_PUT;
+  592   1      }
+  593          
+  594          PRIVATE U8 DRIVER_SetLineInVolumeCmdHandler(DriverMsg XDATA_PTR msgPtr)
+  595          {
+  596   1        BOOL isDiff = OS_memcmp(&gDriver_ctl.lineInSpkMicCtl, &msgPtr->msgBodyPtr.driverCmd.lineInVolSetCmd, siz
+             -eof(DriverVolumeSetCmd));
+  597   1      
+  598   1        DRIVER_SetLineInVolPara(&msgPtr->msgBodyPtr.driverCmd.lineInVolSetCmd);
+  599   1      
+  600   1        if((AUDIO_COMPONENT_IS_ACTIVE(AUDIO_LINE_IN) && isDiff) || AUDIO_COMPONENT_IS_ACTIVE(AUDIO_TRANSPARENCY)
+             -)
+  601   1        {
+  602   2          DRIVER_SetLineInVolumeToHW();
+  603   2        }
+  604   1        return MEMORY_PUT;
+  605   1      }
+  606          
+  607          PRIVATE U8 DRIVER_RingToneVPCmdHandler(DriverMsg XDATA_PTR msgPtr)
+  608          {
+  609   1        if(MMI_IGNORE_RING_VP_WHEN_FM_ON_FEAT && AUDIO_COMPONENT_IS_ACTIVE(AUDIO_FM))
+  610   1        {
+  611   2          // Do Nothing to Put Memory
+  612   2        }
+  613   1        else if(MMI_IGNORE_RING_VP_WHEN_LINE_IN_FEAT && AUDIO_COMPONENT_IS_ACTIVE(AUDIO_LINE_IN))
+  614   1        {
+  615   2          // Do Nothing to Put Memory
+  616   2        }
+  617   1        else if(!DRIVER_IsRingToneOrVPOrATPlaying())
+  618   1        {
+  619   2          label_add_queue_and_return:
+  620   2          if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_TRANSPARENCY))
+  621   2          {
+  622   3            if(IS_DSP_BUSY)
+  623   3            {
+  624   4              return QUE_PUTFRONT;
+  625   4            }
+  626   3            if(gDriver_ctl.isATSwitch == AT_NOT_IN_SWITCH)
+  627   3              DRIVER_ATSwitchVPRTSCO();
+  628   3          }
+  629   2          OSMQ_Put(OSMQ_AUDIO_Prompt_Command_ptr, (U8 XDATA_PTR)msgPtr);
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 11  
+
+  630   2          return CONTINUE_LOOP;
+  631   2        }
+  632   1        else if(MMI_QUEUE_RINGTONE_FEAT)
+  633   1        {
+  634   2           goto label_add_queue_and_return; //using goto for less code size
+  635   2        }
+  636   1        return MEMORY_PUT;
+  637   1      }
+  638          
+  639          PRIVATE U8 DRIVER_AudioTransparencyPushCmdHandler(DriverMsg XDATA_PTR msgPtr)
+  640          {
+  641   1        OSMQ_Put(OSMQ_AUDIO_Prompt_Command_ptr, (U8 XDATA_PTR)msgPtr);
+  642   1        return CONTINUE_LOOP;
+  643   1      }
+  644          
+  645          PRIVATE U8 DRIVER_StopSpecificRingCmdHandler(DriverMsg XDATA_PTR msgPtr)
+  646          {
+  647   1        #ifdef RINGTONE_ENABLE
+  648   1        if(AUDIO_COMPONENT_IS_ACTIVE (AUDIO_RINGTONE) && gDriver_ctl.playingRingtoneId == msgPtr->msgBodyPtr.dri
+             -verCmd.stopSpecificRTCmd.id)
+  649   1        {
+  650   2          if(!Ring_Pause())
+  651   2          {
+  652   3            return QUE_PUTFRONT;
+  653   3          }
+  654   2        }
+  655   1        #else
+                 UNUSED(msgPtr);
+                 #endif
+  658   1        return MEMORY_PUT;
+  659   1      }
+  660          
+  661          PRIVATE U8 DRIVER_StopSpecificVPCmdHandler(DriverMsg XDATA_PTR msgPtr)
+  662          {
+  663   1        #ifdef SUPPORT_VOICE_PROMPT
+  664   1        if(AUDIO_COMPONENT_IS_ACTIVE (AUDIO_VOICEPROMPT) && gDriver_ctl.playingRingtoneId == msgPtr->msgBodyPtr.
+             -driverCmd.stopSpecificVPCmd.id)
+  665   1        {
+  666   2          if(!VoicePrompt_Pause())
+  667   2          {
+  668   3            return QUE_PUTFRONT;
+  669   3          }
+  670   2        }
+  671   1        #else
+                 UNUSED(msgPtr);
+                 #endif
+  674   1        return MEMORY_PUT;
+  675   1      }
+  676          
+  677          PRIVATE U8 DRIVER_StopRingCmdHandler(DriverMsg XDATA_PTR msgPtr)
+  678          {
+  679   1        UNUSED(msgPtr);
+  680   1      #ifdef RINGTONE_ENABLE
+  681   1        if(Ring_Pause())
+  682   1        {
+  683   2          DRIVER_ClearAudioCmd(DRIVER_INTERNAL_CLEAN_ALL_AUDIO_CMD, VOICE_PROMPT_ALL_CLEAN);
+  684   2          return MEMORY_PUT;
+  685   2        }
+  686   1        return QUE_PUTFRONT;
+  687   1      #else
+                 DRIVER_ClearAudioCmd(DRIVER_INTERNAL_CLEAN_ALL_AUDIO_CMD, VOICE_PROMPT_ALL_CLEAN);
+                 return MEMORY_PUT;
+               #endif
+  691   1      }
+  692          
+  693          PRIVATE U8 DRIVER_StopVPCmdHandler(DriverMsg XDATA_PTR msgPtr)
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 12  
+
+  694          {
+  695   1        UNUSED(msgPtr);
+  696   1        #ifdef SUPPORT_VOICE_PROMPT
+  697   1        if(VoicePrompt_Pause())
+  698   1        {
+  699   2          DRIVER_ClearAudioCmd(DRIVER_INTERNAL_CLEAN_ALL_AUDIO_CMD, VOICE_PROMPT_ALL_CLEAN);
+  700   2          return MEMORY_PUT;
+  701   2        }
+  702   1        return QUE_PUTFRONT;
+  703   1        #else
+                 DRIVER_ClearAudioCmd(DRIVER_INTERNAL_CLEAN_ALL_AUDIO_CMD, VOICE_PROMPT_ALL_CLEAN);
+                 return MEMORY_PUT;
+                 #endif
+  707   1      }
+  708          
+  709          PRIVATE U8 DRIVER_FakeMediaVPRingCmdHandler(DriverMsg XDATA_PTR msgPtr)
+  710          {
+  711   1        OSMQ_Put(OSMQ_AUDIO_Prompt_Command_ptr, (U8 XDATA_PTR)msgPtr);
+  712   1        return CONTINUE_LOOP;
+  713   1      }
+  714          
+  715          PRIVATE U8 DRIVER_SCOCmdHandler(DriverMsg XDATA_PTR msgPtr)
+  716          {
+  717   1        return DRIVER_SCOCmdHandler1520(msgPtr);
+  718   1      }
+  719          
+  720          PRIVATE U8 DRIVER_A2DPCmdHandler(DriverMsg XDATA_PTR msgPtr)
+  721          {
+  722   1        return DRIVER_A2DPCmdHandler1520(msgPtr);
+  723   1      }
+  724          
+  725          PRIVATE U8 DRIVER_LineInCmdHandler(DriverMsg XDATA_PTR msgPtr)
+  726          {
+  727   1        DRIVER_SetMiscCtrlMap(DRIVER_IS_RESUME_FM, FALSE);
+  728   1        return DRIVER_LineInCmdHandler1520(msgPtr);
+  729   1      }
+  730          
+  731          PRIVATE U8 DRIVER_StopLineInCmdHandler(DriverMsg XDATA_PTR msgPtr)
+  732          {
+  733   1        return DRIVER_StopLineInCmdHandler1520(msgPtr);
+  734   1      }
+  735          
+  736          
+  737          PRIVATE U8 DRIVER_StopDSPCmdHandler(DriverMsg XDATA_PTR msgPtr)
+  738          {
+  739   1        return DRIVER_StopDSPCmdHandler1520(msgPtr);
+  740   1      }
+  741          
+  742          PRIVATE U8 DRIVER_StopDSPPowerOffCmdHandler(DriverMsg XDATA_PTR msgPtr)
+  743          {
+  744   1        return DRIVER_StopDSPPowerOffCmdHandler1520(msgPtr);
+  745   1      }
+  746          
+  747          #ifdef PEQ_ENABLE
+  748          PUBLIC void DRIVER_PEQSetMuteTimer(void)
+  749          {
+  750   1        //Mantis 11468 [Cannt unmute --> if unmute, pop noise]
+  751   1        //workaround on DSP
+  752   1        #if 0
+                 if(gMMI_nvram.timerCtl.peqChangeMutetime)
+                 {
+                   SYS_SetTimer(&gDriver_ctl.peqMuteTimer,(U32) gMMI_nvram.timerCtl.peqChangeMutetime*32L);
+                   gAUDIO_CtrlInfo.isMuteForPEQ = TRUE ;
+                   gAlignDSP.DSPOUT_MUTE = 1;
+                   LightDbgPrint("4DSPOUT_MUTE = 1");
+                 }
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 13  
+
+                 #endif
+  761   1      }
+  762          
+  763          PRIVATE void DRIVER_PEQLDBGPEQIndex(U8 peqMode)
+  764          {
+  765   1        if(peqMode == PEQ_LINE_IN)
+  766   1        {
+  767   2          LightDbgPrint("Line-in: Now PEQ index %d", (U8)PEQ_GetModeIndex(PEQ_LINE_IN));
+  768   2          LightDbgPrint("Line-in: Now sector mode %d", (U8)PEQ_GetSectorMode(PEQ_LINE_IN));
+  769   2        }
+  770   1        else if(peqMode == PEQ_A2DP)
+  771   1        {
+  772   2          LightDbgPrint("A2DP: Now PEQ index %d", (U8)PEQ_GetModeIndex(PEQ_A2DP));
+  773   2          LightDbgPrint("A2DP: Now sector mode %d", (U8)PEQ_GetSectorMode(PEQ_A2DP));
+  774   2        }
+  775   1      }
+  776          
+  777          PUBLIC void DRIVER_PEQReload(void)
+  778          {
+  779   1        U8 peqMode;
+  780   1        U8 sectorMode;
+  781   1        
+  782   1        if(gAlignDSP.DSP_CHANGE_PEQ  == 0)
+  783   1        {
+  784   2          PEQ_SetPeqHpfLoadSectorAddress(PEQ_GetSectorMode(PEQ_A2DP));
+  785   2          if(AUDIO_COMPONENT_IS_ACTIVE (AUDIO_A2DP))
+  786   2          {
+  787   3            if(0 == PEQ_GetModeNumber(PEQ_A2DP))
+  788   3              return;
+  789   3            if(PEQ_IsCustomPEQSectorEmpty(PEQ_A2DP) && (PEQ_GetSectorMode(PEQ_A2DP)==PEQ_LOAD_CUSTOM))
+  790   3            {
+  791   4              LightDbgPrint("==Cust Wrong %X !!!!!!",(U32)gPeq_ctl.sectorPEQAddress);
+  792   4              return;
+  793   4            }
+  794   3            peqMode = PEQ_A2DP;
+  795   3            sectorMode = PEQ_GetSectorMode(PEQ_A2DP); 
+  796   3          }
+  797   2          else if (AUDIO_COMPONENT_IS_ACTIVE (AUDIO_LINE_IN))
+  798   2          {
+  799   3            if(0 == PEQ_GetModeNumber(PEQ_LINE_IN))
+  800   3              return;
+  801   3            peqMode = PEQ_LINE_IN;
+  802   3            sectorMode = PEQ_GetSectorMode(PEQ_LINE_IN); 
+  803   3          }
+  804   2          #ifdef AIR_MODULE
+  805   2          else if(MMI_IsLocalDeviceType(PRODUCT_AIR_SCO_WOOFER) && AUDIO_COMPONENT_IS_ACTIVE (AUDIO_SCO))
+  806   2          {
+  807   3            if(0 == PEQ_GetModeNumber(PEQ_A2DP))
+  808   3              return;
+  809   3            peqMode = PEQ_A2DP;
+  810   3            sectorMode = PEQ_GetSectorMode(PEQ_A2DP); 
+  811   3          }
+  812   2          #endif
+  813   2          else
+  814   2          {
+  815   3            return;
+  816   3          }
+  817   2      
+  818   2          DRIVER_PEQLDBGPEQIndex(peqMode);
+  819   2          
+  820   2          if(PEQ_GetModeIndex(peqMode))
+  821   2          {
+  822   3            PEQ_SetPeqHpfLoadSectorAddress(sectorMode);
+  823   3            if(!PEQ_SetOn(peqMode))
+  824   3            {
+  825   4              goto SEND_RELOAD_CMD;
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 14  
+
+  826   4            }     
+  827   3          
+  828   3            #ifdef PEQ_EXPANSION_ENABLE
+  829   3            if(!PEQ_Expansion_Set(peqMode))
+  830   3            {
+  831   4              goto SEND_RELOAD_CMD;
+  832   4            }
+  833   3            #endif
+  834   3            
+  835   3            #ifdef PEQ_UNDER_100HZ_ENABLE
+  836   3            if(!PEQ_Under100Hz_Set(peqMode))
+  837   3            {
+  838   4              goto SEND_RELOAD_CMD;
+  839   4            }
+  840   3            #endif
+  841   3          }
+  842   2          else if(!PEQ_SetOff())
+  843   2          {
+  844   3            goto SEND_RELOAD_CMD;
+  845   3          }
+  846   2          
+  847   2          #ifdef TWS_SETTINGS
+  848   2          MMI_DRV_SyncPEQRelayerToFollower(peqMode, PEQ_GetModeIndex(peqMode), sectorMode);
+  849   2          #endif
+  850   2      
+  851   2          if(PEQ_GetModeIndex(peqMode) && HPF_IsHPFEnabledInSector(peqMode))
+  852   2          {     
+  853   3            if(!HPF_SetOn(peqMode))
+  854   3            {
+  855   4              goto SEND_RELOAD_CMD;
+  856   4            }
+  857   3          }
+  858   2          else if(!HPF_SetOff())
+  859   2          {
+  860   3            goto SEND_RELOAD_CMD;
+  861   3          }
+  862   2          return;
+  863   2      
+  864   2          SEND_RELOAD_CMD:
+  865   2          DRIVER_SendMsgToDriverQue(DRIVER_PEQ_RELOAD_CMD);
+  866   2        }
+  867   1      }
+  868          
+  869          PRIVATE void DRIVER_CaculatePEQMode(U8 component)
+  870          {
+  871   1        U8 numOfPEQ;
+  872   1        U8 modeIndex;
+  873   1      
+  874   1        if (component == PEQ_A2DP)
+  875   1          numOfPEQ = PEQ_GetModeNumber(PEQ_A2DP);
+  876   1        else
+  877   1          numOfPEQ = PEQ_GetModeNumber(PEQ_LINE_IN) ? PEQ_GetModeNumber(PEQ_LINE_IN):PEQ_GetModeNumber(PEQ_A2DP);
+  878   1      
+  879   1        modeIndex = PEQ_GetModeIndex(component);
+  880   1        
+  881   1        if(numOfPEQ < modeIndex)
+  882   1        {
+  883   2          PEQ_SetSectorMode(component, PEQ_LOAD_DEFAULT);
+  884   2          if(MMI_MUSIC_FORCE_USE_PEQ_FEAT)
+  885   2          {
+  886   3            LightDbgPrint("FORCE to use PEQ feature");
+  887   3            //1->2->3->1->2->3
+  888   3            PEQ_SetModeIndex(component, 1);
+  889   3          }
+  890   2          else
+  891   2          {
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 15  
+
+  892   3            LightDbgPrint("NOT FORCE to use PEQ feature");
+  893   3            //0->1->2->3->0->1->2->3
+  894   3            PEQ_SetModeIndex(component, 0);
+  895   3          }
+  896   2        } 
+  897   1        else if(numOfPEQ == modeIndex)
+  898   1        {
+  899   2          if(PEQ_GetSectorMode(component) == PEQ_LOAD_CUSTOM)
+  900   2          {
+  901   3            PEQ_SetSectorMode(component, PEQ_LOAD_DEFAULT);
+  902   3          }
+  903   2          else if(PEQ_GetSectorMode(component) == PEQ_LOAD_DEFAULT && !PEQ_IsCustomPEQSectorEmpty(component))
+  904   2          {
+  905   3            PEQ_SetSectorMode(component, PEQ_LOAD_CUSTOM);
+  906   3          }
+  907   2          
+  908   2          if(MMI_MUSIC_FORCE_USE_PEQ_FEAT)
+  909   2          {
+  910   3            LightDbgPrint("FORCE to use PEQ feature");
+  911   3            //1->2->3->1->2->3
+  912   3            PEQ_SetModeIndex(component, 1);
+  913   3          }
+  914   2          else
+  915   2          {
+  916   3            LightDbgPrint("NOT FORCE to use PEQ feature");
+  917   3            //0->1->2->3->0->1->2->3
+  918   3            PEQ_SetModeIndex(component, 0);
+  919   3          }
+  920   2        }
+  921   1        else
+  922   1        {
+  923   2          modeIndex += 1;
+  924   2          PEQ_SetModeIndex(component, modeIndex);
+  925   2        }
+  926   1        
+  927   1        LightDbgPrint("PEQ cal index:%d, mode:%d", (U8)PEQ_GetModeIndex(component), (U8)PEQ_GetSectorMode(compon
+             -ent));
+  928   1      }
+  929          
+  930          PUBLIC void DRIVER_ChangePEQMode(void)
+  931          {
+  932   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_A2DP))
+  933   1        {
+  934   2          if(PEQ_GetModeNumber(PEQ_A2DP) == 0 && PEQ_GetSectorMode(PEQ_A2DP) == PEQ_LOAD_DEFAULT)
+  935   2          {
+  936   3            return;
+  937   3          }
+  938   2          DRIVER_CaculatePEQMode(PEQ_A2DP);
+  939   2        }
+  940   1        else if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_LINE_IN))
+  941   1        {
+  942   2          if(PEQ_GetModeNumber(PEQ_LINE_IN) == 0 && PEQ_GetSectorMode(PEQ_LINE_IN) == PEQ_LOAD_DEFAULT)
+  943   2          {
+  944   3            return;
+  945   3          }
+  946   2          DRIVER_CaculatePEQMode(PEQ_LINE_IN);
+  947   2        }
+  948   1      
+  949   1        if(MMI_REMEMBER_PEQ_CHANGE_FEAT && !MMI_DEFAULT_PEQ_ASSIGNMENT_FEAT)
+  950   1        {
+  951   2          gMMI_driver_variation_nvram.misc_para.PEQRecord[PEQ_A2DP] = PEQ_GetModeIndex(PEQ_A2DP);
+  952   2          gMMI_driver_variation_nvram.misc_para.PEQRecord[PEQ_LINE_IN] = PEQ_GetModeIndex(PEQ_LINE_IN);
+  953   2          gMMI_driver_variation_nvram.misc_para.PEQSectorMode[PEQ_A2DP] = PEQ_GetSectorMode(PEQ_A2DP);
+  954   2          gMMI_driver_variation_nvram.misc_para.PEQSectorMode[PEQ_LINE_IN] = PEQ_GetSectorMode(PEQ_LINE_IN);
+  955   2          MMI_SECTOR_SetUpdateFlag(TRUE);
+  956   2        }
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 16  
+
+  957   1      }
+  958          
+  959          PRIVATE U8 DRIVER_PEQChangeCmdHandler(DriverMsg XDATA_PTR msgPtr)
+  960          {
+  961   1        if(!AUDIO_COMPONENT_IS_ACTIVE (AUDIO_A2DP) && !AUDIO_COMPONENT_IS_ACTIVE (AUDIO_LINE_IN))
+  962   1        {
+  963   2          return MEMORY_PUT;
+  964   2        }
+  965   1      
+  966   1        if(gAlignDSP.DSP_CHANGE_PEQ)
+  967   1        {
+  968   2          return MEMORY_PUT;
+  969   2        }
+  970   1        DRIVER_ChangePEQMode();
+  971   1      
+  972   1        DRIVER_PEQSetMuteTimer();
+  973   1        DRIVER_PEQReload();
+  974   1        UNUSED(msgPtr);
+  975   1        return MEMORY_PUT;
+  976   1      }
+  977          
+  978          PRIVATE U8 DRIVER_ReloadPEQCmdHandler(DriverMsg XDATA_PTR msgPtr)
+  979          {
+  980   1        UNUSED(msgPtr);
+  981   1        DRIVER_PEQSetMuteTimer();
+  982   1        DRIVER_PEQReload();
+  983   1        return MEMORY_PUT;
+  984   1      }
+  985          
+  986          PRIVATE U8 DRIVER_RealTimeSetPEQCmdHandler(DriverMsg XDATA_PTR msgPtr)
+  987          {
+  988   1        if(!AUDIO_COMPONENT_IS_ACTIVE (AUDIO_A2DP) && !AUDIO_COMPONENT_IS_ACTIVE (AUDIO_LINE_IN))
+  989   1        {
+  990   2          return MEMORY_PUT;
+  991   2        } 
+  992   1      
+  993   1        switch(msgPtr->msgBodyPtr.driverCmd.peqRealTimeSetCmd.enable_mode)
+  994   1        {
+  995   2          case PEQ_ENABLED_MODE:
+  996   2            if(PEQ_GetRealtimePEQParameterPtr(PEQ_PARAMETER) == NULL)
+  997   2            {
+  998   3              PEQ_AllocateRealtimePEQParameterPtr();
+  999   3            }
+ 1000   2            if(PEQ_GetRealtimePEQParameterPtr(PEQ_PARAMETER) != NULL)
+ 1001   2            {
+ 1002   3              PEQ_SetRealtimeEnableMode(PEQ_ENABLED_MODE);
+ 1003   3              OSMEM_memcpy_xdata_xdata ((U8 XDATA_PTR)PEQ_GetRealtimePEQParameterPtr(PEQ_PARAMETER),
+ 1004   3                (U8 XDATA_PTR)&msgPtr->msgBodyPtr.driverCmd.peqRealTimeSetCmd.para.peq,
+ 1005   3                sizeof(PEQ_CONFIG_SECTOR));
+ 1006   3              #ifdef TWS_SETTINGS
+ 1007   3              MMI_DRV_SyncRealTimePEQFollowerToRelayer((U8 XDATA_PTR)PEQ_GetRealtimePEQParameterPtr(PEQ_PARAMETER),
+             - PEQ_ENABLED_MODE);
+ 1008   3              #endif
+ 1009   3            }
+ 1010   2            else
+ 1011   2            {
+ 1012   3              return QUE_PUTFRONT;
+ 1013   3            }
+ 1014   2            break;
+ 1015   2          case HPF_ENABLED_MODE:
+ 1016   2            if(PEQ_GetRealtimePEQParameterPtr(HPF_PARAMETER) == NULL)
+ 1017   2            {
+ 1018   3              PEQ_AllocateRealtimePEQParameterPtr();
+ 1019   3            }
+ 1020   2            if(PEQ_GetRealtimePEQParameterPtr(HPF_PARAMETER) != NULL)
+ 1021   2            {
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 17  
+
+ 1022   3              PEQ_SetRealtimeEnableMode(HPF_ENABLED_MODE);
+ 1023   3              OSMEM_memcpy_xdata_xdata ((U8 XDATA_PTR)PEQ_GetRealtimePEQParameterPtr(HPF_PARAMETER),
+ 1024   3                (U8 XDATA_PTR)&msgPtr->msgBodyPtr.driverCmd.peqRealTimeSetCmd.para.hpf,
+ 1025   3                sizeof(HPF_CONFIG_SECTOR));
+ 1026   3              #ifdef TWS_SETTINGS
+ 1027   3              MMI_DRV_SyncRealTimePEQFollowerToRelayer((U8 XDATA_PTR)PEQ_GetRealtimePEQParameterPtr(HPF_PARAMETER),
+             - HPF_ENABLED_MODE);
+ 1028   3              #endif
+ 1029   3            }
+ 1030   2            else
+ 1031   2            {
+ 1032   3              return QUE_PUTFRONT;
+ 1033   3            }
+ 1034   2            break;
+ 1035   2          #ifdef PEQ_EXPANSION_ENABLE
+ 1036   2          case PEQ_EXPANSION_ENABLED_MODE:
+ 1037   2            if(PEQ_GetRealtimePEQParameterPtr(PEQ_Expansion_PARAMETER) == NULL)
+ 1038   2            {
+ 1039   3              PEQ_AllocateRealtimePEQParameterPtr();
+ 1040   3            }
+ 1041   2            if(PEQ_GetRealtimePEQParameterPtr(PEQ_Expansion_PARAMETER) != NULL)
+ 1042   2            {
+ 1043   3              PEQ_SetRealtimeEnableMode(PEQ_EXPANSION_ENABLED_MODE);
+ 1044   3              OSMEM_memcpy_xdata_xdata ((U8 XDATA_PTR)PEQ_GetRealtimePEQParameterPtr(PEQ_Expansion_PARAMETER),
+ 1045   3                (U8 XDATA_PTR)&msgPtr->msgBodyPtr.driverCmd.peqRealTimeSetCmd.para.peq_expansion,
+ 1046   3                sizeof(PEQ_CONFIG_SECTOR));
+ 1047   3              #ifdef TWS_SETTINGS
+ 1048   3              MMI_DRV_SyncRealTimePEQFollowerToRelayer((U8 XDATA_PTR)PEQ_GetRealtimePEQParameterPtr(PEQ_Expansion_P
+             -ARAMETER), PEQ_EXPANSION_ENABLED_MODE);
+ 1049   3              #endif
+ 1050   3            }
+ 1051   2            else
+ 1052   2            {
+ 1053   3              return QUE_PUTFRONT;
+ 1054   3            }
+ 1055   2            
+ 1056   2            break;
+ 1057   2          #endif
+ 1058   2          #ifdef PEQ_UNDER_100HZ_ENABLE
+ 1059   2          case PEQ_UNDER_100HZ_ENABLED_MODE:
+ 1060   2            if(PEQ_GetRealtimePEQParameterPtr(PEQ_Under100Hz_PARAMETER) == NULL)
+ 1061   2            {
+ 1062   3              PEQ_AllocateRealtimePEQParameterPtr();
+ 1063   3            }
+ 1064   2            if(PEQ_GetRealtimePEQParameterPtr(PEQ_Under100Hz_PARAMETER) != NULL)
+ 1065   2            {
+ 1066   3              PEQ_SetRealtimeEnableMode(PEQ_UNDER_100HZ_ENABLED_MODE);
+ 1067   3              OSMEM_memcpy_xdata_xdata ((U8 XDATA_PTR)PEQ_GetRealtimePEQParameterPtr(PEQ_Under100Hz_PARAMETER),
+ 1068   3                (U8 XDATA_PTR)&msgPtr->msgBodyPtr.driverCmd.peqRealTimeSetCmd.para.peq_under100Hz, sizeof(PEQ_100HZ_
+             -SECTOR));
+ 1069   3              #ifdef TWS_SETTINGS
+ 1070   3              MMI_DRV_SyncRealTimePEQFollowerToRelayer((U8 XDATA_PTR)PEQ_GetRealtimePEQParameterPtr(PEQ_Under100Hz_
+             -PARAMETER), PEQ_UNDER_100HZ_ENABLED_MODE);
+ 1071   3              #endif
+ 1072   3            }
+ 1073   2            else
+ 1074   2            {
+ 1075   3              return QUE_PUTFRONT;
+ 1076   3            }
+ 1077   2            break;
+ 1078   2          #endif
+ 1079   2          case REALTIME_PEQ_HPF_SET_END:
+ 1080   2            #ifdef TWS_SETTINGS
+ 1081   2            MMI_DRV_SyncRealTimePEQFollowerToRelayer((U8 XDATA_PTR)NULL, REALTIME_PEQ_HPF_SET_END);
+ 1082   2            #endif
+ 1083   2            if(gAlignDSP.DSP_CHANGE_PEQ != 0)
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 18  
+
+ 1084   2            {
+ 1085   3              return QUE_PUTFRONT;
+ 1086   3            }
+ 1087   2            PEQ_RealTimeSetPeqHpf();
+ 1088   2            break;
+ 1089   2        }
+ 1090   1        return MEMORY_PUT;
+ 1091   1      }
+ 1092          
+ 1093          PRIVATE U8 DRIVER_SetPEQParameterHandler(DriverMsg XDATA_PTR msgPtr)
+ 1094          {
+ 1095   1        PEQ_SetPeqParameter(msgPtr->msgBodyPtr.driverCmd.peqPEQParaSetCmd.peqMode, 
+ 1096   1                  msgPtr->msgBodyPtr.driverCmd.peqPEQParaSetCmd.peqModeIndex,
+ 1097   1                  msgPtr->msgBodyPtr.driverCmd.peqPEQParaSetCmd.sectorMode);
+ 1098   1      
+ 1099   1        if(MMI_REMEMBER_PEQ_CHANGE_FEAT && !MMI_DEFAULT_PEQ_ASSIGNMENT_FEAT)
+ 1100   1        {
+ 1101   2          gMMI_driver_variation_nvram.misc_para.PEQRecord[PEQ_A2DP] = PEQ_GetModeIndex(PEQ_A2DP);
+ 1102   2          gMMI_driver_variation_nvram.misc_para.PEQSectorMode[PEQ_A2DP] = PEQ_GetSectorMode(PEQ_A2DP);
+ 1103   2          MMI_SECTOR_SetUpdateFlag(TRUE);
+ 1104   2        }
+ 1105   1                 
+ 1106   1        return MEMORY_PUT;
+ 1107   1      }
+ 1108          #endif
+ 1109          
+ 1110          PRIVATE U8 DRIVER_PowerOnCloseADDACmdHandler(DriverMsg XDATA_PTR msgPtr)
+ 1111          {
+ 1112   1        UNUSED(msgPtr);
+ 1113   1      
+ 1114   1        #ifdef OPERATION_IN_BB_ASIC_VERSION
+ 1115   1        AUDIO_ResetADDA();
+ 1116   1        #endif
+ 1117   1      
+ 1118   1        return MEMORY_PUT;
+ 1119   1      }
+ 1120          
+ 1121          extern PUBLIC void DRIVER_LED_PowerSavingExit(BOOL isResetTimer);
+ 1122          PRIVATE U8 DRIVER_BatteryStatusCmdHandler(DriverMsg XDATA_PTR msgPtr)
+ 1123          {
+ 1124   1        if( (msgPtr->msgBodyPtr.driverCmd.batStatusCmd.isLowBat && !DRIVER_IsMiscCtrlTypeEnabled(DRIVER_IS_LOW_B
+             -ATTERY)) ||
+ 1125   1          (!msgPtr->msgBodyPtr.driverCmd.batStatusCmd.isLowBat && DRIVER_IsMiscCtrlTypeEnabled(DRIVER_IS_LOW_BATT
+             -ERY)))
+ 1126   1        {
+ 1127   2          if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_LINE_IN))
+ 1128   2            DRIVER_SetLineInVolumeToHW();
+ 1129   2          else if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_A2DP))
+ 1130   2            DRIVER_SetA2DPVolumeToHW();
+ 1131   2          else if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_SCO) || AUDIO_COMPONENT_IS_ACTIVE(AUDIO_ASYNC_SCO))
+ 1132   2            DRIVER_SetNormalVolumeToHW();
+ 1133   2        }
+ 1134   1      
+ 1135   1        DRIVER_SetMiscCtrlMap(DRIVER_IS_LOW_BATTERY, (msgPtr->msgBodyPtr.driverCmd.batStatusCmd.isLowBat? TRUE:F
+             -ALSE));
+ 1136   1        DRIVER_SetMiscCtrlMap(DRIVER_IS_CHARGER_IN, (msgPtr->msgBodyPtr.driverCmd.batStatusCmd.isCharging? TRUE:
+             -FALSE));
+ 1137   1      
+ 1138   1      
+ 1139   1        if(msgPtr->msgBodyPtr.driverCmd.batStatusCmd.isCharging)
+ 1140   1        {
+ 1141   2          DRIVER_LED_PowerSavingExit(FALSE);
+ 1142   2        }
+ 1143   1      
+ 1144   1        return MEMORY_PUT;
+ 1145   1      }
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 19  
+
+ 1146          
+ 1147          PRIVATE U8 DRIVER_VoiceCommandHandler (DriverMsg XDATA_PTR msgPtr)
+ 1148          {
+ 1149   1      #ifdef SUPPORT_VOICE_COMMAND
+ 1150   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_TRANSPARENCY))
+ 1151   1        {
+ 1152   2          AudioTrspr_Stop();
+ 1153   2          return QUE_PUTFRONT;
+ 1154   2        }
+ 1155   1      
+ 1156   1        VoiceCommand_ChooseIdentificationMode();
+ 1157   1        if(gVC_ctl.vcIdentificationMode == DEFAULT_VC_IDENTIFY)
+ 1158   1        {
+ 1159   2          if( VoiceCommand_GetData(msgPtr) && VoiceCommand_Start())
+ 1160   2          {
+ 1161   3            gDriver_ctl.playingVoiceCmdId = msgPtr->msgBodyPtr.driverCmd.vcCmd.id;
+ 1162   3            return MEMORY_PUT;
+ 1163   3          }
+ 1164   2        }
+ 1165   1        else
+ 1166   1        {
+ 1167   2          if( VoiceCommand_GetData(msgPtr) && VoiceCommand_GetAPDData(msgPtr) && VoiceCommand_Start())
+ 1168   2          {
+ 1169   3            gDriver_ctl.playingVoiceCmdId = msgPtr->msgBodyPtr.driverCmd.vcCmd.id;
+ 1170   3            return MEMORY_PUT;
+ 1171   3          }
+ 1172   2        }
+ 1173   1        return QUE_PUTFRONT;
+ 1174   1      #else
+                 DRIVER_SendVoiceCommandEndedEvent((U8)msgPtr->msgBodyPtr.driverCmd.vcCmd.id, MMI_EOF, FALSE);
+                 return MEMORY_PUT;
+               #endif
+ 1178   1      
+ 1179   1      }
+ 1180          
+ 1181          PRIVATE U8 DRIVER_SetVoiceCommandVolHandler(DriverMsg XDATA_PTR msgPtr)
+ 1182          {
+ 1183   1        gDriver_ctl.voiceCmdMiscCtl.micVols   =   msgPtr->msgBodyPtr.driverCmd.vcVolCmd.micVols;
+ 1184   1        gDriver_ctl.voiceCmdMiscCtl.analogAdGain_R =    msgPtr->msgBodyPtr.driverCmd.vcVolCmd.analogAdGain_R;
+ 1185   1        gDriver_ctl.voiceCmdMiscCtl.analogAdGain_L =    msgPtr->msgBodyPtr.driverCmd.vcVolCmd.analogAdGain_L;
+ 1186   1      
+ 1187   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICECOMMAND))
+ 1188   1          DRIVER_SetGainAndMute(TARGET_NONE);
+ 1189   1      
+ 1190   1        return MEMORY_PUT;
+ 1191   1      }
+ 1192          
+ 1193          PRIVATE U8 DRIVER_StopVoiceCommandHandler(DriverMsg XDATA_PTR msgPtr)
+ 1194          {
+ 1195   1        UNUSED(msgPtr);
+ 1196   1        #ifdef SUPPORT_VOICE_COMMAND
+ 1197   1        return (VoiceCommand_Pause())?MEMORY_PUT:QUE_PUTFRONT;
+ 1198   1        #else
+                 return MEMORY_PUT;
+                 #endif
+ 1201   1      }
+ 1202          
+ 1203          PRIVATE U8 DRIVER_SetAudioSelHandler(DriverMsg XDATA_PTR msgPtr)
+ 1204          {
+ 1205   1        AUDIO_Close_AMP();
+ 1206   1        if(MEMORY_PUT == DRIVER_CloseAllAudioHandler1520(msgPtr))
+ 1207   1        {
+ 1208   2          AUDIO_DisbaleCurrentDigitalInOut();
+ 1209   2          if(msgPtr->msgBodyPtr.driverCmd.audioSelectCmd.isResetToDefault)
+ 1210   2          {
+ 1211   3            AUDIO_SetAudioInOutAsDefault();
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 20  
+
+ 1212   3          }
+ 1213   2          else
+ 1214   2          {
+ 1215   3            AUDIO_SetAudioInOut(msgPtr->msgBodyPtr.driverCmd.audioSelectCmd.audioInSel, msgPtr->msgBodyPtr.driverC
+             -md.audioSelectCmd.audioOutSel);
+ 1216   3      
+ 1217   3            gAUDIO_CtrlInfo.I2SIN_PIO = msgPtr->msgBodyPtr.driverCmd.audioSelectCmd.I2SInPIO;
+ 1218   3            gAUDIO_CtrlInfo.AUDIO_I2S_MASTER_GROUP_SEL = msgPtr->msgBodyPtr.driverCmd.audioSelectCmd.audioI2SMaste
+             -rGroupSel;
+ 1219   3            gAUDIO_CtrlInfo.AUDIO_I2S_SLAVE_GROUP_SEL = msgPtr->msgBodyPtr.driverCmd.audioSelectCmd.audioI2SSlaveG
+             -roupSel;
+ 1220   3            gAUDIO_CtrlInfo.SPDIF_PIO = msgPtr->msgBodyPtr.driverCmd.audioSelectCmd.SPDIFPIO;
+ 1221   3            gAUDIO_CtrlInfo.MCLK_INTERNAL = msgPtr->msgBodyPtr.driverCmd.audioSelectCmd.MCLKInternal;
+ 1222   3            gAUDIO_CtrlInfo.MCLKDivideNum = msgPtr->msgBodyPtr.driverCmd.audioSelectCmd.MCLKDivideNum;
+ 1223   3            gAUDIO_CtrlInfo.MCLK_PHASE_INVERT = msgPtr->msgBodyPtr.driverCmd.audioSelectCmd.MCLKPhaseInvert;
+ 1224   3            gAUDIO_CtrlInfo.I2SMCLKPioDisable = (msgPtr->msgBodyPtr.driverCmd.audioSelectCmd.I2SMCLKPioDisable)?TR
+             -UE:FALSE;
+ 1225   3          }
+ 1226   2          AUDIO_EnableDigitalInOut();
+ 1227   2          return MEMORY_PUT;
+ 1228   2        }
+ 1229   1        return QUE_PUTFRONT;
+ 1230   1      }
+ 1231          
+ 1232          PUBLIC U8 DRIVER_SuspendDSPHandler(DriverMsg XDATA_PTR msgPtr)
+ 1233          {
+ 1234   1        return DRIVER_SuspendDSPCmdHandler1520(msgPtr);
+ 1235   1      }
+ 1236          
+ 1237          PUBLIC U8 DRIVER_ChangeSoundEffectHandler(DriverMsg XDATA_PTR msgPtr)
+ 1238          {
+ 1239   1        if(!AUDIO_COMPONENT_IS_ACTIVE (AUDIO_A2DP) && !AUDIO_COMPONENT_IS_ACTIVE (AUDIO_LINE_IN))
+ 1240   1        {
+ 1241   2          return MEMORY_PUT;
+ 1242   2        }
+ 1243   1      
+ 1244   1        if (AUDIO_COMPONENT_IS_ACTIVE(AUDIO_A2DP))
+ 1245   1        {
+ 1246   2          soundEffect_Ctl[SOUND_EFFECT_A2DP].modeSoundEffect =(soundEffect_Ctl[SOUND_EFFECT_A2DP].modeSoundEffect
+             - % DSP_SOUNDEFFECT_TOTAL_NO)+1;
+ 1247   2          if (soundEffect_Ctl[SOUND_EFFECT_A2DP].modeSoundEffect== DSP_SOUNDEFFECT_TOTAL_NO)
+ 1248   2          {
+ 1249   3            soundEffect_Ctl[SOUND_EFFECT_A2DP].modeSoundEffect=DSP_SOUNDEFFECT_NONE;
+ 1250   3          }
+ 1251   2        }
+ 1252   1        else if (AUDIO_COMPONENT_IS_ACTIVE(AUDIO_LINE_IN))
+ 1253   1        {
+ 1254   2          soundEffect_Ctl[SOUND_EFFECT_LINE_IN].modeSoundEffect =(soundEffect_Ctl[SOUND_EFFECT_LINE_IN].modeSound
+             -Effect % DSP_SOUNDEFFECT_TOTAL_NO)+1;
+ 1255   2          if (soundEffect_Ctl[SOUND_EFFECT_LINE_IN].modeSoundEffect== DSP_SOUNDEFFECT_TOTAL_NO)
+ 1256   2          {
+ 1257   3            soundEffect_Ctl[SOUND_EFFECT_LINE_IN].modeSoundEffect = DSP_SOUNDEFFECT_NONE;
+ 1258   3          }
+ 1259   2        }
+ 1260   1        return DRIVER_DSPSoundEffect1520(msgPtr);
+ 1261   1      }
+ 1262          
+ 1263          PUBLIC U8 DRIVER_ControlDBBOnOffHandler(DriverMsg XDATA_PTR msgPtr)
+ 1264          {
+ 1265   1        return DRIVER_DSPDBBOnOff1520(msgPtr);
+ 1266   1      }
+ 1267          
+ 1268          PUBLIC U8 DRIVER_GetDSPParaRefGainHandler(DriverMsg XDATA_PTR msgPtr)
+ 1269          {
+ 1270   1        return DRIVER_DSPRefGain1520(msgPtr);
+ 1271   1      }
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 21  
+
+ 1272          
+ 1273          #ifdef DEMOSOUND
+               PUBLIC U8 DRIVER_DemoSoundPlayHandler(DriverMsg XDATA_PTR msgPtr)
+               {
+                 return DemoSound_Play(msgPtr);
+               }
+               
+               PUBLIC U8 DRIVER_DemoSoundPauseHandler(DriverMsg XDATA_PTR msgPtr)
+               {
+                 return DemoSound_Pause(msgPtr);
+               }
+               
+               PUBLIC U8 DRIVER_DemoSoundStopHandler(DriverMsg XDATA_PTR msgPtr)
+               {
+                 return DemoSound_Stop(msgPtr);
+               }
+               
+               PUBLIC U8 DRIVER_DemoSoundForwardHandler(DriverMsg XDATA_PTR msgPtr)
+               {
+                 return DemoSound_ChangeSongForward(msgPtr);
+               }
+               
+               PUBLIC U8 DRIVER_DemoSoundBackwardHandler(DriverMsg XDATA_PTR msgPtr)
+               {
+                 return DemoSound_ChangeSongBackward(msgPtr);
+               }
+               #endif
+ 1299          
+ 1300          #ifdef SUPPORT_MIC_IN_A2DP_MODE
+ 1301          PUBLIC U8 DRIVER_A2DPAddMicHandler(DriverMsg XDATA_PTR msgPtr)
+ 1302          {
+ 1303   1        return DRIVER_A2DPAddMicHandler1520(msgPtr);
+ 1304   1      }
+ 1305          #endif
+ 1306          
+ 1307          PUBLIC U8 DRIVER_MicTestHandler(DriverMsg XDATA_PTR msgPtr)
+ 1308          {
+ 1309   1        return DRIVER_MicTestHandler1520(msgPtr);
+ 1310   1      }
+ 1311          
+ 1312          PRIVATE U8 DRIVER_SwitchStereoMonoHandler(DriverMsg XDATA_PTR msgPtr)
+ 1313          {
+ 1314   1        UNUSED(msgPtr);
+ 1315   1        return DRIVER_SwitchStereoMonoHandler1520();
+ 1316   1      }
+ 1317          
+ 1318          PUBLIC U8 DRIVER_SCOModeControlHandler(DriverMsg XDATA_PTR msgPtr)
+ 1319          {
+ 1320   1        return DRIVER_SCOModeControlHandler1520(msgPtr);
+ 1321   1      }
+ 1322          
+ 1323          PRIVATE U8 DRIVER_SetVprtVolumeCmdHandler(DriverMsg XDATA_PTR msgPtr)
+ 1324          {
+ 1325   1        BOOL isDiff = (gDriver_ctl.vprtSoundLevel != msgPtr->msgBodyPtr.driverCmd.vprtVolSetCmd.soundLevel);
+ 1326   1        
+ 1327   1        if(isDiff)
+ 1328   1        {
+ 1329   2          gDriver_ctl.vprtSoundLevel = msgPtr->msgBodyPtr.driverCmd.vprtVolSetCmd.soundLevel;
+ 1330   2          
+ 1331   2          if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_RINGTONE) || AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICEPROMPT))
+ 1332   2            DRIVER_SetVprtVolumeToHW();
+ 1333   2        }
+ 1334   1        return MEMORY_PUT;
+ 1335   1      }
+ 1336          
+ 1337          PUBLIC BOOL DRIVER_AudioTransparencyCmdHandler(DriverMsg XDATA_PTR msgPtr)
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 22  
+
+ 1338          {
+ 1339   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICECOMMAND))
+ 1340   1          return FALSE;
+ 1341   1      
+ 1342   1        if(msgPtr->msgBodyPtr.driverCmd.audioTransparencyCmd.isEnable)
+ 1343   1        {
+ 1344   2          if(AudioTrspr_Start())
+ 1345   2          {
+ 1346   3            return TRUE;
+ 1347   3          }
+ 1348   2        }
+ 1349   1        else
+ 1350   1        {
+ 1351   2          if(AudioTrspr_Stop())
+ 1352   2          {
+ 1353   3            return TRUE;
+ 1354   3          }
+ 1355   2        }
+ 1356   1        return FALSE;
+ 1357   1      }
+ 1358          
+ 1359          PUBLIC void DRIVER_SetMiscCtrlMap(U8 mistCtrlType, BOOL enable)
+ 1360          {
+ 1361   1        if (enable)
+ 1362   1        {
+ 1363   2          gDriver_ctl.miscCtrlMap |= mistCtrlType;
+ 1364   2        }
+ 1365   1        else
+ 1366   1        {
+ 1367   2          gDriver_ctl.miscCtrlMap &= (~mistCtrlType);
+ 1368   2        }
+ 1369   1      }
+ 1370          
+ 1371          PUBLIC void DRIVER_TurnOffPureOn(void)
+ 1372          {
+ 1373   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_PURE_ON))
+ 1374   1        {
+ 1375   2          AUDIO_SetAudioOff (AUDIO_PURE_ON);
+ 1376   2        }
+ 1377   1      }
+ 1378          
+ 1379          PUBLIC BOOL DRIVER_IsMiscCtrlTypeEnabled(U8 mistCtrlType)
+ 1380          {
+ 1381   1        return (gDriver_ctl.miscCtrlMap & mistCtrlType) == 0 ? FALSE : TRUE;
+ 1382   1      }
+ 1383          
+ 1384          PUBLIC DriverMsg XDATA_PTR DRIVER_GetGeneralEventMemory(U8 driverMsgType)
+ 1385          {
+ 1386   1        DriverMsg XDATA_PTR msgPtr;
+ 1387   1      
+ 1388   1        msgPtr = (DriverMsg XDATA_PTR)OSMEM_Get(OSMEM_ptr1);
+ 1389   1      
+ 1390   1        if(msgPtr)
+ 1391   1        {
+ 1392   2          OSMEM_memset_xdata((U8 XDATA_PTR)msgPtr, 0, OSMEM1_BLKSIZE);
+ 1393   2      
+ 1394   2          msgPtr->dataOffset = EVT_OFFSET;
+ 1395   2          msgPtr->eventCode = driverMsgType;
+ 1396   2        }
+ 1397   1        return msgPtr;
+ 1398   1      }
+ 1399          
+ 1400          
+ 1401          
+ 1402          PUBLIC void DRIVER_SendA2DPEnableEvent(void)
+ 1403          {
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 23  
+
+ 1404   1        gMMI_Drv_Handler.fDriverDSPA2DPEnabledEvent(gDriver_ctl.dspLink);
+ 1405   1        DRIVER_SetA2DPVolumeToHW();
+ 1406   1      }
+ 1407          
+ 1408          PUBLIC void DRIVER_SendA2DPDisableEvent(void)
+ 1409          {
+ 1410   1        gMMI_Drv_Handler.fDriverDSPA2DPDisabledEvent(gDriver_ctl.dspLink);
+ 1411   1        gDriver_ctl.dspLink = 0xFF;
+ 1412   1      }
+ 1413          
+ 1414          PUBLIC void DRIVER_SendSCOEnableEvent(BOOL isLightMono)
+ 1415          {
+ 1416   1        gMMI_Drv_Handler.fDriverDSPSCOEnabledEvent(gDriver_ctl.dspLink, isLightMono);
+ 1417   1        DRIVER_SetNormalVolumeToHW();
+ 1418   1      }
+ 1419          
+ 1420          PUBLIC void DRIVER_SendSCODisableEvent(void)
+ 1421          {
+ 1422   1        gMMI_Drv_Handler.fDriverDSPSCODisabledEvent(gDriver_ctl.dspLink);
+ 1423   1        gDriver_ctl.dspLink = 0xFF;
+ 1424   1      }
+ 1425          
+ 1426          PUBLIC void DRIVER_SendLineInEnableEvent(void)
+ 1427          {
+ 1428   1        gMMI_Drv_Handler.fDriverDSPLineInEnabledEvent();
+ 1429   1        DRIVER_SetLineInVolumeToHW();
+ 1430   1      }
+ 1431          
+ 1432          PUBLIC void DRIVER_SendLineInDisableEvent(void)
+ 1433          {
+ 1434   1        gMMI_Drv_Handler.fDriverDSPLineInDisabledEvent();
+ 1435   1      }
+ 1436          
+ 1437          PUBLIC void DRIVER_SendRequestCloseFMEvent(void)
+ 1438          {
+ 1439   1        gMMI_Drv_Handler.fDriverReqCloseFMEvent();
+ 1440   1      }
+ 1441          
+ 1442          PUBLIC void DRIVER_SendAsyncSCOEnabledEvent(void)
+ 1443          {
+ 1444   1        gMMI_Drv_Handler.fDriverAsyncSCOEnabledEvent(gDriver_ctl.dspLink);
+ 1445   1        DRIVER_SetNormalVolumeToHW();
+ 1446   1      }
+ 1447          
+ 1448          PUBLIC void DRIVER_SendAsyncSCODisabledEvent(void)
+ 1449          {
+ 1450   1        gMMI_Drv_Handler.fDriverAsyncSCODisabledEvent(gDriver_ctl.dspLink);
+ 1451   1      }
+ 1452          
+ 1453          
+ 1454          PUBLIC BOOL DRIVER_RingtoneCmdHandler(DriverMsg XDATA_PTR msgPtr)
+ 1455          {
+ 1456   1      #ifdef RINGTONE_ENABLE
+ 1457   1        if(Ring_GetData(msgPtr->msgBodyPtr.driverCmd.ringtoneCmd.beepIndex) && Ring_Start((msgPtr->msgBodyPtr.dr
+             -iverCmd.ringtoneCmd.suspendApp)? TRUE : FALSE))
+ 1458   1        {
+ 1459   2          DRIVER_CheckMuteByMediaID(gDriver_ctl.playingRingtoneId = msgPtr->msgBodyPtr.driverCmd.ringtoneCmd.id);
+ 1460   2          LightDbgPrint("Play RT Idx:%X", (U32)msgPtr->msgBodyPtr.driverCmd.ringtoneCmd.id);
+ 1461   2          return TRUE;
+ 1462   2        }
+ 1463   1        return FALSE;
+ 1464   1      #else
+                 DRIVER_SendRingtoneEndedEvent(msgPtr->msgBodyPtr.driverCmd.ringtoneCmd.id);
+                 return TRUE;
+               #endif
+ 1468   1      }
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 24  
+
+ 1469          
+ 1470          
+ 1471          #ifdef SUPPORT_VOICE_PROMPT
+ 1472          PRIVATE void DRIVER_SendVoicePromptEndedEvent (U16 id)
+ 1473          {
+ 1474   1        if(id != NO_MEDIA)
+ 1475   1          gMMI_Drv_Handler.fDriverVoicePromptEndEvent(id);
+ 1476   1      }
+ 1477          
+ 1478          PUBLIC void DRIVER_VoicePromptOffCallback(void)
+ 1479          {
+ 1480   1        DRIVER_SendVoicePromptEndedEvent(gDriver_ctl.playingRingtoneId);
+ 1481   1        gDriver_ctl.playingRingtoneId = NO_MEDIA;
+ 1482   1      }
+ 1483          
+ 1484          PUBLIC BOOL DRIVER_VoicePromptCmdHandler(DriverMsg XDATA_PTR msgPtr)
+ 1485          {
+ 1486   1        if(!AUDIO_IsAllowVoicePrompt())
+ 1487   1          return TRUE;
+ 1488   1        if(msgPtr->msgBodyPtr.driverCmd.voicePromptCmd.isOverSCO && !AUDIO_COMPONENT_IS_ACTIVE(AUDIO_SCO))
+ 1489   1          return TRUE;
+ 1490   1      
+ 1491   1        switch(VoicePrompt_GetData(msgPtr))
+ 1492   1        {
+ 1493   2          case VP_GET_DATA_OK:
+ 1494   2            if(VoicePrompt_Start(msgPtr->msgBodyPtr.driverCmd.voicePromptCmd.suspendApp ? TRUE : FALSE, msgPtr->ms
+             -gBodyPtr.driverCmd.voicePromptCmd.isOverSCO ? TRUE : FALSE))
+ 1495   2            {
+ 1496   3              DRIVER_CheckMuteByMediaID(gDriver_ctl.playingRingtoneId = msgPtr->msgBodyPtr.driverCmd.voicePromptCmd
+             -.id);
+ 1497   3              LightDbgPrint("Play VP Idx:%X", (U32)msgPtr->msgBodyPtr.driverCmd.voicePromptCmd.id);
+ 1498   3              return TRUE;
+ 1499   3            }
+ 1500   2            break;
+ 1501   2      
+ 1502   2          case VP_GET_DATA_BUSY:
+ 1503   2            return FALSE;
+ 1504   2      
+ 1505   2          case VP_GET_DATA_FAIL:
+ 1506   2            gDriver_ctl.playingRingtoneId = msgPtr->msgBodyPtr.driverCmd.voicePromptCmd.id;
+ 1507   2            DRIVER_VoicePromptOffCallback();
+ 1508   2          default:
+ 1509   2            return TRUE;
+ 1510   2        }
+ 1511   1        return FALSE;
+ 1512   1      }
+ 1513          #endif
+ 1514          
+ 1515          PUBLIC void DRIVER_ATSwitchVPRTSCO(void)
+ 1516          {
+ 1517   1        gDriver_ctl.isATSwitch = AT_IN_SWITCH;
+ 1518   1        AudioTrspr_Stop();
+ 1519   1      }
+ 1520          
+ 1521          extern PUBLIC BOOL MMI_CheckLinkInCallRelatedState(U8 link);
+ 1522          PUBLIC BOOL DRIVER_CheckATEnablePlay(void)
+ 1523          {
+ 1524   1          #ifdef SUPPORT_MIC_IN_A2DP_MODE
+ 1525   1        if(!AUDIO_COMPONENT_IS_ACTIVE(AUDIO_RINGTONE) && !AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICEPROMPT) && !AUDIO
+             -_COMPONENT_IS_ACTIVE(AUDIO_VOICECOMMAND) &&
+ 1526   1          !AUDIO_COMPONENT_IS_ACTIVE(AUDIO_SCO) && MMI_GetAudioTransparencyEnable() && !AUDIO_COMPONENT_IS_ACTIVE
+             -(AUDIO_ASYNC_SCO) &&
+ 1527   1          gDriver_ctl.isATSwitch == AT_IN_SWITCH && !MMI_CheckLinkInCallRelatedState(0) && !MMI_CheckLinkInCallRe
+             -latedState(1))
+ 1528   1        {
+ 1529   2          if(gDriver_ctl.checkATSwitchDelayTimer == (OST XDATA_PTR)NULL)
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 25  
+
+ 1530   2          {
+ 1531   3            SYS_SetTimer(&gDriver_ctl.checkATSwitchDelayTimer, (U32) 320L);
+ 1532   3          }
+ 1533   2          return TRUE;
+ 1534   2        }
+ 1535   1          #endif
+ 1536   1        return FALSE;
+ 1537   1      }
+ 1538          
+ 1539          PUBLIC void DRIVER_ClearAudioCmd(U8 opCode, U16 id)
+ 1540          {
+ 1541   1        U8 j, deleteSame;
+ 1542   1        DriverMsg XDATA_PTR msgPtr;
+ 1543   1        j = OSMQ_Entries(OSMQ_AUDIO_Prompt_Command_ptr);
+ 1544   1        deleteSame = 0;
+ 1545   1        while(j--)
+ 1546   1        {
+ 1547   2          msgPtr = (DriverMsg XDATA_PTR)OSMQ_Get(OSMQ_AUDIO_Prompt_Command_ptr);
+ 1548   2          switch(opCode)
+ 1549   2          {
+ 1550   3            case DRIVER_INTERNAL_CLEAN_ALL_AUDIO_CMD:
+ 1551   3              if(msgPtr->msgOpcode == DRIVER_FAKE_MEDIA_VP_RINGTONE_CMD)
+ 1552   3                OSMQ_Put(OSMQ_AUDIO_Prompt_Command_ptr, (U8 XDATA_PTR)msgPtr);
+ 1553   3              else
+ 1554   3              {
+ 1555   4                OSMEM_Put((U8 XDATA_PTR)msgPtr);
+ 1556   4              }
+ 1557   3              break;
+ 1558   3            case DRIVER_VOICEPROMPT_CMD:
+ 1559   3              if(msgPtr->msgOpcode == DRIVER_VOICEPROMPT_CMD)
+ 1560   3              {
+ 1561   4                if( msgPtr->msgBodyPtr.driverCmd.voicePromptCmd.id == id || VOICE_PROMPT_ALL_CLEAN == id ||
+ 1562   4                  (MEDIA_EVT_ENTER_LINE_IN_MODE == id   && msgPtr->msgBodyPtr.driverCmd.voicePromptCmd.id == MEDIA_EV
+             -T_EXIT_LINE_IN_MODE && deleteSame) ||
+ 1563   4                  (MEDIA_EVT_ENTER_DISCOVERABLE == id  && msgPtr->msgBodyPtr.driverCmd.voicePromptCmd.id == MEDIA_EVT
+             -_EXIT_DISCOVERABLE&& deleteSame))
+ 1564   4                {
+ 1565   5                  deleteSame = 1;
+ 1566   5                  OSMEM_Put((U8 XDATA_PTR)msgPtr);
+ 1567   5                  continue;
+ 1568   5                }
+ 1569   4              }
+ 1570   3              OSMQ_Put(OSMQ_AUDIO_Prompt_Command_ptr, (U8 XDATA_PTR)msgPtr);
+ 1571   3              break;
+ 1572   3            case DRIVER_RINGTONE_CMD:
+ 1573   3              if(msgPtr->msgOpcode == DRIVER_RINGTONE_CMD)
+ 1574   3              {
+ 1575   4                if( msgPtr->msgBodyPtr.driverCmd.ringtoneCmd.id == id || VOICE_PROMPT_ALL_CLEAN == id ||
+ 1576   4                  (id == MEDIA_EVT_ENTER_LINE_IN_MODE && msgPtr->msgBodyPtr.driverCmd.ringtoneCmd.id == MEDIA_EVT_EXI
+             -T_LINE_IN_MODE && deleteSame )||
+ 1577   4                  (id == MEDIA_EVT_ENTER_DISCOVERABLE && msgPtr->msgBodyPtr.driverCmd.ringtoneCmd.id == MEDIA_EVT_EXI
+             -T_DISCOVERABLE && deleteSame))
+ 1578   4                {
+ 1579   5                  deleteSame = 1;
+ 1580   5                  OSMEM_Put((U8 XDATA_PTR)msgPtr);
+ 1581   5                  continue;
+ 1582   5                }
+ 1583   4              }
+ 1584   3              OSMQ_Put(OSMQ_AUDIO_Prompt_Command_ptr, (U8 XDATA_PTR)msgPtr);
+ 1585   3              break;
+ 1586   3            default:
+ 1587   3              OSMQ_Put(OSMQ_AUDIO_Prompt_Command_ptr, (U8 XDATA_PTR)msgPtr);
+ 1588   3              break;
+ 1589   3          }
+ 1590   2        }
+ 1591   1      }
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 26  
+
+ 1592          
+ 1593          PRIVATE void DRIVER_SoundLevelMuteUnmute(U8 soundLevel, U8 smallStep)
+ 1594          {
+ 1595   1        if(soundLevel || smallStep)
+ 1596   1        {
+ 1597   2          gAUDIO_CtrlInfo.isMuteBySoundLevel = FALSE;
+ 1598   2        }
+ 1599   1        else
+ 1600   1        {
+ 1601   2          gAUDIO_CtrlInfo.isMuteBySoundLevel = TRUE;
+ 1602   2        }
+ 1603   1      }
+ 1604          
+ 1605          PRIVATE void DRIVER_MicUnmute(void)
+ 1606          {
+ 1607   1        LightDbgPrint("MIC Unmute");
+ 1608   1        AUDIO_SwitchMute (ADC, FALSE);
+ 1609   1      
+ 1610   1        //Disable Mute Reminder
+ 1611   1        SYS_ReleaseTimer(&gDriver_ctl.muteReminderTimerPtr);
+ 1612   1      }
+ 1613          
+ 1614          PRIVATE void DRIVER_MicMute(void)
+ 1615          {
+ 1616   1        LightDbgPrint("MIC Mute");
+ 1617   1        AUDIO_SwitchMute (ADC, TRUE);
+ 1618   1      
+ 1619   1        //Enable Mute Reminder
+ 1620   1        if(gMMI_nvram.timerCtl.MuteReminderTime)
+ 1621   1          SYS_SetTimer(&gDriver_ctl.muteReminderTimerPtr, (U32)gMMI_nvram.timerCtl.MuteReminderTime * ONE_SEC);
+ 1622   1      }
+ 1623          
+ 1624          PUBLIC void DRIVER_SetVprtVolumeToHW(void)
+ 1625          {
+ 1626   1        DRIVER_SetGainAndMute(TARGET_VPRTAT);
+ 1627   1      }
+ 1628          
+ 1629          PUBLIC void DRIVER_SetLineInVolumeToHW(void)
+ 1630          {
+ 1631   1      
+ 1632   1        DRIVER_SoundLevelMuteUnmute(gDriver_ctl.lineInSpkMicCtl.soundLevel, gDriver_ctl.lineInSpkMicCtl.smallSte
+             -pLevel);
+ 1633   1      
+ 1634   1        if(  gAUDIO_CtrlInfo.isLineInMute || gAUDIO_CtrlInfo.isMuteForPEQ ||
+ 1635   1          (gAUDIO_CtrlInfo.isMuteBySoundLevel && MMI_MUTE_LINE_IN_WHEN_VOLUME_IS_ZERO_FEAT) )
+ 1636   1        {
+ 1637   2          gAlignDSP.DSPOUT_MUTE = 1;
+ 1638   2          LightDbgPrint("3DSPOUT_MUTE = 1");
+ 1639   2        }
+ 1640   1      
+ 1641   1        DRIVER_MicUnmute();
+ 1642   1      
+ 1643   1        gDriver_ctl.DSPGainLv = (U16)gDriver_ctl.lineInSpkMicCtl.spkVols;
+ 1644   1      
+ 1645   1        if(DRIVER_IsMiscCtrlTypeEnabled(DRIVER_IS_LOW_BATTERY) && (gDriver_ctl.lineInSpkMicCtl.soundLevel > gMMI
+             -_nvram.lineinDecreaseGainCtl.baseSoundLevel))
+ 1646   1          gDriver_ctl.DSPGainLv -= (U16)gMMI_nvram.lineinDecreaseGainCtl.decreaseGain;
+ 1647   1      
+ 1648   1        DRIVER_SetGainAndMute(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_TRANSPARENCY) ? TARGET_VPRTAT : TARGET_APP);
+ 1649   1      }
+ 1650          
+ 1651          
+ 1652          PUBLIC void DRIVER_SetA2DPVolumeToHW(void)
+ 1653          {
+ 1654   1      
+ 1655   1        DRIVER_SoundLevelMuteUnmute(gDriver_ctl.a2dpSpkCtl.soundLevel, gDriver_ctl.a2dpSpkCtl.smallStepLevel);
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 27  
+
+ 1656   1      
+ 1657   1        if(  gAUDIO_CtrlInfo.isMuteForPEQ ||
+ 1658   1          (gAUDIO_CtrlInfo.isMuteBySoundLevel && MMI_MUTE_A2DP_WHEN_VOLUME_IS_ZERO_FEAT) ||
+ 1659   1          MMI_DRV_IsSpeakerMuteByLink(gDriver_ctl.dspLink))
+ 1660   1        {
+ 1661   2          gAlignDSP.DSPOUT_MUTE = 1;
+ 1662   2          LightDbgPrint("2DSPOUT_MUTE = 1");
+ 1663   2        }
+ 1664   1      
+ 1665   1        DRIVER_MicUnmute();
+ 1666   1      
+ 1667   1        gDriver_ctl.DSPGainLv = (U16)gDriver_ctl.a2dpSpkCtl.spkVols;
+ 1668   1      
+ 1669   1        if(DRIVER_IsMiscCtrlTypeEnabled(DRIVER_IS_LOW_BATTERY) && (gDriver_ctl.a2dpSpkCtl.soundLevel > gMMI_nvra
+             -m.a2dpDecreaseGainCtl.baseSoundLevel))
+ 1670   1          gDriver_ctl.DSPGainLv -= (U16)gMMI_nvram.a2dpDecreaseGainCtl.decreaseGain;
+ 1671   1      
+ 1672   1        DRIVER_SetGainAndMute(TARGET_APP);
+ 1673   1      }
+ 1674          
+ 1675          extern PUBLIC BOOL MMI_DRV_IsMicMute(U8 linkIndex);
+ 1676          PUBLIC void DRIVER_SetNormalVolumeToHW(void)
+ 1677          {
+ 1678   1        if(!DSP_IsDSPEnabled())
+ 1679   1          return;
+ 1680   1      
+ 1681   1        DRIVER_SoundLevelMuteUnmute(gDriver_ctl.normalSpkMicCtl.soundLevel, gDriver_ctl.normalSpkMicCtl.smallSte
+             -pLevel);
+ 1682   1      
+ 1683   1      
+ 1684   1        if( MMI_DRV_IsSpeakerMuteByLink(gDriver_ctl.dspLink)|| (gAUDIO_CtrlInfo.isMuteBySoundLevel && MMI_MUTE_S
+             -PEAKER_WHEN_VOLUME_IS_ZERO_FEAT) )
+ 1685   1        {
+ 1686   2          gAlignDSP.DSPOUT_MUTE = 1;
+ 1687   2          LightDbgPrint("DSPOUT_MUTE = 1");
+ 1688   2        }
+ 1689   1      
+ 1690   1        if(MMI_DRV_IsMicMute(gDriver_ctl.dspLink) && !DRIVER_IsMicMuted())
+ 1691   1        {
+ 1692   2          DRIVER_MicMute();
+ 1693   2        }
+ 1694   1      
+ 1695   1        if(!MMI_DRV_IsMicMute(gDriver_ctl.dspLink) && DRIVER_IsMicMuted())
+ 1696   1        {
+ 1697   2          DRIVER_MicUnmute();
+ 1698   2        }
+ 1699   1      
+ 1700   1      
+ 1701   1        gDriver_ctl.DSPGainLv = (U16)gDriver_ctl.normalSpkMicCtl.spkVols;
+ 1702   1      
+ 1703   1        if(DRIVER_IsMiscCtrlTypeEnabled(DRIVER_IS_LOW_BATTERY) && (gDriver_ctl.normalSpkMicCtl.soundLevel > gMMI
+             -_nvram.scoDecreaseGainCtl.baseSoundLevel))
+ 1704   1          gDriver_ctl.DSPGainLv  -=  (U16)gMMI_nvram.scoDecreaseGainCtl.decreaseGain;
+ 1705   1      
+ 1706   1        DRIVER_SetGainAndMute(TARGET_APP);
+ 1707   1      }
+ 1708          
+ 1709          PUBLIC void DRIVER_SetLineInMuteUnMute(BOOL isMute)
+ 1710          {
+ 1711   1        gAUDIO_CtrlInfo.isLineInMute = isMute;
+ 1712   1      
+ 1713   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_LINE_IN))
+ 1714   1        {
+ 1715   2          DRIVER_SetLineInVolumeToHW();
+ 1716   2        }
+ 1717   1      }
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 28  
+
+ 1718          
+ 1719          PUBLIC BOOL DRIVER_IsLineInMute(void)
+ 1720          {
+ 1721   1        return gAUDIO_CtrlInfo.isLineInMute;
+ 1722   1      }
+ 1723          
+ 1724          
+ 1725          PUBLIC BOOL DRIVER_IsMicMuted(void)
+ 1726          {
+ 1727   1        return gAUDIO_CtrlInfo.isADMute;
+ 1728   1      }
+ 1729          
+ 1730          
+ 1731          PUBLIC BOOL DRIVER_IsRingToneOrVPOrATPlaying(void)
+ 1732          {
+ 1733   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_RINGTONE) || AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICEPROMPT)
+ 1734   1          || AUDIO_COMPONENT_IS_ACTIVE(AUDIO_TRANSPARENCY) /*|| AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICECOMMAND)*/
+ 1735   1        )
+ 1736   1          return TRUE;
+ 1737   1      
+ 1738   1        return FALSE;
+ 1739   1      }
+ 1740          
+ 1741          PUBLIC DriverMsg XDATA_PTR DRIVER_GetCmdMsg(U8 opCode)
+ 1742          {
+ 1743   1        DriverMsg XDATA_PTR msgPtr;
+ 1744   1      
+ 1745   1        if((msgPtr = (DriverMsg XDATA_PTR)OSMEM_Get(OSMEM_ptr1)) != (DriverMsg XDATA_PTR)NULL)
+ 1746   1        {
+ 1747   2          OSMEM_memset_xdata((U8 XDATA_PTR)msgPtr, 0, OSMEM1_BLKSIZE);
+ 1748   2          msgPtr->msgOpcode = opCode;
+ 1749   2          return msgPtr;
+ 1750   2        }
+ 1751   1        return (DriverMsg XDATA_PTR)NULL;
+ 1752   1      }
+ 1753          
+ 1754          PUBLIC void DRIVER_SendMsgToDriverQue(U8 opCode)
+ 1755          {
+ 1756   1        DriverMsg XDATA_PTR msgPtr;
+ 1757   1      
+ 1758   1        if((msgPtr = DRIVER_GetCmdMsg(opCode)) != (DriverMsg XDATA_PTR)NULL)
+ 1759   1        {
+ 1760   2          if(opCode == DRIVER_STOP_VOICE_COMMAND_CMD)
+ 1761   2            OSMQ_PutFront(OSMQ_DRIVER_Command_ptr, (U8 XDATA_PTR)msgPtr);
+ 1762   2          else
+ 1763   2            OSMQ_Put(OSMQ_DRIVER_Command_ptr, (U8 XDATA_PTR)msgPtr);
+ 1764   2        }
+ 1765   1      }
+ 1766          
+ 1767          PUBLIC void DRIVER_SendRingtoneEndedEvent(U16 id)
+ 1768          {
+ 1769   1        if(id != NO_MEDIA)
+ 1770   1          gMMI_Drv_Handler.fDriverRingtoneEndEvent(id);
+ 1771   1      }
+ 1772          
+ 1773          PUBLIC void DRIVER_SendVoiceCommandEndedEvent(U8 id, U8 matchedNo, U8 stoppedByUser)
+ 1774          {
+ 1775   1        #ifdef SUPPORT_VOICE_COMMAND
+ 1776   1        if(id != NO_MEDIA )
+ 1777   1          gMMI_Drv_Handler.fDriverVoiceCmdEndEvent(id, matchedNo, stoppedByUser);
+ 1778   1        #else
+                 UNUSED(id);
+                 UNUSED(matchedNo);
+                 UNUSED(stoppedByUser);
+                 #endif
+ 1783   1      }
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 29  
+
+ 1784          
+ 1785          #ifdef RINGTONE_ENABLE
+ 1786          PUBLIC void DRIVER_RingtoneOffCallback(void)
+ 1787          {
+ 1788   1        DRIVER_SendRingtoneEndedEvent(gDriver_ctl.playingRingtoneId);
+ 1789   1        gDriver_ctl.playingRingtoneId = NO_MEDIA;
+ 1790   1      }
+ 1791          #endif
+ 1792          
+ 1793          #ifdef SUPPORT_VOICE_COMMAND
+ 1794          PUBLIC void DRIVER_VoiceCommandOffCallback(void)
+ 1795          {
+ 1796   1        U8 matchedNo = VC_INVALID_EVT;
+ 1797   1      
+ 1798   1        if(gVC_ctl.result != VC_STOP_BY_USER)
+ 1799   1        {
+ 1800   2          if(gVC_ctl.vcIdentificationMode == APD_VC_IDENTIFY)
+ 1801   2          {
+ 1802   3            //matchedNo = VoiceCommand_GetEvtIndex(gVC_ctl.result);
+ 1803   3            matchedNo = gVC_ctl.result;
+ 1804   3          }
+ 1805   2          else
+ 1806   2          {
+ 1807   3            if(gVC_ctl.result < TOTAL_VOICE_COMMAND_PATTERNS)
+ 1808   3            {
+ 1809   4              /*
+ 1810   4              matchedNo = VoiceCommand_GetEvtIndex(gVC_ctl.result);
+ 1811   4              gVC_ctl.vcnextLayer = VoiceCommand_VCLayer(matchedNo);
+ 1812   4              */
+ 1813   4              matchedNo = gVC_ctl.result;
+ 1814   4              gVC_ctl.vcnextLayer = VoiceCommand_VCLayer(matchedNo);
+ 1815   4            }
+ 1816   3          }
+ 1817   2        }
+ 1818   1      
+ 1819   1        if(gVC_ctl.vcIdentificationMode != APD_VC_IDENTIFY)
+ 1820   1        {
+ 1821   2          if(matchedNo == VC_INVALID_EVT || gVC_ctl.result == VC_STOP_BY_USER)
+ 1822   2          {
+ 1823   3            gVC_ctl.vcnextLayer = VC_MULTI_LAYER_SET_0;
+ 1824   3          }
+ 1825   2        }
+ 1826   1      
+ 1827   1        DRIVER_SendVoiceCommandEndedEvent(gDriver_ctl.playingVoiceCmdId, (matchedNo == VC_INVALID_EVT)?MMI_EOF:m
+             -atchedNo, (gVC_ctl.result == VC_STOP_BY_USER)?TRUE:FALSE);
+ 1828   1        gDriver_ctl.playingVoiceCmdId = NO_MEDIA;
+ 1829   1        DRIVER_CheckATEnablePlay();
+ 1830   1      }
+ 1831          #endif
+ 1832          
+ 1833          
+ 1834          PUBLIC DRIVER_MMI_CMD_HANDLER_TYPE CODE DriverMMICmdHandler[MMI_TO_DRIVER_TOTAL_CMD] =
+ 1835          {
+ 1836            DRIVER_MMIReadyCmdHandler, //DRIVER_MMI_READY_CMD
+ 1837            DRIVER_UpdateGeneralParaCmdHandler, //DRIVER_UPDATE_GENERAL_PARA_CMD
+ 1838            DRIVER_SetNormalVolumeCmdHandler, //DRIVER_VOLUME_SET_CMD
+ 1839            DRIVER_SetA2DPVolumeCmdHandler, //DRIVER_A2DP_VOLUME_SET_CMD
+ 1840            DRIVER_SetLineInVolumeCmdHandler, //DRIVER_LINE_IN_VOLUME_SET_CMD
+ 1841            DRIVER_RingToneVPCmdHandler, //DRIVER_RINGTONE_CMD
+ 1842            DRIVER_RingToneVPCmdHandler, //DRIVER_VOICEPROMPT_CMD
+ 1843            DRIVER_StopSpecificRingCmdHandler, //DRIVER_STOP_SPECIFIC_RINGTONE_CMD
+ 1844            DRIVER_StopSpecificVPCmdHandler, //DRIVER_STOP_SPECIFIC_VOICEPROMPT_CMD
+ 1845            DRIVER_StopRingCmdHandler, //DRIVER_STOP_RINGTONE_CMD
+ 1846            DRIVER_StopVPCmdHandler, //DRIVER_STOP_VP_CMD
+ 1847            DRIVER_FakeMediaVPRingCmdHandler, //DRIVER_FAKE_MEDIA_VP_RINGTONE_CMD
+ 1848            DRIVER_SCOCmdHandler, //DRIVER_SCO_CMD
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 30  
+
+ 1849            DRIVER_A2DPCmdHandler, //DRIVER_A2DP_CMD
+ 1850            DRIVER_LineInCmdHandler, //DRIVER_LINE_IN_CMD
+ 1851            DRIVER_StopLineInCmdHandler, //DRIVER_STOP_LINE_IN_CMD
+ 1852            DRIVER_StopDSPCmdHandler, //DRIVER_STOP_DSP_CMD
+ 1853            DRIVER_StopDSPPowerOffCmdHandler, //DRIVER_STOP_DSP_POWER_OFF_CMD
+ 1854            #ifdef PEQ_ENABLE
+ 1855            DRIVER_PEQChangeCmdHandler, //DRIVER_CHANGE_PEQ_CMD
+ 1856            DRIVER_ReloadPEQCmdHandler, //DRIVER_PEQ_RELOAD_CMD
+ 1857            DRIVER_RealTimeSetPEQCmdHandler,  //DRIVER_REALTIME_SET_PEQ_HPF_CMD
+ 1858            DRIVER_SetPEQParameterHandler,  //DRIVER_SET_PEQ_PARA_CMD
+ 1859            #endif
+ 1860            DRIVER_PowerOnCloseADDACmdHandler, //DRIVER_POWER_ON_CLOSE_ADDA_CMD
+ 1861            DRIVER_BatteryStatusCmdHandler, //DRIVER_BATTERY_STATUS_CMD
+ 1862            DRIVER_VoiceCommandHandler, //DRIVER_VOICE_COMMAND_CMD
+ 1863            DRIVER_SetVoiceCommandVolHandler, //DRIVER_SET_VOICE_COMMAND_VOL_CMD
+ 1864            DRIVER_StopVoiceCommandHandler, //DRIVER_STOP_VOICE_COMMAND_CMD
+ 1865            DRIVER_SetAudioSelHandler, //DRIVER_SET_AUDIO_SEL_CMD
+ 1866            DRIVER_SuspendDSPHandler, //DRIVER_SUSPEND_DSP_CMD
+ 1867            DRIVER_ChangeSoundEffectHandler,   //DRIVER_CHANGE_SOUND_EFFECT_CMD
+ 1868            DRIVER_ControlDBBOnOffHandler,       //DRIVER_CONTROL_DBB_ON_OFF
+ 1869            DRIVER_GetDSPParaRefGainHandler, //DRIVER_GET_DSP_REF_GAIN_CMD
+ 1870            #ifdef DEMOSOUND
+                 DRIVER_DemoSoundPlayHandler,  //DRIVER_DEMOSOUND_PLAY_CMD,
+                 DRIVER_DemoSoundPauseHandler, //DRIVER_DEMOSOUND_PAUSE_CMD,
+                 DRIVER_DemoSoundStopHandler,  //DRIVER_DEMOSOUND_STOP_CMD,
+                 DRIVER_DemoSoundForwardHandler, //DRIVER_DEMOSOUND_FORWARD_CMD,
+                 DRIVER_DemoSoundBackwardHandler,//DRIVER_DEMOSOUND_BACKWARD_CMD,
+                 #endif
+ 1877            #ifdef SUPPORT_MIC_IN_A2DP_MODE
+ 1878            DRIVER_A2DPAddMicHandler,//DRIVER_A2DP_ADD_MIC_CMD,
+ 1879            #endif
+ 1880            DRIVER_MicTestHandler, //DRIVER_MIC_TEST_CMD,
+ 1881            DRIVER_SwitchStereoMonoHandler, //DRIVER_DSP_SWITCH_STEREO_MONO_CMD,
+ 1882            DRIVER_SCOModeControlHandler, //DRIVER_SCO_MODE_CONTROL_CMD,
+ 1883            DRIVER_SetVprtVolumeCmdHandler,//DRIVER_VPRT_VOLUME_SET_CMD
+ 1884            DRIVER_AudioTransparencyPushCmdHandler, //DRIVER_AUDIO_TRANSPARENCY_CMD,
+ 1885            DRIVER_AsyncSCOCmdHandler1520, //DRIVER_ASYNC_SCO_CMD
+ 1886          };
+ 1887          
+ 1888          
+ 1889          PUBLIC void DRIVER_ProcMmiCmd(void)
+ 1890          {
+ 1891   1        U8 cmdHandler;
+ 1892   1        DriverMsg XDATA_PTR msgPtr;
+ 1893   1      
+ 1894   1        if(gDriver_ctl.isAudioHandlingPending || gDriver_ctl.suspendDSPReason)
+ 1895   1          return;
+ 1896   1      
+ 1897   1        while ((msgPtr = (DriverMsg XDATA_PTR)OSMQ_Get (OSMQ_DRIVER_Command_ptr)) != (DriverMsg XDATA_PTR)NULL)
+ 1898   1        {
+ 1899   2      
+ 1900   2          cmdHandler = MEMORY_PUT;
+ 1901   2          if(msgPtr->msgOpcode < MMI_TO_DRIVER_TOTAL_CMD)
+ 1902   2          {
+ 1903   3            cmdHandler = DriverMMICmdHandler[msgPtr->msgOpcode].MMICmdHandler(msgPtr);
+ 1904   3          }
+ 1905   2      
+ 1906   2          if(cmdHandler == QUE_PUTFRONT)
+ 1907   2          {
+ 1908   3            OSMQ_PutFront(OSMQ_DRIVER_Command_ptr, (U8 XDATA_PTR)msgPtr);
+ 1909   3            return;
+ 1910   3          }
+ 1911   2          else if(cmdHandler == CONTINUE_LOOP)
+ 1912   2            continue;
+ 1913   2          else if(cmdHandler == RETURN_FUNCTION)
+ 1914   2            return;
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 31  
+
+ 1915   2          else if(cmdHandler == QUE_PUT)
+ 1916   2          {
+ 1917   3            OSMQ_Put(OSMQ_DRIVER_Command_ptr, (U8 XDATA_PTR)msgPtr);
+ 1918   3            return;
+ 1919   3          }
+ 1920   2          else
+ 1921   2            OSMEM_Put ((U8 XDATA_PTR)msgPtr);
+ 1922   2        }
+ 1923   1      }
+ 1924          
+ 1925          PUBLIC void DRIVER_SetPowerSaving(BOOL isPowerSaving, U8 device)
+ 1926          {
+ 1927   1        if(!isPowerSaving)
+ 1928   1          gDriver_ctl.powerSavingMask |= device;
+ 1929   1        else
+ 1930   1          gDriver_ctl.powerSavingMask &= (~device);
+ 1931   1      
+ 1932   1        SetPowerSavingForDevice((gDriver_ctl.powerSavingMask)?FALSE:TRUE, PWRSAV_DRIVER);
+ 1933   1      }
+ 1934          
+ 1935          PUBLIC void DRIVER_SetBusyMask(BOOL isBusy, U8 mask)
+ 1936          {
+ 1937   1        if(isBusy)
+ 1938   1          gDriver_ctl.busyMask |= mask;
+ 1939   1        else
+ 1940   1          gDriver_ctl.busyMask &= ~mask;
+ 1941   1      
+ 1942   1        if(gDriver_ctl.busyMask)
+ 1943   1          gDriver_ctl.isReadyToDSPwOff &= ~DRIVER_READY;
+ 1944   1        else
+ 1945   1          gDriver_ctl.isReadyToDSPwOff |= DRIVER_READY;
+ 1946   1      }
+ 1947          
+ 1948          PUBLIC void DRIVER_SendStopVoiceCommandCmd(void)
+ 1949          {
+ 1950   1        U8 i, cnt;
+ 1951   1        DriverMsg XDATA_PTR msgPtr;
+ 1952   1      
+ 1953   1        cnt = 0;
+ 1954   1        i = OSMQ_Entries(OSMQ_DRIVER_Command_ptr);
+ 1955   1        while(i--)
+ 1956   1        {
+ 1957   2          msgPtr = (DriverMsg XDATA_PTR)OSMQ_Get(OSMQ_DRIVER_Command_ptr);
+ 1958   2          if(msgPtr->msgOpcode == DRIVER_VOICE_COMMAND_CMD)
+ 1959   2            OSMEM_Put((U8 XDATA_PTR)msgPtr);
+ 1960   2          else if(msgPtr->msgOpcode == DRIVER_STOP_VOICE_COMMAND_CMD)
+ 1961   2          {
+ 1962   3            if(!cnt)
+ 1963   3              OSMQ_Put(OSMQ_DRIVER_Command_ptr, (U8 XDATA_PTR)msgPtr);
+ 1964   3            else
+ 1965   3              OSMEM_Put((U8 XDATA_PTR)msgPtr);
+ 1966   3            cnt++;
+ 1967   3          }
+ 1968   2          else
+ 1969   2            OSMQ_Put(OSMQ_DRIVER_Command_ptr, (U8 XDATA_PTR)msgPtr);
+ 1970   2        }
+ 1971   1      
+ 1972   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICECOMMAND) && !cnt)
+ 1973   1        {
+ 1974   2          DRIVER_SendMsgToDriverQue(DRIVER_STOP_VOICE_COMMAND_CMD);
+ 1975   2        }
+ 1976   1      }
+ 1977          
+ 1978          PUBLIC void DRIVER_SendStopSpecificRTCmd(U16 id)
+ 1979          {
+ 1980   1        #ifdef RINGTONE_ENABLE
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 32  
+
+ 1981   1        U8 i, cnt;
+ 1982   1        #endif
+ 1983   1        DRIVER_STOPSPECIFIC_RING:
+ 1984   1        DRIVER_ClearAudioCmd(DRIVER_RINGTONE_CMD, id);
+ 1985   1        #ifdef RINGTONE_ENABLE
+ 1986   1        if(AUDIO_COMPONENT_IS_ACTIVE (AUDIO_RINGTONE) && gDriver_ctl.playingRingtoneId == id)
+ 1987   1        {
+ 1988   2          DriverMsg XDATA_PTR msgPtr;
+ 1989   2      
+ 1990   2          cnt = 0;
+ 1991   2          i = OSMQ_Entries(OSMQ_DRIVER_Command_ptr);
+ 1992   2          while(i--)
+ 1993   2          {
+ 1994   3            msgPtr = (DriverMsg XDATA_PTR)OSMQ_Get(OSMQ_DRIVER_Command_ptr);
+ 1995   3            if(msgPtr->msgOpcode == DRIVER_STOP_SPECIFIC_RINGTONE_CMD && msgPtr->msgBodyPtr.driverCmd.stopSpecific
+             -RTCmd.id == id)
+ 1996   3            {
+ 1997   4              if(!cnt)
+ 1998   4                OSMQ_Put(OSMQ_DRIVER_Command_ptr, (U8 XDATA_PTR)msgPtr);
+ 1999   4              else
+ 2000   4                OSMEM_Put((U8 XDATA_PTR)msgPtr);
+ 2001   4              cnt++;
+ 2002   4            }
+ 2003   3            else
+ 2004   3              OSMQ_Put(OSMQ_DRIVER_Command_ptr, (U8 XDATA_PTR)msgPtr);
+ 2005   3          }
+ 2006   2      
+ 2007   2          if(!cnt && (msgPtr = DRIVER_GetCmdMsg(DRIVER_STOP_SPECIFIC_RINGTONE_CMD)) != (DriverMsg XDATA_PTR)NULL)
+ 2008   2          {
+ 2009   3            msgPtr->msgBodyPtr.driverCmd.stopSpecificRTCmd.id = id;
+ 2010   3            OSMQ_Put(OSMQ_DRIVER_Command_ptr, (U8 XDATA_PTR)msgPtr);
+ 2011   3          }
+ 2012   2        }
+ 2013   1        #endif
+ 2014   1        if(id == MEDIA_EVT_RINGTONE)
+ 2015   1        {
+ 2016   2          id = MEDIA_EVT_RINGTONE_2;
+ 2017   2          goto DRIVER_STOPSPECIFIC_RING;
+ 2018   2        }
+ 2019   1        else if(id == MEDIA_EVT_RINGTONE_2)
+ 2020   1        {
+ 2021   2          id = MEDIA_EVT_RINGTONE_IN_CALL;
+ 2022   2          goto DRIVER_STOPSPECIFIC_RING;
+ 2023   2        }
+ 2024   1        else if(id == MEDIA_EVT_RINGTONE_IN_CALL)
+ 2025   1        {
+ 2026   2          id = MEDIA_EVT_RINGTONE2_IN_CALL;
+ 2027   2          goto DRIVER_STOPSPECIFIC_RING;
+ 2028   2        }
+ 2029   1      }
+ 2030          
+ 2031          PUBLIC void DRIVER_SendStopSpecificVPCmd(U16 id)
+ 2032          {
+ 2033   1        #ifdef SUPPORT_VOICE_PROMPT
+ 2034   1        U8 i, cnt;
+ 2035   1        #endif
+ 2036   1      
+ 2037   1        DRIVER_STOP_SPECIFIC_VP:
+ 2038   1        DRIVER_ClearAudioCmd(DRIVER_VOICEPROMPT_CMD, id);
+ 2039   1        #ifdef SUPPORT_VOICE_PROMPT
+ 2040   1        if(AUDIO_COMPONENT_IS_ACTIVE (AUDIO_VOICEPROMPT) && gDriver_ctl.playingRingtoneId == id)
+ 2041   1        {
+ 2042   2          DriverMsg XDATA_PTR msgPtr;
+ 2043   2      
+ 2044   2          cnt = 0;
+ 2045   2          i = OSMQ_Entries(OSMQ_DRIVER_Command_ptr);
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 33  
+
+ 2046   2          while(i--)
+ 2047   2          {
+ 2048   3            msgPtr = (DriverMsg XDATA_PTR)OSMQ_Get(OSMQ_DRIVER_Command_ptr);
+ 2049   3            if(msgPtr->msgOpcode == DRIVER_STOP_SPECIFIC_VOICEPROMPT_CMD && msgPtr->msgBodyPtr.driverCmd.stopSpeci
+             -ficVPCmd.id == id)
+ 2050   3            {
+ 2051   4              if(!cnt)
+ 2052   4                OSMQ_Put(OSMQ_DRIVER_Command_ptr, (U8 XDATA_PTR)msgPtr);
+ 2053   4              else
+ 2054   4                OSMEM_Put((U8 XDATA_PTR)msgPtr);
+ 2055   4              cnt++;
+ 2056   4            }
+ 2057   3            else
+ 2058   3              OSMQ_Put(OSMQ_DRIVER_Command_ptr, (U8 XDATA_PTR)msgPtr);
+ 2059   3          }
+ 2060   2      
+ 2061   2          if(!cnt && (msgPtr = DRIVER_GetCmdMsg(DRIVER_STOP_SPECIFIC_VOICEPROMPT_CMD)) != (DriverMsg XDATA_PTR)NU
+             -LL)
+ 2062   2          {
+ 2063   3            msgPtr->msgBodyPtr.driverCmd.stopSpecificVPCmd.id = id;
+ 2064   3            OSMQ_Put(OSMQ_DRIVER_Command_ptr, (U8 XDATA_PTR)msgPtr);
+ 2065   3          }
+ 2066   2        }
+ 2067   1        #endif
+ 2068   1        if(id == MEDIA_EVT_RINGTONE)
+ 2069   1        {
+ 2070   2          id = MEDIA_EVT_RINGTONE_2;
+ 2071   2          goto DRIVER_STOP_SPECIFIC_VP;
+ 2072   2        }
+ 2073   1        else if(id == MEDIA_EVT_RINGTONE_2)
+ 2074   1        {
+ 2075   2          id = MEDIA_EVT_RINGTONE_IN_CALL;
+ 2076   2          goto DRIVER_STOP_SPECIFIC_VP;
+ 2077   2        }
+ 2078   1        else if(id == MEDIA_EVT_RINGTONE_IN_CALL)
+ 2079   1        {
+ 2080   2          id = MEDIA_EVT_RINGTONE2_IN_CALL;
+ 2081   2          goto DRIVER_STOP_SPECIFIC_VP;
+ 2082   2        }
+ 2083   1      }
+ 2084          
+ 2085          PUBLIC void DRIVER_ClearStopDSPCmd(U8 linkIndex)
+ 2086          {
+ 2087   1        U8 i;
+ 2088   1        DriverMsg XDATA_PTR msgPtr;
+ 2089   1      
+ 2090   1        i = OSMQ_Entries(OSMQ_DRIVER_Command_ptr);
+ 2091   1        while(i--)
+ 2092   1        {
+ 2093   2          msgPtr = (DriverMsg XDATA_PTR)OSMQ_Get(OSMQ_DRIVER_Command_ptr);
+ 2094   2          if(msgPtr->msgOpcode == DRIVER_STOP_DSP_CMD && msgPtr->msgBodyPtr.driverCmd.stopDSPCmd.linkInd == linkI
+             -ndex)
+ 2095   2            OSMEM_Put((U8 XDATA_PTR)msgPtr);
+ 2096   2          else
+ 2097   2            OSMQ_Put(OSMQ_DRIVER_Command_ptr, (U8 XDATA_PTR)msgPtr);
+ 2098   2        }
+ 2099   1      }
+ 2100          
+ 2101          PUBLIC void DRIVER_ClearEnableSCODSPCmd(U8 linkIndex)
+ 2102          {
+ 2103   1        U8 i;
+ 2104   1        DriverMsg XDATA_PTR msgPtr;
+ 2105   1      
+ 2106   1        i = OSMQ_Entries(OSMQ_DRIVER_Command_ptr);
+ 2107   1        while(i--)
+ 2108   1        {
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 34  
+
+ 2109   2          msgPtr = (DriverMsg XDATA_PTR)OSMQ_Get(OSMQ_DRIVER_Command_ptr);
+ 2110   2          if(msgPtr->msgOpcode == DRIVER_SCO_CMD && msgPtr->msgBodyPtr.driverCmd.scoCmd.linkInd == linkIndex)
+ 2111   2          {
+ 2112   3            if(MMI_DRV_GetAudioSwitchState() == MMI_AUDIO_SWITCH_WAITING_HCI_EVT)
+ 2113   3              MMI_DRV_SetAudioSwitchState(MMI_AUDIO_SWITCH_ILDE);
+ 2114   3            OSMEM_Put((U8 XDATA_PTR)msgPtr);
+ 2115   3          }
+ 2116   2          else
+ 2117   2            OSMQ_Put(OSMQ_DRIVER_Command_ptr, (U8 XDATA_PTR)msgPtr);
+ 2118   2        }
+ 2119   1        if(gDriver_ctl.backUpAudioCmdPtr)
+ 2120   1        {
+ 2121   2          if(gDriver_ctl.backUpAudioCmdPtr->msgOpcode == DRIVER_SCO_CMD && gDriver_ctl.backUpAudioCmdPtr->msgBody
+             -Ptr.driverCmd.scoCmd.linkInd == linkIndex)
+ 2122   2          {
+ 2123   3            DRIVER_ReleaseBackUpAppCmd();
+ 2124   3          }
+ 2125   2        }
+ 2126   1      }
+ 2127          
+ 2128          PUBLIC void DRIVER_ClearEnableA2DPDSPCmd(U8 linkIndex)
+ 2129          {
+ 2130   1        U8 i;
+ 2131   1        DriverMsg XDATA_PTR msgPtr;
+ 2132   1      
+ 2133   1        i = OSMQ_Entries(OSMQ_DRIVER_Command_ptr);
+ 2134   1        while(i--)
+ 2135   1        {
+ 2136   2          msgPtr = (DriverMsg XDATA_PTR)OSMQ_Get(OSMQ_DRIVER_Command_ptr);
+ 2137   2          if(msgPtr->msgOpcode == DRIVER_A2DP_CMD && msgPtr->msgBodyPtr.driverCmd.a2dpCmd.linkInd == linkIndex)
+ 2138   2            OSMEM_Put((U8 XDATA_PTR)msgPtr);
+ 2139   2          else
+ 2140   2            OSMQ_Put(OSMQ_DRIVER_Command_ptr, (U8 XDATA_PTR)msgPtr);
+ 2141   2        }
+ 2142   1      
+ 2143   1        if(gDriver_ctl.backUpAudioCmdPtr)
+ 2144   1        {
+ 2145   2          if(gDriver_ctl.backUpAudioCmdPtr->msgOpcode == DRIVER_A2DP_CMD && gDriver_ctl.backUpAudioCmdPtr->msgBod
+             -yPtr.driverCmd.a2dpCmd.linkInd == linkIndex)
+ 2146   2          {
+ 2147   3            DRIVER_ReleaseBackUpAppCmd();
+ 2148   3          }
+ 2149   2        }
+ 2150   1      }
+ 2151          
+ 2152          PUBLIC void DRIVER_LoadLanguageCtlFromROM(U8 LangIndex)
+ 2153          {
+ 2154   1        #ifdef SUPPORT_VOICE_PROMPT
+ 2155   1          U8 CODE_PTR vp_sector_base_addr = GET_SECTOR_VOICE_DATA_ADDR(SECTOR_VOICE_LANG_CTL);
+ 2156   1          OSMEM_memcpy_xdata_code((U8 XDATA_PTR)&gDriver_ctl.voiceLangCtl, vp_sector_base_addr + (sizeof(VoiceLan
+             -gCtl) * LangIndex), sizeof(VoiceLangCtl));
+ 2157   1      
+ 2158   1          if(gDriver_ctl.voiceLangCtl.vpScriptOffsetTbl.vp_ptr && gDriver_ctl.voiceLangCtl.vpScriptDataTbl.vp_ptr
+             - && gDriver_ctl.voiceLangCtl.vpDataOffsetTbl.vp_ptr)
+ 2159   1          {
+ 2160   2            gDriver_ctl.voiceLangCtl.vpScriptOffsetTbl.vp_ptr += (U32)vp_sector_base_addr;
+ 2161   2            gDriver_ctl.voiceLangCtl.vpScriptDataTbl.vp_ptr += (U32)vp_sector_base_addr;
+ 2162   2            gDriver_ctl.voiceLangCtl.vpDataOffsetTbl.vp_ptr += (U32)vp_sector_base_addr;
+ 2163   2            gDriver_ctl.voiceLangCtl.vpScriptOffsetEntries--; //decrease to get actual voice prompt event count
+ 2164   2            #if (defined VOICE_LANG_CHI && defined VOICE_LANG_ENG)
+ 2165   2            LightDbgPrint("Language Change into:%d",(U8) LangIndex);
+ 2166   2            #else
+                       #if (defined VOICE_LANG_CHI)
+                       LightDbgPrint("Language Change into:0");
+                       #endif
+                       #if (defined VOICE_LANG_ENG)
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 35  
+
+                       LightDbgPrint("Language Change into:1");
+                       #endif
+                       #if (!defined VOICE_LANG_CHI || !defined VOICE_LANG_ENG)
+                       LightDbgPrint("Not Language can be changed");
+                       #endif
+                     #endif
+ 2177   2          }
+ 2178   1          else
+ 2179   1          {
+ 2180   2            gDriver_ctl.voiceLangCtl.vpScriptOffsetTbl.vp_ptr = (U32)0;
+ 2181   2            gDriver_ctl.voiceLangCtl.vpScriptDataTbl.vp_ptr = (U32)0;
+ 2182   2            gDriver_ctl.voiceLangCtl.vpDataOffsetTbl.vp_ptr = (U32)0;
+ 2183   2            gDriver_ctl.voiceLangCtl.vpScriptOffsetEntries = VOICE_PROMPT_INVALID;
+ 2184   2            LightDbgPrint("Language Change fail");
+ 2185   2          }
+ 2186   1        #else
+                   LightDbgPrint("Not support voice prompt");
+                   UNUSED(LangIndex);
+                 #endif
+ 2190   1      
+ 2191   1        #ifdef SUPPORT_VOICE_COMMAND
+ 2192   1          gVC_ctl.dataBasePtr = (U32) GET_SECTOR_VOICE_DATA_ADDR(SECTOR_VOICE_COMMAND_DATA);//base
+ 2193   1          gVC_ctl.dataBasePtr += (U32) ((DRIVER_VOICE_COMMAND_DATA_TYPE CODE_PTR)GET_SECTOR_VOICE_DATA_ADDR(SECTO
+             -R_VOICE_COMMAND_DATA))->vcAddrTable[LangIndex].vcDataBasePtr;//+offset
+ 2194   1          gVC_ctl.dataMapPtr = (U32) GET_SECTOR_VOICE_DATA_ADDR(SECTOR_VOICE_COMMAND_DATA);//base
+ 2195   1          gVC_ctl.dataMapPtr += (U32) ((DRIVER_VOICE_COMMAND_DATA_TYPE CODE_PTR)GET_SECTOR_VOICE_DATA_ADDR(SECTOR
+             -_VOICE_COMMAND_DATA))->vcAddrTable[LangIndex].vcEvtDataMapPtr;//+offset
+ 2196   1        #else
+                   UNUSED(LangIndex);
+                 #endif
+ 2199   1      }
+ 2200          
+ 2201          PUBLIC U16 DRIVER_CurrentPlayingMediaID(void)
+ 2202          {
+ 2203   1        return gDriver_ctl.playingRingtoneId;
+ 2204   1      }
+ 2205          
+ 2206          
+ 2207          PUBLIC void DRIVER_Cmd_SuspendDSP(U8 reason, VFUN callback)
+ 2208          {
+ 2209   1        DriverMsg XDATA_PTR msgPtr;
+ 2210   1      
+ 2211   1        if((msgPtr = DRIVER_GetCmdMsg(DRIVER_SUSPEND_DSP_CMD)) != (DriverMsg XDATA_PTR)NULL)
+ 2212   1        {
+ 2213   2          msgPtr->msgBodyPtr.driverCmd.suspendDspCmd.reason = reason;
+ 2214   2          msgPtr->msgBodyPtr.driverCmd.suspendDspCmd.callback = callback;
+ 2215   2          OSMQ_PutFront(OSMQ_DRIVER_Command_ptr, (U8 XDATA_PTR)msgPtr);
+ 2216   2        }
+ 2217   1      }
+ 2218          
+ 2219          PUBLIC void DRIVER_Cmd_ClearSuspendDSPReason(U8 reason)
+ 2220          {
+ 2221   1        gDriver_ctl.suspendDSPReason &= (~reason);
+ 2222   1      }
+ 2223          
+ 2224          PUBLIC BOOL DRIVER_Query_IsDSPSuspending(void)
+ 2225          {
+ 2226   1        return (gDriver_ctl.suspendDSPReason)? TRUE:FALSE;
+ 2227   1      }
+ 2228          
+ 2229          PUBLIC BOOL DRIVER_Query_IsDSPSuspendingReason(U8 reason)
+ 2230          {
+ 2231   1        LightDbgPrint("Query_IsDSP: %d, %d", (U8)gDriver_ctl.suspendDSPReason, (U8)reason);
+ 2232   1        return (gDriver_ctl.suspendDSPReason&reason)? TRUE:FALSE;
+ 2233   1      }
+ 2234          PUBLIC BOOL DRIVER_Query_IsWaitingDSPSuspend(U8 reason)
+C251 COMPILER V5.57.0,  DRIVER                                                             08/11/20  06:32:30  PAGE 36  
+
+ 2235          {
+ 2236   1        DriverMsg XDATA_PTR msgPtr;
+ 2237   1        BOOL isWaiting = FALSE;
+ 2238   1        U8 i = OSMQ_Entries(OSMQ_DRIVER_Command_ptr);
+ 2239   1        
+ 2240   1        while(i--)
+ 2241   1        {
+ 2242   2          msgPtr = (DriverMsg XDATA_PTR)OSMQ_Get(OSMQ_DRIVER_Command_ptr);
+ 2243   2          
+ 2244   2          if(msgPtr->msgOpcode == DRIVER_SUSPEND_DSP_CMD && msgPtr->msgBodyPtr.driverCmd.suspendDspCmd.reason == 
+             -reason)
+ 2245   2            isWaiting = TRUE;
+ 2246   2          
+ 2247   2          OSMQ_Put(OSMQ_DRIVER_Command_ptr, (U8 XDATA_PTR)msgPtr);
+ 2248   2        }
+ 2249   1        return isWaiting;
+ 2250   1      }
+ 2251          
+ 2252          PUBLIC BOOL DRIVER_IsDemoSoundReady(void)
+ 2253          {
+ 2254   1      #ifdef DEMOSOUND
+                 return DemoSound_IsAvailable();
+               #else
+ 2257   1        return FALSE;
+ 2258   1      #endif
+ 2259   1      }
+ 2260          
+ 2261          PUBLIC BOOL DRIVER_CheckAudioTransparencyReady(void)
+ 2262          {
+ 2263   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_RINGTONE) || AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICEPROMPT) || AUDIO_CO
+             -MPONENT_IS_ACTIVE(AUDIO_SCO))
+ 2264   1          return FALSE;
+ 2265   1        return TRUE;
+ 2266   1      }
+ 2267          
+ 2268          PUBLIC U8 DRIVER_CheckAudioComponetEnable(U8 componet)
+ 2269          {
+ 2270   1        return AUDIO_COMPONENT_IS_ACTIVE(componet);
+ 2271   1      }
+ 2272          
+ 2273          PUBLIC U8 DRIVER_GetVoicepromptsNumberInQueue(void)
+ 2274          {
+ 2275   1        return OSMQ_Entries(OSMQ_AUDIO_Prompt_Command_ptr);
+ 2276   1      }
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =      7633     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =       121     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       625     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

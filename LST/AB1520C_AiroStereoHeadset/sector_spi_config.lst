@@ -1,0 +1,197 @@
+C251 COMPILER V5.57.0,  sector_spi_config                                                  08/11/20  05:51:30  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_spi_config
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\sector_spi_config.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\sector_spi_config.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM
+                    -(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source
+                    -\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL
+                    -;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\R
+                    -OM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTO
+                    -R\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEF
+                    -INE(FLASH_INIT=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520C_AiroStereo
+                    -Headset\sector_spi_config.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\sector_spi_config.obj) 
+
+stmt  level    source
+
+    1          /*
+    2           * AIROHA Bluetooth Device Firmware
+    3           * COPYRIGHT (C) 2014 AIROHA TECHNOLOGY CORP. CO., LTD. ALL RIGHTS RESERVED
+    4           *
+    5           * sector_spi_config.c defines the configuration of SPI.
+    6           *
+    7           * Programmer : DingaCheng@airoha.com.tw, Ext.2828
+    8           */
+    9          #include "sector_spi_config.h"
+   10          #include "drv_spi.h"
+   11          
+   12          #pragma userclass (HCONST = CONFIG)
+   13          
+   14          
+   15          ////////////////////////////////////////////////////////////////////////////////
+   16          // Global Variables ////////////////////////////////////////////////////////////
+   17          ////////////////////////////////////////////////////////////////////////////////
+   18          SECTOR_SPI_CONFIG_STRU CODE gSectorSpiConfig =
+   19          {
+   20            SPI_NONE_DEVICE,
+   21            {
+   22          #if 1 // SPI settings for external flash.
+   23              { //deviceConfig[0];
+   24                {
+   25                  SPI_DEVICE_ID_EXT_FLASH,
+   26                  SPI_GPIO_GROUP_SEL_2,
+   27                  0xFF,
+   28                },
+   29                {
+   30                  #ifdef SUPPORT_LE_PROFILE_HOGP
+                       /* SPI_CONFIG1 */
+                       SPICONFIG1_OE_PINOUTPUT |
+                       SPICONFIG1_FDM_HALFDUPLEX |
+                       SPICONFIG1_WIREMODE_3WIRE,
+                       /* SPI_CONFIG2 */
+                       SPICONFIG2_MSTR_MASTER |
+                       SPICONFIG2_SPIMODE_DMAMODE |
+                       SPICONFIG2_CSPOL_ACTIVELOW  |
+                       SPICONFIG2_TRANSFIRST_MSBFIRST  |
+                       SPICONFIG2_SCLKPOL_ACTIVELOW    |
+                       SPICONFIG2_SAMPLEPHASE_EVEN,
+                       /* SPI_CSBYTES */
+                       0x00,
+                       /* SPI_SCLKMUL */
+                       0x01,
+                       /* SPI_SCLKDIV */
+                       0x0C,
+                       /* SPI_RXTOMUL */
+                       0x01,
+                       /* SPI_RXTODIV */
+                       0x00,
+                       /* SPI_RXINTEN */
+C251 COMPILER V5.57.0,  sector_spi_config                                                  08/11/20  05:51:30  PAGE 2   
+
+                       0x00,
+                       /* SPI_TXINTEN */
+                       0x00,
+                       
+                       #else
+   58                  /* SPI_CONFIG1 */
+   59                  SPICONFIG1_OE_PINOUTPUT | SPICONFIG1_FDM_HALFDUPLEX | SPICONFIG1_WIREMODE_4WIRE,
+   60                  /* SPI_CONFIG2 */
+   61                  SPICONFIG2_MSTR_MASTER       | SPICONFIG2_SPIMODE_DMAMODE     |
+   62                  SPICONFIG2_CSPOL_ACTIVELOW   | SPICONFIG2_TRANSFIRST_MSBFIRST ,
+   63                  /* SPI_CSBYTES */
+   64                  0x00,
+   65                  /* SPI_SCLKMUL */
+   66                  0x02,
+   67                  /* SPI_SCLKDIV */
+   68                  0x00,
+   69                  /* SPI_RXTOMUL */
+   70                  0x01,
+   71                  /* SPI_RXTODIV */
+   72                  0x00,
+   73                  /* SPI_RXINTEN */
+   74                  0x00,
+   75                  /* SPI_TXINTEN */
+   76                  0x01,
+   77                  /* SPI_TIME */
+   78                  0x03F,
+   79                  /* SPI_WRWRTIME */
+   80                  0x00,
+   81                  #endif
+   82                },
+   83              },
+   84          #else // SPI settings for G-Sensor.
+                   { //deviceConfig[2];
+                     {
+                       SPI_DEVICE_ID_CUSTOM1,
+                       SPI_GPIO_GROUP_SEL_2,
+                       0xFF,
+                     },
+                     {
+                       /* SPI_CONFIG1 */
+                       SPICONFIG1_OE_PINOUTPUT | SPICONFIG1_FDM_HALFDUPLEX | SPICONFIG1_WIREMODE_4WIRE,
+                       /* SPI_CONFIG2 */
+                       SPICONFIG2_MSTR_MASTER       | SPICONFIG2_SPIMODE_DMAMODE     |
+                       SPICONFIG2_CSPOL_ACTIVELOW   | SPICONFIG2_TRANSFIRST_MSBFIRST ,
+                       /* SPI_CSBYTES */
+                       0x00,
+                       /* SPI_SCLKMUL */
+                       0x02,
+                       /* SPI_SCLKDIV */
+                       0x00,
+                       /* SPI_RXTOMUL */
+                       0x01,
+                       /* SPI_RXTODIV */
+                       0x00,
+                       /* SPI_RXINTEN */
+                       0x00,
+                       /* SPI_TXINTEN */
+                       0x01,
+                       /* SPI_TIME */
+                       0x03F,
+                       /* SPI_WRWRTIME */
+                       0x00,
+                     },
+                   },
+               #endif
+  118              { //deviceConfig[1];
+C251 COMPILER V5.57.0,  sector_spi_config                                                  08/11/20  05:51:30  PAGE 3   
+
+  119                {
+  120                  SPI_DEVICE_ID_DBGPRING,
+  121                  SPI_GPIO_GROUP_SEL_0,
+  122                  0xFF,
+  123                },
+  124                {
+  125                  /* SPI_CONFIG1 */
+  126                  SPICONFIG1_OE_PINOUTPUT | SPICONFIG1_FDM_HALFDUPLEX | SPICONFIG1_WIREMODE_4WIRE,
+  127                  /* SPI_CONFIG2 */
+  128                  SPICONFIG2_MSTR_MASTER       | SPICONFIG2_SPIMODE_DMAMODE     |
+  129                  SPICONFIG2_CSPOL_ACTIVELOW   | SPICONFIG2_TRANSFIRST_MSBFIRST ,
+  130                  /* SPI_CSBYTES */
+  131                  0x00,
+  132                  /* SPI_SCLKMUL */
+  133                  0x02,
+  134                  /* SPI_SCLKDIV */
+  135                  0x00,
+  136                  /* SPI_RXTOMUL */
+  137                  0x01,
+  138                  /* SPI_RXTODIV */
+  139                  0x00,
+  140                  /* SPI_RXINTEN */
+  141                  0x00,
+  142                  /* SPI_TXINTEN */
+  143                  0x01,
+  144                  /* SPI_TIME */
+  145                  0x03F,
+  146                  /* SPI_WRWRTIME */
+  147                  0x00,
+  148                },
+  149              },
+  150            },
+  151          
+  152              {0,0}
+  153          };
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =        31     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

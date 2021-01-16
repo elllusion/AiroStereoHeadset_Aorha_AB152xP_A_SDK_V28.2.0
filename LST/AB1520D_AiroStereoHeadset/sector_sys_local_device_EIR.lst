@@ -1,0 +1,101 @@
+C251 COMPILER V5.57.0,  sector_sys_local_device_EIR                                        08/11/20  06:32:14  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_sys_local_device_EIR
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\sector_sys_local_device_EIR.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\sector_sys_local_device_EIR.c XSMALL HPTR FUNCTIONS(REEN
+                    -TRANT) ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVE
+                    -R;.\source\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\sou
+                    -rce\ROM\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;
+                    -.\source\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\so
+                    -urce\SECTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\Too
+                    -lMisc) DEFINE(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_
+                    -AiroStereoHeadset\sector_sys_local_device_EIR.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\sector_sys_local_de
+                    -vice_EIR.obj) 
+
+stmt  level    source
+
+    1          /*
+    2           * AIROHA Bluetooth Device Firmware
+    3           * COPYRIGHT (C) 2014 AIROHA TECHNOLOGY CORP. CO., LTD. ALL RIGHTS RESERVED
+    4           *
+    5           * sector_sys_local_device_EIR.c defines the local device EIR.
+    6           *
+    7           * Programmer : CharlesSu@airoha.com.tw, Ext.2882
+    8           */
+    9          
+   10          #include "sector_sys_local_device_EIR.h"
+   11          
+   12          #pragma userclass (HCONST = CONFIG)
+   13          
+   14          
+   15          ////////////////////////////////////////////////////////////////////////////////
+   16          // Global Variables ////////////////////////////////////////////////////////////
+   17          ////////////////////////////////////////////////////////////////////////////////
+   18          SECTOR_SYS_LOCAL_DEVICE_EIR_STRU CODE gSector_SysLocalDeviceEIR =
+   19          {
+   20          
+   21            {//- SYS_LOCAL_DEVICE_EIR_STRU
+   22            #if defined(HID_SOC)
+                   0x00,
+                   0x0C,
+                   0x00,
+                   0x00,
+                   {
+                     //Data format(Total n octets) : [Length:1 octet][Data: n - 1 octets]
+                     //Name
+                     0x07, 0x09,  'A',  'I',  'R',  'O',  'H',  'A',
+               
+                     //Service Class UUID
+                     0x03, 0x03, 0x24, 0x11
+                   }
+                 #else
+   36              0x01, //- DM1 prefer
+   37              0x08,
+   38              0x00,
+   39              0x00,
+   40              {
+   41                //Service Class UUID
+   42                //- 0x1108: Headset
+   43                //- 0x110B: Audio_Sink
+   44                //- 0x110C: AVRCP Target
+   45                //- 0x110E: AVRCP Control
+   46                //- 0x110F: AVRCP ControlController
+   47                //- 0x111E: HFP
+   48          
+   49                //Data format(Total n octets) : [Length:1 octet][Data: n - 1 octets]
+   50                //Name
+   51                0x01, 0x09, //this element will be construct from runtime
+C251 COMPILER V5.57.0,  sector_sys_local_device_EIR                                        08/11/20  06:32:14  PAGE 2   
+
+   52              }
+   53            #endif
+   54            },
+   55          
+   56              //- CRC
+   57              {0,0}
+   58          };
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =        54     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

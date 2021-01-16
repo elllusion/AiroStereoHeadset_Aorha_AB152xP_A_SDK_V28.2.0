@@ -1,0 +1,38 @@
+?EP?P013_f1_0xFEB59C?P013 SEGMENT 'ECODE_FLASH'
+PUBLIC P013_f1_0xFEB59C_1??
+PUBLIC P013_f1_0xFEB59C_2??	
+RSEG ?EP?P013_f1_0xFEB59C?P013	;program segment
+
+P013_f1_0xFEB59C_1??:
+DB		0x9C, 0xB5, 0xFE
+DB		0
+DB		0xF5, 0xD3
+EJMP	P013_f1_patch
+
+P013_f1_0xFEB59C_2??:
+DB		0xA0, 0xB5, 0xFE
+DB		2
+EJMP	P013_f1_patch
+DB		0x55, 0xD2
+
+P013_f1_patch:
+
+MOV	     A, #0x03
+MOV      R7,R11
+MOVZ     WR6,R7
+XRL      WR4,WR4
+DEC      DR4,#0x01
+ECALL    0xFFB826  //LC_TIMER_GetExpiredTime
+//MOV      0x8042,DR4
+MOV      A,R4
+MOV	    DPTR, #0x8042
+MOVX      @DPTR,A
+P013_f1_patch_01:
+//MOV      DR4,0x8042
+MOV	    DPTR, #0x8042
+MOVX      A,@DPTR
+MOV      R4,A
+ECALL    0xFFB68B //LC_TIMER_IsExpired
+JZ       P013_f1_patch_01
+SETB     0xF8.6
+EJMP     0xFEB5A5

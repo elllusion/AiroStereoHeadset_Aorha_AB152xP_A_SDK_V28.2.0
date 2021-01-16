@@ -1,0 +1,66 @@
+C251 COMPILER V5.57.0,  Mem                                                                08/11/20  06:34:36  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE Mem
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\Mem.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SDK\IOSYS\Mem.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) WARN
+                    -INGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\sourc
+                    -e\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\source\R
+                    -OM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_LE;.
+                    -\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspData;.
+                    -\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLASH_I
+                    -NIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoHeadset\Mem
+                    -.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\Mem.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #include "rc.h"
+    4          #include "..\SDK_Proxy\SDK_Proxy.h"
+    5          #include "..\SDK\include\SDK_Config.h"
+    6          
+    7          #if SDK_MEMORY_ALLOCATION
+               /*
+               SDK_Mem_Alloc() can be used to dynamically allocate memory. The allocated memory should be released by SD
+             -K_Mem_Free().
+               Return NULL if the memory allocation is failed.
+               */
+               void *SDK_Mem_Alloc(U16 size)
+               {
+                   return OS_malloc(size);
+               }
+               
+               /*
+               SDK_Mem_Free() is used to free memory allocated by SDK_Mem_Alloc().
+               */
+               void SDK_Mem_Free(void *ptr)
+               {
+                   OSMEM_Put((void XDATA_PTR)ptr);
+               }
+               
+               #endif
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =    ------     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

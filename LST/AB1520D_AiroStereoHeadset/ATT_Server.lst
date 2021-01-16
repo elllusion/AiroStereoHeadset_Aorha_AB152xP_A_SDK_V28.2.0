@@ -1,0 +1,433 @@
+C251 COMPILER V5.57.0,  ATT_Server                                                         08/11/20  06:34:19  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE ATT_Server
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\ATT_Server.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\ATT\ATT_Server.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) WAR
+                    -NINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\sour
+                    -ce\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\source\
+                    -ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_LE;
+                    -.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspData;
+                    -.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLASH_
+                    -INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoHeadset\AT
+                    -T_Server.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\ATT_Server.obj) 
+
+stmt  level    source
+
+    1          #define _ATT_SERVER_C_
+    2          #include "reside_flash.inc"
+    3          #include "rc.h"
+    4          
+    5          #ifdef LE_SUPPORTED_HOST_FLASH
+    6          
+    7          #include "Bt_config_profile.h"
+    8          
+    9          #include "ATT_server.h"
+   10          #include "ATT_External_Struct.h"
+   11          #include "..\APP\APP_Interface.h"
+   12          #ifdef ANCS_CELL_PHONE_APP
+               #include "..\APP_ANCS\APP_ANCS_interface.h"
+               #endif  //#ifdef ANCS_CELL_PHONE_APP
+   15          
+   16          #if ( defined __BIG_ENDIAN_MCU__ &&  defined __LITTLE_ENDIAN_MCU__)|| \
+   17            (!defined __BIG_ENDIAN_MCU__ && !defined __LITTLE_ENDIAN_MCU__)
+                   #warning "This SDK may not work correctly since Endianness isn't defined VALIDLY "
+               #endif
+   20          
+   21          //////// Helper MACRO definition ////////
+   22          #define EXPAND1(X,Y) X##Y
+   23          #define EXPAND(X,Y) EXPAND1(X,Y)
+   24          #define ADDLINE(X) EXPAND(X,__LINE__)
+   25          //////////////////////////////////////////
+   26          
+   27          /**
+   28          * 1. Attribute handle enumerate
+   29          *
+   30          */
+   31          #define ATT_H_JUMP_TO(handle)                       ADDLINE(ATT_H_JUMP_TO_) = handle-1,
+   32          
+   33          
+   34          #define SERVICE_016_M(NUM,TYPE,B1)                      ATT_H_SERVICE_##NUM,
+   35          #define SERVICE_128_M(NUM,TYPE,B1,B2,B3,B4)                 ATT_H_SERVICE_##NUM,
+   36          #define INCLUDE_016_M(NUM)                          ADDLINE(ATT_H_INCLUDE_),
+   37          #define INCLUDE_128_M(NUM)                          ADDLINE(ATT_H_INCLUDE_),
+   38          #define CHARACT_016_M(RW_P,SIZE,SYMBOL,PROPERTY,CB,B1)            ADDLINE(ATT_H_CHAR_D_), \
+   39                                                ADDLINE(ATT_H_CHAR_V_),
+   40          #define CHARACT_128_M(RW_P,SIZE,SYMBOL,PROPERTY,CB,B1,B2,B3,B4)       ADDLINE(ATT_H_CHAR_D_), \
+   41                                                ADDLINE(ATT_H_CHAR_V_),
+   42          #define DESCRIPTORS_M(RW_P,SIZE,SYMBOL,CB,B1)               ADDLINE(ATT_H_DESCRIP_),
+   43          
+   44          #define VL_CHAR_016_M(RW_P,SIZE,MAXSIZE,SYMBOL,PROPERTY,CB,B1)        ADDLINE(ATT_H_CHAR_D_), \
+   45                                                ADDLINE(ATT_H_CHAR_V_),
+   46          #define VL_CHAR_128_M(RW_P,SIZE,MAXSIZE,SYMBOL,PROPERTY,CB,B1,B2,B3,B4)   ADDLINE(ATT_H_CHAR_D_), \
+   47                                                ADDLINE(ATT_H_CHAR_V_),
+   48          #define VL_DESCRIPT_M(RW_P,SIZE,MAXSIZE,SYMBOL,CB,B1)           ADDLINE(ATT_H_DESCRIP_),
+   49          
+   50          
+   51          enum
+   52          {
+C251 COMPILER V5.57.0,  ATT_Server                                                         08/11/20  06:34:19  PAGE 2   
+
+   53            ATT_H_RESERVED,
+   54            #include "ATT_RAW.h"
+   55              #include "ATT_undefine_MACRO.h"
+   56          }; //Attribute handle enumerate
+   57          
+   58          #undef ATT_H_JUMP_TO
+   59          #define ATT_H_JUMP_TO(handle)   
+   60          
+   61          /**
+   62          * 2. Calculate attribute number of each service
+   63          *
+   64          */
+   65          
+   66          #define SERVICE_016_M(NUM,TYPE,B1)                   ,ATT_NUM_OF_SERVICE_##NUM = 1
+   67          #define SERVICE_128_M(NUM,TYPE,B1,B2,B3,B4)          ,ATT_NUM_OF_SERVICE_##NUM = 1
+   68          #define INCLUDE_016_M(NUM)                                                      +1
+   69          #define INCLUDE_128_M(NUM)                                                      +1
+   70          #define CHARACT_016_M(RW_P,SIZE,SYMBOL,PROPERTY,CB,B1)                          +2
+   71          #define CHARACT_128_M(RW_P,SIZE,SYMBOL,PROPERTY,CB,B1,B2,B3,B4)                 +2
+   72          #define DESCRIPTORS_M(RW_P,SIZE,SYMBOL,CB,B1)                                   +1
+   73          #define VL_CHAR_016_M(RW_P,SIZE,MAXSIZE,SYMBOL,PROPERTY,CB,B1)                  +2
+   74          #define VL_CHAR_128_M(RW_P,SIZE,MAXSIZE,SYMBOL,PROPERTY,CB,B1,B2,B3,B4)         +2
+   75          #define VL_DESCRIPT_M(RW_P,SIZE,MAXSIZE,SYMBOL,CB,B1)                           +1
+   76          
+   77          
+   78          enum
+   79          {
+   80            ATT_NUM_COUNT_START
+   81            #include "ATT_RAW.h"
+   82              #include "ATT_undefine_MACRO.h"
+   83            ,ATT_NUM_COUNT_END
+   84          };
+   85          
+   86          
+   87          /**
+   88          * 3. Service UUID record (16 Bits only)
+   89          *
+   90          */
+   91          #define SERVICE_016_M(NUM,TYPE,B1)      ENUM_SERVICE_##NUM  =  B1,
+   92          #define SERVICE_128_M(NUM,TYPE,B1,B2,B3,B4)
+   93          #define INCLUDE_016_M(NUM)
+   94          #define INCLUDE_128_M(NUM)
+   95          #define CHARACT_016_M(RW_P,SIZE,SYMBOL,PROPERTY,CB,B1)
+   96          #define CHARACT_128_M(RW_P,SIZE,SYMBOL,PROPERTY,CB,B1,B2,B3,B4)
+   97          #define DESCRIPTORS_M(RW_P,SIZE,SYMBOL,CB,B1)
+   98          #define VL_CHAR_016_M(RW_P,SIZE,MAXSIZE,SYMBOL,PROPERTY,CB,B1)
+   99          #define VL_CHAR_128_M(RW_P,SIZE,MAXSIZE,SYMBOL,PROPERTY,CB,B1,B2,B3,B4)
+  100          #define VL_DESCRIPT_M(RW_P,SIZE,MAXSIZE,SYMBOL,CB,B1)
+  101          
+  102          
+  103          enum
+  104          {
+  105            #include "ATT_RAW.h"
+  106              #include "ATT_undefine_MACRO.h"
+  107            END_OF_RECORD
+  108          };
+  109          
+  110          /**
+  111          * 4. UUID instance declaration
+  112          *
+  113          */
+  114          #define SERVICE_016_M(NUM,TYPE,B1) U16 CODE UUID_service_##NUM[] = {TO_LITTLE_ENDIAN_U16(B1)};
+  115          #define SERVICE_128_M(NUM,TYPE,B1,B2,B3,B4) U32 CODE UUID_service_##NUM[] = {TO_LITTLE_ENDIAN_U32(B4), \
+  116                                                 TO_LITTLE_ENDIAN_U32(B3), \
+  117                                                 TO_LITTLE_ENDIAN_U32(B2), \
+  118                                                 TO_LITTLE_ENDIAN_U32(B1)};
+C251 COMPILER V5.57.0,  ATT_Server                                                         08/11/20  06:34:19  PAGE 3   
+
+  119          #define INCLUDE_016_M(NUM)
+  120          #define INCLUDE_128_M(NUM)
+  121          #define CHARACT_016_M(RW_P,SIZE,SYMBOL,PROPERTY,CB,B1)
+  122          #define CHARACT_128_M(RW_P,SIZE,SYMBOL,PROPERTY,CB,B1,B2,B3,B4) U32 XDATA ADDLINE(UUID_char_)[]={ \
+  123                                                 TO_LITTLE_ENDIAN_U32(B4), \
+  124                                                 TO_LITTLE_ENDIAN_U32(B3), \
+  125                                                 TO_LITTLE_ENDIAN_U32(B2), \
+  126                                                 TO_LITTLE_ENDIAN_U32(B1)};
+  127          #define DESCRIPTORS_M(RW_P,SIZE,SYMBOL,CB,B1)
+  128          #define VL_CHAR_016_M(RW_P,SIZE,MAXSIZE,SYMBOL,PROPERTY,CB,B1)
+  129          #define VL_CHAR_128_M(RW_P,SIZE,MAXSIZE,SYMBOL,PROPERTY,CB,B1,B2,B3,B4) U32 XDATA ADDLINE(UUID_char_)[]={
+             - \
+  130                                                 TO_LITTLE_ENDIAN_U32(B4), \
+  131                                                 TO_LITTLE_ENDIAN_U32(B3), \
+  132                                                 TO_LITTLE_ENDIAN_U32(B2), \
+  133                                                 TO_LITTLE_ENDIAN_U32(B1)};
+  134          #define VL_DESCRIPT_M(RW_P,SIZE,MAXSIZE,SYMBOL,CB,B1)
+  135          
+  136          
+  137          #include "ATT_RAW.h"
+  138          #include "ATT_undefine_MACRO.h"
+  139          
+  140          
+  141          /**
+  142          * 5. Include Declaration value instance declaration
+  143          *
+  144          */
+  145          #define SERVICE_016_M(NUM,TYPE,B1)
+  146          #define SERVICE_128_M(NUM,TYPE,B1,B2,B3,B4)
+  147          #define INCLUDE_016_M(NUM)  INC_DECLARE_016 CODE ADDLINE(ATT_Include_D_) ={ \
+  148                                TO_LITTLE_ENDIAN_U16(ATT_H_SERVICE_##NUM), \
+  149                                TO_LITTLE_ENDIAN_U16(ATT_H_SERVICE_##NUM + ATT_NUM_OF_SERVICE_##NUM -1), \
+  150                                TO_LITTLE_ENDIAN_U16(ENUM_SERVICE_##NUM), \
+  151                                                };
+  152          #define INCLUDE_128_M(NUM)  INC_DECLARE_128 CODE ADDLINE(ATT_Include_D_) ={ \
+  153                                TO_LITTLE_ENDIAN_U16(ATT_H_SERVICE_##NUM), \
+  154                                TO_LITTLE_ENDIAN_U16(ATT_H_SERVICE_##NUM + ATT_NUM_OF_SERVICE_##NUM -1), \
+  155                                                };
+  156          #define CHARACT_016_M(RW_P,SIZE,SYMBOL,PROPERTY,CB,B1)
+  157          #define CHARACT_128_M(RW_P,SIZE,SYMBOL,PROPERTY,CB,B1,B2,B3,B4)
+  158          #define DESCRIPTORS_M(RW_P,SIZE,SYMBOL,CB,B1)
+  159          #define VL_CHAR_016_M(RW_P,SIZE,MAXSIZE,SYMBOL,PROPERTY,CB,B1)
+  160          #define VL_CHAR_128_M(RW_P,SIZE,MAXSIZE,SYMBOL,PROPERTY,CB,B1,B2,B3,B4)
+  161          #define VL_DESCRIPT_M(RW_P,SIZE,MAXSIZE,SYMBOL,CB,B1)
+  162          
+  163          
+  164          #include "ATT_RAW.h"
+  165          #include "ATT_undefine_MACRO.h"
+  166          
+  167          
+  168          
+  169          /**
+  170          * 6. Characteristic declaration Value instance declaration
+  171          *
+  172          */
+  173          
+  174          #define SERVICE_016_M(NUM,TYPE,B1)
+  175          #define SERVICE_128_M(NUM,TYPE,B1,B2,B3,B4)
+  176          #define INCLUDE_016_M(NUM)
+  177          #define INCLUDE_128_M(NUM)
+  178          #define CHARACT_016_M(RW_P,SIZE,SYMBOL,PROPERTY,CB,B1)            CHAR_DECLARE_016 CODE ADDLINE(ATT_CHAR_D_)
+             - = { \
+  179                                                PROPERTY, \
+  180                                                TO_LITTLE_ENDIAN_U16((ADDLINE(ATT_H_CHAR_V_))), \
+  181                                                TO_LITTLE_ENDIAN_U16(B1) \
+  182                                              };
+C251 COMPILER V5.57.0,  ATT_Server                                                         08/11/20  06:34:19  PAGE 4   
+
+  183          #define CHARACT_128_M(RW_P,SIZE,SYMBOL,PROPERTY,CB,B1,B2,B3,B4)       CHAR_DECLARE_128 CODE ADDLINE(ATT_CH
+             -AR_D_) = { \
+  184                                                PROPERTY, \
+  185                                                TO_LITTLE_ENDIAN_U16((ADDLINE(ATT_H_CHAR_V_))), \
+  186                                                TO_LITTLE_ENDIAN_U32(B4), \
+  187                                                TO_LITTLE_ENDIAN_U32(B3), \
+  188                                                TO_LITTLE_ENDIAN_U32(B2), \
+  189                                                TO_LITTLE_ENDIAN_U32(B1), \
+  190                                              };
+  191          #define DESCRIPTORS_M(RW_P,SIZE,SYMBOL,CB,B1)
+  192          #define VL_CHAR_016_M(RW_P,SIZE,MAXSIZE,SYMBOL,PROPERTY,CB,B1)      CHAR_DECLARE_016 CODE ADDLINE(ATT_CHAR_
+             -D_) = { \
+  193                                                PROPERTY, \
+  194                                                TO_LITTLE_ENDIAN_U16((ADDLINE(ATT_H_CHAR_V_))), \
+  195                                                TO_LITTLE_ENDIAN_U16(B1) \
+  196                                              };  
+  197          #define VL_CHAR_128_M(RW_P,SIZE,MAXSIZE,SYMBOL,PROPERTY,CB,B1,B2,B3,B4)   CHAR_DECLARE_128 CODE ADDLINE(AT
+             -T_CHAR_D_) = { \
+  198                                                PROPERTY, \
+  199                                                TO_LITTLE_ENDIAN_U16((ADDLINE(ATT_H_CHAR_V_))), \
+  200                                                TO_LITTLE_ENDIAN_U32(B4), \
+  201                                                TO_LITTLE_ENDIAN_U32(B3), \
+  202                                                TO_LITTLE_ENDIAN_U32(B2), \
+  203                                                TO_LITTLE_ENDIAN_U32(B1), \
+  204                                              };  
+  205          #define VL_DESCRIPT_M(RW_P,SIZE,MAXSIZE,SYMBOL,CB,B1)
+  206          
+  207          #include "ATT_RAW.h"
+  208          #include "ATT_undefine_MACRO.h"
+  209          
+  210          
+  211          /**
+  212          * 7. Calculate attribute server Size
+  213          *
+  214          */
+  215          
+  216          #define SERVICE_016_M(NUM,TYPE,B1)                      +1
+  217          #define SERVICE_128_M(NUM,TYPE,B1,B2,B3,B4)                 +1
+  218          #define INCLUDE_016_M(NUM)                          +1
+  219          #define INCLUDE_128_M(NUM)                          +1
+  220          #define CHARACT_016_M(RW_P,SIZE,SYMBOL,PROPERTY,CB,B1)            +2
+  221          #define CHARACT_128_M(RW_P,SIZE,SYMBOL,PROPERTY,CB,B1,B2,B3,B4)       +2
+  222          #define DESCRIPTORS_M(RW_P,SIZE,SYMBOL,CB,B1)                 +1
+  223          #define VL_CHAR_016_M(RW_P,SIZE,MAXSIZE,SYMBOL,PROPERTY,CB,B1)        +2
+  224          #define VL_CHAR_128_M(RW_P,SIZE,MAXSIZE,SYMBOL,PROPERTY,CB,B1,B2,B3,B4)   +2
+  225          #define VL_DESCRIPT_M(RW_P,SIZE,MAXSIZE,SYMBOL,CB,B1)             +1
+  226          
+  227                                              
+  228          enum
+  229          {
+  230            ATT_NUMBER_OF_ATTRBUTES = 0
+  231            #include "ATT_RAW.h"
+  232              #include "ATT_undefine_MACRO.h"
+  233            ,ATT_SERVER_SIZE_ENUM
+  234          }; //Attribute handle enumerate
+  235          
+  236          
+  237          /**
+  238          * 7. Characteristic external symbol declaration   // TBD
+  239          *
+  240          */
+  241          
+  242          /*
+  243          #define SERVICE_016_M(NUM,TYPE,B1)
+  244          #define SERVICE_128_M(NUM,TYPE,B1,B2,B3,B4)
+  245          #define INCLUDE_016_M(NUM)
+C251 COMPILER V5.57.0,  ATT_Server                                                         08/11/20  06:34:19  PAGE 5   
+
+  246          #define INCLUDE_128_M(NUM)
+  247          #define CHARACT_016_M(RW_P,SIZE,MAXSIZE,SYMBOL,PROPERTY,CB,B1) //EXTERN (SYMBOL)[];
+  248          #define CHARACT_128_M(RW_P,SIZE,MAXSIZE,SYMBOL,PROPERTY,CB,B1,B2,B3,B4) //EXTERN (SYMBOL)[];
+  249          #define DESCRIPTORS_M(RW_P,SIZE,MAXSIZE,SYMBOL,CB,B1)  //CHECK_SYMBOL(SYMBOL)
+  250          
+  251          #include "ATT_RAW.h"
+  252          #include "ATT_undefine_MACRO.h"
+  253          */
+  254          
+  255          
+  256          
+  257          /**
+  258          * 8. Attribute instance declaration
+  259          *
+  260          */
+  261          
+  262          /**
+  263          typedef struct {
+  264            U8 CODE_PTR dataptr;
+  265            U8 (*CBfunc)(U8);
+  266            UUID_T uuid_t;
+  267              U8 permission;
+  268              U16 currentLen;
+  269              U16 maximumLen;
+  270            U16 handle;
+  271          }SDK_ATTRIBUTE;
+  272          */
+  273                          //  [data]    [Callback]  [addr]    [tpye]   [permission]   [currentLen]   [maximumLen] [handle]
+  274          SDK_ATTRIBUTE CODE firstAttribute= {NULL,     NULL,   {NULL,       0},    0,        0,             0,   ATT_SERVER_
+             -SIZE_ENUM};
+  275          
+  276          
+  277          #define SERVICE_016_M(NUM,TYPE,B1) \
+  278              SDK_ATTRIBUTE CODE ADDLINE(Attribute) = {(U8 CODE_PTR)UUID_service_##NUM,   (ATTCB)FAR_NULL,{(U8 XDATA_
+             -PTR)TYPE,  UUID_B_016}, 0x81, 2, 0,  ATT_H_SERVICE_##NUM};
+  279              
+  280          #define SERVICE_128_M(NUM,TYPE,B1,B2,B3,B4) \
+  281              SDK_ATTRIBUTE CODE ADDLINE(Attribute) = {(U8 CODE_PTR)UUID_service_##NUM,   (ATTCB)FAR_NULL,{(U8 XDATA_
+             -PTR)TYPE,  UUID_B_016}, 0x81,16, 0,  ATT_H_SERVICE_##NUM};
+  282          
+  283          #define INCLUDE_016_M(NUM) \
+  284              SDK_ATTRIBUTE CODE ADDLINE(Attribute) = {(U8 CODE_PTR)&ADDLINE(ATT_Include_D_), (ATTCB)FAR_NULL,{(U8 XD
+             -ATA_PTR)0x2802,  UUID_B_016}, 0x81, 6, 0,  ADDLINE(ATT_H_INCLUDE_)};
+  285          
+  286          #define INCLUDE_128_M(NUM) \
+  287              SDK_ATTRIBUTE CODE ADDLINE(Attribute) = {(U8 CODE_PTR)&ADDLINE(ATT_Include_D_), (ATTCB)FAR_NULL,{(U8 XD
+             -ATA_PTR)0x2802,  UUID_B_016}, 0x81, 4, 0,  ADDLINE(ATT_H_INCLUDE_)};
+  288              
+  289          #define CHARACT_016_M(RW_P,SIZE,SYMBOL,PROPERTY,CB,B1) \
+  290              SDK_ATTRIBUTE CODE ADDLINE(Attribute1_) = {(U8 CODE_PTR)&ADDLINE(ATT_CHAR_D_),  (ATTCB)FAR_NULL,{(U8 XDA
+             -TA_PTR)0x2803,UUID_B_016}, 0x81, 0x0005, 0, ADDLINE(ATT_H_CHAR_D_)}; \
+  291              SDK_ATTRIBUTE CODE ADDLINE(Attribute2_) = {(U8 CODE_PTR)&(SYMBOL),        (ATTCB)CB,{(U8 XDATA_PTR)B1,UUID
+             -_B_016},          RW_P, SIZE, 0, ADDLINE(ATT_H_CHAR_V_)};
+  292          
+  293          #define CHARACT_128_M(RW_P,SIZE,SYMBOL,PROPERTY,CB,B1,B2,B3,B4) \
+  294              SDK_ATTRIBUTE CODE ADDLINE(Attribute1_) = {(U8 CODE_PTR)&ADDLINE(ATT_CHAR_D_),  (ATTCB)FAR_NULL,{(U8 XDA
+             -TA_PTR)0x2803,UUID_B_016}, 0x81, 0x0013, 0, ADDLINE(ATT_H_CHAR_D_)}; \
+  295              SDK_ATTRIBUTE CODE ADDLINE(Attribute2_) = {(U8 CODE_PTR)&(SYMBOL),        (ATTCB)CB,{(U8 XDATA_PTR)&ADDLIN
+             -E(UUID_char_),UUID_B_128},RW_P, SIZE, 0, ADDLINE(ATT_H_CHAR_V_)};
+  296          
+  297          #define DESCRIPTORS_M(RW_P,SIZE,SYMBOL,CB,TYPE) \
+  298              SDK_ATTRIBUTE CODE ADDLINE(Attribute) = {(U8 CODE_PTR)&(SYMBOL),          (ATTCB)CB,{(U8 XDATA_PTR)TYPE,UUI
+             -D_B_016},       RW_P, SIZE, 0, ADDLINE(ATT_H_DESCRIP_)};
+  299          
+  300          #define VL_CHAR_016_M(RW_P,SIZE,MAXSIZE,SYMBOL,PROPERTY,CB,B1) \
+  301              SDK_ATTRIBUTE  CODE ADDLINE(Attribute1_) = {(U8 CODE_PTR)&ADDLINE(ATT_CHAR_D_), (ATTCB)FAR_NULL,{(U8 XD
+C251 COMPILER V5.57.0,  ATT_Server                                                         08/11/20  06:34:19  PAGE 6   
+
+             -ATA_PTR)0x2803,UUID_B_016}, 0x81, 0x0005, 0, ADDLINE(ATT_H_CHAR_D_)}; \
+  302              SDK_ATTRIBUTE XDATA ADDLINE(Attribute2_) = {(U8 CODE_PTR)&(SYMBOL),       (ATTCB)CB,{(U8 XDATA_PTR)B1,UUI
+             -D_B_016},           RW_P, SIZE, MAXSIZE, ADDLINE(ATT_H_CHAR_V_)};
+  303              
+  304          #define VL_CHAR_128_M(RW_P,SIZE,MAXSIZE,SYMBOL,PROPERTY,CB,B1,B2,B3,B4) \
+  305              SDK_ATTRIBUTE  CODE ADDLINE(Attribute1_) = {(U8 CODE_PTR)&ADDLINE(ATT_CHAR_D_), (ATTCB)FAR_NULL,{(U8 XD
+             -ATA_PTR)0x2803,UUID_B_016}, 0x81, 0x0013, 0, ADDLINE(ATT_H_CHAR_D_)}; \
+  306              SDK_ATTRIBUTE XDATA ADDLINE(Attribute2_) = {(U8 CODE_PTR)&(SYMBOL),       (ATTCB)CB,{(U8 XDATA_PTR)&ADDLI
+             -NE(UUID_char_),UUID_B_128},RW_P, SIZE, MAXSIZE, ADDLINE(ATT_H_CHAR_V_)};
+  307          
+  308          #define VL_DESCRIPT_M(RW_P,SIZE,MAXSIZE,SYMBOL,CB,TYPE) \
+  309              SDK_ATTRIBUTE XDATA ADDLINE(Attribute) = {(U8 CODE_PTR)&(SYMBOL),         (ATTCB)CB,{(U8 XDATA_PTR)TYPE,UU
+             -ID_B_016},       RW_P, SIZE, MAXSIZE, ADDLINE(ATT_H_DESCRIP_)};
+  310          
+  311          
+  312          #include "ATT_RAW.h"
+  313          #include "ATT_undefine_MACRO.h"
+  314          
+  315          
+  316          /**
+  317          * 9. Attribute Server instance declaration
+  318          *
+  319          */
+  320          #define SERVICE_016_M(NUM,TYPE,B1)                    (SDK_ATTRIBUTE CODE_PTR)&ADDLINE(Attribute),
+  321          #define SERVICE_128_M(NUM,TYPE,B1,B2,B3,B4)               (SDK_ATTRIBUTE CODE_PTR)&ADDLINE(Attribute),
+  322          #define INCLUDE_016_M(NUM)                        (SDK_ATTRIBUTE CODE_PTR)&ADDLINE(Attribute),
+  323          #define INCLUDE_128_M(NUM)                        (SDK_ATTRIBUTE CODE_PTR)&ADDLINE(Attribute),
+  324          #define CHARACT_016_M(RW_P,SIZE,SYMBOL,PROPERTY,CB,B1)          (SDK_ATTRIBUTE CODE_PTR)&ADDLINE(Attribute1_)
+             -,\
+  325                                              (SDK_ATTRIBUTE CODE_PTR)&ADDLINE(Attribute2_),
+  326          #define CHARACT_128_M(RW_P,SIZE,SYMBOL,PROPERTY,CB,B1,B2,B3,B4)     (SDK_ATTRIBUTE CODE_PTR)&ADDLINE(Attrib
+             -ute1_),\
+  327                                              (SDK_ATTRIBUTE CODE_PTR)&ADDLINE(Attribute2_),
+  328          #define DESCRIPTORS_M(RW_P,SIZE,SYMBOL,CB,TYPE)             (SDK_ATTRIBUTE CODE_PTR)&ADDLINE(Attribute),
+  329          #define VL_CHAR_016_M(RW_P,SIZE,MAXSIZE,SYMBOL,PROPERTY,CB,B1)      (SDK_ATTRIBUTE CODE_PTR)&ADDLINE(Attrib
+             -ute1_),\
+  330                                              (SDK_ATTRIBUTE CODE_PTR)&ADDLINE(Attribute2_),
+  331          #define VL_CHAR_128_M(RW_P,SIZE,MAXSIZE,SYMBOL,PROPERTY,CB,B1,B2,B3,B4) (SDK_ATTRIBUTE CODE_PTR)&ADDLINE(
+             -Attribute1_),\
+  332                                              (SDK_ATTRIBUTE CODE_PTR)&ADDLINE(Attribute2_),
+  333          #define VL_DESCRIPT_M(RW_P,SIZE,MAXSIZE,SYMBOL,CB,TYPE)         (SDK_ATTRIBUTE CODE_PTR)&ADDLINE(Attribute),
+  334          
+  335          
+  336          
+  337          
+  338          
+  339          typedef struct{
+  340              SDK_ATTRIBUTE CODE_PTR att[ATT_SERVER_SIZE_ENUM];
+  341          }PACKED_STRUCT ATT_SERVER_SDK_TYPE;
+  342          
+  343          
+  344          ATT_SERVER_SDK_TYPE CODE gATT_Server_SDK =
+  345          {
+  346            {
+  347              &firstAttribute,
+  348            #include "ATT_RAW.h"
+  349              #include "ATT_undefine_MACRO.h"
+  350            }
+  351          };
+  352          SDK_ATTRIBUTE CODE_PTR CODE_PTR  gATT_Server = (SDK_ATTRIBUTE CODE_PTR CODE_PTR)&(gATT_Server_SDK.att[0])
+             -;
+  353          U16 CODE ATT_SDK_SERVER_SIZE = ATT_SERVER_SIZE_ENUM;
+  354          
+  355          #endif /* LE_SUPPORTED_HOST_FLASH */
+  356          
+
+C251 COMPILER V5.57.0,  ATT_Server                                                         08/11/20  06:34:19  PAGE 7   
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =       398     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =      1859     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

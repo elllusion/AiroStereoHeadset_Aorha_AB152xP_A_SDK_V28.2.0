@@ -1,0 +1,265 @@
+C251 COMPILER V5.57.0,  sector_driver_ringtone_data_type                                   08/11/20  06:32:10  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_driver_ringtone_data_type
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\sector_driver_ringtone_data_type.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\sector_driver_ringtone_data_type.c XSMALL HPTR FUNCTIONS
+                    -(REENTRANT) ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABS
+                    -DRIVER;.\source\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;
+                    -.\source\ROM\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM
+                    -\GAP;.\source\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1
+                    -;.\source\SECTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTO
+                    -R\ToolMisc) DEFINE(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1
+                    -520D_AiroStereoHeadset\sector_driver_ringtone_data_type.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\sector_dr
+                    -iver_ringtone_data_type.obj) 
+
+stmt  level    source
+
+    1          //////////////////////////////////////////////////////////
+    2          // Copyright@ 2011 Airoha.  All right reserved.
+    3          //////////////////////////////////////////////////////////
+    4          #include <config.h>
+    5          #include <cpu.h>
+    6          #include "bt_config_profile.h"
+    7          
+    8          #include "sector_driver_ringtone_data.h"
+    9          
+   10          #pragma userclass (HCONST = CONFIG)
+   11          
+   12          
+   13          enum
+   14          {
+   15            NOTE_LA3 = 0x02,
+   16            NOTE_LA3_HIGH,
+   17            NOTE_SI3,
+   18            NOTE_DO4 = 0x06,
+   19            NOTE_DO4_HIGH,
+   20            NOTE_RE4,
+   21            NOTE_RE4_HIGH,
+   22            NOTE_ME4,
+   23            NOTE_FA4 = 0x0C,
+   24            NOTE_FA4_HIGH,
+   25            NOTE_SO4,
+   26            NOTE_SO4_HIGH,
+   27            NOTE_LA4,
+   28            NOTE_LA4_HIGH,
+   29            NOTE_SI4,
+   30            NOTE_SI4_HIGH,
+   31            NOTE_DO5 = 0x14,
+   32            NOTE_DO5_HIGH,
+   33            NOTE_RE5,
+   34            NOTE_RE5_HIGH,
+   35            NOTE_ME5,
+   36            NOTE_FA5 = 0x1A,
+   37            NOTE_FA5_HIGH,
+   38            NOTE_SO5,
+   39            NOTE_SO5_HIGH,
+   40            NOTE_LA5,
+   41            NOTE_LA5_HIGH,
+   42            NOTE_SI5,
+   43            NOTE_SI5_HIGH,
+   44            NOTE_DO6 = 0x22,
+   45            NOTE_DO6_HIGH,
+   46            NOTE_RE6,
+   47            NOTE_RE6_HIGH,
+   48            NOTE_ME6,
+   49            NOTE_FA6 = 0x28,
+   50            NOTE_FA6_HIGH,
+   51            NOTE_SO6,
+C251 COMPILER V5.57.0,  sector_driver_ringtone_data_type                                   08/11/20  06:32:10  PAGE 2   
+
+   52            NOTE_SO6_HIGH,
+   53            NOTE_LA6,
+   54            NOTE_LA6_HIGH,
+   55            NOTE_SI6,
+   56            NOTE_SI6_HIGH,
+   57            NOTE_DO7 = 0x30,
+   58            NOTE_DO7_HIGH,
+   59            NOTE_RE7,
+   60            NOTE_RE7_HIGH,
+   61            NOTE_ME7,
+   62            NOTE_FA7 = 0x36,
+   63            NOTE_FA7_HIGH,
+   64            NOTE_SO7,
+   65            NOTE_SO7_HIGH,
+   66            NOTE_LA7,
+   67            NOTE_LA7_HIGH,
+   68            NOTE_SI7,
+   69            NOTE_SI7_HIGH,
+   70          
+   71            NOTE_DO8 = 0x3E,  // note frequency which is higher than this is supported only when DSP sample rate is 
+             -set on 16k
+   72            NOTE_DO8_HIGH,
+   73          
+   74            NOTE_REST = 0xC0,
+   75          };
+   76          
+   77          #define METRONOME_1_16_100MS (5)
+   78          #define METRONOME_1_8_200MS (10)
+   79          #define METRONOME_3_16_300MS (15)
+   80          #define METRONOME_1_4_400MS (20)
+   81          #define METRONOME_3_8_600MS (30)
+   82          #define METRONOME_1_2_800MS (40)
+   83          #define METRONOME_3_4_1200MS (60)
+   84          
+   85          #define METRONOME_1_1600MS (80)
+   86          #define METRONOME_2_200MS (160)
+   87          
+   88          #define VOL_BEGIN 0x4F
+   89          #define VOL_END   0x4F
+   90          
+   91          
+   92          ///////////////////////////////////////////////////////////////////////
+   93          // Ringtine Data
+   94          ///////////////////////////////////////////////////////////////////////
+   95          
+   96          #define RTDAT_SHORT_1_NOTE_1    NOTE_ME4, METRONOME_1_16_100MS, VOL_BEGIN, VOL_END,
+   97          #define RTDAT_SHORT_1_NOTE_2    NOTE_LA4, METRONOME_1_2_800MS, VOL_BEGIN, VOL_END,
+   98          #define RTDAT_SHORT_1_NOTE_3    NOTE_ME5, METRONOME_1_2_800MS, VOL_BEGIN, VOL_END,
+   99          #define RTDAT_SHORT_1_NOTE_4    NOTE_SI5, METRONOME_1_2_800MS, VOL_BEGIN, VOL_END,
+  100          #define RTDAT_SHORT_2_NOTE      NOTE_ME5, METRONOME_1_2_800MS, VOL_BEGIN, VOL_END, NOTE_REST, METRONOME_3_16
+             -_300MS, VOL_BEGIN, VOL_END, NOTE_ME5, METRONOME_1_2_800MS, VOL_BEGIN, VOL_END,
+  101          #define RTDAT_MEDIAN_1_NOTE     NOTE_SO6, METRONOME_1_16_100MS, VOL_BEGIN, VOL_END,
+  102          #define RTDAT_LONG_1_NOTE_HIGH    NOTE_RE5, METRONOME_3_8_600MS, VOL_BEGIN, VOL_END,
+  103          #define RTDAT_LONG_1_NOTE_LOW   NOTE_DO4, METRONOME_3_8_600MS, VOL_BEGIN, VOL_END,
+  104          #define RTDAT_VERYLONG_1_NOTE_HIGH  NOTE_RE5, METRONOME_1_2_800MS, VOL_BEGIN, VOL_END,
+  105          #define RTDAT_VERYLONG_1_NOTE_LOW NOTE_DO4, METRONOME_1_2_800MS, VOL_BEGIN, VOL_END,
+  106          #define RTDAT_RISING_2_NOTE     NOTE_FA4, METRONOME_1_16_100MS, VOL_BEGIN, VOL_END, NOTE_ME5, METRONOME_1_1
+             -6_100MS, VOL_BEGIN, VOL_END,
+  107          #define RTDAT_RISING_4_NOTE     NOTE_FA4, METRONOME_1_16_100MS, VOL_BEGIN, VOL_END, NOTE_LA4, METRONOME_1_1
+             -6_100MS, VOL_BEGIN, VOL_END, NOTE_DO5, METRONOME_1_16_100MS, VOL_BEGIN, VOL_END, NOTE_ME5, METRONOME_1_16_100MS, VOL_BEG
+             -IN, VOL_END,
+  108          #define RTDAT_FALLING_2_NOTE    NOTE_ME5, METRONOME_1_16_100MS, VOL_BEGIN, VOL_END, NOTE_FA4, METRONOME_1_1
+             -6_100MS, VOL_BEGIN, VOL_END,
+  109          #define RTDAT_FALLING_4_NOTE    NOTE_ME5, METRONOME_1_16_100MS, VOL_BEGIN, VOL_END, NOTE_DO5, METRONOME_1_1
+             -6_100MS, VOL_BEGIN, VOL_END, NOTE_LA4, METRONOME_1_16_100MS, VOL_BEGIN, VOL_END, NOTE_FA4, METRONOME_1_16_100MS, VOL_BEG
+             -IN, VOL_END,
+C251 COMPILER V5.57.0,  sector_driver_ringtone_data_type                                   08/11/20  06:32:10  PAGE 3   
+
+  110          #define RTDAT_LONG_RING_A     NOTE_SI5, METRONOME_1_8_200MS, VOL_BEGIN, VOL_END, NOTE_LA5, METRONOME_1_8_20
+             -0MS, VOL_BEGIN, VOL_END, NOTE_SI5, METRONOME_1_8_200MS, VOL_BEGIN, VOL_END, NOTE_SI5, METRONOME_1_8_200MS, VOL_BEGIN, VO
+             -L_END, NOTE_RE5, METRONOME_1_8_200MS, VOL_BEGIN, VOL_END, NOTE_LA5, METRONOME_1_8_200MS, VOL_BEGIN, VOL_END, NOTE_RE5, M
+             -ETRONOME_1_8_200MS, VOL_BEGIN, VOL_END, NOTE_REST, METRONOME_1_8_200MS, VOL_BEGIN, VOL_END,
+  111          #define RTDAT_LONG_RING_B     NOTE_ME5, METRONOME_1_8_200MS, VOL_BEGIN, VOL_END, NOTE_REST, METRONOME_1_8_2
+             -00MS, VOL_BEGIN, VOL_END, NOTE_ME5, METRONOME_1_8_200MS, VOL_BEGIN, VOL_END, NOTE_REST, METRONOME_1_8_200MS, VOL_BEGIN, 
+             -VOL_END, NOTE_ME5, METRONOME_1_8_200MS, VOL_BEGIN, VOL_END, NOTE_REST, METRONOME_1_8_200MS, VOL_BEGIN, VOL_END, NOTE_DO5
+             -, METRONOME_1_8_200MS, VOL_BEGIN, VOL_END, NOTE_REST, METRONOME_3_4_1200MS, VOL_BEGIN, VOL_END, NOTE_REST, METRONOME_1_1
+             -600MS, VOL_BEGIN, VOL_END,
+  112          #define RTDAT_LONG_RING_C     NOTE_RE5, METRONOME_1_8_200MS, VOL_BEGIN, VOL_END, NOTE_SI5, METRONOME_1_8_20
+             -0MS, VOL_BEGIN, VOL_END, NOTE_RE6, METRONOME_1_8_200MS, VOL_BEGIN, VOL_END, NOTE_SO6, METRONOME_1_8_200MS, VOL_BEGIN, VO
+             -L_END, NOTE_LA5, METRONOME_1_8_200MS, VOL_BEGIN, VOL_END, NOTE_FA6, METRONOME_1_8_200MS, VOL_BEGIN, VOL_END, NOTE_SO6, M
+             -ETRONOME_1_8_200MS, VOL_BEGIN, VOL_END, NOTE_REST, METRONOME_1_8_200MS, VOL_BEGIN, VOL_END, NOTE_RE5, METRONOME_1_8_200M
+             -S, VOL_BEGIN, VOL_END, NOTE_REST, METRONOME_1_8_200MS, VOL_BEGIN, VOL_END, NOTE_RE5, METRONOME_1_8_200MS, VOL_BEGIN, VOL
+             -_END, NOTE_REST, METRONOME_1_8_200MS, VOL_BEGIN, VOL_END,
+  113          #define RTDAT_USER_DEFINED_A    NOTE_FA4, METRONOME_1_16_100MS, VOL_BEGIN, VOL_END, NOTE_LA4, METRONOME_1_1
+             -6_100MS, VOL_BEGIN, VOL_END, NOTE_DO5, METRONOME_1_16_100MS, VOL_BEGIN, VOL_END, NOTE_ME5, METRONOME_1_16_100MS, VOL_BEG
+             -IN, VOL_END,
+  114          //#define RTDAT_USER_DEFINED_B
+  115          //#define RTDAT_VOLUME_ADJUSTING
+  116          
+  117          
+  118          #define RTDAT_NAME(name)    _rtdat_##name
+  119          #define RTDAT_SIZE(name)    sizeof( RTDAT_NAME(name) )
+  120          #define RTDAT_OFFSET(name)    RTOFF_##name
+  121          #define RTDAT_OFFSET_NEXT(name) ( RTDAT_OFFSET(name) + RTDAT_SIZE(name) )
+  122          #define RTDAT_RECORD(name)    { RTDAT_OFFSET(name), RTDAT_SIZE(name) }
+  123          
+  124          
+  125          ///////////////////////////////////////////////////////////////////////
+  126          // Ringtine Sector Begins Here
+  127          ///////////////////////////////////////////////////////////////////////
+  128          U16 CODE gDriver_ringtone_data_init ALIGN(2) =
+  129          {
+  130          #ifdef RINGTONE_ENABLE
+  131            TOTAL_BEEP_PATTERNS,
+  132          #else
+                 0,
+               #endif
+  135          };
+  136          
+  137          #ifdef RINGTONE_ENABLE
+  138          /*
+  139          Ringtone Record Begins, declare forward let linker locate record table before ringtone data
+  140          */
+  141          extern RINGTONE_RECORD_TYPE CODE _ringtoneRecord[TOTAL_BEEP_PATTERNS];
+  142          
+  143          /*
+  144          Ringtone Data Begins
+  145          */
+  146          #undef RTONEDEF
+  147          #define RTONEDEF(name)  static U8 CODE RTDAT_NAME(name) [] = { RTDAT_##name };
+  148          RINGTONE_LIST
+  149          
+  150          #define RTDAT_OFFSET_START  (2 + TOTAL_BEEP_PATTERNS * sizeof(RINGTONE_RECORD_TYPE))
+  151          
+  152          enum
+  153          {
+  154            RTDAT_OFFSET(SHORT_1_NOTE_1)    = RTDAT_OFFSET_START,
+  155            RTDAT_OFFSET(SHORT_1_NOTE_2)    = RTDAT_OFFSET_NEXT(SHORT_1_NOTE_1),
+  156            RTDAT_OFFSET(SHORT_1_NOTE_3)    = RTDAT_OFFSET_NEXT(SHORT_1_NOTE_2),
+  157            RTDAT_OFFSET(SHORT_1_NOTE_4)    = RTDAT_OFFSET_NEXT(SHORT_1_NOTE_3),
+  158            RTDAT_OFFSET(SHORT_2_NOTE)      = RTDAT_OFFSET_NEXT(SHORT_1_NOTE_4),
+  159            RTDAT_OFFSET(MEDIAN_1_NOTE)     = RTDAT_OFFSET_NEXT(SHORT_2_NOTE),
+  160            RTDAT_OFFSET(LONG_1_NOTE_HIGH)    = RTDAT_OFFSET_NEXT(MEDIAN_1_NOTE),
+  161            RTDAT_OFFSET(LONG_1_NOTE_LOW)   = RTDAT_OFFSET_NEXT(LONG_1_NOTE_HIGH),
+C251 COMPILER V5.57.0,  sector_driver_ringtone_data_type                                   08/11/20  06:32:10  PAGE 4   
+
+  162            RTDAT_OFFSET(VERYLONG_1_NOTE_HIGH)  = RTDAT_OFFSET_NEXT(LONG_1_NOTE_LOW),
+  163            RTDAT_OFFSET(VERYLONG_1_NOTE_LOW) = RTDAT_OFFSET_NEXT(VERYLONG_1_NOTE_HIGH),
+  164            RTDAT_OFFSET(RISING_2_NOTE)     = RTDAT_OFFSET_NEXT(VERYLONG_1_NOTE_LOW),
+  165            RTDAT_OFFSET(RISING_4_NOTE)     = RTDAT_OFFSET_NEXT(RISING_2_NOTE),
+  166            RTDAT_OFFSET(FALLING_2_NOTE)    = RTDAT_OFFSET_NEXT(RISING_4_NOTE),
+  167            RTDAT_OFFSET(FALLING_4_NOTE)    = RTDAT_OFFSET_NEXT(FALLING_2_NOTE),
+  168            RTDAT_OFFSET(LONG_RING_A)     = RTDAT_OFFSET_NEXT(FALLING_4_NOTE),
+  169            RTDAT_OFFSET(LONG_RING_B)     = RTDAT_OFFSET_NEXT(LONG_RING_A),
+  170            RTDAT_OFFSET(LONG_RING_C)     = RTDAT_OFFSET_NEXT(LONG_RING_B),
+  171            RTDAT_OFFSET(USER_DEFINED_A)    = RTDAT_OFFSET_NEXT(LONG_RING_C),
+  172            RTDAT_OFFSET_END          = RTDAT_OFFSET_NEXT(USER_DEFINED_A),
+  173          };
+  174          
+  175          #define RTDAT_ACTUAL_SIZE (RTDAT_OFFSET_END - RTDAT_OFFSET_START)
+  176          
+  177          static RINGTONE_RECORD_TYPE CODE _ringtoneRecord[TOTAL_BEEP_PATTERNS] =
+  178          {
+  179          #undef RTONEDEF
+  180          #define RTONEDEF(name)  RTDAT_RECORD(name),
+  181          RINGTONE_LIST
+  182          };
+  183          
+  184          static U8 CODE _ringtone_reserved_data[TOTAL_BUILTIN_RINGTONE_LENGTH - RTDAT_ACTUAL_SIZE];
+  185          
+  186          #endif //RINGTONE_ENABLE
+  187          
+  188          /*
+  189          Ringtone Sector CRC
+  190          */
+  191          static CRC16 CODE _ringtone_data_init_crc =
+  192          {
+  193              //- CRC
+  194              {0,0}
+  195          };
+  196          
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       426     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

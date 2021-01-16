@@ -1,0 +1,165 @@
+C251 COMPILER V5.57.0,  Uart_Hal                                                           08/11/20  06:34:34  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE Uart_Hal
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\Uart_Hal.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SDK\IOSYS\Uart_Hal.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE)
+                    - WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\
+                    -source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\sou
+                    -rce\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI
+                    -_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspD
+                    -ata;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FL
+                    -ASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoHeadse
+                    -t\Uart_Hal.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\Uart_Hal.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #include "rc.h"
+    4          #include "..\SDK_Proxy\SDK_Proxy.h"
+    5          #include "drv_uart_transparent.h"
+    6          
+    7          
+    8          #define UART_HW_TRANSPARENT_MODE  0
+    9          
+   10          typedef struct
+   11          {
+   12            U16 Len;
+   13            U8 txData[1];
+   14          }SDK_UART_TX_BUF_STRU;
+   15          
+   16          
+   17          /*  SDK_Uart_Hal_TxData: Tx data. This function will allocate a new memory and copy all the data to memor
+             -y and then send to uart tx.
+   18           *             There is chance of fail in getting memory.
+   19           *  <input1> 
+   20           *    U16 txLen       :length of tx data in byte
+   21           *    U8 XDATA_PTR txDataPtr  :tx data memory address.
+   22           *  <output> 
+   23           *    BOOL : status of procedure
+   24           *    value: TRUE --> OK, FAIL --> fail
+   25           */
+   26          PUBLIC BOOL SDK_Uart_Hal_TxData(U16 txLen, U8 XDATA_PTR txDataPtr)
+   27          {
+   28   1        return DRV_UART_TRANS_TxData(txLen, txDataPtr);
+   29   1      }
+   30          
+   31          
+   32          /*  SDK_Uart_Hal_TxMemory: Tx data. 
+   33           *  <input1> 
+   34           *    SDK_UART_TX_BUF_STRU XDATA_PTR pMsg : pMsg should be a memory address which should be get from system
+             - memory list. After tx this memory would be put back to system
+   35           *    <note> SDK_UART_TX_BUF_STRU
+   36           *        U16 Len     :length of tx data in byte
+   37           *        U8 txData[1]  :tx data starts from here.
+   38           */
+   39          PUBLIC void SDK_Uart_Hal_TxMemory(SDK_UART_TX_BUF_STRU XDATA_PTR pMsg)
+   40          {
+   41   1        DRV_UART_TRANS_TxMsg((UART_DMA_SEND_DATA_STRU XDATA_PTR)pMsg);
+   42   1      }
+   43          
+   44          /*  SDK_Uart_Hal_RxEntiesNumber: rx data length
+   45           *  <output> 
+   46           *    U16   : rx data length
+   47           *    value range : 1 - 1000
+   48           */
+   49          PUBLIC U16 SDK_Uart_Hal_RxEntiesNumber(void)
+   50          {
+C251 COMPILER V5.57.0,  Uart_Hal                                                           08/11/20  06:34:34  PAGE 2   
+
+   51   1        return DRV_UART_TRANS_RxEntiesNumber();
+   52   1      }
+   53          
+   54          
+   55          /*  SDK_Uart_Hal_DropRxBuf: clear rx buffer without read
+   56           *  <input1> 
+   57           *    U16 len   : data length to clear
+   58           *    value range : 1 - SDK_Uart_Hal_RxEntiesNumber()
+   59           */
+   60          PUBLIC void SDK_Uart_Hal_DropRxBuf(U16 len)
+   61          {
+   62   1        DRV_UART_TRANS_DropRxBuf(len);
+   63   1      }
+   64          
+   65          /*  SDK_Uart_Hal_ReadAndClearRxBuf: Read rx buffer value and clear buffer
+   66           *  <input1> 
+   67           *    U8 XDATA_PTR rxPtr  : target address
+   68           *    value range : memory pointer
+   69           *  <input2> 
+   70           *    U16 len   : read data length
+   71           *    value range : 1 - SDK_Uart_Hal_RxEntiesNumber
+   72           */
+   73          PUBLIC void SDK_Uart_Hal_ReadAndClearRxBuf(U8 XDATA_PTR rxPtr, U16 len)
+   74          {
+   75   1        DRV_UART_TRANS_ReadOutFromRxBuf(rxPtr, len);
+   76   1      }
+   77          
+   78          /*  SDK_Uart_Hal_ReadRxValue: Read rx buffer value without clear buffer
+   79           *  <output>
+   80           *    U8    : U8 rxBuff[offset]
+   81           */
+   82          PUBLIC U8 SDK_Uart_Hal_ReadRxValue(U16 offset)
+   83          {
+   84   1        return DRV_UART_TRANS_ReadRxBufValue(offset);
+   85   1      }
+   86          
+   87          /*  SDK_Uart_Hal_TransModeRx: Uart transparent mode rx handle
+   88           *  <note>
+   89           *      If transparent mode is enabled, rx function should handle all data in rx buffer.
+   90           *    This is polling function.
+   91           */
+   92          PRIVATE void SDK_Uart_Hal_TransModeRx(void)
+   93          {
+   94   1        if(SDK_Uart_Hal_RxEntiesNumber())
+   95   1        {
+   96   2          SDK_Uart_Hal_DropRxBuf(SDK_Uart_Hal_RxEntiesNumber());
+   97   2        }
+   98   1      }
+   99          
+  100          /*  SDK_Uart_Hal_EnableTransparentMode: Enable uart transparent mode
+  101           */
+  102          PUBLIC void SDK_Uart_Hal_EnableTransparentMode(void)
+  103          {
+  104   1        DRV_UART_TRANS_Enable(SDK_Uart_Hal_TransModeRx);
+  105   1      }
+  106          
+  107          /*  SDK_Uart_Hal_DisableTransparentMode: Disable uart transparent mode
+  108           */
+  109          PUBLIC void SDK_Uart_Hal_DisableTransparentMode(void)
+  110          {
+  111   1        DRV_UART_TRANS_Disable();
+  112   1      }
+  113          
+  114          PUBLIC void SDK_Uart_HAL_Init(void)
+  115          {
+  116   1      #if UART_HW_TRANSPARENT_MODE
+C251 COMPILER V5.57.0,  Uart_Hal                                                           08/11/20  06:34:34  PAGE 3   
+
+                 SDK_Uart_Hal_EnableTransparentMode();
+               #endif
+  119   1      }
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =        58     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =    ------     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

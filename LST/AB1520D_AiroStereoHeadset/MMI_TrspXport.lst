@@ -1,0 +1,177 @@
+C251 COMPILER V5.57.0,  MMI_TrspXport                                                      08/11/20  06:33:54  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE MMI_TrspXport
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\MMI_TrspXport.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\MMI\MMI_TrspXport.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) 
+                    -WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\s
+                    -ource\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\sour
+                    -ce\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_
+                    -LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspDa
+                    -ta;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLA
+                    -SH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoHeadset
+                    -\MMI_TrspXport.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\MMI_TrspXport.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #define _MMI_TRSPX_C_
+    4          
+    5          
+    6          #include "MMI.h"
+    7          #include "MMI_Protocol.h"
+    8          #ifdef SPP_Profile
+    9          #include "..\RFCOMM\RFCOMM_Interface.h"
+   10          #include "..\SPP\SPP_Interface.h"
+   11          #endif
+   12          
+   13          #include "..\HC\HC_interface.h"
+   14          #include "..\ROM\GAP\GAP_ROM_Interface.h"
+   15          #ifdef TRSPX_App
+               #include "MMI_TrspXport.h"
+               #include "MMI_HCI.h"
+               #include "MMI_State.h"
+               
+               
+               PUBLIC void MMI_TrspX_Init(void)
+               {
+                   U8 i;
+                   
+                   for (i = 0; i < MAX_MULTI_POINT_NO; i++)
+                   {
+                       gMMI_ctl.passkey[i] = MMI_TRSPX_PASSKEY_INVALID;
+                   }
+               }
+               
+               PRIVATE void MMI_SendGAPADVCmd(U8 cmd)
+               {
+                   MMIMsgType XDATA_PTR msgPtr;
+               
+                   if ((msgPtr = (MMIMsgType XDATA_PTR)SYS_MemoryGet(OS_OFFSET_OF(MMIMsgType, msgBodyPtr) + 1)) != NULL)
+                   {
+                       msgPtr->dataOffset = CMD_OFFSET;
+                   msgPtr->msgOpcode =  cmd;
+                   msgPtr->msgBodyPtr.gapPara = (cmd == GAP_LE_CMD_FROM_PROFILE_ADVERTISING_DISABLE)? FALSE : TRUE;
+                       OSMQ_Put(OSMQ_GAP_Command_From_PROFILE_ptr, (U8 XDATA_PTR)msgPtr);
+                   }
+               }
+               
+               /* For BLE connection complete use */
+               
+               PUBLIC void MMI_TrspX_BleConnected(U8 XDATA_PTR addrPtr, U16 connHandle)
+               {
+                 if((gTrspx_ctl.mmiBleIdx = MMI_GetEmptyLinkIndex(addrPtr, FALSE)) < MAX_MULTI_POINT_NO)
+                 {
+                     OSMEM_memcpy_xdata_xdata ((U8 XDATA_PTR)gMMI_ctl.mmiInfo[gTrspx_ctl.mmiBleIdx].bdAddr, (U8 XDATA_PTR
+             -)addrPtr, 6);
+                   MMI_SetConnectionState(gTrspx_ctl.mmiBleIdx, MMI_CONN_STATE_ACL_CONNECTED);
+C251 COMPILER V5.57.0,  MMI_TrspXport                                                      08/11/20  06:33:54  PAGE 2   
+
+                   gMMI_ctl.mmiInfo[gTrspx_ctl.mmiBleIdx].linkPara.aclConnHandle = connHandle;
+                   MMI_ADD_LINK(gTrspx_ctl.mmiBleIdx);
+                       MMI_ConnectableStateChangeWhenConnected();
+                   if(!MMI_ALWAYS_ENA_DISCOVER_MODE_FEAT)
+                   {
+                     MMI_SetEnterDiscoverable(FALSE);
+                     if(MMI_CheckNestState(MMI_EOF, MMI_CONDISCABLE))
+                     {
+                       MMI_RmvState(MMI_EOF, MMI_CONDISCABLE);
+                       MMI_SetEnterDiscoverable(FALSE);
+                     }
+                   }
+                   MMI_InsertState(gTrspx_ctl.mmiBleIdx, MMI_CONNECTED, MMI_CheckNestState(gTrspx_ctl.mmiBleIdx, MMI_CONDI
+             -SCABLE) ? MMI_CONDISCABLE : MMI_CONNECTABLE);
+               
+                       //MMI_ActivateProfile(gTrspx_ctl.mmiBleIdx, &gMMITrspX_ProfileNode[linkIndex]);
+                 }
+                   MMI_TrspX_connectHandle(gTrspx_ctl.mmiBleIdx, MMI_TRSPX_CONNECTED_BLE);
+               }
+               
+               PUBLIC void MMI_TrspX_BleDisconnect(void)
+               {
+                   if(gTrspx_ctl.mmiBleIdx != MAX_MULTI_POINT_NO)
+                   {
+                       //MMI_HCI_AclDiscHandle(gTrspx_ctl.mmiBleIdx);
+                       //MMI_PROTOCOL_ProfileDisconnected(gTrspx_ctl.mmiBleIdx, PM_CONNECTION_LE);
+                       MMI_RmvState(gTrspx_ctl.mmiBleIdx, MMI_CONNECTED);
+                       MMI_DEL_LINK(gTrspx_ctl.mmiBleIdx);
+                   gMMI_ctl.mmiInfo[gTrspx_ctl.mmiBleIdx].subState = MMI_INIT_SYS_CONFIGED;
+                   //MMI_SetConnectionState(gTrspx_ctl.mmiBleIdx, MMI_CONN_STATE_NONE);
+                   MMI_ClearMMILinkSettingType(gTrspx_ctl.mmiBleIdx);
+                       //MMI_SetEnterDiscoverable(TRUE);
+                       //MMI_InsertState(MMI_EOF, MMI_CONDISCABLE,MMI_CONNECTABLE);
+                   MMI_InsertState(MMI_EOF, MMI_CONNECTABLE,MMI_FAKEON);
+                   MMI_InsertState(MMI_EOF, MMI_CONDISCABLE,MMI_CONNECTABLE);
+                       gTrspx_ctl.mmiBleIdx = MAX_MULTI_POINT_NO;
+                   }
+               }
+               
+               PUBLIC void MMI_TrspX_connectHandle(U8 linkIndex, U8 connMode)
+               {
+                   UNUSED(linkIndex);
+                   
+                   switch(connMode)
+                   {
+                       case MMI_TRSPX_CONNECTED_BR_EDR:
+                       {
+                           MMI_SendGAPADVCmd(GAP_LE_CMD_FROM_PROFILE_ADVERTISING_DISABLE);
+                       }
+                       break;
+               
+                       case MMI_TRSPX_CONNECTED_BLE:
+                           break;
+               
+                       case MMI_TRSPX_CONNECTED_NONE:
+                       {
+                           if(gMMI_ctl.connectedMode == MMI_TRSPX_CONNECTED_BR_EDR)
+                           {
+                               if (CURRENT_ACTIVE_LINK_CNT == 0)
+                               {
+                                   MMI_SendGAPADVCmd(GAP_LE_CMD_FROM_PROFILE_ADVERTISING_ENABLE);
+                               }
+                               else
+                               {
+                                   return; // keep connectedMode = MMI_TRSPX_CONNECTED_BR_EDR
+                               }
+C251 COMPILER V5.57.0,  MMI_TrspXport                                                      08/11/20  06:33:54  PAGE 3   
+
+                           }
+                           else
+                           {
+                               MMI_TrspX_BleDisconnect();
+                           }
+                       }
+                       break;
+               
+                       default:
+                           break;
+                   }
+                   gMMI_ctl.connectedMode = connMode;
+               }
+               
+               #endif
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =    ------     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,469 @@
+C251 COMPILER V5.57.0,  VoiceCommand                                                       08/11/20  06:32:44  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE VoiceCommand
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\VoiceCommand.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\DRIVER\VoiceCommand.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE
+                    -) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.
+                    -\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\so
+                    -urce\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MM
+                    -I_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\Dsp
+                    -Data;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(F
+                    -LASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoHeads
+                    -et\VoiceCommand.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\VoiceCommand.obj) 
+
+stmt  level    source
+
+    1          //////////////////////////////////////////////////////////
+    2          // Copyright@ 2009 Airoha.  All right reserved.
+    3          //////////////////////////////////////////////////////////
+    4          #include "reside_flash.inc"
+    5          
+    6          #define VOICECOMMAND_C
+    7          #include "rc.h"
+    8          #include "bt_config_profile.h"
+    9          
+   10          #ifdef SUPPORT_VOICE_COMMAND
+   11          
+   12          #include "driver_interface.h"
+   13          
+   14          #include "sector_voice_data.h"
+   15          
+   16          #include "hal.h"
+   17          #include "Audio_Mailbox.h"
+   18          #include "Driver_1520.h"
+   19          
+   20          #include "VoiceCommand.h"
+   21          #include "AudioControl.h"
+   22          #include "VoicePrompt.h"
+   23          #include "..\MMI\MMI_event_opcode.h"
+   24          #include "..\SECTOR\sector_mmi_driver_variation_nvram.h"
+   25          
+   26          #include "voice_command_adaption_data_ctl.h"
+   27          
+   28          #if (defined AB1520C) || (defined AB1520D)
+   29          #include "..\SECTOR\SectorBoundary\sector_boundary.h"
+   30          #endif
+   31          
+   32          extern PUBLIC void DRIVER_VoiceCommandOffCallback(void);
+   33          
+   34          PUBLIC DRIVER_VC_ACTION_TYPE CODE_PTR VoiceCommand_GetActionTable(U8 actionIndex)
+   35          {
+   36   1        return (DRIVER_VC_ACTION_TYPE CODE_PTR)
+   37   1        ((U32)GET_SECTOR_VOICE_DATA_ADDR(SECTOR_VOICE_COMMAND_DATA)
+   38   1        +sizeof(DRIVER_VOICE_COMMAND_ADDRESS_TABLE)*MAX_VC_LANG_COUNT
+   39   1        +sizeof(U8) *3
+   40   1        +sizeof(U8)*VC_SET_NO
+   41   1        +sizeof(DRIVER_VC_EVENT_TYPE)*(((DRIVER_VOICE_COMMAND_DATA_TYPE CODE_PTR)GET_SECTOR_VOICE_DATA_ADDR(SECT
+             -OR_VOICE_COMMAND_DATA))->eventNo)
+   42   1        +sizeof(DRIVER_VC_ACTION_TYPE)*actionIndex);
+   43   1      }
+   44          
+   45          PUBLIC DRIVER_VOICE_COMMAND_ACTION_APD_TYPE CODE_PTR VoiceCommand_GetAPDActionTable(U8 actionIndex)
+   46          {
+   47   1        return (DRIVER_VOICE_COMMAND_ACTION_APD_TYPE CODE_PTR)
+   48   1        ((U32)GET_SECTOR_BOUNDARY_ADDR(SECTOR_VOICE_COMMAND_APD_DATA)
+   49   1        +sizeof(DRIVER_VOICE_COMMAND_APD_ADDRESS_TABLE)
+   50   1        +sizeof(U8) *3
+   51   1        +sizeof(DRIVER_VC_EVENT_TYPE)*(((DRIVER_VOICE_COMMAND_APD_DATA_TYPE CODE_PTR)GET_SECTOR_BOUNDARY_ADDR(SE
+C251 COMPILER V5.57.0,  VoiceCommand                                                       08/11/20  06:32:44  PAGE 2   
+
+             -CTOR_VOICE_COMMAND_APD_DATA))->eventNo)
+   52   1        +sizeof(DRIVER_VOICE_COMMAND_ACTION_APD_TYPE)*actionIndex);
+   53   1      }
+   54          
+   55          PRIVATE U32 VoiceCommand_GetDataBits(U8 actionIndex, U16 vcEventId)
+   56          {
+   57   1        U8 i = 0;
+   58   1        U8 setIndex;
+   59   1        U32 evtBits = 0x00000000;
+   60   1        U32 dataBits = 0;
+   61   1        U8 rootIndex1= ((DRIVER_VOICE_COMMAND_DATA_TYPE CODE_PTR)GET_SECTOR_VOICE_DATA_ADDR(SECTOR_VOICE_COMMAND
+             -_DATA))->rootEvtNum[VC_MULTI_LAYER_SET_1];
+   62   1        U8 rootIndex2= ((DRIVER_VOICE_COMMAND_DATA_TYPE CODE_PTR)GET_SECTOR_VOICE_DATA_ADDR(SECTOR_VOICE_COMMAND
+             -_DATA))->rootEvtNum[VC_MULTI_LAYER_SET_2];
+   63   1        DRIVER_VOICE_COMMAND_EVT_DATA_MAP_TYPE CODE_PTR evtDataMapPtr = (DRIVER_VOICE_COMMAND_EVT_DATA_MAP_TYPE 
+             -CODE_PTR) gVC_ctl.dataMapPtr;
+   64   1      
+   65   1        if(evtDataMapPtr)
+   66   1        {
+   67   2          #ifdef VC_MULTI_LAYER
+                     UNUSED(setIndex);
+                     UNUSED(rootIndex1);
+                     UNUSED(rootIndex2);
+                   
+                     if( vcEventId == MEDIA_EVT_KEY_VOICE_COMMAND_ENABLE || vcEventId == MEDIA_EVT_ENTER_INCOMING || vcEven
+             -tId == MEDIA_EVT_VOICE_COMMAND_MULTILAYER_TRIGGER)
+                     {
+                       evtBits = evtBits | ((VoiceCommand_GetActionTable(actionIndex))->multiLayerBits[gVC_ctl.vcnextLayer])
+             - ;          
+                     }
+                   #else
+   77   2            UNUSED(vcEventId);
+   78   2            
+   79   2            for(setIndex = 0 ; setIndex < VC_MULTI_LAYER_SET_NO; setIndex++)
+   80   2            {
+   81   3              evtBits = evtBits | (VoiceCommand_GetActionTable(actionIndex))->multiLayerBits[setIndex];
+   82   3            }
+   83   2      
+   84   2            if ((0x00000001L<<rootIndex1)& evtBits)
+   85   2            {
+   86   3              evtBits = evtBits^(0x00000001L << rootIndex1);
+   87   3            }
+   88   2      
+   89   2            if ((0x00000001L<<rootIndex2)& evtBits)
+   90   2            {
+   91   3              evtBits = evtBits^(0x00000001L << rootIndex2);
+   92   3            }
+   93   2          #endif
+   94   2      
+   95   2          while(i < 32)
+   96   2          {
+   97   3            if((evtBits >> i)&0x00000001L)
+   98   3            {
+   99   4              dataBits |= evtDataMapPtr->evtDataMapBits[i];
+  100   4            }
+  101   3            i++;
+  102   3          }
+  103   2        }
+  104   1        return dataBits;
+  105   1      }
+  106          
+  107          PRIVATE U32 VoiceCommand_GetAPDDataBits(U8 actionIndex)
+  108          {
+  109   1        U8 i = 0;
+  110   1        U32 evtBits = 0x00000000;
+  111   1        U32 dataBits = 0;
+C251 COMPILER V5.57.0,  VoiceCommand                                                       08/11/20  06:32:44  PAGE 3   
+
+  112   1      
+  113   1        DRIVER_VOICE_COMMAND_EVT_DATA_MAP_TYPE CODE_PTR evtDataMapPtr = (DRIVER_VOICE_COMMAND_EVT_DATA_MAP_TYPE 
+             -CODE_PTR) gVC_ctl.apddataMapPtr;
+  114   1        
+  115   1        if(evtDataMapPtr)
+  116   1        {
+  117   2          //evtBits = evtBits |((DRIVER_VOICE_COMMAND_APD_DATA_TYPE CODE_PTR)GET_SECTOR_BOUNDARY_ADDR(SECTOR_VOIC
+             -E_COMMAND_APD_DATA))->actionTable[actionIndex].triggerEventBits;
+  118   2      
+  119   2          evtBits = evtBits | (VoiceCommand_GetAPDActionTable(actionIndex))->triggerEventBits;
+  120   2      
+  121   2          LightDbgPrint("APD evtBits %X", (U32)evtBits);
+  122   2        
+  123   2          while(i < 32)
+  124   2          {
+  125   3            if((evtBits >> i)&0x00000001L)
+  126   3            {
+  127   4              dataBits |= evtDataMapPtr->evtDataMapBits[i];
+  128   4            }
+  129   3            i++;
+  130   3          }
+  131   2        }
+  132   1        return dataBits;
+  133   1      }
+  134          
+  135          PUBLIC U8 VoiceCommand_GetEvtIndex(U8 dataIndex)
+  136          {
+  137   1        U8 evtIndex = 0;
+  138   1        U32 dataBit = 0x00000001L << dataIndex;
+  139   1        DRIVER_VOICE_COMMAND_EVT_DATA_MAP_TYPE CODE_PTR evtDataMapPtr = (DRIVER_VOICE_COMMAND_EVT_DATA_MAP_TYPE 
+             -CODE_PTR) gVC_ctl.dataMapPtr;
+  140   1        
+  141   1        if(gVC_ctl.vcIdentificationMode == APD_VC_IDENTIFY)
+  142   1        {
+  143   2          evtDataMapPtr =  (DRIVER_VOICE_COMMAND_EVT_DATA_MAP_TYPE CODE_PTR)gVC_ctl.apddataMapPtr;
+  144   2        }
+  145   1        
+  146   1        while(evtIndex < 32)
+  147   1        {
+  148   2          if(evtDataMapPtr->evtDataMapBits[evtIndex] & dataBit)
+  149   2            return evtIndex;
+  150   2            
+  151   2          evtIndex++;
+  152   2        }
+  153   1        
+  154   1        return VC_INVALID_EVT;
+  155   1      }
+  156          
+  157          PUBLIC U8 VoiceCommand_IsEnabled(void)
+  158          {
+  159   1        if (AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICECOMMAND) || (AUDIO_COMPONENT_IS_ACTIVE(AUDIO_SCO)))
+  160   1          return  TRUE;
+  161   1        else
+  162   1          return FALSE;
+  163   1      }
+  164          
+  165          PUBLIC U8 VoiceCommand_VCLayer(U8 dataIndex)
+  166          {
+  167   1        #ifdef VC_MULTI_LAYER
+                 
+                 U8 rootIndex1= ((DRIVER_VOICE_COMMAND_DATA_TYPE CODE_PTR)GET_SECTOR_VOICE_DATA_ADDR(SECTOR_VOICE_COMMAND
+             -_DATA))->rootEvtNum[VC_MULTI_LAYER_SET_1];
+                 U8 rootIndex2= ((DRIVER_VOICE_COMMAND_DATA_TYPE CODE_PTR)GET_SECTOR_VOICE_DATA_ADDR(SECTOR_VOICE_COMMAND
+             -_DATA))->rootEvtNum[VC_MULTI_LAYER_SET_2];
+                 
+                 if ( (0x00000001<<dataIndex) & (VoiceCommand_GetActionTable(VC_EVT_INDEX_0))->multiLayerBits[VC_MULTI_LA
+C251 COMPILER V5.57.0,  VoiceCommand                                                       08/11/20  06:32:44  PAGE 4   
+
+             -YER_SET_0])
+                 {
+                   if (dataIndex == rootIndex1)
+                   {
+                     return VC_MULTI_LAYER_SET_1;
+                   }
+                   else  if (dataIndex ==rootIndex2)
+                   {
+                     return VC_MULTI_LAYER_SET_2;
+                   }
+                   else
+                   {
+                     return VC_MULTI_LAYER_SET_0;
+                   }
+                 }
+                 else if (( (0x00000001<<dataIndex) &  (VoiceCommand_GetActionTable(VC_EVT_INDEX_0))->multiLayerBits[VC_M
+             -ULTI_LAYER_SET_1]) 
+                     ||( (0x00000001<<dataIndex) &  (VoiceCommand_GetActionTable(VC_EVT_INDEX_0))->multiLayerBits[VC_MULTI_
+             -LAYER_SET_2]) )
+                 { 
+                   return VC_MULTI_LAYER_SET_0;
+                 }
+                 else if ( (0x00000001<<dataIndex) &  (VoiceCommand_GetActionTable(VC_EVT_INDEX_1))->multiLayerBits[VC_MU
+             -LTI_LAYER_SET_0]) 
+                 {
+                   return VC_MULTI_LAYER_SET_0;
+                 }   
+                 else
+                 {
+                   return VC_MULTI_LAYER_SET_0;
+                 }
+                 #else
+  201   1          UNUSED(dataIndex);
+  202   1          return VC_MULTI_LAYER_SET_0;
+  203   1        #endif
+  204   1      }
+  205          
+  206          PUBLIC U8 VoiceCommand_MultiLayerRootEvt(U8 vcSetNum)
+  207          {
+  208   1        U8 rootIndex, vcMultiLayerEvt;
+  209   1      
+  210   1        rootIndex=((DRIVER_VOICE_COMMAND_DATA_TYPE CODE_PTR)GET_SECTOR_VOICE_DATA_ADDR(SECTOR_VOICE_COMMAND_DATA
+             -))->rootEvtNum[vcSetNum];
+  211   1        vcMultiLayerEvt=(VoiceCommand_GetActionTable(VC_EVT_INDEX_0))->triggeredAction[rootIndex];
+  212   1        return vcMultiLayerEvt;
+  213   1      }
+  214          
+  215          PUBLIC BOOL VoiceCommand_GetData(DriverMsg XDATA_PTR msgPtr)
+  216          {
+  217   1        if(gVC_ctl.dataBasePtr)
+  218   1        {
+  219   2          gVC_ctl.triggerBits = VoiceCommand_GetDataBits(msgPtr->msgBodyPtr.driverCmd.vcCmd.actionIndex, msgPtr->
+             -msgBodyPtr.driverCmd.vcCmd.id);
+  220   2          LightDbgPrint("vc Original trigger bits %X", (U32)gVC_ctl.triggerBits);
+  221   2          return TRUE;
+  222   2        }
+  223   1        else
+  224   1        {
+  225   2          return FALSE;
+  226   2        }
+  227   1      }
+  228          
+  229          PUBLIC BOOL VoiceCommand_GetAPDData(DriverMsg XDATA_PTR msgPtr)
+  230          {
+  231   1        LightDbgPrint("APD data base %X", (U32)gVC_ctl.apddataBasePtr);
+  232   1        
+C251 COMPILER V5.57.0,  VoiceCommand                                                       08/11/20  06:32:44  PAGE 5   
+
+  233   1        if(gVC_ctl.apddataBasePtr)
+  234   1        {
+  235   2          gVC_ctl.apdtriggerBits = VoiceCommand_GetAPDDataBits(msgPtr->msgBodyPtr.driverCmd.vcCmd.actionIndex);
+  236   2          LightDbgPrint("APD trigger bits %X", (U32)VoiceCommand_GetAPDDataBits(msgPtr->msgBodyPtr.driverCmd.vcCm
+             -d.actionIndex));
+  237   2          return TRUE;
+  238   2        }
+  239   1        else
+  240   1        {
+  241   2          return FALSE;
+  242   2        }
+  243   1      }
+  244          
+  245          
+  246          PUBLIC BOOL VoiceCommand_Start(void)
+  247          {
+  248   1        DriverMsg XDATA_PTR cmdPtr;
+  249   1      
+  250   1        SYS_ReleaseTimer(&gDriver_ctl.resumeAppTimer);
+  251   1        
+  252   1        if(!gAUDIO_CtrlInfo.isVCEnabled)
+  253   1          return TRUE;
+  254   1        
+  255   1        if(!gVC_ctl.triggerBits || !gVC_ctl.dataBasePtr)
+  256   1          return TRUE;
+  257   1      
+  258   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICECOMMAND))
+  259   1          return TRUE;
+  260   1        
+  261   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_SCO))
+  262   1        {
+  263   2          if(!(gDriver_ctl.lightMonoModeMask & (0x01 << gDriver_ctl.dspLink)))
+  264   2            return TRUE;
+  265   2        }
+  266   1      
+  267   1        if(IS_DSP_BUSY)
+  268   1          return FALSE;
+  269   1      
+  270   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_LINE_IN) || AUDIO_COMPONENT_IS_ACTIVE(AUDIO_A2DP) /*|| AUDIO_COMPONEN
+             -T_IS_ACTIVE(AUDIO_SCO)*/)
+  271   1        {
+  272   2          DRIVER_SendAppIdleToMailBox();
+  273   2          return FALSE;
+  274   2        }
+  275   1      
+  276   1        if (AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICEPROMPT) ||AUDIO_COMPONENT_IS_ACTIVE(AUDIO_RINGTONE) )
+  277   1        {
+  278   2          if(!AUDIO_CheckVoiceCmdDSPSpeed())
+  279   2            return FALSE;
+  280   2        }
+  281   1        
+  282   1        if(cmdPtr = (DriverMsg XDATA_PTR)OSMEM_Get(OSMEM_ptr1))
+  283   1        {   
+  284   2          OSMEM_memset_xdata((U8 XDATA_PTR)cmdPtr, 0, OSMEM1_BLKSIZE);
+  285   2      
+  286   2          AUDIO_ChangeVoiceCmdDSPSpeed();
+  287   2          AUDIO_SetAudioOn(AUDIO_VOICECOMMAND);
+  288   2          
+  289   2          VC_STOP_FLAG = 0;
+  290   2      
+  291   2          switch(gVC_ctl.vcIdentificationMode)
+  292   2          {
+  293   3            case DEFAULT_VC_APD_MIXED_IDENTIFY:
+  294   3              LightDbgPrint("Default VC+APD");
+  295   3              LightDbgPrint("Original data base %X", (U32)gVC_ctl.dataBasePtr);
+  296   3              LightDbgPrint("Original trigger event bits %X", (U32)gVC_ctl.triggerBits);
+C251 COMPILER V5.57.0,  VoiceCommand                                                       08/11/20  06:32:44  PAGE 6   
+
+  297   3              cmdPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.vc_start_para.ena_map = gVC_ctl.triggerBits;
+  298   3              cmdPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.vc_start_para.VC_Table_ptr = (U32)DSP_GetCODEAdd
+             -r((U8 CODE_PTR)gVC_ctl.dataBasePtr);
+  299   3              cmdPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.vc_start_para.adp_ena_map = gVC_ctl.apdtriggerBi
+             -ts;
+  300   3              cmdPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.vc_start_para.adp_VC_Table_ptr = (U32)DSP_GetCOD
+             -EAddr((U8 CODE_PTR)gVC_ctl.apddataBasePtr);
+  301   3              break;
+  302   3            case APD_VC_IDENTIFY:
+  303   3              LightDbgPrint("APD only");
+  304   3              cmdPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.vc_start_para.ena_map = 0;
+  305   3              cmdPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.vc_start_para.VC_Table_ptr = (U32)0;
+  306   3              cmdPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.vc_start_para.adp_ena_map = gVC_ctl.apdtriggerBi
+             -ts;
+  307   3              cmdPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.vc_start_para.adp_VC_Table_ptr = (U32)DSP_GetCOD
+             -EAddr((U8 CODE_PTR)gVC_ctl.apddataBasePtr);
+  308   3              break;
+  309   3            case DEFAULT_VC_IDENTIFY:
+  310   3            default:
+  311   3              LightDbgPrint("Default VC only");
+  312   3              cmdPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.vc_start_para.ena_map = gVC_ctl.triggerBits;
+  313   3              cmdPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.vc_start_para.VC_Table_ptr = (U32)DSP_GetCODEAdd
+             -r((U8 CODE_PTR)gVC_ctl.dataBasePtr);
+  314   3              cmdPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.vc_start_para.adp_ena_map =0;
+  315   3              cmdPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.vc_start_para.adp_VC_Table_ptr = (U32)0;
+  316   3              break;
+  317   3          }
+  318   2      
+  319   2          AUDIO_SetAudioInOutToMailBoxCmd(AUDIO_VOICECOMMAND, &cmdPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.pa
+             -ra.vc_start_para.audio_scenario);
+  320   2          Mailbox_TaskOgfVC(cmdPtr, OGF_VC, OCF_VC_START);
+  321   2          DRIVER_SendCmdToMailBox(cmdPtr);
+  322   2          return TRUE;
+  323   2        }
+  324   1        return FALSE;
+  325   1      }
+  326          
+  327          PUBLIC BOOL VoiceCommand_Pause(void)
+  328          {
+  329   1        DriverMsg XDATA_PTR msgPtr;
+  330   1      
+  331   1        if(!AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICECOMMAND))
+  332   1          return TRUE;
+  333   1      
+  334   1        if(IS_DSP_BUSY)
+  335   1          return FALSE;
+  336   1          
+  337   1        if(IS_VOICE_COMMAND_OVER)
+  338   1          return TRUE;
+  339   1      
+  340   1        if(msgPtr = (DriverMsg XDATA_PTR)OSMEM_Get(OSMEM_ptr1))
+  341   1        {
+  342   2          OSMEM_memset_xdata((U8 XDATA_PTR)msgPtr, 0, OSMEM1_BLKSIZE);
+  343   2          Mailbox_TaskOgfVC(msgPtr, OGF_VC, OCF_VC_STOP);
+  344   2          DRIVER_SendCmdToMailBox(msgPtr);
+  345   2          return TRUE;
+  346   2        }
+  347   1        return FALSE;
+  348   1      }
+  349          
+  350          PUBLIC void VoiceCommand_Stopped(void)
+  351          {
+  352   1        //Audio off
+  353   1        AUDIO_SetAudioOff (AUDIO_VOICECOMMAND);
+  354   1      
+  355   1        VC_STOP_FLAG = 0;
+C251 COMPILER V5.57.0,  VoiceCommand                                                       08/11/20  06:32:44  PAGE 7   
+
+  356   1      
+  357   1        DRIVER_VoiceCommandOffCallback();
+  358   1      
+  359   1        SYS_SetTimer(&gDriver_ctl.resumeAppTimer, ONE_SEC);
+  360   1      }
+  361          
+  362          
+  363          PRIVATE void VoiceCommand_ChangeAPDDatabase(void)
+  364          {
+  365   1        //if(gVC_ctl.vcIdentificationMode != DEFAULT_VC_IDENTIFY)
+  366   1        {
+  367   2          gVC_ctl.apddataBasePtr = (U32)((DRIVER_VOICE_COMMAND_APD_DATA_TYPE CODE_PTR)GET_SECTOR_BOUNDARY_ADDR(SE
+             -CTOR_VOICE_COMMAND_APD_DATA))->vcAddrTable.vcDataBasePtr;//+offset
+  368   2          gVC_ctl.apddataMapPtr = (U32)((DRIVER_VOICE_COMMAND_APD_DATA_TYPE CODE_PTR)GET_SECTOR_BOUNDARY_ADDR(SEC
+             -TOR_VOICE_COMMAND_APD_DATA))->vcAddrTable.vcEvtDataMapPtr;//+offset
+  369   2        }
+  370   1      }
+  371          
+  372          PUBLIC void VoiceCommand_ChooseIdentificationMode(void)
+  373          {
+  374   1        LightDbgPrint("VC identify mode %d", (U8)gVC_ctl.vcIdentificationMode);
+  375   1        if(gVC_ctl.vcIdentificationMode != 
+  376   1          (((DRIVER_VOICE_COMMAND_APD_DATA_TYPE CODE_PTR)GET_SECTOR_BOUNDARY_ADDR(SECTOR_VOICE_COMMAND_APD_DATA))
+             -->vcMode)
+  377   1        )
+  378   1        {
+  379   2          gVC_ctl.vcIdentificationMode = (((DRIVER_VOICE_COMMAND_APD_DATA_TYPE CODE_PTR)GET_SECTOR_BOUNDARY_ADDR(
+             -SECTOR_VOICE_COMMAND_APD_DATA))->vcMode);
+  380   2          LightDbgPrint("VC identify 2");
+  381   2          VoiceCommand_ChangeAPDDatabase();
+  382   2        }
+  383   1      }
+  384          
+  385          
+  386          #endif
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =      1503     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =        28     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       207     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

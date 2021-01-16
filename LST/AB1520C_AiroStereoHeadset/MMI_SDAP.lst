@@ -1,0 +1,1105 @@
+C251 COMPILER V5.57.0,  MMI_SDAP                                                           08/11/20  05:52:23  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE MMI_SDAP
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\MMI_SDAP.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\MMI\MMI_SDAP.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) WARNI
+                    -NGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\source
+                    -\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\source\RO
+                    -M\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_LE;.\
+                    -source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspData;.\
+                    -source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLASH_IN
+                    -IT=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520C_AiroStereoHeadset\MMI_
+                    -SDAP.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\MMI_SDAP.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #define _MMI_SDAP_C_
+    4          
+    5          #include "rc.h"
+    6          #include "bt_config_profile.h"
+    7          
+    8          #include "MMI.h"
+    9          #include "MMI_State.h"
+   10          #include "MMI_Driver.h"
+   11          #include "MMI_Protocol.h"
+   12          #include "MMI_PSM.h"
+   13          #include "MMI_HCI.h"
+   14          #include "MMI_SDAP.h"
+   15          #include "MMI_A2DP.h"
+   16          #include "MMI_AVRCP.h"
+   17          #include "MMI_AirModule.h"
+   18          #include "MMI_Reconnect.h"
+   19          #include "..\A2DP\A2DP_Interface.h"
+   20          #include "..\L2CAP\L2CAP_Interface.h"
+   21          #include "..\SDAP\SDAP_Interface.h" 
+   22          #ifdef SONGPAL_Profile
+               #include "..\SongPal\SongPal_Interface.h" 
+               #endif
+   25          #ifdef AIRAPP_Profile
+   26          #include "..\AirApp\AirApp_Interface.h"
+   27          #endif
+   28          #include "..\SDK_Proxy\SDK_Proxy.h"
+   29          extern VFUN XDATA api_profile_func[API_GRP_PF_CB_CNT];
+   30          
+   31          #if defined SONGPAL_Profile || defined AIRAPP_Profile
+   32          PRIVATE void MMI_SDAP_SendServiceSearchAttributeReq128(U8 linkIndex, U8 GENERIC_PTR uuid128, U16 attirbut
+             -eId);
+   33          #endif
+   34          
+   35          PRIVATE void MMI_SDAP_ServiceSearchCallback(U8 XDATA_PTR sdapRspPtr);
+   36          PRIVATE void MMI_SDAP_AttributeSearchCallback(U8 XDATA_PTR sdapRspPtr);
+   37          PRIVATE void MMI_SDAP_ServiceSearchAttributeCallback(U8 XDATA_PTR sdapRspPtr);
+   38          PRIVATE void MMI_SDAP_UseStatusClearStatus(U8 linkIndex);
+   39          PRIVATE void MMI_SDAP_SendNextServiceQuery(U8 linkIndex);
+   40          PRIVATE BOOL MMI_SDAP_UseStatusIsRegiste(U8 linkIndex ,U8 sdpType);
+   41          PRIVATE BOOL MMI_SDAP_UseStatusIsUsed(U8 linkIndex ,U8 sdpType);
+   42          PRIVATE void MMI_SDAP_UseStatusUseSDP(U8 linkIndex ,U8 sdpType);
+   43          
+   44          PUBLIC void MMI_SDAP_Init(void)
+   45          {
+   46   1        //SetupServiceRecords
+   47   1        extern SdpServiceNode gMMI_MpsServiceNode;
+   48   1        extern SdpServiceNode gMMI_PnpServiceNode;
+   49   1        U8 GENERIC_PTR attributePtr;
+   50   1      
+   51   1        SDAP_RegisterServiceRecord(&gMMI_MpsServiceNode);
+C251 COMPILER V5.57.0,  MMI_SDAP                                                           08/11/20  05:52:23  PAGE 2   
+
+   52   1        SDAP_RegisterServiceRecord(&gMMI_PnpServiceNode);
+   53   1        
+   54   1        if (attributePtr = (U8 GENERIC_PTR)SDAP_GetServiceAttribute(PROFILE_PNP, ATTRID_ProductID))
+   55   1        {
+   56   2          *(U16 GENERIC_PTR)&attributePtr[4] = MMI_PNP_PRODUCT_ID;
+   57   2        }
+   58   1        if (attributePtr = (U8 GENERIC_PTR)SDAP_GetServiceAttribute(PROFILE_PNP, ATTRID_ProductVersion))
+   59   1        {
+   60   2          *(U16 GENERIC_PTR)&attributePtr[4] = MMI_PNP_PRODUCT_VER;
+   61   2        }
+   62   1      }
+   63          
+   64          PRIVATE void MMI_SDAP_ConnectionCpl(U8 linkIndex, U8 status)
+   65          {
+   66   1        if(status == L2CAP_STATUS_SUCCESS)
+   67   1        {
+   68   2          MMI_SDAP_UseStatusUseSDP(linkIndex, SDP_USE_BY_MMI);
+   69   2          if(MMI_SDAP_UseStatusIsUsed(linkIndex, SDP_USE_BY_SDK) && api_profile_func[API_GRP_PF_CB_SDP_SERVICE_HA
+             -NDLER])
+   70   2            ((API_PROFILE_SDP_SERVICE_HANDLER_FUNC)api_profile_func[API_GRP_PF_CB_SDP_SERVICE_HANDLER])(linkIndex)
+             -;
+   71   2          else
+   72   2            MMI_SDAP_SendNextServiceQuery(linkIndex);
+   73   2        }
+   74   1        else
+   75   1        {
+   76   2          gMMI_ctl.sdapCtl[linkIndex].sdapState = MMI_SDAP_STATE_IDLE;
+   77   2          if(gMMI_ctl.mmiInfo[linkIndex].linkPara.miscMask & MMI_ACTIVE_CONNECT || MMI_IsLinkActiveDisconnecting(
+             -linkIndex))
+   78   2          {
+   79   3            MMI_ReleaseProfileLinkAndDetach(linkIndex);
+   80   3          }
+   81   2        }
+   82   1      }
+   83          
+   84          PRIVATE void MMI_SDAP_DisconnectionCpl(U8 linkIndex, U8 status)
+   85          {
+   86   1        UNUSED(status);
+   87   1        
+   88   1        if (gMMI_ctl.sdapCtl[linkIndex].sdapState == MMI_SDAP_STATE_WAIT_DISCONNECTION_COMPLETE && !MMI_IsLinkAc
+             -tiveDisconnecting(linkIndex))
+   89   1        {
+   90   2          gMMI_ctl.sdapCtl[linkIndex].sdapState = MMI_SDAP_STATE_SERVICE_QUERY_COMPLETE;
+   91   2              
+   92   2          if(MMI_CreateActiveProfileConnection(linkIndex))
+   93   2          {
+   94   3            switch(GET_PRODUCT_AIR_TYPE(MMI_PNP_PRODUCT_VER))
+   95   3            {
+   96   4              case PRODUCT_AIR_SCO_WOOFER:
+   97   4              case PRODUCT_AIR_SOUNDBAR:
+   98   4              case PRODUCT_AIR_TWS:
+   99   4              case PRODUCT_AIR_A2DP_WOOFER:
+  100   4                if(MMI_GetConnectedProfileCount(linkIndex, TRUE))
+  101   4                {
+  102   5                  MMI_SetConnected(linkIndex);
+  103   5                }
+  104   4                break;
+  105   4              default:
+  106   4                break;
+  107   4            }
+  108   3            MMI_HCI_UartSendUnSolicitedIndication(MMI_UART_IND_DEVICE_TYPE, (U8 XDATA_PTR)NULL, linkIndex);
+  109   3          }
+  110   2        }
+  111   1        else
+  112   1        {
+  113   2          gMMI_ctl.sdapCtl[linkIndex].sdapState = MMI_SDAP_STATE_IDLE;
+C251 COMPILER V5.57.0,  MMI_SDAP                                                           08/11/20  05:52:23  PAGE 3   
+
+  114   2        }
+  115   1        
+  116   1        MMI_SDAP_UseStatusClearStatus(linkIndex);
+  117   1      }
+  118          
+  119          typedef struct
+  120          {
+  121            void (*fEvt)(U8 linkIndex, U8 status);
+  122          }MMI_SDAP_EVT;
+  123          
+  124          MMI_SDAP_EVT CODE MMI_SDAP_EvtHandle[SDAP_EVENT_TO_MMI_NO] = 
+  125          {
+  126            {MMI_SDAP_ConnectionCpl}, //SDAP_EVENT_TO_MMI_CLIENT_CONNECTION_COMPLETE
+  127            {MMI_SDAP_DisconnectionCpl}, //SDAP_EVENT_TO_MMI_DISCONNECTION_COMPLETE
+  128          };
+  129          
+  130          PUBLIC void MMI_SDAP_EventHandler(U8 linkIndex, U8 opCode, U8 status)
+  131          {
+  132   1        if (MMI_IsActiveLink(linkIndex))
+  133   1        {
+  134   2          if(MMI_SDAP_EvtHandle[opCode].fEvt)
+  135   2            MMI_SDAP_EvtHandle[opCode].fEvt(linkIndex, status);
+  136   2        }
+  137   1      }
+  138          
+  139          PUBLIC void MMI_SDAP_StartServiceSearchProc(U8 linkIndex)
+  140          {
+  141   1        SYS_ReleaseTimer(&gMMI_ctl.mmiTimerInfo.connTimer[linkIndex].delaySDPTimer);
+  142   1      
+  143   1        if(!gMMI_ctl.sdapCtl[linkIndex].supportedProfile )
+  144   1        {
+  145   2          if (MMI_SDAP_UseStatusRegister(linkIndex, SDP_USE_BY_MMI))
+  146   2          {
+  147   3            gMMI_ctl.sdapCtl[linkIndex].sdapState = MMI_SDAP_STATE_WAIT_CONNECTION_COMPLETE;
+  148   3            gMMI_ctl.sdapCtl[linkIndex].supportedProfile |= SDAP_IN_PROGRESS;
+  149   3          }
+  150   2        }
+  151   1        else if(gMMI_ctl.sdapCtl[linkIndex].sdapState == MMI_SDAP_STATE_SERVICE_QUERY_COMPLETE && MMI_SDAP_UseSt
+             -atusIsRegiste(linkIndex, SDP_USE_BY_MMI))
+  152   1        {
+  153   2          MMI_CreateActiveProfileConnection(linkIndex);
+  154   2        }
+  155   1      }
+  156          
+  157          PUBLIC BOOL MMI_SDAP_HideServiceRecord(U8 profileId)
+  158          {
+  159   1        switch (profileId)
+  160   1        {
+  161   2          #ifdef HFP_Profile
+  162   2          case PROFILE_HEADSET:
+  163   2            return !MMI_SUPPORT_HSP_FEAT;
+  164   2          case PROFILE_HANDSFREE:
+  165   2            return !MMI_SUPPORT_HFP_FEAT;
+  166   2          #endif
+  167   2      
+  168   2          #ifdef A2DP_Profile
+  169   2          case PROFILE_A2DP_SINK:
+  170   2            return !MMI_SUPPORT_A2DP_SINK_FEAT;
+  171   2          case PROFILE_AVRCP_TG:
+  172   2          case PROFILE_AVRCP_CT:
+  173   2            return !MMI_SUPPORT_AVRCP_FEAT;
+  174   2          #endif
+  175   2        }
+  176   1        return FALSE;
+  177   1      }
+  178          
+C251 COMPILER V5.57.0,  MMI_SDAP                                                           08/11/20  05:52:23  PAGE 4   
+
+  179          PUBLIC U8 MMI_SDAP_GetRemoteServiceChannel(U8 linkIndex, U8 profileId)
+  180          {
+  181   1        switch (profileId)
+  182   1        {
+  183   2          case PROFILE_HEADSET:
+  184   2            if (MMI_SUPPORT_HSP_FEAT && (gMMI_ctl.sdapCtl[linkIndex].supportedProfile & SUPPORT_HSP))
+  185   2            {
+  186   3              return gMMI_ctl.sdapCtl[linkIndex].hspScn;
+  187   3            }
+  188   2            break;
+  189   2      
+  190   2          case PROFILE_HANDSFREE:
+  191   2            if (MMI_SUPPORT_HFP_FEAT && (gMMI_ctl.sdapCtl[linkIndex].supportedProfile & SUPPORT_HFP))
+  192   2            {
+  193   3              return gMMI_ctl.sdapCtl[linkIndex].hfpScn;
+  194   3            }
+  195   2            break;
+  196   2          
+  197   2          #ifdef SPP_Profile
+  198   2          case PROFILE_SERIAL_PORT:
+  199   2            if (gMMI_ctl.sdapCtl[linkIndex].supportedProfile & SUPPORT_SPP)
+  200   2            {
+  201   3              return gMMI_ctl.sdapCtl[linkIndex].sppScn;
+  202   3            }
+  203   2            break;
+  204   2          #endif
+  205   2          
+  206   2          #ifdef AIRAPP_Profile
+  207   2          case PROFILE_AIR_APP:
+  208   2            if (gMMI_ctl.sdapCtl[linkIndex].supportedProfile & SUPPORT_AIRAPP)
+  209   2            {
+  210   3              return gMMI_ctl.sdapCtl[linkIndex].airappScn;
+  211   3            }
+  212   2            break;
+  213   2          #endif
+  214   2      
+  215   2          #ifdef SONGPAL_Profile
+                   case PROFILE_SONGPAL_ANDROID:
+                   #ifndef IAP2_Profile
+                   case PROFILE_SONGPAL_IAP2:
+                   #else
+                   case PROFILE_IAP2:
+                   #endif
+                     if ((gMMI_ctl.sdapCtl[linkIndex].supportedProfile & SUPPORT_SONGPAL) && (gMMI_ctl.sdapCtl[linkIndex].s
+             -ongpalProfileId == profileId))
+                     {
+                       return gMMI_ctl.sdapCtl[linkIndex].songpalScn;
+                     }
+                     break;
+                   #endif
+  228   2            
+  229   2          case PROFILE_A2DP_SOURCE:
+  230   2            if (MMI_SUPPORT_A2DP_FEAT && (gMMI_ctl.sdapCtl[linkIndex].supportedProfile & SUPPORT_A2DP))
+  231   2            {
+  232   3              return PROFILE_A2DP_SOURCE;
+  233   3            }
+  234   2            break;
+  235   2            
+  236   2          case PROFILE_AVRCP:
+  237   2            if (MMI_SUPPORT_AVRCP_FEAT && (gMMI_ctl.sdapCtl[linkIndex].supportedProfile & SUPPORT_AVRCP))
+  238   2            {
+  239   3              return PROFILE_AVRCP;
+  240   3            }
+  241   2            break;
+  242   2          default:
+  243   2            if(api_profile_func[API_GRP_PF_CB_SDP_GET_SERVICE_PROFILESCN])
+C251 COMPILER V5.57.0,  MMI_SDAP                                                           08/11/20  05:52:23  PAGE 5   
+
+  244   2            {
+  245   3              return (((API_PROFILE_SDP_GET_SERVICE_PROFILESCN_FUNC)api_profile_func[API_GRP_PF_CB_SDP_GET_SERVICE_
+             -PROFILESCN])(linkIndex, profileId));
+  246   3            }
+  247   2            break;
+  248   2        }
+  249   1        return 0;
+  250   1      }
+  251          
+  252          PUBLIC U32 XDATA_PTR MMI_SDAP_ParseServiceRecordHandle(U8 XDATA_PTR evtPtr)
+  253          {
+  254   1        U16 recordCount;
+  255   1        
+  256   1        if (((SdapEvent XDATA_PTR)evtPtr)->eventBody.sssCompleteEvent.payloadLength)
+  257   1        {
+  258   2          recordCount = *(U16 XDATA_PTR)&((SdapEvent XDATA_PTR)evtPtr)->eventBody.sssCompleteEvent.payload[0];
+  259   2          if (recordCount)
+  260   2          {
+  261   3            return (U32 XDATA_PTR)&((SdapEvent XDATA_PTR)evtPtr)->eventBody.sssCompleteEvent.payload[2];
+  262   3          }
+  263   2        }
+  264   1        return (U32 XDATA_PTR)NULL;
+  265   1      }
+  266          
+  267          PRIVATE void MMI_SDAP_ServiceSearchCallback(U8 XDATA_PTR sdapRspPtr)
+  268          {
+  269   1        U8 linkIndex = ((SdapEvent XDATA_PTR)sdapRspPtr)->eventBody.sssCompleteEvent.linkIndex;
+  270   1        U8 useType = MMI_SDAP_UseStatusFindInUsed(linkIndex);
+  271   1        U32 XDATA_PTR pServiceRecordHandle;
+  272   1        BOOL pnpFound = FALSE;
+  273   1      
+  274   1        if (pServiceRecordHandle = MMI_SDAP_ParseServiceRecordHandle(sdapRspPtr))
+  275   1        {
+  276   2          if (gMMI_ctl.sdapCtl[linkIndex].sdapState == MMI_SDAP_STATE_WAIT_PNP_SERVICE_RESULT)
+  277   2          {
+  278   3            pnpFound = TRUE;
+  279   3          }
+  280   2        }
+  281   1        OSMEM_Put(sdapRspPtr);
+  282   1        
+  283   1        if(useType != SDP_USER_EOF)
+  284   1        {
+  285   2          MMI_SDAP_UseStatusUseFinish(linkIndex, useType);
+  286   2          MMI_SDAP_UseStatusSetWaitCmd(linkIndex, MMI_SDAP_UseStatusFindInUsed(linkIndex));
+  287   2        }
+  288   1        
+  289   1        if (pnpFound)
+  290   1        {
+  291   2          MMI_SDAP_SendAttributeSearchReq(linkIndex, *pServiceRecordHandle, ATTRID_SpecifcationID, ATTRID_VendorI
+             -DSource, SDP_USE_BY_MMI);
+  292   2        }
+  293   1        else
+  294   1        {
+  295   2          MMI_SDAP_SendNextServiceQuery(linkIndex);
+  296   2        }
+  297   1      }
+  298          
+  299          PRIVATE void MMI_SDAP_ParsePNPInformation(SdapEvent XDATA_PTR evtPtr, PNPInformation XDATA_PTR pnpInfo)
+  300          {
+  301   1        U8 size;
+  302   1        U16 totalBytes = evtPtr->eventBody.sssCompleteEvent.payloadLength;
+  303   1        U8 XDATA_PTR payloadPtr = (U8 XDATA_PTR)evtPtr->eventBody.sssCompleteEvent.payload;
+  304   1      
+  305   1        OSMEM_memset_xdata((U8 XDATA_PTR)pnpInfo, 0, sizeof(PNPInformation));
+  306   1      
+  307   1        //skip data element sequence
+C251 COMPILER V5.57.0,  MMI_SDAP                                                           08/11/20  05:52:23  PAGE 6   
+
+  308   1        if (totalBytes == 0 || DELEM_TYPE(payloadPtr[0]) != DELEM_SEQUENCE)
+  309   1          return;
+  310   1      
+  311   1        //skip data element sequence
+  312   1        size = SDAP_GetDataElementSize(payloadPtr[0]);
+  313   1        payloadPtr += size;
+  314   1        totalBytes -= size;
+  315   1        
+  316   1        while (totalBytes)
+  317   1        {
+  318   2          //check attribute id type
+  319   2          if (payloadPtr[0] != DELEM_U16)
+  320   2            break;
+  321   2      
+  322   2          switch (*(U16 XDATA_PTR)&payloadPtr[1])
+  323   2          {
+  324   3            case ATTRID_SpecifcationID:
+  325   3              pnpInfo->specId = *(U16 XDATA_PTR)&payloadPtr[4];
+  326   3              break;
+  327   3            case ATTRID_VendorID:
+  328   3              pnpInfo->vendorId = *(U16 XDATA_PTR)&payloadPtr[4];
+  329   3              break;
+  330   3            case ATTRID_ProductID:
+  331   3              pnpInfo->productId = *(U16 XDATA_PTR)&payloadPtr[4];
+  332   3              break;
+  333   3            case ATTRID_ProductVersion:
+  334   3              pnpInfo->productVersion = *(U16 XDATA_PTR)&payloadPtr[4];
+  335   3              break;
+  336   3            case ATTRID_PrimaryRecord:
+  337   3              pnpInfo->primaryRecord = *(U8 XDATA_PTR)&payloadPtr[4];
+  338   3              break;
+  339   3            case ATTRID_VendorIDSource:
+  340   3              pnpInfo->vendorIdSource = *(U16 XDATA_PTR)&payloadPtr[4];
+  341   3              break;
+  342   3          }
+  343   2          
+  344   2          //next data element
+  345   2          size = SDAP_GetDataElementSize(payloadPtr[3]) + 3/*size of attribute element*/;
+  346   2          payloadPtr += size;
+  347   2          totalBytes -= size;
+  348   2        }
+  349   1      }
+  350          
+  351          PRIVATE BOOL MMI_SDAP_IsRemoteAirModeSuppored(PNPInformation XDATA_PTR pnpInfo)
+  352          {
+  353   1        if (pnpInfo->vendorId != AIROHA_COMPANY_ID ||
+  354   1          pnpInfo->vendorIdSource != VENDOR_ID_SOURCE_BLUETOOTH ||
+  355   1          pnpInfo->productId != MMI_PNP_PRODUCT_ID )
+  356   1        {
+  357   2          return FALSE;
+  358   2        }
+  359   1        return TRUE;
+  360   1      }
+  361          
+  362          PRIVATE void MMI_SDAP_AttributeSearchCallback(U8 XDATA_PTR sdapRspPtr)
+  363          {
+  364   1        U8 linkIndex = ((SdapEvent XDATA_PTR)sdapRspPtr)->eventBody.sssCompleteEvent.linkIndex;
+  365   1        U8 useType = MMI_SDAP_UseStatusFindInUsed(linkIndex);
+  366   1        PNPInformation LDATA pnpInfo;
+  367   1      
+  368   1        if (gMMI_ctl.sdapCtl[linkIndex].sdapState == MMI_SDAP_STATE_WAIT_PNP_SERVICE_RESULT)
+  369   1        {
+  370   2          MMI_SDAP_ParsePNPInformation((SdapEvent XDATA_PTR)sdapRspPtr, (PNPInformation XDATA_PTR)&pnpInfo);
+  371   2      
+  372   2          if(MMI_SDAP_IsRemoteAirModeSuppored((PNPInformation XDATA_PTR)&pnpInfo))
+  373   2          {
+C251 COMPILER V5.57.0,  MMI_SDAP                                                           08/11/20  05:52:23  PAGE 7   
+
+  374   3            gMMI_ctl.sdapCtl[linkIndex].remoteApplicationID = GET_PRODUCT_AIR_TYPE(((PNPInformation XDATA_PTR)&pnp
+             -Info)->productVersion);
+  375   3            gMMI_ctl.sdapCtl[linkIndex].supportedProfile |= SUPPORT_PNP;
+  376   3          }
+  377   2          else
+  378   2          {
+  379   3            gMMI_ctl.sdapCtl[linkIndex].remoteApplicationID = 0;
+  380   3          }
+  381   2        }
+  382   1        OSMEM_Put(sdapRspPtr);
+  383   1        
+  384   1        if(useType != SDP_USER_EOF)
+  385   1        {
+  386   2          MMI_SDAP_UseStatusUseFinish(linkIndex, useType);
+  387   2          MMI_SDAP_UseStatusSetWaitCmd(linkIndex, MMI_SDAP_UseStatusFindInUsed(linkIndex));
+  388   2        }
+  389   1      
+  390   1        MMI_SDAP_SendNextServiceQuery(linkIndex);
+  391   1      }
+  392          
+  393          PUBLIC U8 MMI_SDAP_ParseRemoteScn(U8 XDATA_PTR evtPtr, U16 psm) 
+  394          {
+  395   1        U8 size, result = 0;
+  396   1        U16 totalBytes = ((SdapEvent XDATA_PTR)evtPtr)->eventBody.sssCompleteEvent.payloadLength;
+  397   1        U8 XDATA_PTR payloadPtr = (U8 XDATA_PTR)((SdapEvent XDATA_PTR)evtPtr)->eventBody.sssCompleteEvent.payloa
+             -d;
+  398   1      
+  399   1        while (totalBytes)
+  400   1        {
+  401   2          //Check if this data element is "RFCOMM/SCN" (HFP Spec 1.5 P.82)
+  402   2          if (payloadPtr[0] == DELEM_UUID16)
+  403   2          {
+  404   3            if (*((U16 XDATA_PTR)&payloadPtr[1]) == psm)
+  405   3            {
+  406   4              if (psm == PSM_RFCOMM && payloadPtr[3] == DELEM_U8)
+  407   4              {
+  408   5                result = payloadPtr[4];
+  409   5                break;
+  410   5              }
+  411   4              #ifdef A2DP_Profile
+  412   4              if(psm == PSM_AVDTP || psm == PSM_AVCTP)
+  413   4              {
+  414   5                result = 1;
+  415   5                break;
+  416   5              }
+  417   4              #endif
+  418   4            }
+  419   3          }
+  420   2      
+  421   2          //next data element
+  422   2          size = SDAP_GetDataElementSize(payloadPtr[0]);
+  423   2          payloadPtr += size;
+  424   2          totalBytes -= size;
+  425   2        }
+  426   1      
+  427   1        return result;
+  428   1      }
+  429          
+  430          PRIVATE void MMI_SDAP_ServiceSearchAttributeCallback(U8 XDATA_PTR sdapRspPtr)
+  431          {
+  432   1        U8 linkIndex = ((SdapEvent XDATA_PTR)sdapRspPtr)->eventBody.sssCompleteEvent.linkIndex;
+  433   1        U8 useType = MMI_SDAP_UseStatusFindInUsed(linkIndex);
+  434   1      
+  435   1        switch(gMMI_ctl.sdapCtl[linkIndex].sdapState)
+  436   1        {
+  437   2          case MMI_SDAP_STATE_WAIT_HFP_SERVICE_RESULT:
+C251 COMPILER V5.57.0,  MMI_SDAP                                                           08/11/20  05:52:23  PAGE 8   
+
+  438   2            if (gMMI_ctl.sdapCtl[linkIndex].hfpScn = MMI_SDAP_ParseRemoteScn(sdapRspPtr, PSM_RFCOMM))
+  439   2            {
+  440   3              gMMI_ctl.sdapCtl[linkIndex].supportedProfile |= SUPPORT_HFP;
+  441   3            }
+  442   2            break;
+  443   2          case MMI_SDAP_STATE_WAIT_HSP_SERVICE_RESULT:
+  444   2            if (gMMI_ctl.sdapCtl[linkIndex].hspScn = MMI_SDAP_ParseRemoteScn(sdapRspPtr, PSM_RFCOMM))
+  445   2            {
+  446   3              gMMI_ctl.sdapCtl[linkIndex].supportedProfile |= SUPPORT_HSP;
+  447   3            }
+  448   2            break;
+  449   2          case MMI_SDAP_STATE_WAIT_A2DP_SERVICE_RESULT:
+  450   2            if (MMI_SDAP_ParseRemoteScn(sdapRspPtr, PSM_AVDTP))
+  451   2            {
+  452   3              gMMI_ctl.sdapCtl[linkIndex].supportedProfile |= SUPPORT_A2DP;
+  453   3            }
+  454   2            else if (gMMI_ctl.sdapCtl[linkIndex].remoteApplicationID == PRODUCT_AIR_TWS && MMI_SUPPORT_A2DP_SINK_F
+             -EAT)
+  455   2            {
+  456   3              gMMI_ctl.sdapCtl[linkIndex].supportedProfile |= SUPPORT_A2DP;
+  457   3            }
+  458   2            break;
+  459   2          case MMI_SDAP_STATE_WAIT_AVRCP_TG_SERVICE_RESULT:
+  460   2          case MMI_SDAP_STATE_WAIT_AVRCP_CT_SERVICE_RESULT:
+  461   2            if (MMI_SDAP_ParseRemoteScn(sdapRspPtr, PSM_AVCTP))
+  462   2            {
+  463   3              gMMI_ctl.sdapCtl[linkIndex].supportedProfile |= SUPPORT_AVRCP;
+  464   3            }
+  465   2            else if (gMMI_ctl.sdapCtl[linkIndex].sdapState == MMI_SDAP_STATE_WAIT_AVRCP_TG_SERVICE_RESULT)
+  466   2            {
+  467   3              gMMI_ctl.sdapCtl[linkIndex].searchedProfile &= ~SDAP_SEARCH_AVRCP;
+  468   3            }
+  469   2            break;
+  470   2          #ifdef SPP_Profile
+  471   2          case MMI_SDAP_STATE_WAIT_SPP_SERVICE_RESULT:
+  472   2            if (gMMI_ctl.sdapCtl[linkIndex].sppScn = MMI_SDAP_ParseRemoteScn(sdapRspPtr, PSM_RFCOMM))
+  473   2            {
+  474   3              gMMI_ctl.sdapCtl[linkIndex].supportedProfile |= SUPPORT_SPP;
+  475   3            }
+  476   2            break;
+  477   2          #endif
+  478   2          #ifdef SONGPAL_Profile
+                   case MMI_SDAP_STATE_WAIT_SONGPAL_ANDROID_RESULT:
+                   case MMI_SDAP_STATE_WAIT_SONGPAL_IAP2_RESULT:
+                     if (gMMI_ctl.sdapCtl[linkIndex].songpalScn = MMI_SDAP_ParseRemoteScn(sdapRspPtr, PSM_RFCOMM))
+                     {
+                       gMMI_ctl.sdapCtl[linkIndex].supportedProfile |= SUPPORT_SONGPAL;
+                       gMMI_ctl.sdapCtl[linkIndex].songpalProfileId = (gMMI_ctl.sdapCtl[linkIndex].sdapState == MMI_SDAP_STA
+             -TE_WAIT_SONGPAL_ANDROID_RESULT) ?
+                                                 PROFILE_SONGPAL_ANDROID :
+                                                 #ifndef IAP2_Profile
+                                                 PROFILE_SONGPAL_IAP2;
+                                                 #else
+                                                 PROFILE_IAP2;
+                                                 #endif
+                     }
+                     else if (gMMI_ctl.sdapCtl[linkIndex].sdapState == MMI_SDAP_STATE_WAIT_SONGPAL_ANDROID_RESULT)
+                     {
+                       gMMI_ctl.sdapCtl[linkIndex].searchedProfile &= ~SDAP_SEARCH_SONGPAL;
+                     }
+                     break;
+                   #endif
+  498   2          #ifdef AIRAPP_Profile
+  499   2          case MMI_SDAP_STATE_WAIT_AIRAPP_SERVICE_RESULT:
+  500   2            if (gMMI_ctl.sdapCtl[linkIndex].airappScn = MMI_SDAP_ParseRemoteScn(sdapRspPtr, PSM_RFCOMM))
+  501   2            {
+C251 COMPILER V5.57.0,  MMI_SDAP                                                           08/11/20  05:52:23  PAGE 9   
+
+  502   3              gMMI_ctl.sdapCtl[linkIndex].supportedProfile |= SUPPORT_AIRAPP;
+  503   3            }
+  504   2            break;    
+  505   2          #endif
+  506   2          #ifdef PBAP_Profile
+                   case MMI_SDAP_STATE_WAIT_PBAP_SERVICE_RESULT:
+                     if (gMMI_ctl.sdapCtl[linkIndex].pbapScn = MMI_SDAP_ParseRemoteScn(sdapRspPtr, PSM_RFCOMM))
+                     {
+                       gMMI_ctl.sdapCtl[linkIndex].supportedProfile |= SUPPORT_PBAP;
+                     }
+                     break;
+                   #endif
+  514   2        }
+  515   1        OSMEM_Put(sdapRspPtr);
+  516   1      
+  517   1        if(useType != SDP_USER_EOF)
+  518   1        {
+  519   2          MMI_SDAP_UseStatusUseFinish(linkIndex, useType);
+  520   2          MMI_SDAP_UseStatusSetWaitCmd(linkIndex, MMI_SDAP_UseStatusFindInUsed(linkIndex));
+  521   2        }
+  522   1        
+  523   1        MMI_SDAP_SendNextServiceQuery(linkIndex);
+  524   1      }
+  525          
+  526          PRIVATE void MMI_SDAP_SendNextServiceQuery(U8 linkIndex)
+  527          {
+  528   1        U8 searchedProfile = gMMI_ctl.sdapCtl[linkIndex].searchedProfile;
+  529   1        U8 sdapState = MMI_SDAP_STATE_SEND_DISCONNECTION_REQ;
+  530   1        
+  531   1        if (!(searchedProfile & SDAP_SEARCH_PNP))
+  532   1        {
+  533   2          searchedProfile |= SDAP_SEARCH_PNP;
+  534   2          MMI_SDAP_SendServiceSearchReq(linkIndex, SERVICE_UUID_PNP_INFORMATION, SDP_USE_BY_MMI);
+  535   2          sdapState = MMI_SDAP_STATE_WAIT_PNP_SERVICE_RESULT;
+  536   2          goto label_search_sent;
+  537   2        }
+  538   1      
+  539   1        if(gMMI_nvram.firstConnectProfile == SDAP_FIRST_CONN_AVRCP && !(searchedProfile & SDAP_SEARCH_AVRCP))
+  540   1        {
+  541   2          goto CONNECT_AVRCP_SDP;
+  542   2        }
+  543   1      
+  544   1        if (!(searchedProfile & SDAP_SEARCH_HFP))
+  545   1        {
+  546   2          searchedProfile |= SDAP_SEARCH_HFP;
+  547   2          if (MMI_SUPPORT_HFP_FEAT)
+  548   2          {
+  549   3            #ifdef HFP_AG_Profile
+                     MMI_SDAP_SendServiceSearchAttributeReq(linkIndex, SERVICE_UUID_HANDSFREE, ATTRID_ProtocolDescriptorLis
+             -t, SDP_USE_BY_MMI);
+                     #else
+  552   3            MMI_SDAP_SendServiceSearchAttributeReq(linkIndex, SERVICE_UUID_HANDSFREE_AG, ATTRID_ProtocolDescriptor
+             -List, SDP_USE_BY_MMI);
+  553   3            #endif
+  554   3            sdapState = MMI_SDAP_STATE_WAIT_HFP_SERVICE_RESULT;
+  555   3            goto label_search_sent;
+  556   3          }
+  557   2        }
+  558   1      
+  559   1        if (!(searchedProfile & SDAP_SEARCH_HSP))
+  560   1        {
+  561   2          searchedProfile |= SDAP_SEARCH_HSP;
+  562   2          if (MMI_SUPPORT_HSP_FEAT)
+  563   2          {
+  564   3            #ifdef HFP_AG_Profile
+                     MMI_SDAP_SendServiceSearchAttributeReq(linkIndex, SERVICE_UUID_HEADSET, ATTRID_ProtocolDescriptorList,
+C251 COMPILER V5.57.0,  MMI_SDAP                                                           08/11/20  05:52:23  PAGE 10  
+
+             - SDP_USE_BY_MMI);
+                     #else
+  567   3            MMI_SDAP_SendServiceSearchAttributeReq(linkIndex, SERVICE_UUID_HEADSET_AG, ATTRID_ProtocolDescriptorLi
+             -st, SDP_USE_BY_MMI);
+  568   3            #endif
+  569   3            sdapState = MMI_SDAP_STATE_WAIT_HSP_SERVICE_RESULT;
+  570   3            goto label_search_sent;
+  571   3          }
+  572   2        }
+  573   1      
+  574   1        if (!(searchedProfile & SDAP_SEARCH_A2DP))
+  575   1        {
+  576   2          searchedProfile |= SDAP_SEARCH_A2DP;
+  577   2          if (MMI_SUPPORT_A2DP_FEAT)
+  578   2          {
+  579   3            #ifdef A2DP_SRC_Profile
+                     MMI_SDAP_SendServiceSearchAttributeReq(linkIndex, SERVICE_UUID_AUDIO_SINK, ATTRID_ProtocolDescriptorLi
+             -st, SDP_USE_BY_MMI);
+                     #else
+  582   3            MMI_SDAP_SendServiceSearchAttributeReq(linkIndex, SERVICE_UUID_AUDIO_SOURCE, ATTRID_ProtocolDescriptor
+             -List, SDP_USE_BY_MMI);
+  583   3            #endif
+  584   3            sdapState = MMI_SDAP_STATE_WAIT_A2DP_SERVICE_RESULT;
+  585   3            goto label_search_sent;
+  586   3          }
+  587   2        }
+  588   1      
+  589   1        if (!(searchedProfile & SDAP_SEARCH_AVRCP))
+  590   1        {
+  591   2          CONNECT_AVRCP_SDP:
+  592   2          searchedProfile |= SDAP_SEARCH_AVRCP;
+  593   2          if (MMI_SUPPORT_AVRCP_FEAT)
+  594   2          {
+  595   3            if (gMMI_ctl.sdapCtl[linkIndex].sdapState == MMI_SDAP_STATE_WAIT_AVRCP_TG_SERVICE_RESULT)
+  596   3            {
+  597   4              MMI_SDAP_SendServiceSearchAttributeReq(linkIndex, SERVICE_UUID_REMOTE_CONTROL_CTL, ATTRID_ProtocolDes
+             -criptorList, SDP_USE_BY_MMI);
+  598   4              sdapState = MMI_SDAP_STATE_WAIT_AVRCP_CT_SERVICE_RESULT;
+  599   4            }
+  600   3            else
+  601   3            {
+  602   4              MMI_SDAP_SendServiceSearchAttributeReq(linkIndex, SERVICE_UUID_REMOTE_CONTROL_TRG, ATTRID_ProtocolDes
+             -criptorList, SDP_USE_BY_MMI);
+  603   4              sdapState = MMI_SDAP_STATE_WAIT_AVRCP_TG_SERVICE_RESULT;
+  604   4            }
+  605   3            goto label_search_sent;
+  606   3          }
+  607   2        }
+  608   1      
+  609   1        #ifdef SPP_Profile
+  610   1        if (!(searchedProfile & SDAP_SEARCH_SPP))
+  611   1        {
+  612   2          searchedProfile |= SDAP_SEARCH_SPP;
+  613   2          MMI_SDAP_SendServiceSearchAttributeReq(linkIndex, SERVICE_UUID_SERIAL_PORT, ATTRID_ProtocolDescriptorLi
+             -st, SDP_USE_BY_MMI);
+  614   2          sdapState = MMI_SDAP_STATE_WAIT_SPP_SERVICE_RESULT;
+  615   2          goto label_search_sent;
+  616   2        }
+  617   1        #endif
+  618   1      
+  619   1        #ifdef SONGPAL_Profile
+                 if (!(searchedProfile & SDAP_SEARCH_SONGPAL))
+                 {
+                   searchedProfile |= SDAP_SEARCH_SONGPAL;
+                   if (gMMI_ctl.sdapCtl[linkIndex].sdapState == MMI_SDAP_STATE_WAIT_SONGPAL_ANDROID_RESULT)
+                   {
+C251 COMPILER V5.57.0,  MMI_SDAP                                                           08/11/20  05:52:23  PAGE 11  
+
+                     MMI_SDAP_SendServiceSearchAttributeReq128(linkIndex, (U8 GENERIC_PTR)gSongPal_iap2_uuid128, ATTRID_Pro
+             -tocolDescriptorList);
+                     sdapState = MMI_SDAP_STATE_WAIT_SONGPAL_IAP2_RESULT;
+                   }
+                   else
+                   {
+                     MMI_SDAP_SendServiceSearchAttributeReq128(linkIndex, (U8 GENERIC_PTR)gSongPal_android_uuid128, ATTRID_
+             -ProtocolDescriptorList);
+                     sdapState = MMI_SDAP_STATE_WAIT_SONGPAL_ANDROID_RESULT;
+                   }
+                   goto label_search_sent;
+                 }
+                 #endif
+  636   1        
+  637   1        #ifdef AIRAPP_Profile
+  638   1        if (!(searchedProfile & SDAP_SEARCH_AIRAPP))
+  639   1        {
+  640   2          searchedProfile |= SDAP_SEARCH_AIRAPP;
+  641   2          MMI_SDAP_SendServiceSearchAttributeReq128(linkIndex, (U8 GENERIC_PTR)gAirApp_uuid128, ATTRID_ProtocolDe
+             -scriptorList);
+  642   2          sdapState = MMI_SDAP_STATE_WAIT_AIRAPP_SERVICE_RESULT;
+  643   2          goto label_search_sent;
+  644   2        } 
+  645   1        #endif
+  646   1      
+  647   1        #ifdef PBAP_Profile
+                 if (!(searchedProfile & SDAP_SEARCH_PBAP))
+                 {
+                   searchedProfile |= SDAP_SEARCH_PBAP;
+                   MMI_SDAP_SendServiceSearchAttributeReq(linkIndex, SERVICE_UUID_PB_ACCESS_SERVER, ATTRID_ProtocolDescrip
+             -torList, SDP_USE_BY_MMI);
+                   sdapState = MMI_SDAP_STATE_WAIT_PBAP_SERVICE_RESULT;
+                   goto label_search_sent;
+                 }
+                 #endif
+  656   1      
+  657   1      label_search_sent:
+  658   1        gMMI_ctl.sdapCtl[linkIndex].searchedProfile = searchedProfile;
+  659   1        gMMI_ctl.sdapCtl[linkIndex].sdapState = sdapState;
+  660   1        if(sdapState == MMI_SDAP_STATE_SEND_DISCONNECTION_REQ)
+  661   1        {
+  662   2          MMI_SDAP_UseStatusDeRegister(linkIndex, SDP_USE_BY_MMI);
+  663   2        }
+  664   1      }
+  665          
+  666          PUBLIC void MMI_SDAP_SendServiceSearchReq(U8 linkIndex, U16 uuid16, U8 useType)
+  667          {
+  668   1        MMIMsgType XDATA_PTR cmdPtr;
+  669   1        MMI_SDAP_UseStatusUseSDP(linkIndex, useType);
+  670   1        if(!MMI_SDAP_UseStatusIsUsed(linkIndex, useType))
+  671   1        {
+  672   2          gMMI_ctl.sdapCtl[linkIndex].SdpTempCmd.waitUser = useType;
+  673   2          gMMI_ctl.sdapCtl[linkIndex].SdpTempCmd.waitCmd = SDP_SERVICE_SEARCH;
+  674   2          gMMI_ctl.sdapCtl[linkIndex].SdpTempCmd.cmdRecord.serviceSearchCmd.uuid16 = uuid16;
+  675   2          return;
+  676   2        }
+  677   1        
+  678   1        cmdPtr = MMI_PROTOCOL_CommandFactory(MMI_CMD_TO_SDAP_SERVICE_SEARCH);
+  679   1      
+  680   1        if(cmdPtr)
+  681   1        {
+  682   2          if(useType == SDP_USE_BY_SDK && MMI_SDAP_UseStatusIsUsed(linkIndex, SDP_USE_BY_SDK) && api_profile_func
+             -[API_GRP_PF_CB_SDP_SERVICE_SEARCH])
+  683   2            cmdPtr->msgBodyPtr.sdapSearchCmd.callback = ((API_PROFILE_SDP_SERVICE_SEARCH_FUNC)api_profile_func[API
+             -_GRP_PF_CB_SDP_SERVICE_SEARCH]);
+  684   2          else if(MMI_SDAP_UseStatusIsUsed(linkIndex, SDP_USE_BY_MMI))
+C251 COMPILER V5.57.0,  MMI_SDAP                                                           08/11/20  05:52:23  PAGE 12  
+
+  685   2            cmdPtr->msgBodyPtr.sdapSearchCmd.callback = MMI_SDAP_ServiceSearchCallback;
+  686   2          else
+  687   2            cmdPtr->msgBodyPtr.sdapSearchCmd.callback = NULL;
+  688   2      
+  689   2          cmdPtr->msgBodyPtr.sdapSearchCmd.param.serviceSearch.serviceId.uuidLen = 2;
+  690   2          *(U16 XDATA_PTR)&cmdPtr->msgBodyPtr.sdapSearchCmd.param.serviceSearch.serviceId.uuid[0] = uuid16;
+  691   2          SDAP_SendSearchRequest(gMMI_ctl.sdapCtl[linkIndex].sdapClient, (U8 XDATA_PTR)cmdPtr);
+  692   2        } 
+  693   1      }
+  694          
+  695          PUBLIC void MMI_SDAP_SendAttributeSearchReq(U8 linkIndex, U32 serviceRecordHandle, U16 attributeId1, U16 
+             -attributeId2, U8 useType)
+  696          {
+  697   1        MMIMsgType XDATA_PTR cmdPtr;
+  698   1        MMI_SDAP_UseStatusUseSDP(linkIndex, useType);
+  699   1        if(!MMI_SDAP_UseStatusIsUsed(linkIndex, useType))
+  700   1        {
+  701   2          gMMI_ctl.sdapCtl[linkIndex].SdpTempCmd.waitUser = useType;
+  702   2          gMMI_ctl.sdapCtl[linkIndex].SdpTempCmd.waitCmd = SDP_ATTRIBUTE_SEARCH;
+  703   2          gMMI_ctl.sdapCtl[linkIndex].SdpTempCmd.cmdRecord.attributeSearchCmd.serviceRecordHandle = serviceRecord
+             -Handle;
+  704   2          gMMI_ctl.sdapCtl[linkIndex].SdpTempCmd.cmdRecord.attributeSearchCmd.attributeId1 = attributeId1;
+  705   2          gMMI_ctl.sdapCtl[linkIndex].SdpTempCmd.cmdRecord.attributeSearchCmd.attributeId2 = attributeId2;
+  706   2          return;
+  707   2        }
+  708   1        
+  709   1        cmdPtr = MMI_PROTOCOL_CommandFactory(MMI_CMD_TO_SDAP_ATTRIBUTE_SEARCH);
+  710   1      
+  711   1        if(cmdPtr)
+  712   1        {
+  713   2          if(useType == SDP_USE_BY_SDK && MMI_SDAP_UseStatusIsUsed(linkIndex, SDP_USE_BY_SDK) && api_profile_func
+             -[API_GRP_PF_CB_SDP_ATTRIBUTE_SEARCH])
+  714   2            cmdPtr->msgBodyPtr.sdapSearchCmd.callback = ((API_PROFILE_SDP_ATTRIBUTE_SEARCH_FUNC)api_profile_func[A
+             -PI_GRP_PF_CB_SDP_ATTRIBUTE_SEARCH]);
+  715   2          else if(MMI_SDAP_UseStatusIsUsed(linkIndex, SDP_USE_BY_MMI))
+  716   2            cmdPtr->msgBodyPtr.sdapSearchCmd.callback = MMI_SDAP_AttributeSearchCallback;
+  717   2          else
+  718   2            cmdPtr->msgBodyPtr.sdapSearchCmd.callback = NULL;
+  719   2      
+  720   2          cmdPtr->msgBodyPtr.sdapSearchCmd.param.attributeSearch.serviceRecordHandle = serviceRecordHandle;
+  721   2          cmdPtr->msgBodyPtr.sdapSearchCmd.param.attributeSearch.attributeId1 = attributeId1;
+  722   2          cmdPtr->msgBodyPtr.sdapSearchCmd.param.attributeSearch.attributeId2 = attributeId2;
+  723   2          
+  724   2          SDAP_SendSearchRequest(gMMI_ctl.sdapCtl[linkIndex].sdapClient, (U8 XDATA_PTR)cmdPtr);
+  725   2        } 
+  726   1      }
+  727          
+  728          PUBLIC void MMI_SDAP_SendServiceSearchAttributeReq(U8 linkIndex, U16 uuid16, U16 attirbuteId, U8 useType)
+  729          {
+  730   1        MMIMsgType XDATA_PTR cmdPtr;
+  731   1        MMI_SDAP_UseStatusUseSDP(linkIndex, useType);
+  732   1        if(!MMI_SDAP_UseStatusIsUsed(linkIndex, useType))
+  733   1        {
+  734   2          gMMI_ctl.sdapCtl[linkIndex].SdpTempCmd.waitUser = useType;
+  735   2          gMMI_ctl.sdapCtl[linkIndex].SdpTempCmd.waitCmd = SDP_SERVICE_ATTRIBUTE_SEARCH;
+  736   2          gMMI_ctl.sdapCtl[linkIndex].SdpTempCmd.cmdRecord.serviceAttributeSearchCmd.uuid16 = uuid16;
+  737   2          gMMI_ctl.sdapCtl[linkIndex].SdpTempCmd.cmdRecord.serviceAttributeSearchCmd.attirbuteId = attirbuteId;
+  738   2          return;
+  739   2        }
+  740   1        cmdPtr = MMI_PROTOCOL_CommandFactory(MMI_CMD_TO_SDAP_SERVICE_SEARCH_ATTRIBUTE);
+  741   1      
+  742   1        if(cmdPtr)
+  743   1        {
+  744   2          if(useType == SDP_USE_BY_SDK && MMI_SDAP_UseStatusIsUsed(linkIndex, SDP_USE_BY_SDK) && api_profile_func
+             -[API_GRP_PF_CB_SDP_SERVICE_SEARCH_ATTRIBUTE])
+  745   2            cmdPtr->msgBodyPtr.sdapSearchCmd.callback = ((API_PROFILE_SDP_SERVICE_SEARCH_ATTRIBUTE_FUNC)api_profil
+C251 COMPILER V5.57.0,  MMI_SDAP                                                           08/11/20  05:52:23  PAGE 13  
+
+             -e_func[API_GRP_PF_CB_SDP_SERVICE_SEARCH_ATTRIBUTE]);
+  746   2          else if(MMI_SDAP_UseStatusIsUsed(linkIndex, SDP_USE_BY_MMI))
+  747   2            cmdPtr->msgBodyPtr.sdapSearchCmd.callback = MMI_SDAP_ServiceSearchAttributeCallback;
+  748   2          else
+  749   2            cmdPtr->msgBodyPtr.sdapSearchCmd.callback = NULL;
+  750   2      
+  751   2          cmdPtr->msgBodyPtr.sdapSearchCmd.param.serviceSearchAttribute.serviceId.uuidLen = 2;
+  752   2          *(U16 XDATA_PTR)&cmdPtr->msgBodyPtr.sdapSearchCmd.param.serviceSearchAttribute.serviceId.uuid[0] = uuid
+             -16;
+  753   2          cmdPtr->msgBodyPtr.sdapSearchCmd.param.serviceSearchAttribute.attributeId = attirbuteId;    
+  754   2      
+  755   2          SDAP_SendSearchRequest(gMMI_ctl.sdapCtl[linkIndex].sdapClient, (U8 XDATA_PTR)cmdPtr);
+  756   2        } 
+  757   1      }
+  758          
+  759          #if defined SONGPAL_Profile || defined AIRAPP_Profile
+  760          PRIVATE void MMI_SDAP_SendServiceSearchAttributeReq128(U8 linkIndex, U8 GENERIC_PTR uuid128, U16 attirbut
+             -eId)
+  761          {
+  762   1        MMIMsgType XDATA_PTR cmdPtr = MMI_PROTOCOL_CommandFactory(MMI_CMD_TO_SDAP_SERVICE_SEARCH_ATTRIBUTE);
+  763   1      
+  764   1        if(cmdPtr)
+  765   1        {
+  766   2          cmdPtr->msgBodyPtr.sdapSearchCmd.callback = MMI_SDAP_ServiceSearchAttributeCallback;
+  767   2          cmdPtr->msgBodyPtr.sdapSearchCmd.param.serviceSearchAttribute.serviceId.uuidLen = 16;
+  768   2          OSMEM_memcpy_xdata_generic(&cmdPtr->msgBodyPtr.sdapSearchCmd.param.serviceSearchAttribute.serviceId.uui
+             -d[0], uuid128, 16);
+  769   2          cmdPtr->msgBodyPtr.sdapSearchCmd.param.serviceSearchAttribute.attributeId = attirbuteId;    
+  770   2      
+  771   2          SDAP_SendSearchRequest(gMMI_ctl.sdapCtl[linkIndex].sdapClient, (U8 XDATA_PTR)cmdPtr);
+  772   2        } 
+  773   1      }
+  774          #endif
+  775          
+  776          PUBLIC void MMI_SDAP_ClearCtlData(U8 linkIndex)
+  777          {
+  778   1        OSMEM_memset_xdata((U8 XDATA_PTR)&gMMI_ctl.sdapCtl[linkIndex], 0, sizeof(SDAPCtlType));
+  779   1        #if SDK_SDP_PROFILE
+                 if(api_profile_func[API_GRP_PF_CB_SDP_CLEAR_CTL_DATA])
+                   ((API_PROFILE_SDP_CLEAR_CTL_DATA_FUNC)api_profile_func[API_GRP_PF_CB_SDP_CLEAR_CTL_DATA])(linkIndex);
+                 #endif
+  783   1      }
+  784          
+  785          PUBLIC BOOL MMI_SDAP_IsQueryComplete(U8 linkIndex)
+  786          {
+  787   1        return (gMMI_ctl.sdapCtl[linkIndex].sdapState == MMI_SDAP_STATE_SERVICE_QUERY_COMPLETE) ? TRUE : FALSE;
+  788   1      }
+  789          
+  790          #ifdef HID_Profile
+               PUBLIC BOOL MMI_SDAP_IsSupportHID(U8 linkIndex)
+               {
+                 if(gMMI_ctl.sdapCtl[linkIndex].supportedProfile & SUPPORT_HID)
+                   return TRUE;
+               
+                 return FALSE;
+               }
+               #endif
+  799          
+  800          PUBLIC void MMI_SDAP_SetRemoteApplicationID(U8 linkIndex, U8 productType)
+  801          {
+  802   1        gMMI_ctl.sdapCtl[linkIndex].remoteApplicationID = productType;
+  803   1      }
+  804          
+  805          PRIVATE BOOL MMI_SDAP_UseStatusIsRegiste(U8 linkIndex ,U8 sdpType)
+  806          {
+  807   1        return (gMMI_ctl.sdapCtl[linkIndex].sdpUserStatus[sdpType] > SDP_USER_STATUS_UNREGISTER) ? TRUE : FALSE;
+C251 COMPILER V5.57.0,  MMI_SDAP                                                           08/11/20  05:52:23  PAGE 14  
+
+  808   1      }
+  809          
+  810          PRIVATE BOOL MMI_SDAP_UseStatusIsUsed(U8 linkIndex ,U8 sdpType)
+  811          {
+  812   1        return (gMMI_ctl.sdapCtl[linkIndex].sdpUserStatus[sdpType] == SDP_USER_STATUS_IN_USED) ? TRUE : FALSE;
+  813   1      }
+  814          
+  815          PRIVATE void MMI_SDAP_UseStatusUseSDP(U8 linkIndex ,U8 sdpType)
+  816          {
+  817   1        if(gMMI_ctl.sdapCtl[linkIndex].sdpUserStatus[((sdpType == SDP_USE_BY_MMI) ? SDP_USE_BY_SDK: SDP_USE_BY_M
+             -MI)] == SDP_USER_STATUS_IN_USED)
+  818   1          gMMI_ctl.sdapCtl[linkIndex].sdpUserStatus[sdpType] = SDP_USER_STATUS_WAIT_TO_USE;
+  819   1        else
+  820   1          gMMI_ctl.sdapCtl[linkIndex].sdpUserStatus[sdpType] = SDP_USER_STATUS_IN_USED;
+  821   1      }
+  822          
+  823          PUBLIC void MMI_SDAP_UseStatusUseFinish(U8 linkIndex ,U8 sdpType)
+  824          {
+  825   1        gMMI_ctl.sdapCtl[linkIndex].sdpUserStatus[sdpType] = SDP_USER_STATUS_REGISTER;
+  826   1        if(gMMI_ctl.sdapCtl[linkIndex].sdpUserStatus[((sdpType == SDP_USE_BY_MMI) ? SDP_USE_BY_SDK: SDP_USE_BY_M
+             -MI)] == SDP_USER_STATUS_WAIT_TO_USE)
+  827   1          gMMI_ctl.sdapCtl[linkIndex].sdpUserStatus[((sdpType == SDP_USE_BY_MMI) ? SDP_USE_BY_SDK: SDP_USE_BY_MMI
+             -)] = SDP_USER_STATUS_IN_USED;
+  828   1      }
+  829          
+  830          PUBLIC BOOL MMI_SDAP_UseStatusRegister(U8 linkIndex ,U8 sdpType)
+  831          {
+  832   1        if(MMI_IsProfileConnected(linkIndex, PROFILE_SDAP) || 
+  833   1          (gMMI_ctl.sdapCtl[linkIndex].sdapClient = MMI_ConnectProfile(linkIndex, PROFILE_SDAP)))
+  834   1        {
+  835   2          gMMI_ctl.sdapCtl[linkIndex].sdpUserStatus[sdpType] = SDP_USER_STATUS_REGISTER;
+  836   2          return TRUE;
+  837   2        }
+  838   1        else
+  839   1          return FALSE;
+  840   1      }
+  841          
+  842          PRIVATE void MMI_SDAP_ProfileDisconnect(U8 linkIndex)
+  843          {
+  844   1        MMI_DisconnectProfile(linkIndex, gMMI_ctl.sdapCtl[linkIndex].sdapClient);
+  845   1        gMMI_ctl.sdapCtl[linkIndex].sdapState = MMI_SDAP_STATE_WAIT_DISCONNECTION_COMPLETE;
+  846   1      }
+  847          
+  848          PUBLIC void MMI_SDAP_UseStatusDeRegister(U8 linkIndex ,U8 sdpType)
+  849          {
+  850   1        gMMI_ctl.sdapCtl[linkIndex].sdpUserStatus[sdpType] = SDP_USER_STATUS_UNREGISTER;
+  851   1        if(gMMI_ctl.sdapCtl[linkIndex].sdpUserStatus[((sdpType == SDP_USE_BY_MMI) ? SDP_USE_BY_SDK: SDP_USE_BY_M
+             -MI)] == SDP_USER_STATUS_WAIT_TO_USE)
+  852   1          gMMI_ctl.sdapCtl[linkIndex].sdpUserStatus[((sdpType == SDP_USE_BY_MMI) ? SDP_USE_BY_SDK: SDP_USE_BY_MMI
+             -)] = SDP_USER_STATUS_IN_USED;
+  853   1        
+  854   1        if(MMI_SDAP_UseStatusIsRegiste(linkIndex, ((sdpType == SDP_USE_BY_MMI) ? SDP_USE_BY_SDK: SDP_USE_BY_MMI)
+             -))
+  855   1        {
+  856   2          if(sdpType == SDP_USE_BY_MMI)
+  857   2          {
+  858   3            if(api_profile_func[API_GRP_PF_CB_SDP_SERVICE_HANDLER])
+  859   3              ((API_PROFILE_SDP_SERVICE_HANDLER_FUNC)api_profile_func[API_GRP_PF_CB_SDP_SERVICE_HANDLER])(linkIndex
+             -);
+  860   3          }
+  861   2          else
+  862   2            MMI_SDAP_SendNextServiceQuery(linkIndex);
+  863   2        }
+  864   1        else
+  865   1        {
+  866   2          MMI_SDAP_ProfileDisconnect(linkIndex);
+C251 COMPILER V5.57.0,  MMI_SDAP                                                           08/11/20  05:52:23  PAGE 15  
+
+  867   2        }
+  868   1      }
+  869          
+  870          PRIVATE void MMI_SDAP_UseStatusClearStatus(U8 linkIndex)
+  871          {
+  872   1        gMMI_ctl.sdapCtl[linkIndex].sdpUserStatus[SDP_USE_BY_MMI] = SDP_USER_STATUS_NONE;
+  873   1        gMMI_ctl.sdapCtl[linkIndex].sdpUserStatus[SDP_USE_BY_SDK] = SDP_USER_STATUS_NONE;
+  874   1      }
+  875          
+  876          PUBLIC U8 MMI_SDAP_UseStatusFindInUsed(U8 linkIndex)
+  877          {
+  878   1        U8 useType = SDP_USER_EOF;
+  879   1        
+  880   1        for(useType = 0; useType < SDP_USER_NUM; useType++)
+  881   1        {
+  882   2          if(gMMI_ctl.sdapCtl[linkIndex].sdpUserStatus[useType] == SDP_USER_STATUS_IN_USED)
+  883   2            return useType;
+  884   2        }
+  885   1        return useType;
+  886   1      }
+  887          
+  888          PUBLIC void MMI_SDAP_UseStatusSetWaitCmd(U8 linkIndex, U8 sdpType)
+  889          {
+  890   1        if(MMI_SDAP_UseStatusFindInUsed(linkIndex) == SDP_USER_EOF)
+  891   1          return;
+  892   1        
+  893   1        if(gMMI_ctl.sdapCtl[linkIndex].SdpTempCmd.waitUser == sdpType)
+  894   1        {
+  895   2          if(gMMI_ctl.sdapCtl[linkIndex].SdpTempCmd.waitCmd == SDP_SERVICE_SEARCH)
+  896   2          {
+  897   3            MMI_SDAP_SendServiceSearchReq(linkIndex, gMMI_ctl.sdapCtl[linkIndex].SdpTempCmd.cmdRecord.serviceSearc
+             -hCmd.uuid16, MMI_SDAP_UseStatusFindInUsed(linkIndex));
+  898   3          }
+  899   2          else if(gMMI_ctl.sdapCtl[linkIndex].SdpTempCmd.waitCmd == SDP_ATTRIBUTE_SEARCH)
+  900   2          {
+  901   3            MMI_SDAP_SendAttributeSearchReq(linkIndex, gMMI_ctl.sdapCtl[linkIndex].SdpTempCmd.cmdRecord.attributeS
+             -earchCmd.serviceRecordHandle,
+  902   3                            gMMI_ctl.sdapCtl[linkIndex].SdpTempCmd.cmdRecord.attributeSearchCmd.attributeId1,
+  903   3                            gMMI_ctl.sdapCtl[linkIndex].SdpTempCmd.cmdRecord.attributeSearchCmd.attributeId2,
+  904   3                            MMI_SDAP_UseStatusFindInUsed(linkIndex));
+  905   3          }
+  906   2          else if(gMMI_ctl.sdapCtl[linkIndex].SdpTempCmd.waitCmd == SDP_SERVICE_ATTRIBUTE_SEARCH)
+  907   2          {
+  908   3            MMI_SDAP_SendServiceSearchAttributeReq(linkIndex, gMMI_ctl.sdapCtl[linkIndex].SdpTempCmd.cmdRecord.ser
+             -viceAttributeSearchCmd.uuid16,
+  909   3                                gMMI_ctl.sdapCtl[linkIndex].SdpTempCmd.cmdRecord.serviceAttributeSearchCmd.attirbuteId,
+  910   3                                MMI_SDAP_UseStatusFindInUsed(linkIndex));
+  911   3          }
+  912   2        }
+  913   1        OSMEM_memset_xdata((U8 XDATA_PTR)&gMMI_ctl.sdapCtl[linkIndex].SdpTempCmd, 0 ,sizeof(SdpTempCmdType));
+  914   1      }
+  915          
+  916          PUBLIC BOOL MMI_SDAP_SetProfileSCN(U8 linkIndex, U8 profileID, U8 scn)
+  917          {
+  918   1        switch(profileID)
+  919   1        {
+  920   2          case PROFILE_HANDSFREE:
+  921   2            gMMI_ctl.sdapCtl[linkIndex].hfpScn = scn;
+  922   2            gMMI_ctl.sdapCtl[linkIndex].supportedProfile |= SUPPORT_HFP;
+  923   2            break;
+  924   2          case PROFILE_HEADSET:
+  925   2            gMMI_ctl.sdapCtl[linkIndex].hspScn = scn;
+  926   2            gMMI_ctl.sdapCtl[linkIndex].supportedProfile |= SUPPORT_HSP;
+  927   2            break;
+  928   2          case PROFILE_A2DP_SOURCE:
+  929   2            if(scn)
+C251 COMPILER V5.57.0,  MMI_SDAP                                                           08/11/20  05:52:23  PAGE 16  
+
+  930   2            {
+  931   3              gMMI_ctl.sdapCtl[linkIndex].supportedProfile |= SUPPORT_A2DP;
+  932   3            }
+  933   2            else
+  934   2              return FALSE;
+  935   2            break;
+  936   2          case PROFILE_AVRCP:
+  937   2            if(scn)
+  938   2            {
+  939   3              gMMI_ctl.sdapCtl[linkIndex].supportedProfile |= SUPPORT_AVRCP;
+  940   3            }
+  941   2            else
+  942   2              return FALSE;
+  943   2            break;
+  944   2          #ifdef SPP_Profile
+  945   2          case PROFILE_SERIAL_PORT:
+  946   2            gMMI_ctl.sdapCtl[linkIndex].sppScn = scn;
+  947   2            gMMI_ctl.sdapCtl[linkIndex].supportedProfile |= SUPPORT_SPP;
+  948   2            break;
+  949   2          #endif
+  950   2          #ifdef SONGPAL_Profile
+                   case PROFILE_SONGPAL_ANDROID:
+                   #ifndef IAP2_Profile
+                   case PROFILE_SONGPAL_IAP2:
+                   #else
+                   case PROFILE_IAP2:
+                   #endif
+                     gMMI_ctl.sdapCtl[linkIndex].songpalScn = scn;
+                     gMMI_ctl.sdapCtl[linkIndex].supportedProfile |= SUPPORT_SONGPAL;
+                     gMMI_ctl.sdapCtl[linkIndex].songpalProfileId = (gMMI_ctl.sdapCtl[linkIndex].sdapState == MMI_SDAP_STAT
+             -E_WAIT_SONGPAL_ANDROID_RESULT) ?
+                                                 PROFILE_SONGPAL_ANDROID :
+                                                 #ifndef IAP2_Profile
+                                                 PROFILE_SONGPAL_IAP2;
+                                                 #else
+                                                 PROFILE_IAP2;
+                                                 #endif
+                     break;
+                   #endif
+  968   2          #ifdef AIRAPP_Profile
+  969   2          case PROFILE_AIR_APP:
+  970   2            gMMI_ctl.sdapCtl[linkIndex].airappScn = scn;
+  971   2            gMMI_ctl.sdapCtl[linkIndex].supportedProfile |= SUPPORT_AIRAPP;
+  972   2            break;    
+  973   2          #endif
+  974   2          #ifdef PBAP_Profile
+                   case PROFILE_PHONEBOOK_ACCESS:
+                     gMMI_ctl.sdapCtl[linkIndex].pbapScn = scn;
+                     gMMI_ctl.sdapCtl[linkIndex].supportedProfile |= SUPPORT_PBAP;
+                     break;
+                   #endif
+  980   2          default:
+  981   2            return FALSE;
+  982   2            break;
+  983   2        }
+  984   1        return TRUE;
+  985   1      }
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =      3813     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+C251 COMPILER V5.57.0,  MMI_SDAP                                                           08/11/20  05:52:23  PAGE 17  
+
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =         8     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

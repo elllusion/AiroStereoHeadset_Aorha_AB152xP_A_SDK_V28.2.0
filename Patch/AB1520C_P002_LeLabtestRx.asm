@@ -1,0 +1,25 @@
+?EP?P002_f1_0xFF78E4?P002 SEGMENT 'ECODE_FLASH'
+PUBLIC P002_f1_0xFF78E4??
+RSEG ?EP?P002_f1_0xFF78E4?P002	;program segment
+
+P002_f1_0xFF78E4??:
+DB		0xE4, 0x78, 0xFF
+DB		0
+EJMP	P002_f1_patch
+
+P002_f1_patch:
+;MOV      0xC1,#0x1A
+;ORL      A,#0x10
+;MOV      0xE6,A
+MOV      0xC1,#0x20
+MOV      0xE6,#0x04
+
+ECALL    0xFE04D9
+ECALL    0xFFAEBA
+; Clear Rx done status
+MOV	     0xC1,#0x1A
+MOV      0xE6,#0x10
+
+
+
+EJMP     0xFF78F9

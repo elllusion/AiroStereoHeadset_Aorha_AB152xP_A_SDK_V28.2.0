@@ -1,0 +1,125 @@
+C251 COMPILER V5.57.0,  Uart                                                               08/11/20  05:53:42  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE Uart
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\Uart.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SDK\IOSYS\Uart.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) WAR
+                    -NINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\sour
+                    -ce\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\source\
+                    -ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_LE;
+                    -.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspData;
+                    -.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLASH_
+                    -INIT=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520C_AiroStereoHeadset\Ua
+                    -rt.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\Uart.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #include "rc.h"
+    4          #include "..\SDK_Proxy\SDK_Proxy.h"
+    5          #include "drv_uart_transparent.h"
+    6          #include "..\MMI\MMI_Base.h"
+    7          #include "hci.h"
+    8          #include "hci_airoha.h"
+    9          #include "HC_Interface.h"
+   10          
+   11          #define SDK_UART_CUST_CMD 0
+   12          
+   13          
+   14          #define HCI_VENDOR_OGF_CUSTOMER_CMD             (HCI_VOGF)0x58
+   15          #define HCI_VENDOR_OGF_CUSTOMER_RESP            (HCI_VOGF)0x59
+   16          #define HCI_VENDOR_OGF_CUSTOMER_IND_UNSOLICITED       (HCI_VOGF)0x5A
+   17          #define HCI_VENDOR_OGF_CUSTOMER_IND_SOLICITED       (HCI_VOGF)0x5B
+   18          
+   19          PUBLIC void SDK_CB_UART_Cust_SendUARTResponse(U8 cmdOpcode, U8 resultCode)
+   20          {
+   21   1        MMIMsgType XDATA_PTR msgPtr;
+   22   1      
+   23   1        if(msgPtr = MMI_GetCommandMessageMem(HCI_VCMD_AIROHA_TO_UART))
+   24   1        {
+   25   2          msgPtr->paraLen = sizeof(HCI_VCMD_OPCODE_STRU) + sizeof(HCI_VCMD_PARA_AIR_CMD_RESP);
+   26   2          msgPtr->msgBodyPtr.hciVCmd.VOpCode.VCmdOcf = cmdOpcode;
+   27   2          msgPtr->msgBodyPtr.hciVCmd.VOpCode.VCmdOgf = HCI_VENDOR_OGF_CUSTOMER_RESP;
+   28   2          msgPtr->msgBodyPtr.hciVCmd.VPara.respVEvtCmd.resultCode = resultCode;
+   29   2          OSMQ_Put(OSMQ_HCIDRV_Command_From_GAP_ptr, (U8 XDATA_PTR)msgPtr);
+   30   2        }
+   31   1      }
+   32          
+   33          PUBLIC MMIMsgType XDATA_PTR SDK_CB_UART_Cust_SolicitedInd(U8 opCode, U16 vParaLength)
+   34          {
+   35   1        MMIMsgType XDATA_PTR msgPtr;
+   36   1        
+   37   1        if(msgPtr = (MMIMsgType XDATA_PTR)SYS_MemoryGet(vParaLength + sizeof(HCI_VCMD_OPCODE_STRU) + 5))
+   38   1        {
+   39   2          OSMEM_memset_xdata((U8 XDATA_PTR)msgPtr, 0, vParaLength + sizeof(HCI_VCMD_OPCODE_STRU) + 5);
+   40   2      
+   41   2          msgPtr->dataOffset = CMD_OFFSET;
+   42   2          msgPtr->msgOpcode =  HCI_VCMD_AIROHA_TO_UART;
+   43   2          msgPtr->paraLen = sizeof(HCI_VCMD_OPCODE_STRU) + vParaLength;
+   44   2          msgPtr->msgBodyPtr.hciVCmd.VOpCode.VCmdOgf = HCI_VENDOR_OGF_CUSTOMER_IND_SOLICITED;
+   45   2          msgPtr->msgBodyPtr.hciVCmd.VOpCode.VCmdOcf = opCode;
+   46   2        }
+   47   1        return msgPtr;
+   48   1      }
+   49          
+   50          PUBLIC void SDK_CB_UART_Cust_UnSolicitedInd(U8 opCode, U8 XDATA_PTR dataPtr, U8 linkIndex)
+   51          {
+   52   1        U8 XDATA_PTR tempPtr;
+C251 COMPILER V5.57.0,  Uart                                                               08/11/20  05:53:42  PAGE 2   
+
+   53   1        MMIMsgType XDATA_PTR msgPtr;
+   54   1      
+   55   1        if (!MMI_CC_UART_ENABLE)
+   56   1          return;
+   57   1      
+   58   1        if(msgPtr = MMI_GetCommandMessageMem( HCI_VCMD_AIROHA_TO_UART ))
+   59   1        {
+   60   2          msgPtr->paraLen = sizeof(HCI_VCMD_OPCODE_STRU); // sizeof(opCode + ogf)
+   61   2          msgPtr->msgBodyPtr.hciVCmd.VOpCode.VCmdOcf = opCode;
+   62   2          msgPtr->msgBodyPtr.hciVCmd.VOpCode.VCmdOgf = HCI_VENDOR_OGF_CUSTOMER_IND_UNSOLICITED;
+   63   2          tempPtr = (U8 XDATA_PTR)&msgPtr->msgBodyPtr.hciVCmd.VPara;
+   64   2          UNUSED(dataPtr);
+   65   2          UNUSED(linkIndex);
+   66   2          OSMQ_Put (OSMQ_HCIDRV_Command_From_GAP_ptr, (U8 XDATA_PTR)msgPtr);
+   67   2        }
+   68   1      }
+   69          
+   70          #if SDK_UART_CUST_CMD
+               PRIVATE void SDK_CB_UART_Cust_Command(MMIMsgType XDATA_PTR msgPtr)
+               {
+                 OSMEM_Put((U8 XDATA_PTR)msgPtr);
+               }
+               #endif
+   76          
+   77          PUBLIC void SDK_UART_Init(void)
+   78          {
+   79   1      #if SDK_UART_CUST_CMD
+                 SDK_Proxy_RegisterAPI(API_GRP_IOSYS_CB_UART_CUST_CMD,   API_GRP_IOSYS, (VFUN)SDK_CB_UART_Cust_Command);
+               #endif
+   82   1      }
+   83          
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =       207     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =    ------     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

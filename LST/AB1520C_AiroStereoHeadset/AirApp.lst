@@ -1,0 +1,3561 @@
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE AirApp
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\AirApp.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\AirApp\AirApp.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) WARN
+                    -INGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\sourc
+                    -e\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\source\R
+                    -OM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_LE;.
+                    -\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspData;.
+                    -\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLASH_I
+                    -NIT=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520C_AiroStereoHeadset\Air
+                    -App.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\AirApp.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #define __AIRAPP_C__
+    4          
+    5          #include "rc.h"
+    6          #include "bt_config_profile.h"
+    7          
+    8          #ifdef AIRAPP_Profile
+    9          #include "drv_sector.h"
+   10          #include "..\MMI\MMI_Base.h"
+   11          #include "..\MMI\MMI.h"
+   12          #include "..\MMI\MMI_SCN.h"
+   13          #include "..\MMI\MMI_HCI.h"
+   14          #include "..\MMI\MMI_Driver.h"
+   15          #include "..\MMI\MMI_ChgBat.h"
+   16          #include "..\MMI\MMI_LineIn.h"
+   17          #include "..\MMI\MMI_AVRCP.h"
+   18          #include "..\MMI\MMI_A2DP.h"
+   19          #include "..\MMI\MMI_HFP.h"
+   20          #include "..\MMI\MMI_State.h"
+   21          #include "..\MMI\MMI_SectorManager.h"
+   22          #include "..\MMI\MMI_AirModule.h"
+   23          #include "..\MMI\MMI_Interface.h"
+   24          #include "..\MMI\MMI_Protocol.h"
+   25          #include "..\MMI\MMI_LED.h"
+   26          #include "..\SDAP\SDAP_Interface.h"
+   27          #include "..\RFCOMM\RFCOMM_Interface.h"
+   28          #include "..\Driver\Peq_HPF.h"
+   29          #include "..\Driver\AudioControl.h"
+   30          #include "..\Driver\Driver.h"
+   31          #include "..\Driver\Driver_Interface.h"
+   32          #include "..\AVRCP\AVRCP_Interface.h"
+   33          #include "..\A2DP\A2DP_Interface.h"
+   34          #include "sector_runtime.h"
+   35          #include "drv_flash.h"
+   36          #include "drv_program_flash.h"
+   37          #include "drv_program_flash_flash.h"
+   38          
+   39          #include "AirApp_Interface.h"
+   40          #include "..\APP\APP_Interface.h"
+   41          
+   42          #ifdef BLE_AIRApp
+   43          #include "..\ATT\ATT_interface.h"
+   44          #include "..\MMI_LE\MMI_LE_interface.h"
+   45          #include "..\COMMON\le_common_hal.h"
+   46          #endif
+   47          
+   48          #include "..\Driver\VoiceCommand.h"
+   49          #include "align_flash.h"
+   50          
+   51          #include "..\SDK_Proxy\SDK_Proxy.h"
+   52          
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 2   
+
+   53          #include "..\SECTOR\ToolMisc\sector_tool_misc.h"
+   54          #include "..\SECTOR\sector_ae_info.h"
+   55          
+   56          
+   57          U8 CODE gAirApp_uuid128[16] = {
+   58              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF
+   59          };
+   60          
+   61          #define AIRAPP_DATA_STATE_NO_DATA   0
+   62          #define AIRAPP_DATA_STATE_CONTINUE  1
+   63          
+   64          typedef struct
+   65          {
+   66              U8 status;
+   67              U8 remoteNameLen;
+   68              U8 remoteName[MAX_REMOTE_NAME_LEN];
+   69          }AIRAPP_BLE_REPORT_STATUS_TYPE;
+   70          
+   71          typedef struct
+   72          {
+   73              U8 targetIdx;
+   74              AIRAPP_BLE_REPORT_STATUS_TYPE report[MAX_MULTI_POINT_NO];
+   75          }AIRAPP_BLE_REPORT_STATUS;
+   76          
+   77          typedef struct
+   78          {
+   79              U8 state;
+   80              U8 XDATA_PTR dataPtr;
+   81              U16 offset;
+   82              U16 remainLength;
+   83          }AIRAPP_DATA_CTL_TYPE;
+   84          
+   85          typedef struct
+   86          {
+   87              MMI_PROFILE_INFO mmiProfileInfo;
+   88              U8 batStatus;
+   89              U8 isVPOn:1;
+   90              U8 isCallerNameOn:1;
+   91              U8 reserved:2;
+   92              U8 VPLang:4;
+   93              U8 vol;
+   94              U8 cmdState;
+   95              U8 PEQMode[PEQ_COMPONENT_NUM];
+   96              U8 remoteNameLen;
+   97              U8 remoteName[MAX_REMOTE_NAME_LEN];
+   98              U8 PEQSectorMode[PEQ_COMPONENT_NUM];
+   99              OSMQ OSMQ_AIRAPP_Data_From_Remote;
+  100              AIRAPP_DATA_CTL_TYPE    dataCtl;
+  101          } AIRAPP_LINK_INFO;
+  102          
+  103          enum
+  104          {
+  105              DSP_UNKNOW_STATE,
+  106              DSP_SUSPENDING_STATE,
+  107              DSP_SUSPENDED_STATE,
+  108          };
+  109          
+  110          typedef struct
+  111          {
+  112              U8 dspSuspendState;
+  113              U8 callerNameNextId;
+  114              U8 callerNameLinkIndex;
+  115              OST XDATA_PTR suspendDSPTimer;
+  116              U8 dataValid;
+  117          }AIRAPP_CALLER_NAME_CTL;
+  118          
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 3   
+
+  119          typedef struct
+  120          {
+  121              AIRAPP_LINK_INFO linkInfo[MAX_MULTI_POINT_NO];
+  122              U8 flashUpdateLinkIndex;
+  123          #ifdef BLE_AIRApp
+  124              U8 isBleConnected:1;
+  125              U8 isCCCDEnable:1;
+  126              U8 isVPOn:1;
+  127              U8 VPLang:4;
+  128              U8 rsd:1;
+  129              U8 batStatus;
+  130              U8 targetIdx;
+  131              U8 normalLinkNum;
+  132              OST XDATA_PTR delaySendDataTimer;
+  133              AIRAPP_DATA_CTL_TYPE dataCtl;
+  134          #endif
+  135          #if AIRAPP_CALLER_NAME
+  136              AIRAPP_CALLER_NAME_CTL callNameCtl;
+  137          #endif
+  138          } AIRAPP_CTL;
+  139          
+  140          AIRAPP_CTL XDATA gAirApp_ctl;
+  141          
+  142          extern VFUN XDATA api_profile_func[API_GRP_PF_CB_CNT];
+  143          PRIVATE void AirApp(U8 linkIndex);
+  144          PRIVATE MMI_PROFILE_INFO XDATA_PTR AirApp_ConnectRequest(U8 linkIndex, U8 profileId);
+  145          PRIVATE U8 AirApp_DisconnectRequest(U8 linkIndex, MMI_PROFILE_INFO XDATA_PTR profileInfo);
+  146          PRIVATE void AirApp_LinkEvent(U8 linkIndex, U8 evtCode, LINK_EVENT_PARAMS XDATA_PTR evtParams);
+  147          PRIVATE void AirApp_DataEvent(U8 linkIndex, U8 XDATA_PTR dataPtr);
+  148          #ifdef BLE_AIRApp
+  149          PRIVATE void AirApp_BleReportEdrLinkStatus(void);
+  150          PRIVATE BOOL AirApp_BleSendAclErrorRsp(U8 ocf);
+  151          PRIVATE void AirApp_BleGetEdrLinkStatus(AIRAPP_BLE_REPORT_STATUS XDATA_PTR pData);
+  152          PRIVATE void AirApp_BleResetEdrProfileState(AIRAPP_LINK_INFO XDATA_PTR airAppLinkInfo);
+  153          PRIVATE void AirApp_BleResetAllEdrProfileState(void);
+  154          
+  155          #endif
+  156          PRIVATE void AirApp_MMIKeyEventRsp(U8 linkIndex, U16 mmiKeyCode,U8 result);
+  157          #ifdef LIGHTING_ENABLE
+               AirAppLedCtl XDATA gAirAppLedCtl;
+               #endif
+  160          
+  161          static RFCOMM_PROFILE_DESC CODE gAirApp_ProfileDesc = {
+  162              { //MMI_PROFILE_DESC
+  163                  PROFILE_AIR_APP,
+  164                  AirApp,                 //ProfileTaskFunc
+  165                  AirApp_ConnectRequest,      //ProfileConnectRequest
+  166                  AirApp_DisconnectRequest,   //ProfileDisconnectRequest
+  167                  AirApp_LinkEvent,           //ProfileLinkEvent
+  168                  AirApp_DataEvent,           //ProfileDataEvent
+  169              },
+  170              AIRAPP_MAX_FRAME_SIZE,
+  171              NULL,           //GivenCreditsEvent
+  172          };
+  173          
+  174          static MMI_PROFILE_NODE XDATA gAirApp_ProfileNode = {
+  175              &gAirApp_ProfileDesc.mmiProfileDesc,
+  176              NULL,
+  177          };
+  178          
+  179          typedef union
+  180          {
+  181              U8 resultCode;
+  182              U8 batStatus;
+  183              U8 isVPOn;
+  184              U8 VPLang;
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 4   
+
+  185              U8 PEQMode;
+  186              U8 PEQSectorMode;
+  187              U8 vol;
+  188              U8 isEnterIncoming;
+  189              U8 dataBegin;
+  190              U8 followerData[1];
+  191              #ifdef BLE_AIRApp
+  192              AIRAPP_BLE_REPORT_STATUS  bleReportStatus;
+  193              #endif
+  194              HCI_VCMD_PARA_AIRAPP_CMD_GET_SYNC_DATA      getSyncDataCmd;         //(HCI_VENDOR_OGF_AIRAPP_CMD, AIR
+             -APP_CMD_GET_SYNCHRONIZE_DATA)
+  195              HCI_VCMD_PARA_AIRAPP_CMD_GET_DEV_NAME       getDevNameCmd;          //(HCI_VENDOR_OGF_AIRAPP_CMD, AIR
+             -APP_CMD_GET_DEVICE_NAME)
+  196              HCI_VCMD_PARA_AIRAPP_CMD_GET_BAT            getBatCmd;              //(HCI_VENDOR_OGF_AIRAPP_CMD, AIR
+             -APP_CMD_GET_BATTERY)
+  197              HCI_VCMD_PARA_AIRAPP_CMD_GET_CHGBAT_STATUS  getChgBatStatusCmd;     //(HCI_VENDOR_OGF_AIRAPP_CMD, AIR
+             -APP_CMD_GET_CHGBAT_STATUS)
+  198              HCI_VCMD_PARA_AIRAPP_CMD_GET_PEQ            getPEQCmd;              //(HCI_VENDOR_OGF_AIRAPP_CMD, AIR
+             -APP_CMD_GET_PEQ)
+  199              HCI_VCMD_PARA_AIRAPP_CMD_GET_VP             getVPCmd;               //(HCI_VENDOR_OGF_AIRAPP_CMD, AIR
+             -APP_CMD_GET_VOICE_PROMPT)
+  200              HCI_VCMD_PARA_AIRAPP_CMD_GET_VOL            getVolCmd;              //(HCI_VENDOR_OGF_AIRAPP_CMD, AIR
+             -APP_CMD_GET_VOLUME)
+  201              HCI_VEVT_PARA_AIRAPP_CUSTOMER_RSP           getAirAppCstRsp;        //HCI_VENDOR_OGF_AIRAPP_CUSTOMER_
+             -RSP
+  202              HCI_VEVT_PARA_AIRAPP_MMI_KEY_CODE_RSP       airMMIKeyCodeRsp;
+  203              HCI_VCMD_PARA_AIRAPP_CMD_CHANNEL_INFORMATION getChannelInfo;
+  204          }AirAppParaType;
+  205          
+  206          typedef struct
+  207          {
+  208              U8 hciOpCode;
+  209              U8 hciEvtCode;
+  210              U8 hciLength;
+  211              HCI_VCMD_OPCODE_STRU VOpCode;
+  212              AirAppParaType      VPara;
+  213          }AirAppMsgType;
+  214          
+  215          typedef struct
+  216          {
+  217              U8 hciOpCode;
+  218              U8 hciEvtCode;
+  219              U8 hciLength;
+  220              HCI_VCMD_OPCODE_STRU VOpCode;
+  221              HCI_VCMD_OPCODE_STRU VFollowerOpCode;
+  222              AirAppParaType      VPara;
+  223          }AirAppFollowerMsgType;
+  224          
+  225          typedef union
+  226          {
+  227              HCI_ACL_CMD_PARA_CALLER_NAME_WRITE_DATA     writeCallerNameCmd;    //(HCI_ACL_OGF_APP_CALLER_NAME, HC
+             -I_ACL_OCF_CALLER_NAME_WRITE_DATA)
+  228              HCI_ACL_EVT_PARA_CALLER_NAME_WRITE_DATA     writeCallerNameEvt;    //(HCI_ACL_OGF_APP_CALLER_NAME, HC
+             -I_ACL_OCF_CALLER_NAME_WRITE_RESPONSE)
+  229          }AirAppDataParaType;
+  230          
+  231          typedef struct
+  232          {
+  233              U8 hciOpCode;
+  234              U8 hciOcf;
+  235              U8 hciOgf;
+  236              U8 hciLength;
+  237              HCI_VCMD_OPCODE_STRU VOpCode;
+  238          }AirAppDataHCICmdType;
+  239          
+  240          typedef struct
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 5   
+
+  241          {
+  242              U8 hciOpCode;
+  243              U8 hciOcf;
+  244              U8 hciOgf;
+  245              U8 hciLength;
+  246              HCI_VCMD_OPCODE_STRU VOpCode;
+  247              U8 para[1];
+  248          }AirAppDataHCICmdParaType;
+  249          
+  250          typedef struct
+  251          {
+  252              U8 hciOpCode;
+  253              U8 hciHandleL;
+  254              U8 hciHandleH;
+  255              U8 hciLengthL;
+  256              U8 hciLengthH;
+  257              HCI_VCMD_OPCODE_STRU VOpCode;
+  258              AirAppDataParaType para;
+  259          }AirAppDataHCIDataType;
+  260          
+  261          typedef struct
+  262          {
+  263              U8 hciEventCode;
+  264              U8 hciOpCode;
+  265              U8 hciLength;
+  266              HCI_VCMD_OPCODE_STRU VOpCode;
+  267              U8 paraData[1];
+  268          }AirAppDataHCIEventType;
+  269          
+  270          
+  271          extern MmiLineInInfoCtrl XDATA gMMI_LineIn_ctl;
+  272          
+  273          PUBLIC U8 AirApp_GetFlashUpdateLinkIndex(void)
+  274          {
+  275   1          return gAirApp_ctl.flashUpdateLinkIndex;
+  276   1      }
+  277          
+  278          PUBLIC BOOL AirApp_IsDSPLockedByOTA(void)
+  279          {
+  280   1          return (gAirApp_ctl.flashUpdateLinkIndex == 0xFF) ? FALSE:TRUE;
+  281   1      }
+  282          
+  283          PRIVATE void AirApp_SetDSPLockByOTA(U8 linkIndex)
+  284          {
+  285   1          gAirApp_ctl.flashUpdateLinkIndex = linkIndex;
+  286   1      }
+  287          
+  288          PRIVATE void AirApp_SetDSPUnlockByOTA(void)
+  289          {
+  290   1          gAirApp_ctl.flashUpdateLinkIndex = 0xFF;
+  291   1      }
+  292          
+  293          PRIVATE AIRAPP_LINK_INFO XDATA_PTR AirApp_GetLinkInfo(U8 linkIndex)
+  294          {
+  295   1          return &gAirApp_ctl.linkInfo[linkIndex];
+  296   1      }
+  297          
+  298          PRIVATE U8 XDATA_PTR AirApp_GetMemory(U16 vParaLength)
+  299          {
+  300   1          AirAppMsgType XDATA_PTR airAppPtr;
+  301   1          U8 XDATA_PTR dataSentPtr;
+  302   1      
+  303   1          // 3 byte: hciOpCode + hciEvtCode + hciLength
+  304   1          if((dataSentPtr = RFCOMM_AllocProfileData(sizeof(HCI_VCMD_OPCODE_STRU) + vParaLength + 3, SCN_AIR_APP
+             -)) == (U8 XDATA_PTR)NULL)
+  305   1              return (U8 XDATA_PTR)NULL;
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 6   
+
+  306   1      
+  307   1          airAppPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+  308   1          airAppPtr->hciOpCode = AIRAPP_HCI_EVENT_PACKET;
+  309   1          airAppPtr->hciEvtCode = HCI_EVENT_AIROHA_VENDOR;
+  310   1          airAppPtr->hciLength = sizeof(HCI_VCMD_OPCODE_STRU) + vParaLength;
+  311   1      
+  312   1          return (U8 XDATA_PTR)dataSentPtr;
+  313   1      }
+  314          
+  315          PRIVATE U8 XDATA_PTR AirApp_GetRelayMemory(U16 vParaLength)
+  316          {
+  317   1          AirAppDataHCICmdParaType XDATA_PTR airAppPtr;
+  318   1          U8 XDATA_PTR dataSentPtr;
+  319   1      
+  320   1          // 3 byte: hciOpCode + hciEvtCode + hciLength
+  321   1          if((dataSentPtr = RFCOMM_AllocProfileData(sizeof(HCI_VCMD_OPCODE_STRU) + vParaLength + 4, SCN_AIR_APP
+             -)) == (U8 XDATA_PTR)NULL)
+  322   1              return (U8 XDATA_PTR)NULL;
+  323   1      
+  324   1          airAppPtr = (AirAppDataHCICmdParaType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+  325   1      
+  326   1          airAppPtr->hciOpCode = AIRAPP_HCI_CMD_PACKET;
+  327   1          airAppPtr->hciOcf = 0x00;
+  328   1          airAppPtr->hciOgf = 0xFC;
+  329   1          airAppPtr->hciLength = sizeof(HCI_VCMD_OPCODE_STRU) + vParaLength;
+  330   1      
+  331   1          return (U8 XDATA_PTR)dataSentPtr;
+  332   1      }
+  333          
+  334          PRIVATE void AirApp_SendData(U8 linkIndex, U8 XDATA_PTR dataPtr)
+  335          {
+  336   1          if(linkIndex != MMI_EOF && (linkIndex == A2DP_SearchRelayerLink() || linkIndex == A2DP_SearchFollower
+             -Link()))
+  337   1          {
+  338   2              RFCOMM_SendProfileData(linkIndex, dataPtr);
+  339   2              LightDbgPrint("SendApp:%d", linkIndex);
+  340   2      
+  341   2          }
+  342   1      #ifdef BLE_AIRApp
+  343   1          else if(AirApp_BleIsActivated())
+  344   1          {
+  345   2              AirAppMsgType XDATA_PTR airAppRespPtr;
+  346   2              U8 len;
+  347   2      
+  348   2              airAppRespPtr = (AirAppMsgType XDATA_PTR)(dataPtr + *dataPtr);
+  349   2              len = airAppRespPtr->hciLength + 3;
+  350   2              APP_sendTxData((U8 XDATA_PTR)airAppRespPtr, len);
+  351   2      
+  352   2              #if 1
+  353   2              {
+  354   3                  //LightDbgPrint("AirApp:ble_rsp len:%d",(U8)len);
+  355   3                  LightDbgPrint("%x %x %x %x %x %x", (U8)dataPtr[15], (U8)dataPtr[16], (U8)dataPtr[17], (U8)dat
+             -aPtr[18], (U8)dataPtr[19], (U8)dataPtr[20]);
+  356   3                  LightDbgPrint("%x %x %x %x %x %x", (U8)dataPtr[21], (U8)dataPtr[22], (U8)dataPtr[23], (U8)dat
+             -aPtr[24], (U8)dataPtr[25], (U8)dataPtr[26]);
+  357   3                  if (dataPtr[18] == 0xE6)
+  358   3                  LightDbgPrint("%x %x %x %x %x %x", (U8)dataPtr[53], (U8)dataPtr[54], (U8)dataPtr[55], (U8)dat
+             -aPtr[56], (U8)dataPtr[57], (U8)dataPtr[58]);
+  359   3              }
+  360   2              #endif
+  361   2      
+  362   2              OSMEM_Put(dataPtr);
+  363   2          }
+  364   1      #endif
+  365   1          else if(linkIndex != MMI_EOF)
+  366   1          {
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 7   
+
+  367   2              RFCOMM_SendProfileData(linkIndex, dataPtr);
+  368   2              LightDbgPrint("SendApp:%d", linkIndex);
+  369   2      
+  370   2          }
+  371   1      }
+  372          
+  373          PRIVATE void AirApp_SendRsp(U8 linkIndex, U8 cmdOpcode, U8 vogf, U8 resultCode)
+  374          {
+  375   1          U8 XDATA_PTR dataSentPtr;
+  376   1          if((dataSentPtr = AirApp_GetMemory(1)) != (U8 XDATA_PTR)NULL)
+  377   1          {
+  378   2              AirAppMsgType XDATA_PTR airAppRespPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+  379   2              LightDbgPrint("AirApp: send Response:%x,%d,%d",(U8)cmdOpcode,(U8) vogf,(U8)resultCode);
+  380   2              airAppRespPtr->VOpCode.VCmdOcf = cmdOpcode;
+  381   2              airAppRespPtr->VOpCode.VCmdOgf = vogf;
+  382   2              airAppRespPtr->VPara.resultCode = resultCode;
+  383   2              AirApp_SendData(linkIndex, dataSentPtr);
+  384   2          }
+  385   1      }
+  386          
+  387          PRIVATE void AirApp_SendResponse(U8 linkIndex, U8 cmdOpcode, U8 resultCode)
+  388          {
+  389   1          AirApp_SendRsp(linkIndex, cmdOpcode, HCI_VENDOR_OGF_AIRAPP_RESP, resultCode);
+  390   1      }
+  391          
+  392          PRIVATE void AirApp_SendFollowerResponse(U8 linkIndex, U8 followerOcf, U8 followerOgf, U8 resultCode)
+  393          {
+  394   1          AirApp_SendRsp(linkIndex, followerOcf, followerOgf, resultCode);
+  395   1      }
+  396          
+  397          PRIVATE U8 XDATA_PTR AirApp_GetDataMemoryToRelayCmd(U8 cmdOpcode, U8 vogf, U16 vParaLength)
+  398          {
+  399   1          U8 XDATA_PTR dataSentPtr;
+  400   1      
+  401   1          AirAppDataHCICmdParaType XDATA_PTR airAppCmdPtr;
+  402   1          if((dataSentPtr = AirApp_GetRelayMemory(vParaLength)) == (U8 XDATA_PTR)NULL)
+  403   1              return (U8 XDATA_PTR)NULL;
+  404   1      
+  405   1          airAppCmdPtr = (AirAppDataHCICmdParaType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+  406   1          airAppCmdPtr->VOpCode.VCmdOcf = cmdOpcode;
+  407   1          airAppCmdPtr->VOpCode.VCmdOgf = vogf;
+  408   1      
+  409   1          return dataSentPtr;
+  410   1      }
+  411          
+  412          PRIVATE U8 XDATA_PTR AirApp_GetSltInd(U8 cmdOpcode, U8 vogf, U16 vParaLength)
+  413          {
+  414   1          U8 XDATA_PTR dataSentPtr;
+  415   1          AirAppMsgType XDATA_PTR airAppIndPtr;
+  416   1      
+  417   1          if((dataSentPtr = AirApp_GetMemory(vParaLength)) == (U8 XDATA_PTR)NULL)
+  418   1              return (U8 XDATA_PTR)NULL;
+  419   1      
+  420   1          airAppIndPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+  421   1          airAppIndPtr->VOpCode.VCmdOcf = cmdOpcode;
+  422   1          airAppIndPtr->VOpCode.VCmdOgf = vogf;
+  423   1      
+  424   1          return dataSentPtr;
+  425   1      }
+  426          
+  427          PRIVATE U8 XDATA_PTR AirApp_GetFollowerSolicitedInd(U8 cmdOpcode, U8 ogf, U16 vParaLength)
+  428          {
+  429   1          return AirApp_GetSltInd(cmdOpcode, ogf, vParaLength);
+  430   1      }
+  431          
+  432          PRIVATE U8 XDATA_PTR AirApp_GetSolicitedInd(U8 cmdOpcode, U16 vParaLength)
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 8   
+
+  433          {
+  434   1          return AirApp_GetSltInd(cmdOpcode, HCI_VENDOR_OGF_AIRAPP_IND_SOLICITED, vParaLength);
+  435   1      }
+  436          
+  437          PRIVATE U8 XDATA_PTR AirApp_GetFollowerUnSolicitedInd(U8 cmdOpcode, U8 ogf, U16 vParaLength)
+  438          {
+  439   1          U8 XDATA_PTR dataSentPtr;
+  440   1          AirAppMsgType XDATA_PTR airAppIndPtr;
+  441   1      
+  442   1          if((dataSentPtr = AirApp_GetMemory(vParaLength)) == (U8 XDATA_PTR)NULL)
+  443   1              return (U8 XDATA_PTR)NULL;
+  444   1      
+  445   1          airAppIndPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+  446   1          airAppIndPtr->VOpCode.VCmdOcf = cmdOpcode;
+  447   1          airAppIndPtr->VOpCode.VCmdOgf = ogf;
+  448   1      
+  449   1          return dataSentPtr;
+  450   1      }
+  451          
+  452          PRIVATE U8 XDATA_PTR AirApp_GetUnSolicitedInd(U8 cmdOpcode, U16 vParaLength)
+  453          {
+  454   1          U8 XDATA_PTR dataSentPtr;
+  455   1          AirAppMsgType XDATA_PTR airAppIndPtr;
+  456   1      
+  457   1          if((dataSentPtr = AirApp_GetMemory(vParaLength)) == (U8 XDATA_PTR)NULL)
+  458   1              return (U8 XDATA_PTR)NULL;
+  459   1      
+  460   1          airAppIndPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+  461   1          airAppIndPtr->VOpCode.VCmdOcf = cmdOpcode;
+  462   1          airAppIndPtr->VOpCode.VCmdOgf = HCI_VENDOR_OGF_AIRAPP_IND_UNSOLICITED;
+  463   1      
+  464   1          return dataSentPtr;
+  465   1      }
+  466          
+  467          PRIVATE BOOL AirApp_KeyEvent(U8 linkIndex, U8 keyEventCode)
+  468          {
+  469   1          if ((keyEventCode = MMI_DRV_CheckKeyValid(keyEventCode)) == KEY_INVALID)
+  470   1          {
+  471   2              return FALSE;
+  472   2          }
+  473   1      
+  474   1          MMI_PushMediaEvent(keyEventCode);
+  475   1          MMI_DRV_KeyEventHandler(linkIndex, keyEventCode);
+  476   1          return TRUE;
+  477   1      }
+  478          
+  479          PRIVATE void AirApp_KeyConnectToConnectable(U8 linkIndex)
+  480          {
+  481   1          AirApp_SendResponse(linkIndex,
+  482   1                          AIRAPP_CMD_KEY_CONNECTED_TO_CONNECTABLE,
+  483   1                          (AirApp_KeyEvent(gMMI_ctl.serviceInd, KEY_CONNECTED_TO_CONNECTABLE))? HCI_VEVT_OCF_RE
+             -SULT_CODE_SUCCESS : HCI_VEVT_OCF_RESULT_CODE_FAIL );
+  484   1      }
+  485          
+  486          PRIVATE void AirApp_KeyResetPairedDevice(U8 linkIndex, MMIMsgType XDATA_PTR airCmdPtr)
+  487          {
+  488   1          gMMI_ctl.driverCtl.resetLinkType = airCmdPtr->msgBodyPtr.hciVEvt.VPara.resetLinkType;
+  489   1          AirApp_SendResponse(linkIndex,
+  490   1                              AIRAPP_CMD_KEY_RESET_PAIRED_DEVICES,
+  491   1                              (AirApp_KeyEvent(gMMI_ctl.serviceInd, KEY_RESET_PAIRED_DEVICES))? HCI_VEVT_OCF_RE
+             -SULT_CODE_SUCCESS : HCI_VEVT_OCF_RESULT_CODE_FAIL );
+  492   1      }
+  493          
+  494          PRIVATE void AirApp_KeyVoicePromptOn(U8 linkIndex)
+  495          {
+  496   1          if(!AirApp_KeyEvent(gMMI_ctl.serviceInd, KEY_VOICE_PROMPT_ENABLE))
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 9   
+
+  497   1          {
+  498   2              AirApp_SendResponse(linkIndex, AIRAPP_CMD_KEY_VOICE_PROMPT_ENABLE, HCI_VEVT_OCF_RESULT_CODE_FAIL 
+             -);
+  499   2          }
+  500   1          else
+  501   1          {
+  502   2      #ifdef AIR_MODULE
+  503   2              MMI_AIR_AiroStereo_Sync(AIR_APP_SYNC_SHARE_CMD,AIR_APP_CMD_PARA_VP_ON);
+  504   2      #endif
+  505   2              (AirApp_GetLinkInfo(linkIndex))->cmdState = AIRAPP_CMD_KEY_VOICE_PROMPT_ENABLE;
+  506   2          }
+  507   1      }
+  508          
+  509          PRIVATE void AirApp_KeyVoicePromptOff(U8 linkIndex)
+  510          {
+  511   1          if(!AirApp_KeyEvent(gMMI_ctl.serviceInd, KEY_VOICE_PROMPT_DISABLE))
+  512   1          {
+  513   2              AirApp_SendResponse(linkIndex, AIRAPP_CMD_KEY_VOICE_PROMPT_DISABLE, HCI_VEVT_OCF_RESULT_CODE_FAIL
+             - );
+  514   2          }
+  515   1          else
+  516   1          {
+  517   2      #ifdef AIR_MODULE
+  518   2              MMI_AIR_AiroStereo_Sync(AIR_APP_SYNC_SHARE_CMD,AIR_APP_CMD_PARA_VP_OFF);
+  519   2      #endif
+  520   2              (AirApp_GetLinkInfo(linkIndex))->cmdState = AIRAPP_CMD_KEY_VOICE_PROMPT_DISABLE;
+  521   2          }
+  522   1      }
+  523          
+  524          PRIVATE void AirApp_KeyVoicePromptLangChange(U8 linkIndex)
+  525          {
+  526   1          if(!AirApp_KeyEvent(gMMI_ctl.serviceInd, KEY_VOICE_PROMPT_LANG_CHANGE))
+  527   1          {
+  528   2              AirApp_SendResponse(linkIndex, AIRAPP_CMD_KEY_VOICE_PROMPT_LANG_CHANGE, HCI_VEVT_OCF_RESULT_CODE_
+             -FAIL );
+  529   2          }
+  530   1          else
+  531   1          {
+  532   2              (AirApp_GetLinkInfo(linkIndex))->cmdState = AIRAPP_CMD_KEY_VOICE_PROMPT_LANG_CHANGE;
+  533   2          }
+  534   1      }
+  535          
+  536          PRIVATE void AirApp_KeyPEQModeChange(U8 linkIndex)
+  537          {
+  538   1          if(!AUDIO_COMPONENT_IS_ACTIVE (AUDIO_A2DP) && !AUDIO_COMPONENT_IS_ACTIVE (AUDIO_LINE_IN))
+  539   1          {
+  540   2              AirApp_SendResponse(linkIndex, AIRAPP_CMD_KEY_PEQ_MODE_CHANGE, HCI_VEVT_OCF_RESULT_CODE_FAIL );
+  541   2              return;
+  542   2          }
+  543   1          if(!AirApp_KeyEvent(gMMI_ctl.serviceInd, KEY_PEQ_MODE_CHANGE))
+  544   1          {
+  545   2              AirApp_SendResponse(linkIndex, AIRAPP_CMD_KEY_PEQ_MODE_CHANGE, HCI_VEVT_OCF_RESULT_CODE_FAIL );
+  546   2          }
+  547   1          else
+  548   1          {
+  549   2              AirApp_SendResponse(linkIndex, AIRAPP_CMD_KEY_PEQ_MODE_CHANGE, HCI_VEVT_OCF_RESULT_CODE_SUCCESS )
+             -;
+  550   2          }
+  551   1      }
+  552          
+  553          
+  554          PRIVATE void AirApp_FindMyAccessory(U8 linkIndex)
+  555          {
+  556   1          MMI_PushMediaEvent(MEDIA_EVT_KEY_FIND_MY_ACCESSORY);
+  557   1          (AirApp_GetLinkInfo(linkIndex))->cmdState = AIRAPP_CMD_FIND_MY_ACCESSORY;
+  558   1      }
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 10  
+
+  559          
+  560          PRIVATE void AirApp_WriteDeviceNameCmd(U8 linkIndex, MMIMsgType XDATA_PTR airCmdPtr)
+  561          {
+  562   1          U8 len = airCmdPtr->paraLen;
+  563   1      
+  564   1          if(len > sizeof(HCI_VCMD_OPCODE_STRU))
+  565   1          {
+  566   2              len -= sizeof(HCI_VCMD_OPCODE_STRU);
+  567   2              if(MMI_SECTOR_WriteDeviceName(&airCmdPtr->msgBodyPtr.hciVEvt.VPara.writeDevNamePara.nameBegin, le
+             -n))
+  568   2              {
+  569   3                  AirApp_SendResponse(linkIndex, AIRAPP_CMD_WRITE_DEVICE_NAME, HCI_VEVT_OCF_RESULT_CODE_SUCCESS
+             -);
+  570   3                  return;
+  571   3              }
+  572   2          }
+  573   1          AirApp_SendResponse(linkIndex, AIRAPP_CMD_WRITE_DEVICE_NAME, HCI_VEVT_OCF_RESULT_CODE_FAIL);
+  574   1      }
+  575          
+  576          PRIVATE void AirApp_GetVolSetCmd(U8 linkIndex, MMIMsgType XDATA_PTR airCmdPtr)
+  577          {
+  578   1          U8 volume = airCmdPtr->msgBodyPtr.hciVCmd.VPara.setVolCmd.vol;
+  579   1          AIRAPP_LINK_INFO XDATA_PTR airappLinkInfo = AirApp_GetLinkInfo(linkIndex);
+  580   1      
+  581   1          airappLinkInfo->vol = volume;
+  582   1      
+  583   1          #ifdef LINEIN_ENABLE
+  584   1          if(MMI_DRV_IsAudioActiveDev(MMI_EOF, AUDIO_DEVICE_LINE_IN))
+  585   1          {
+  586   2              MMI_LineIn_AbsVolToSoundLevel(volume);
+  587   2              MMI_LineIn_SendDriverVolCmd();
+  588   2              #ifdef AIR_MODULE
+  589   2              MMI_AIR_LineInUartSetVol();
+  590   2              #endif
+  591   2              goto SEND_SET_VOL_RESP;
+  592   2          }
+  593   1          #endif
+  594   1      
+  595   1          if(MMI_CheckLinkInCallRelatedState(linkIndex))
+  596   1          {
+  597   2              MMI_DRV_SCOAbsVolToSoundLevel(linkIndex, volume);
+  598   2              MMI_DRV_SendDriverVolCmd(CURRENT_SCO_SOUND_LEVEL(linkIndex), CURRENT_SCO_SMALL_STEP(linkIndex), G
+             -ET_SCO_MIC_GAIN_BY_LEVEL(CURRENT_SCO_SOUND_LEVEL(linkIndex)),
+  599   2                                          (gMMI_ctl.mmiInfo[linkIndex].linkPara.scoCodecType == SCO_CODEC_MSBC)
+             - ? TRUE : FALSE);
+  600   2              MMI_HFP_SendATCmdByLink(linkIndex, HFP_ATCMD_ADJUST_VOLUME);
+  601   2              goto SEND_SET_VOL_RESP;
+  602   2          }
+  603   1          #ifdef AVRCP_Profile
+  604   1          MMI_AVRCP_AppSetAbsVol(linkIndex, volume);
+  605   1          #endif
+  606   1      
+  607   1          SEND_SET_VOL_RESP:
+  608   1          AirApp_SendResponse(linkIndex, AIRAPP_CMD_SET_VOL, HCI_VEVT_OCF_RESULT_CODE_SUCCESS);
+  609   1      }
+  610          
+  611          #include "sector_tool_misc.h"
+  612          PRIVATE void AirApp_GetSyncDataCmd(U8 linkIndex)
+  613          {
+  614   1          U8 XDATA_PTR dataSentPtr;
+  615   1          AirAppMsgType XDATA_PTR airAppIndPtr;
+  616   1          SECTOR_AE_INFO_STRU CODE_PTR pAeInfo;
+  617   1      
+  618   1          if((dataSentPtr = AirApp_GetSolicitedInd(AIRAPP_CMD_GET_SYNCHRONIZE_DATA, sizeof(HCI_VCMD_PARA_AIRAPP
+             -_CMD_GET_SYNC_DATA))) == (U8 XDATA_PTR)NULL)
+  619   1          {
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 11  
+
+  620   2              AirApp_SendResponse(linkIndex, AIRAPP_CMD_GET_SYNCHRONIZE_DATA, HCI_VEVT_OCF_RESULT_CODE_FAIL);
+  621   2              return;
+  622   2          }
+  623   1      
+  624   1          AirApp_SendResponse(linkIndex, AIRAPP_CMD_GET_SYNCHRONIZE_DATA, HCI_VEVT_OCF_RESULT_CODE_SUCCESS);
+  625   1      
+  626   1          pAeInfo = (SECTOR_AE_INFO_STRU CODE_PTR)GET_SECTOR_TOOLMISC_ADDR(SECTOR_AE_INFO);
+  627   1          airAppIndPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+  628   1          airAppIndPtr->VPara.getSyncDataCmd.majorVersion = pAeInfo->AeInfo.verInfo.majorVersion;
+  629   1          airAppIndPtr->VPara.getSyncDataCmd.minorVersion = pAeInfo->AeInfo.verInfo.minorVersion;
+  630   1          airAppIndPtr->VPara.getSyncDataCmd.buildNumber = pAeInfo->AeInfo.verInfo.buildNumber;
+  631   1          airAppIndPtr->VPara.getSyncDataCmd.revisionNumber = pAeInfo->AeInfo.verInfo.revisionNumber;
+  632   1      
+  633   1          AirApp_SendData(linkIndex, dataSentPtr);
+  634   1      }
+  635          
+  636          PRIVATE void AirApp_GetDevNameCmd(U8 linkIndex)
+  637          {
+  638   1          U8 XDATA_PTR dataSentPtr;
+  639   1          AirAppMsgType XDATA_PTR airAppIndPtr;
+  640   1      
+  641   1          if((dataSentPtr = AirApp_GetSolicitedInd(AIRAPP_CMD_GET_DEVICE_NAME, sizeof(HCI_VCMD_PARA_AIRAPP_CMD_
+             -GET_DEV_NAME))) == (U8 XDATA_PTR)NULL)
+  642   1          {
+  643   2              AirApp_SendResponse(linkIndex, AIRAPP_CMD_GET_DEVICE_NAME, HCI_VEVT_OCF_RESULT_CODE_FAIL);
+  644   2              return;
+  645   2          }
+  646   1      
+  647   1          AirApp_SendResponse(linkIndex, AIRAPP_CMD_GET_DEVICE_NAME, HCI_VEVT_OCF_RESULT_CODE_SUCCESS);
+  648   1      
+  649   1          airAppIndPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+  650   1          OSMEM_memcpy_xdata_xdata(   (U8 XDATA_PTR)&airAppIndPtr->VPara.getDevNameCmd.local_name,
+  651   1                                      (U8 XDATA_PTR)&gMMI_driver_variation_nvram.misc_para.init.local_name,
+  652   1                                      sizeof(BD_NAME));
+  653   1          AirApp_SendData(linkIndex, dataSentPtr);
+  654   1      }
+  655          
+  656          PRIVATE void AirApp_SetVPLang(U8 linkIndex, MMIMsgType XDATA_PTR airCmdPtr)
+  657          {
+  658   1          #ifdef AIR_MODULE
+  659   1          U8 vplangIndex;
+  660   1          vplangIndex = airCmdPtr->msgBodyPtr.hciVCmd.VPara.setVpLangCmd.VPLangIndex;
+  661   1          #endif
+  662   1      
+  663   1          if(airCmdPtr->msgBodyPtr.hciVCmd.VPara.setVpLangCmd.VPLangIndex < gMMI_nvram.vpConfig.LangCount && !M
+             -MI_VOICE_PROMPT_FUNC_OFF_FEAT)
+  664   1          {
+  665   2              gMMI_driver_variation_nvram.misc_para.init.vpLangIndex = airCmdPtr->msgBodyPtr.hciVCmd.VPara.setV
+             -pLangCmd.VPLangIndex;
+  666   2              MMI_DRV_LoadVoiceLangCtl(gMMI_driver_variation_nvram.misc_para.init.vpLangIndex);
+  667   2              MMI_PushMediaEvent(MEDIA_EVT_VOICE_PROMPT_LANG_CHANGE);
+  668   2              MMI_SECTOR_SetUpdateFlag(TRUE);
+  669   2      
+  670   2          #ifdef AIR_MODULE
+  671   2              MMI_AIR_AiroStereo_Sync(AIR_APP_SYNC_SHARE_VP_LANG_INDEX_AND_CHANG_NEXT,vplangIndex);
+  672   2          #endif
+  673   2      
+  674   2              (AirApp_GetLinkInfo(linkIndex))->cmdState = AIRAPP_CMD_SET_VP_LANG;
+  675   2              return;
+  676   2          }
+  677   1          AirApp_SendResponse(linkIndex, AIRAPP_CMD_SET_VP_LANG, HCI_VEVT_OCF_RESULT_CODE_FAIL);
+  678   1      }
+  679          
+  680          PRIVATE void AirApp_DSPSuspended_Event(void)
+  681          {
+  682   1          AirApp_SendResponse(gMMI_ctl.serviceInd, AIRAPP_CMD_SUSPEND_DSP, HCI_VEVT_OCF_RESULT_CODE_SUCCESS);
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 12  
+
+  683   1      }
+  684          
+  685          PRIVATE void AirApp_SetDSPSuspend(U8 linkIndex)
+  686          {
+  687   1          MMI_DRV_SuspendDSP(DRV_SUSPEND_DSP_REASON_AIRAPP, AirApp_DSPSuspended_Event);
+  688   1          UNUSED(linkIndex);
+  689   1      }
+  690          
+  691          PRIVATE void AirApp_SetDSPResume(U8 linkIndex)
+  692          {
+  693   1          MMI_DRV_ResumeDSP(DRV_SUSPEND_DSP_REASON_AIRAPP);
+  694   1          AirApp_SendResponse(linkIndex, AIRAPP_CMD_RESUME_DSP, HCI_VEVT_OCF_RESULT_CODE_SUCCESS);
+  695   1      }
+  696          
+  697          PRIVATE void AirApp_SetPEQA2DP(U8 linkIndex, MMIMsgType XDATA_PTR airCmdPtr)
+  698          {
+  699   1          U8 sectorMode = airCmdPtr->msgBodyPtr.hciVCmd.VPara.setPEQA2DPCmd.sectorMode;
+  700   1      
+  701   1          if(sectorMode != PEQ_GetSectorMode(PEQ_A2DP))
+  702   1          {
+  703   2              PEQ_SetSectorMode(PEQ_A2DP, sectorMode);
+  704   2              PEQ_SetPeqHpfLoadSectorAddress(sectorMode);
+  705   2              if(airCmdPtr->msgBodyPtr.hciVCmd.VPara.setPEQA2DPCmd.PEQMode > PEQ_GetModeNumber(PEQ_A2DP))
+  706   2              {
+  707   3                  sectorMode = (sectorMode + 1) % PEQ_LOAD_SECTOR_NUM;
+  708   3                  PEQ_SetSectorMode(PEQ_A2DP, sectorMode);
+  709   3                  PEQ_SetPeqHpfLoadSectorAddress(sectorMode);
+  710   3                  goto SEND_FAIL_PEQ_A2DP;
+  711   3              }
+  712   2          }
+  713   1      
+  714   1          if(airCmdPtr->msgBodyPtr.hciVCmd.VPara.setPEQA2DPCmd.PEQMode <= PEQ_GetModeNumber(PEQ_A2DP) /*&& AUDI
+             -O_COMPONENT_IS_ACTIVE(AUDIO_A2DP)*/)
+  715   1          {
+  716   2              if(MMI_MUSIC_FORCE_USE_PEQ_FEAT && airCmdPtr->msgBodyPtr.hciVCmd.VPara.setPEQA2DPCmd.PEQMode == 0
+             -)
+  717   2                  goto SEND_FAIL_PEQ_A2DP;
+  718   2      
+  719   2              PEQ_SetModeIndex(PEQ_A2DP, airCmdPtr->msgBodyPtr.hciVCmd.VPara.setPEQA2DPCmd.PEQMode);
+  720   2              if(MMI_REMEMBER_PEQ_CHANGE_FEAT && !MMI_DEFAULT_PEQ_ASSIGNMENT_FEAT)
+  721   2              {
+  722   3                  gMMI_driver_variation_nvram.misc_para.PEQRecord[PEQ_A2DP] = PEQ_GetModeIndex(PEQ_A2DP);
+  723   3                  gMMI_driver_variation_nvram.misc_para.PEQSectorMode[PEQ_A2DP] = sectorMode;
+  724   3                  MMI_SECTOR_SetUpdateFlag(TRUE);
+  725   3              }
+  726   2      
+  727   2              DRIVER_PEQSetMuteTimer();
+  728   2              DRIVER_PEQReload();
+  729   2      
+  730   2              AirApp_SendResponse(linkIndex, AIRAPP_CMD_SET_PEQ_A2DP, HCI_VEVT_OCF_RESULT_CODE_SUCCESS);
+  731   2              return;
+  732   2          }
+  733   1          SEND_FAIL_PEQ_A2DP:
+  734   1          AirApp_SendResponse(linkIndex, AIRAPP_CMD_SET_PEQ_A2DP, HCI_VEVT_OCF_RESULT_CODE_FAIL);
+  735   1      }
+  736          
+  737          PRIVATE void AirApp_SetPEQAUX(U8 linkIndex, MMIMsgType XDATA_PTR airCmdPtr)
+  738          {
+  739   1          U8 sectorMode = airCmdPtr->msgBodyPtr.hciVCmd.VPara.setPEQAUXCmd.sectorMode;
+  740   1      
+  741   1          if(sectorMode != PEQ_GetSectorMode(PEQ_LINE_IN))
+  742   1          {
+  743   2              PEQ_SetSectorMode(PEQ_LINE_IN, sectorMode);
+  744   2              PEQ_SetPeqHpfLoadSectorAddress(sectorMode);
+  745   2              if(airCmdPtr->msgBodyPtr.hciVCmd.VPara.setPEQAUXCmd.PEQMode > PEQ_GetModeNumber(PEQ_LINE_IN))
+  746   2              {
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 13  
+
+  747   3                  sectorMode = (sectorMode + 1) % PEQ_LOAD_SECTOR_NUM;
+  748   3                  PEQ_SetSectorMode(PEQ_LINE_IN, sectorMode);
+  749   3                  PEQ_SetPeqHpfLoadSectorAddress(sectorMode);
+  750   3                  goto SEND_FAIL_PEQ_AUX;
+  751   3              }
+  752   2          }
+  753   1      
+  754   1          if(airCmdPtr->msgBodyPtr.hciVCmd.VPara.setPEQAUXCmd.PEQMode <= PEQ_GetModeNumber(PEQ_LINE_IN) /*&& AU
+             -DIO_COMPONENT_IS_ACTIVE(AUDIO_LINE_IN)*/)
+  755   1          {
+  756   2              if(MMI_MUSIC_FORCE_USE_PEQ_FEAT &&  airCmdPtr->msgBodyPtr.hciVCmd.VPara.setPEQAUXCmd.PEQMode == 0
+             -)
+  757   2                  goto SEND_FAIL_PEQ_AUX;
+  758   2      
+  759   2              PEQ_SetModeIndex(PEQ_LINE_IN, airCmdPtr->msgBodyPtr.hciVCmd.VPara.setPEQAUXCmd.PEQMode);
+  760   2              if(MMI_REMEMBER_PEQ_CHANGE_FEAT && !MMI_DEFAULT_PEQ_ASSIGNMENT_FEAT)
+  761   2              {
+  762   3                  gMMI_driver_variation_nvram.misc_para.PEQRecord[PEQ_LINE_IN] =  PEQ_GetModeIndex(PEQ_LINE_IN)
+             -;
+  763   3                  gMMI_driver_variation_nvram.misc_para.PEQSectorMode[PEQ_LINE_IN] = sectorMode;
+  764   3                  MMI_SECTOR_SetUpdateFlag(TRUE);
+  765   3              }
+  766   2      
+  767   2              DRIVER_PEQSetMuteTimer();
+  768   2              DRIVER_PEQReload();
+  769   2      
+  770   2              AirApp_SendResponse(linkIndex, AIRAPP_CMD_SET_PEQ_AUX, HCI_VEVT_OCF_RESULT_CODE_SUCCESS);
+  771   2              return;
+  772   2          }
+  773   1          SEND_FAIL_PEQ_AUX:
+  774   1          AirApp_SendResponse(linkIndex, AIRAPP_CMD_SET_PEQ_AUX, HCI_VEVT_OCF_RESULT_CODE_FAIL);
+  775   1      }
+  776          
+  777          PRIVATE void AirApp_GetChannelInformationCmd(U8 linkIndex)
+  778          {
+  779   1          U8 XDATA_PTR dataSentPtr;
+  780   1          AirAppMsgType XDATA_PTR airAppIndPtr;
+  781   1      
+  782   1          if((dataSentPtr = AirApp_GetSolicitedInd(AIRAPP_CMD_CHANNEL_INFORMATION, sizeof(HCI_VCMD_PARA_AIRAPP_
+             -CMD_GET_BAT))) == (U8 XDATA_PTR)NULL)
+  783   1          {
+  784   2              AirApp_SendResponse(linkIndex, AIRAPP_CMD_CHANNEL_INFORMATION, HCI_VEVT_OCF_RESULT_CODE_FAIL);
+  785   2              return;
+  786   2          }
+  787   1      
+  788   1          AirApp_SendResponse(linkIndex, AIRAPP_CMD_CHANNEL_INFORMATION, HCI_VEVT_OCF_RESULT_CODE_SUCCESS);
+  789   1      
+  790   1          airAppIndPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+  791   1          airAppIndPtr->VPara.getChannelInfo.channelInfo = gMMI_nvram.twsKChannel;
+  792   1      
+  793   1          LightDbgPrint("App ChannelInfo:%d",(U8)airAppIndPtr->VPara.getChannelInfo.channelInfo);
+  794   1          AirApp_SendData(linkIndex, dataSentPtr);
+  795   1      }
+  796          
+  797          
+  798          PRIVATE void AirApp_GetBatCmd(U8 linkIndex)
+  799          {
+  800   1          U8 XDATA_PTR dataSentPtr;
+  801   1          AirAppMsgType XDATA_PTR airAppIndPtr;
+  802   1      
+  803   1      
+  804   1          if((dataSentPtr = AirApp_GetSolicitedInd(AIRAPP_CMD_GET_BATTERY, sizeof(HCI_VCMD_PARA_AIRAPP_CMD_GET_
+             -BAT))) == (U8 XDATA_PTR)NULL)
+  805   1          {
+  806   2              AirApp_SendResponse(linkIndex, AIRAPP_CMD_GET_BATTERY, HCI_VEVT_OCF_RESULT_CODE_FAIL);
+  807   2              return;
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 14  
+
+  808   2          }
+  809   1      
+  810   1          AirApp_SendResponse(linkIndex, AIRAPP_CMD_GET_BATTERY, HCI_VEVT_OCF_RESULT_CODE_SUCCESS);
+  811   1      
+  812   1          airAppIndPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+  813   1          airAppIndPtr->VPara.getBatCmd.BatteryStatus = MMI_BAT_GetLevelInPercent();
+  814   1      
+  815   1      
+  816   1          LightDbgPrint("AirAppBat:%d",(U8)airAppIndPtr->VPara.getBatCmd.BatteryStatus);
+  817   1          AirApp_SendData(linkIndex, dataSentPtr);
+  818   1      }
+  819          
+  820          PRIVATE void AirApp_GetBatCmdRightChannel(U8 linkIndex)
+  821          {
+  822   1          if( MAX_MULTI_POINT_NO == A2DP_SearchRelayerLink())
+  823   1          {
+  824   2              AirApp_SendResponse(linkIndex, AIRAPP_CMD_GET_BATTERY_RIGHT_CHANNEL, HCI_VEVT_OCF_RESULT_CODE_FAI
+             -L);
+  825   2              return;
+  826   2          }
+  827   1      
+  828   1          AirApp_SendResponse(linkIndex, AIRAPP_CMD_GET_BATTERY_RIGHT_CHANNEL, HCI_VEVT_OCF_RESULT_CODE_SUCCESS
+             -);
+  829   1          #ifdef AIR_MODULE
+  830   1          MMI_AIR_AirAppGetFollowerInfo(AIR_APP_GET_INFO_FROM_FOLLOWER, AIR_APP_CMD_PARA_BAT_STATUS_FROM_FOLLOW
+             -ER);
+  831   1          #endif
+  832   1      }
+  833          
+  834          PRIVATE void AirApp_ProcessFollowerCmd(U8 linkIndex, U8 replaceOgf, MMIMsgType XDATA_PTR airCmdPtr)
+  835          {
+  836   1          U8 XDATA_PTR dataSentPtr;
+  837   1          U8 targetLink = A2DP_SearchRelayerLink();
+  838   1          U8 oldOgf = (replaceOgf == HCI_VENDOR_OGF_AIRAPP_CMD) ? HCI_VENDOR_OGF_AIRAPP_FOLLOWER_RESP : HCI_VEN
+             -DOR_OGF_AIRAPP_FOLLOWER_RESP_EX;
+  839   1          U8 ocf = airCmdPtr->msgBodyPtr.hciVEvt.VOpCode.VCmdOcf;
+  840   1          AirAppDataHCICmdParaType XDATA_PTR airAppCmdPtr;
+  841   1          U8 paraLength;
+  842   1      
+  843   1          if(MAX_MULTI_POINT_NO == targetLink || !MMI_IsProfileConnected(targetLink,PROFILE_AIR_APP))
+  844   1          {
+  845   2              AirApp_SendFollowerResponse(linkIndex, ocf, oldOgf, HCI_VEVT_OCF_RESULT_CODE_FAIL);
+  846   2              return;
+  847   2          }
+  848   1      
+  849   1          paraLength = airCmdPtr->paraLen - sizeof(HCI_VCMD_OPCODE_STRU);
+  850   1          dataSentPtr = (U8 XDATA_PTR)AirApp_GetDataMemoryToRelayCmd(ocf, replaceOgf, paraLength);
+  851   1          if(dataSentPtr == (U8 XDATA_PTR)NULL)
+  852   1          {
+  853   2              AirApp_SendFollowerResponse(linkIndex, ocf, oldOgf, HCI_VEVT_OCF_RESULT_CODE_FAIL);
+  854   2              return;
+  855   2          }
+  856   1      
+  857   1          airAppCmdPtr = (AirAppDataHCICmdParaType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+  858   1      
+  859   1          if(paraLength)
+  860   1          {
+  861   2              OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&airAppCmdPtr->para[0],
+  862   2                                      (U8 XDATA_PTR)&airCmdPtr->msgBodyPtr.hciVEvt.VPara.followerInfo.paraData[
+             -0],
+  863   2                                      paraLength);
+  864   2          }
+  865   1      
+  866   1          AirApp_SendData(targetLink, dataSentPtr);
+  867   1      
+  868   1          LightDbgPrint("follower ocf %d, ogf %d", (U8)ocf, (U8)replaceOgf);
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 15  
+
+  869   1      
+  870   1      }
+  871          
+  872          PUBLIC void Airapp_ReportBatValueRightChannel(U8 linkIndex, U8 batValue)
+  873          {
+  874   1          U8 XDATA_PTR dataSentPtr;
+  875   1          AirAppMsgType XDATA_PTR airAppIndPtr;
+  876   1      
+  877   1          if((dataSentPtr = AirApp_GetSolicitedInd(AIRAPP_CMD_GET_BATTERY_RIGHT_CHANNEL, sizeof(HCI_VCMD_PARA_A
+             -IRAPP_CMD_GET_BAT))) == (U8 XDATA_PTR)NULL)
+  878   1              return;
+  879   1      
+  880   1          airAppIndPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+  881   1          airAppIndPtr->VPara.getBatCmd.BatteryStatus = batValue;
+  882   1          LightDbgPrint("AirAppBatRight:%d",(U8)airAppIndPtr->VPara.getBatCmd.BatteryStatus);
+  883   1          AirApp_SendData(linkIndex, dataSentPtr);
+  884   1      }
+  885          
+  886          PUBLIC void AirApp_ChgBatStatusUpdateEvent(U8 batStatus)
+  887          {
+  888   1          U8 i;
+  889   1      
+  890   1          for(i = 0; i < MAX_MULTI_POINT_NO; i++)
+  891   1          {
+  892   2              if(MMI_IsNormalLink(i))
+  893   2              {
+  894   3                  U8 XDATA_PTR dataSentPtr;
+  895   3                  AirAppMsgType XDATA_PTR airAppIndPtr;
+  896   3      
+  897   3                  if(MMI_IsProfileConnected(i, PROFILE_AIR_APP))
+  898   3                  {
+  899   4                      if((dataSentPtr = AirApp_GetSolicitedInd(AIRAPP_CMD_GET_CHGBAT_STATUS, sizeof(HCI_VCMD_PA
+             -RA_AIRAPP_CMD_GET_CHGBAT_STATUS))) != (U8 XDATA_PTR)NULL)
+  900   4                      {
+  901   5                          airAppIndPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+  902   5                          airAppIndPtr->VPara.getChgBatStatusCmd.BatChargeStatus = batStatus;
+  903   5                          LightDbgPrint("AirAppChgBatStatusEvt:%d",(U8)batStatus);
+  904   5                          AirApp_SendData(i, dataSentPtr);
+  905   5                      }
+  906   4                  }
+  907   3              }
+  908   2              else if(A2DP_IsLinkFollower(i))
+  909   2              {
+  910   3                  MMI_AVRCP_SendVendorUnique(i, AVRCP_VENDOR_UNIQ_AIRAPP_REPROT_CHGBAT_STATUS_TO_RELAYER, batSt
+             -atus);
+  911   3              }
+  912   2          }
+  913   1      }
+  914          
+  915          PRIVATE void AirApp_GetChgBatStatusCmd(U8 linkIndex)
+  916          {
+  917   1          U8 XDATA_PTR dataSentPtr;
+  918   1          AirAppMsgType XDATA_PTR airAppIndPtr;
+  919   1      
+  920   1      
+  921   1          if((dataSentPtr = AirApp_GetSolicitedInd(AIRAPP_CMD_GET_CHGBAT_STATUS, sizeof(HCI_VCMD_PARA_AIRAPP_CM
+             -D_GET_CHGBAT_STATUS))) == (U8 XDATA_PTR)NULL)
+  922   1          {
+  923   2              AirApp_SendResponse(linkIndex, AIRAPP_CMD_GET_CHGBAT_STATUS, HCI_VEVT_OCF_RESULT_CODE_FAIL);
+  924   2              return;
+  925   2          }
+  926   1      
+  927   1          AirApp_SendResponse(linkIndex, AIRAPP_CMD_GET_CHGBAT_STATUS, HCI_VEVT_OCF_RESULT_CODE_SUCCESS);
+  928   1      
+  929   1          airAppIndPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+  930   1          airAppIndPtr->VPara.getChgBatStatusCmd.BatChargeStatus = MMI_CHGBAT_GetBatStatus();
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 16  
+
+  931   1          LightDbgPrint("AirAppChgBatStatus:%d",(U8)airAppIndPtr->VPara.getChgBatStatusCmd.BatChargeStatus);
+  932   1          AirApp_SendData(linkIndex, dataSentPtr);
+  933   1      }
+  934          
+  935          PRIVATE void AirApp_GetChgBatStatusFollower(U8 linkIndex)
+  936          {
+  937   1          if( MAX_MULTI_POINT_NO == A2DP_SearchRelayerLink())
+  938   1          {
+  939   2              AirApp_SendResponse(linkIndex, AIRAPP_CMD_GET_CHGBAT_STATUS_FOLLOWER, HCI_VEVT_OCF_RESULT_CODE_FA
+             -IL);
+  940   2              return;
+  941   2          }
+  942   1      
+  943   1          AirApp_SendResponse(linkIndex, AIRAPP_CMD_GET_CHGBAT_STATUS_FOLLOWER, HCI_VEVT_OCF_RESULT_CODE_SUCCES
+             -S);
+  944   1          #ifdef AIR_MODULE
+  945   1          MMI_AIR_AirAppGetFollowerInfo(AIR_APP_GET_CHGBATSTATUS_FROM_FOLLOWER, AIR_APP_CMD_PARA_NONE);
+  946   1          #endif
+  947   1      }
+  948          
+  949          PUBLIC void Airapp_ReportChgBatStatusFollower(U8 linkIndex, U8 chgBatStatus)
+  950          {
+  951   1          U8 XDATA_PTR dataSentPtr;
+  952   1          AirAppMsgType XDATA_PTR airAppIndPtr;
+  953   1      
+  954   1          if(!MMI_IsProfileConnected(linkIndex, PROFILE_AIR_APP))
+  955   1              return;
+  956   1      
+  957   1          if((dataSentPtr = AirApp_GetSolicitedInd(AIRAPP_CMD_GET_CHGBAT_STATUS_FOLLOWER, sizeof(HCI_VCMD_PARA_
+             -AIRAPP_CMD_GET_CHGBAT_STATUS))) == (U8 XDATA_PTR)NULL)
+  958   1              return;
+  959   1      
+  960   1          airAppIndPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+  961   1          airAppIndPtr->VPara.getChgBatStatusCmd.BatChargeStatus = chgBatStatus;
+  962   1          LightDbgPrint("AirAppChgBatFollower:%d",(U8)airAppIndPtr->VPara.getChgBatStatusCmd.BatChargeStatus);
+  963   1          AirApp_SendData(linkIndex, dataSentPtr);
+  964   1      }
+  965          
+  966          PRIVATE void AirApp_GetPEQCmd(U8 linkIndex)
+  967          {
+  968   1          U8 XDATA_PTR dataSentPtr;
+  969   1          AirAppMsgType XDATA_PTR airAppIndPtr;
+  970   1      
+  971   1          if((dataSentPtr = AirApp_GetSolicitedInd(AIRAPP_CMD_GET_PEQ, sizeof(HCI_VCMD_PARA_AIRAPP_CMD_GET_PEQ)
+             -)) == (U8 XDATA_PTR)NULL)
+  972   1          {
+  973   2              AirApp_SendResponse(linkIndex, AIRAPP_CMD_GET_PEQ, HCI_VEVT_OCF_RESULT_CODE_FAIL);
+  974   2              return;
+  975   2          }
+  976   1      
+  977   1          AirApp_SendResponse(linkIndex, AIRAPP_CMD_GET_PEQ, HCI_VEVT_OCF_RESULT_CODE_SUCCESS);
+  978   1      
+  979   1          airAppIndPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+  980   1      
+  981   1      #ifdef PEQ_ENABLE
+  982   1          airAppIndPtr->VPara.getPEQCmd.PEQInA2DP = PEQ_GetModeIndex(PEQ_A2DP);
+  983   1          airAppIndPtr->VPara.getPEQCmd.PEQInAUX = PEQ_GetModeIndex(PEQ_LINE_IN);
+  984   1          airAppIndPtr->VPara.getPEQCmd.PEQNumInA2DP = PEQ_GetModeNumber(PEQ_A2DP);
+  985   1          airAppIndPtr->VPara.getPEQCmd.PEQNumInAUX = PEQ_GetModeNumber(PEQ_LINE_IN);
+  986   1          airAppIndPtr->VPara.getPEQCmd.isUseDefaultPEQ = (MMI_MUSIC_FORCE_USE_PEQ_FEAT)? TRUE : FALSE;
+  987   1          airAppIndPtr->VPara.getPEQCmd.A2DPSectorMode = PEQ_GetSectorMode(PEQ_A2DP);
+  988   1          airAppIndPtr->VPara.getPEQCmd.AUXSectorMode = PEQ_GetSectorMode(PEQ_LINE_IN);
+  989   1      #else
+                   airAppIndPtr->VPara.getPEQCmd.PEQInA2DP = 0;
+                   airAppIndPtr->VPara.getPEQCmd.PEQInAUX = 0;
+                   airAppIndPtr->VPara.getPEQCmd.PEQNumInA2DP = 0;
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 17  
+
+                   airAppIndPtr->VPara.getPEQCmd.PEQNumInAUX = 0;
+                   airAppIndPtr->VPara.getPEQCmd.isUseDefaultPEQ = 0;
+                   airAppIndPtr->VPara.getPEQCmd.A2DPSectorMode = 0;
+                   airAppIndPtr->VPara.getPEQCmd.AUXSectorMode = 0;
+               #endif
+  998   1          AirApp_SendData(linkIndex, dataSentPtr);
+  999   1      }
+ 1000          
+ 1001          PRIVATE void AirApp_GetVPCmd(U8 linkIndex)
+ 1002          {
+ 1003   1          U8 XDATA_PTR dataSentPtr;
+ 1004   1          AirAppMsgType XDATA_PTR airAppIndPtr;
+ 1005   1      
+ 1006   1          if((dataSentPtr = AirApp_GetSolicitedInd(AIRAPP_CMD_GET_VOICE_PROMPT, sizeof(HCI_VCMD_PARA_AIRAPP_CMD
+             -_GET_VP))) == (U8 XDATA_PTR)NULL)
+ 1007   1          {
+ 1008   2              AirApp_SendResponse(linkIndex, AIRAPP_CMD_GET_VOICE_PROMPT, HCI_VEVT_OCF_RESULT_CODE_FAIL);
+ 1009   2              return;
+ 1010   2          }
+ 1011   1      
+ 1012   1          AirApp_SendResponse(linkIndex, AIRAPP_CMD_GET_VOICE_PROMPT, HCI_VEVT_OCF_RESULT_CODE_SUCCESS);
+ 1013   1      
+ 1014   1          airAppIndPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+ 1015   1      
+ 1016   1      #ifdef SUPPORT_VOICE_PROMPT
+ 1017   1          airAppIndPtr->VPara.getVPCmd.isVPEnabled = MMI_DRV_IsVoicePromptEnabled();
+ 1018   1          airAppIndPtr->VPara.getVPCmd.VPLangIndex = gMMI_driver_variation_nvram.misc_para.init.vpLangIndex;
+ 1019   1          #if VOICE_LANG_CHI
+ 1020   1          airAppIndPtr->VPara.getVPCmd.VPLangName[LANG_CHI] = LANG_CHINESE_T;
+ 1021   1          #endif
+ 1022   1          #if VOICE_LANG_ENG
+ 1023   1          airAppIndPtr->VPara.getVPCmd.VPLangName[LANG_ENG] = LANG_INTERNATIONAL_ENGLISH;
+ 1024   1          #endif
+ 1025   1          airAppIndPtr->VPara.getVPCmd.VPLangCount = LANG_COUNT;
+ 1026   1      
+ 1027   1      #else
+                   airAppIndPtr->VPara.getVPCmd.isVPEnabled = FALSE;
+                   airAppIndPtr->VPara.getVPCmd.VPLangIndex = 0;
+                   airAppIndPtr->VPara.getVPCmd.VPLangCount = 0;
+               #endif
+ 1032   1          AirApp_SendData(linkIndex, dataSentPtr);
+ 1033   1      }
+ 1034          
+ 1035          
+ 1036          PRIVATE void AirApp_GetVolCmd(U8 linkIndex)
+ 1037          {
+ 1038   1          U8 XDATA_PTR dataSentPtr;
+ 1039   1          AirAppMsgType XDATA_PTR airAppIndPtr;
+ 1040   1          AIRAPP_LINK_INFO XDATA_PTR airappLinkInfo;
+ 1041   1      
+ 1042   1          if((dataSentPtr = AirApp_GetSolicitedInd(AIRAPP_CMD_GET_VOLUME, sizeof(HCI_VCMD_PARA_AIRAPP_CMD_GET_V
+             -OL))) == (U8 XDATA_PTR)NULL)
+ 1043   1          {
+ 1044   2              AirApp_SendResponse(linkIndex, AIRAPP_CMD_GET_VOLUME, HCI_VEVT_OCF_RESULT_CODE_FAIL);
+ 1045   2              return;
+ 1046   2          }
+ 1047   1      
+ 1048   1          AirApp_SendResponse(linkIndex, AIRAPP_CMD_GET_VOLUME, HCI_VEVT_OCF_RESULT_CODE_SUCCESS);
+ 1049   1      
+ 1050   1          airAppIndPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+ 1051   1      
+ 1052   1          #ifdef AVRCP_Profile
+ 1053   1          #ifdef LINEIN_ENABLE
+ 1054   1          if(MMI_LineIn_IsDSPOpen())
+ 1055   1          {
+ 1056   2              airAppIndPtr->VPara.getVolCmd.currentAbsVol = MMI_LineIn_GetAbsVolByLineIn();
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 18  
+
+ 1057   2          }
+ 1058   1          else
+ 1059   1          #endif
+ 1060   1          if(MMI_CheckLinkInCallRelatedState(linkIndex))
+ 1061   1          {
+ 1062   2              airAppIndPtr->VPara.getVolCmd.currentAbsVol = MMI_AVRCP_GetAbsVolBySCO(linkIndex);
+ 1063   2          }
+ 1064   1          else
+ 1065   1          {
+ 1066   2              airAppIndPtr->VPara.getVolCmd.currentAbsVol = MMI_AVRCP_GetAbsVolByMusic(linkIndex);
+ 1067   2          }
+ 1068   1          #endif
+ 1069   1          airappLinkInfo = AirApp_GetLinkInfo(linkIndex);
+ 1070   1          airappLinkInfo->vol = airAppIndPtr->VPara.getVolCmd.currentAbsVol;
+ 1071   1      
+ 1072   1          AirApp_SendData(linkIndex, dataSentPtr);
+ 1073   1      }
+ 1074          
+ 1075          #ifdef LIGHTING_ENABLE
+               PRIVATE void AirApp_EnableMusicYouCanSee(U8 linkIndex, MMIMsgType XDATA_PTR airCmdPtr)
+               {
+                   gAirAppLedCtl.MusicYouCanSeeEnable_ready = airCmdPtr->msgBodyPtr.hciVEvt.VPara.dataBegin;
+                   if(!(MMI_AIR_ChangeLightModeNotify(AIRAPP_CMD_ON_OFF_MUSIC_YOU_CAN_SEE, gAirAppLedCtl.MusicYouCanSeeE
+             -nable_ready ,0 ,0)))
+                   {
+                       MusicYouCanSeeEnable = airCmdPtr->msgBodyPtr.hciVEvt.VPara.dataBegin;
+                   }
+                   AirApp_SendResponse(linkIndex, AIRAPP_CMD_ON_OFF_MUSIC_YOU_CAN_SEE, HCI_VEVT_OCF_RESULT_CODE_SUCCESS)
+             -;
+               }
+               PRIVATE void AirApp_GetColorPickerRGB(U8 linkIndex, MMIMsgType XDATA_PTR airCmdPtr)
+               {
+                   gAirAppLedCtl.LedR_ready = airCmdPtr->msgBodyPtr.hciVEvt.VPara.ledRGB.LedR;
+                   gAirAppLedCtl.LedG_ready = airCmdPtr->msgBodyPtr.hciVEvt.VPara.ledRGB.LedG;
+                   gAirAppLedCtl.LedB_ready = airCmdPtr->msgBodyPtr.hciVEvt.VPara.ledRGB.LedB;
+                   if(!(MMI_AIR_ChangeLightModeNotify(AIRAPP_CMD_GET_COLOR_PICKER_RGB,gAirAppLedCtl.LedR_ready,gAirAppLe
+             -dCtl.LedG_ready,gAirAppLedCtl.LedB_ready)))
+                   {
+                       MMI_LED_Set_RGB(
+                       airCmdPtr->msgBodyPtr.hciVEvt.VPara.ledRGB.LedR,
+                       airCmdPtr->msgBodyPtr.hciVEvt.VPara.ledRGB.LedG,
+                       airCmdPtr->msgBodyPtr.hciVEvt.VPara.ledRGB.LedB);
+                   }
+                   AirApp_SendResponse(linkIndex, AIRAPP_CMD_GET_COLOR_PICKER_RGB, HCI_VEVT_OCF_RESULT_CODE_SUCCESS);
+               }
+               PRIVATE void AirApp_LightingModeSelect(U8 linkIndex, MMIMsgType XDATA_PTR airCmdPtr)
+               {
+                   gAirAppLedCtl.LightingMode_ready = airCmdPtr->msgBodyPtr.hciVEvt.VPara.dataBegin;
+                   if(!(MMI_AIR_ChangeLightModeNotify(AIRAPP_CMD_LIGHTING_MODE_SELECT, gAirAppLedCtl.LightingMode_ready,
+             - 0, 0)))
+                   {
+                       MMI_LED_LightingMode(airCmdPtr->msgBodyPtr.hciVEvt.VPara.dataBegin);
+                   }
+                   AirApp_SendResponse(linkIndex, AIRAPP_CMD_LIGHTING_MODE_SELECT, HCI_VEVT_OCF_RESULT_CODE_SUCCESS);
+               }
+               PRIVATE void AirApp_AlarmClock(U8 linkIndex, MMIMsgType XDATA_PTR airCmdPtr)
+               {
+                   gAirAppLedCtl.Alarm_clock_OnOff_ready = airCmdPtr->msgBodyPtr.hciVEvt.VPara.dataBegin;
+                   if(!(MMI_AIR_ChangeLightModeNotify(AIRAPP_CMD_ALARM_CLOCK, gAirAppLedCtl.Alarm_clock_OnOff_ready, 0, 
+             -0)))
+                   {
+                       MMI_LED_AlarmClock(airCmdPtr->msgBodyPtr.hciVEvt.VPara.dataBegin);
+                   }
+                   AirApp_SendResponse(linkIndex, AIRAPP_CMD_ALARM_CLOCK, HCI_VEVT_OCF_RESULT_CODE_SUCCESS);
+               }
+               #endif
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 19  
+
+ 1118          
+ 1119          PRIVATE void AirApp_SetCallerNameCmd(U8 linkIndex, MMIMsgType XDATA_PTR airCmdPtr)
+ 1120          {
+ 1121   1          (AirApp_GetLinkInfo(linkIndex))->isCallerNameOn = airCmdPtr->msgBodyPtr.hciVCmd.VPara.setCallerNameCm
+             -d.isOn;
+ 1122   1      
+ 1123   1          AirApp_SendResponse(linkIndex, AIRAPP_CMD_SET_CALLERNAME, HCI_VEVT_OCF_RESULT_CODE_SUCCESS);
+ 1124   1      }
+ 1125          
+ 1126          #ifdef PEQ_ENABLE
+ 1127          PRIVATE void AirApp_SetRealtimePeqHpf(U8 linkIndex, MMIMsgType XDATA_PTR airCmdPtr)
+ 1128          {
+ 1129   1          AirApp_SendResponse(linkIndex, AIRAPP_CMD_SET_REALTIME_PEQ_HPF, HCI_VEVT_OCF_RESULT_CODE_SUCCESS);
+ 1130   1          MMI_DRV_RealTimeSetPeqHpf(airCmdPtr);
+ 1131   1      }
+ 1132          
+ 1133          PRIVATE void AirApp_SetDefaultPEQMode(U8 linkIndex, MMIMsgType XDATA_PTR airCmdPtr)
+ 1134          {
+ 1135   1          U8 component = airCmdPtr->msgBodyPtr.hciVCmd.VPara.setDefaultPEQCmd.component;
+ 1136   1          U8 PEQMode = airCmdPtr->msgBodyPtr.hciVCmd.VPara.setDefaultPEQCmd.PEQMode;
+ 1137   1          U8 PEQSectorMode = airCmdPtr->msgBodyPtr.hciVCmd.VPara.setDefaultPEQCmd.PEQSectorMode;
+ 1138   1      
+ 1139   1          if(component == 0xFF)
+ 1140   1          {
+ 1141   2              MMI_FEATURE_CTL_A2DP &= ~PEQ_DEFAULT_ASSIGNMENT_FEAT;
+ 1142   2              AirApp_SendResponse(linkIndex, AIRAPP_CMD_SET_DEFAULT_PEQ_MODE, HCI_VEVT_OCF_RESULT_CODE_SUCCESS)
+             -;
+ 1143   2              return;
+ 1144   2          }
+ 1145   1      
+ 1146   1          if(component < PEQ_COMPONENT_NUM && PEQMode <= PEQ_GetModeNumber(component) && PEQSectorMode < PEQ_LO
+             -AD_SECTOR_NUM)
+ 1147   1          {
+ 1148   2              if(MMI_MUSIC_FORCE_USE_PEQ_FEAT && PEQMode == 0)
+ 1149   2                  goto SEND_FAIL_PEQ_DEFAULT;
+ 1150   2      
+ 1151   2              MMI_FEATURE_CTL_A2DP |= PEQ_DEFAULT_ASSIGNMENT_FEAT;
+ 1152   2              gMMI_driver_variation_nvram.misc_para.PEQRecord[component] = PEQMode;
+ 1153   2              gMMI_driver_variation_nvram.misc_para.PEQSectorMode[component] = PEQSectorMode;
+ 1154   2              MMI_SECTOR_SetUpdateFlag(TRUE);
+ 1155   2      
+ 1156   2              AirApp_SendResponse(linkIndex, AIRAPP_CMD_SET_DEFAULT_PEQ_MODE, HCI_VEVT_OCF_RESULT_CODE_SUCCESS)
+             -;
+ 1157   2              return;
+ 1158   2          }
+ 1159   1      
+ 1160   1          SEND_FAIL_PEQ_DEFAULT:
+ 1161   1          AirApp_SendResponse(linkIndex, AIRAPP_CMD_SET_DEFAULT_PEQ_MODE, HCI_VEVT_OCF_RESULT_CODE_FAIL);
+ 1162   1      }
+ 1163          #endif
+ 1164          
+ 1165          #ifdef BLE_AIRApp
+ 1166          PRIVATE void AirApp_BleSetEdrTargetIdx(MMIMsgType XDATA_PTR airCmdPtr)
+ 1167          {
+ 1168   1          U8 targetLink = airCmdPtr->msgBodyPtr.hciVCmd.VPara.dataBegin;
+ 1169   1      
+ 1170   1          if ((targetLink < MAX_MULTI_POINT_NO) && MMI_IsNormalLink(targetLink))
+ 1171   1          {
+ 1172   2              AirApp_SendResponse(gAirApp_ctl.targetIdx, AIRAPP_CMD_SET_TARGET_LINK_INDEX, HCI_VEVT_OCF_RESULT_
+             -CODE_SUCCESS);
+ 1173   2      
+ 1174   2              if (gAirApp_ctl.targetIdx != targetLink)
+ 1175   2              {
+ 1176   3                  gAirApp_ctl.targetIdx = targetLink;
+ 1177   3                  AirApp_BleReportEdrLinkStatus();
+ 1178   3              }
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 20  
+
+ 1179   2          }
+ 1180   1          else
+ 1181   1          {
+ 1182   2              AirApp_SendResponse(gAirApp_ctl.targetIdx, AIRAPP_CMD_SET_TARGET_LINK_INDEX, HCI_VEVT_OCF_RESULT_
+             -CODE_FAIL);
+ 1183   2          }
+ 1184   1      }
+ 1185          PRIVATE void AirApp_BleSetLeConnInterval(MMIMsgType XDATA_PTR airCmdPtr)
+ 1186          {
+ 1187   1          U8 result = MMI_LE_SendConnUpdateReq(&airCmdPtr->msgBodyPtr.hciVCmd.VPara.dataBegin, 0);
+ 1188   1      
+ 1189   1          if ((result == MMI_LE_RESULT_SUCCESS) || (result == MMI_LE_RESULT_THE_SAME_DATA))
+ 1190   1          {
+ 1191   2              AirApp_SendResponse(gAirApp_ctl.targetIdx, AIRAPP_CMD_SET_LE_CONN_INTERVAL, HCI_VEVT_OCF_RESULT_C
+             -ODE_SUCCESS);
+ 1192   2          }
+ 1193   1          else
+ 1194   1          {
+ 1195   2              AirApp_SendResponse(gAirApp_ctl.targetIdx, AIRAPP_CMD_SET_LE_CONN_INTERVAL, HCI_VEVT_OCF_RESULT_C
+             -ODE_FAIL);
+ 1196   2          }
+ 1197   1      }
+ 1198          
+ 1199          PRIVATE void AirApp_BleGetLinkStatus(void)
+ 1200          {
+ 1201   1          U8 XDATA_PTR dataSentPtr;
+ 1202   1          AirAppMsgType XDATA_PTR airAppPtr;
+ 1203   1      
+ 1204   1          LightDbgPrint("AirApp_BleGetLinkStatus");
+ 1205   1      
+ 1206   1          if((dataSentPtr = AirApp_GetSltInd(AIRAPP_CMD_GET_LINK_STATUS, HCI_VENDOR_OGF_AIRAPP_IND_SOLICITED_EX
+             -, sizeof(AIRAPP_BLE_REPORT_STATUS))) == (U8 XDATA_PTR)NULL)
+ 1207   1          {
+ 1208   2              AirApp_SendRsp(gAirApp_ctl.targetIdx, AIRAPP_CMD_GET_LINK_STATUS, HCI_VENDOR_OGF_AIRAPP_RESP_EX, 
+             -HCI_VEVT_OCF_RESULT_CODE_FAIL);
+ 1209   2              return;
+ 1210   2          }
+ 1211   1      
+ 1212   1          AirApp_SendRsp(gAirApp_ctl.targetIdx, AIRAPP_CMD_GET_LINK_STATUS, HCI_VENDOR_OGF_AIRAPP_RESP_EX, HCI_
+             -VEVT_OCF_RESULT_CODE_SUCCESS);
+ 1213   1      
+ 1214   1          airAppPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+ 1215   1      
+ 1216   1          AirApp_BleGetEdrLinkStatus(&airAppPtr->VPara.bleReportStatus);
+ 1217   1      
+ 1218   1          AirApp_SendData(gAirApp_ctl.targetIdx, dataSentPtr);
+ 1219   1      }
+ 1220          #endif
+ 1221          
+ 1222          PRIVATE void AirApp_MuteSpeaker(U8 linkIndex, MMIMsgType XDATA_PTR airCmdPtr)
+ 1223          {
+ 1224   1          gAlignDSP.DSPOUT_MUTE = (airCmdPtr->msgBodyPtr.hciVEvt.VPara.dataBegin)?TRUE:FALSE;
+ 1225   1          MMI_DRV_SetSpkMuteByLink((airCmdPtr->msgBodyPtr.hciVEvt.VPara.dataBegin)?SET_MUTE_ON : SET_MUTE_OFF, 
+             -linkIndex);
+ 1226   1          LightDbgPrint("AirApp_MuteSpeaker:%d,%d",(U8)gAlignDSP.DSPOUT_MUTE, (U8)airCmdPtr->msgBodyPtr.hciVEvt
+             -.VPara.dataBegin);
+ 1227   1          AirApp_SendRsp(linkIndex, AIRAPP_CMD_MUTE_SPK, HCI_VENDOR_OGF_AIRAPP_RESP_EX, HCI_VEVT_OCF_RESULT_COD
+             -E_SUCCESS);
+ 1228   1      }
+ 1229          
+ 1230          #if AIRAPP_CALLER_NAME
+ 1231          PUBLIC void AirApp_DSPSuspended(void)
+ 1232          {
+ 1233   1          gAirApp_ctl.callNameCtl.dspSuspendState = DSP_SUSPENDED_STATE;
+ 1234   1      }
+ 1235          
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 21  
+
+ 1236          PRIVATE BOOL AirApp_DisableAndSuspendDSP(void)
+ 1237          {
+ 1238   1          if(gAirApp_ctl.callNameCtl.dspSuspendState == DSP_UNKNOW_STATE)
+ 1239   1          {
+ 1240   2              MMI_DRV_SuspendDSP(DRV_SUSPEND_DSP_REASON_AIRAPP, AirApp_DSPSuspended);
+ 1241   2              gAirApp_ctl.callNameCtl.dspSuspendState = DSP_SUSPENDING_STATE;
+ 1242   2          }
+ 1243   1          SYS_SetTimer(&gAirApp_ctl.callNameCtl.suspendDSPTimer, 8*ONE_SEC);
+ 1244   1      
+ 1245   1          return (gAirApp_ctl.callNameCtl.dspSuspendState == DSP_SUSPENDED_STATE)? TRUE : FALSE;
+ 1246   1      }
+ 1247          
+ 1248          PRIVATE void AirApp_ResumeDSP(void)
+ 1249          {
+ 1250   1          if(gAirApp_ctl.callNameCtl.dspSuspendState != DSP_UNKNOW_STATE)
+ 1251   1          {
+ 1252   2              SYS_ReleaseTimer(&gAirApp_ctl.callNameCtl.suspendDSPTimer);
+ 1253   2              gAirApp_ctl.callNameCtl.dspSuspendState = DSP_UNKNOW_STATE;
+ 1254   2              MMI_DRV_ResumeDSP(DRV_SUSPEND_DSP_REASON_AIRAPP);
+ 1255   2          }
+ 1256   1      }
+ 1257          
+ 1258          PRIVATE BOOL AirApp_IsCallerNameSectorValid(void)
+ 1259          {
+ 1260   1          SECTOR_APP_CALLERNAME_DATA_STRU CODE_PTR ptr1 = (SECTOR_APP_CALLERNAME_DATA_STRU CODE_PTR)GET_SECTOR_
+             -RUNTIME_ADDR(SECTOR_APP_CALLERNAME_DATA);
+ 1261   1          if(ptr1 && gAirApp_ctl.callNameCtl.dataValid == 0xFF)
+ 1262   1              return TRUE;
+ 1263   1      
+ 1264   1          return FALSE;
+ 1265   1      }
+ 1266          
+ 1267          PRIVATE BOOL AirApp_IsMMIAllowWrite(U8 linkIndex)
+ 1268          {
+ 1269   1          U8 nextLink = MMI_GetNextNormalLink(linkIndex);
+ 1270   1          if(nextLink != MMI_EOF)
+ 1271   1          {
+ 1272   2              if(MMI_CheckLinkInCallNotifyState(nextLink))
+ 1273   2              {
+ 1274   3                  return FALSE;
+ 1275   3              }
+ 1276   2              if(MMI_CheckLinkInCallActiveState(nextLink) && SCO_EXISTS(nextLink))
+ 1277   2              {
+ 1278   3                  return FALSE;
+ 1279   3              }
+ 1280   2          }
+ 1281   1          else
+ 1282   1          {
+ 1283   2              if(MMI_CheckLinkInCallActiveState(linkIndex) && SCO_EXISTS(linkIndex))
+ 1284   2              {
+ 1285   3                  return FALSE;
+ 1286   3              }
+ 1287   2              if(MMI_CheckLinkInOutGoingState(linkIndex))
+ 1288   2              {
+ 1289   3                  return FALSE;
+ 1290   3              }
+ 1291   2          }
+ 1292   1          return TRUE;
+ 1293   1      }
+ 1294          
+ 1295          PRIVATE void AirApp_EraseCallerNameSector(void)
+ 1296          {
+ 1297   1          U8 CODE_PTR ptr1;
+ 1298   1          U8 gMMI_rf_rxon_time;
+ 1299   1      
+ 1300   1          if(gAirApp_ctl.callNameCtl.callerNameLinkIndex == MMI_EOF || !gSYS_allow_updating)
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 22  
+
+ 1301   1              return;
+ 1302   1      
+ 1303   1          gAirApp_ctl.callNameCtl.callerNameLinkIndex = MMI_EOF;
+ 1304   1          gAirApp_ctl.callNameCtl.callerNameNextId = 0;
+ 1305   1          gAirApp_ctl.callNameCtl.dataValid = 0xFF;
+ 1306   1      
+ 1307   1          ptr1 = GET_SECTOR_RUNTIME_ADDR(SECTOR_APP_CALLERNAME_DATA);
+ 1308   1          //- HW workaround: Let RF can't receive packet
+ 1309   1          gMMI_rf_rxon_time = MMI_EnterFlashProgramWorkaround();
+ 1310   1      
+ 1311   1          FLASH_PROGRAM_UnlockSector(FLASH_MEMORY_MAP(ptr1));
+ 1312   1          fFlashDrv->SectorErase(FLASH_MEMORY_MAP(ptr1));
+ 1313   1          HC_SFR_WRITE_BY_FB(FBOFFS_WO_MCU_CACHE_FLUSH, 1);
+ 1314   1      
+ 1315   1          FLASH_PROGRAM_LockAll();
+ 1316   1          MMI_ExitFlashProgramWorkaround(gMMI_rf_rxon_time);
+ 1317   1      
+ 1318   1          AirApp_ResumeDSP();
+ 1319   1      
+ 1320   1          LightDbgPrint("Erase Caller Name Sector");
+ 1321   1      }
+ 1322          
+ 1323          PRIVATE void AirApp_WriteCallerNameData(U8 XDATA_PTR dataPtr, U16 length, U16 offset)
+ 1324          {
+ 1325   1          U8 gMMI_rf_rxon_time;
+ 1326   1          U8 count = 5;
+ 1327   1          U8 CODE_PTR ptr1 = (U8 CODE_PTR)GET_SECTOR_RUNTIME_ADDR(SECTOR_APP_CALLERNAME_DATA);
+ 1328   1      
+ 1329   1          if(!ptr1)
+ 1330   1              return;
+ 1331   1      
+ 1332   1          //- HW workaround: Let RF can't receive packet
+ 1333   1          gMMI_rf_rxon_time = MMI_EnterFlashProgramWorkaround();
+ 1334   1          FLASH_PROGRAM_UnlockSector(FLASH_MEMORY_MAP(ptr1));
+ 1335   1      
+ 1336   1          do
+ 1337   1          {
+ 1338   2              if(!FLASH_PROGRAM_WriteXDataToFlash(&ptr1[offset], dataPtr, length))
+ 1339   2              {
+ 1340   3                  continue;
+ 1341   3              }
+ 1342   2              break;
+ 1343   2          } while (--count);
+ 1344   1      
+ 1345   1          FLASH_PROGRAM_LockAll();
+ 1346   1          MMI_ExitFlashProgramWorkaround(gMMI_rf_rxon_time);
+ 1347   1      }
+ 1348          
+ 1349          PRIVATE void AirApp_SetWriteCallerNameDataEnd(void)
+ 1350          {
+ 1351   1          gAirApp_ctl.callNameCtl.dataValid = 0;
+ 1352   1      }
+ 1353          
+ 1354          PRIVATE void AirApp_SendCallerNameWriteEvt(U8 linkIndex, U8 status, U8 id)
+ 1355          {
+ 1356   1          AirAppDataHCIDataType XDATA_PTR airAppPtr;
+ 1357   1          U8 XDATA_PTR dataSentPtr;
+ 1358   1      
+ 1359   1          if((dataSentPtr = RFCOMM_AllocProfileData(sizeof(HCI_VCMD_OPCODE_STRU) + sizeof(HCI_ACL_EVT_PARA_CALL
+             -ER_NAME_WRITE_DATA) + 5, SCN_AIR_APP)) == (U8 XDATA_PTR)NULL)
+ 1360   1              return;
+ 1361   1      
+ 1362   1          airAppPtr = (AirAppDataHCIDataType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+ 1363   1          airAppPtr->hciOpCode = AIRAPP_HCI_DATA_PACKET;
+ 1364   1          airAppPtr->hciLengthL = (U8)(sizeof(HCI_VCMD_OPCODE_STRU) + sizeof(HCI_ACL_EVT_PARA_CALLER_NAME_WRITE
+             -_DATA));
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 23  
+
+ 1365   1          airAppPtr->hciLengthH = (U8)(((U16)(sizeof(HCI_VCMD_OPCODE_STRU) + sizeof(HCI_ACL_EVT_PARA_CALLER_NAM
+             -E_WRITE_DATA))) >> 8);
+ 1366   1          airAppPtr->VOpCode.VCmdOcf = HCI_ACL_OCF_CALLER_NAME_WRITE_RESPONSE;
+ 1367   1          airAppPtr->VOpCode.VCmdOgf = HCI_ACL_OGF_APP_CALLER_NAME;
+ 1368   1          airAppPtr->para.writeCallerNameEvt.status = status;
+ 1369   1          airAppPtr->para.writeCallerNameEvt.id = id;
+ 1370   1          AirApp_SendData(linkIndex, dataSentPtr);
+ 1371   1      
+ 1372   1          LightDbgPrint("AirApp:Evt id:%d,S:%d",(U8)id, (U8)status);
+ 1373   1      }
+ 1374          
+ 1375          PRIVATE BOOL AirApp_CallerNameDataHandler(U8 linkIndex, U8 XDATA_PTR dataPtr)
+ 1376          {
+ 1377   1          AirAppDataHCIDataType XDATA_PTR appDataPtr = (AirAppDataHCIDataType XDATA_PTR)&((ProfileDataEvent XDA
+             -TA_PTR)dataPtr)->dataBody;
+ 1378   1          U16 length;
+ 1379   1          AIRAPP_LINK_INFO XDATA_PTR airappLinkInfo = AirApp_GetLinkInfo(linkIndex);
+ 1380   1          U8 XDATA_PTR dataAlignPtr;
+ 1381   1          U8 XDATA_PTR dataAlignPtr2;
+ 1382   1      
+ 1383   1          if(appDataPtr->VOpCode.VCmdOcf == HCI_ACL_OCF_CALLER_NAME_WRITE_DATA)
+ 1384   1          {
+ 1385   2              if(!airappLinkInfo->isCallerNameOn || !AirApp_IsCallerNameSectorValid() || !AirApp_IsMMIAllowWrit
+             -e(linkIndex))
+ 1386   2              {
+ 1387   3                  LightDbgPrint("AirApp: AirApp_IsMMIAllowWrite");
+ 1388   3                  CALLER_NAME_SEND_STOP:
+ 1389   3                  AirApp_SendCallerNameWriteEvt(linkIndex, CALLER_NAME_WRITE_STOP, appDataPtr->para.writeCaller
+             -NameCmd.id);
+ 1390   3                  return FALSE;
+ 1391   3              }
+ 1392   2              if(gAirApp_ctl.callNameCtl.callerNameNextId != appDataPtr->para.writeCallerNameCmd.id)
+ 1393   2              {
+ 1394   3                  LightDbgPrint("AirApp:NotExpectID:%d, %d",(U8)appDataPtr->para.writeCallerNameCmd.id, (U8)gAi
+             -rApp_ctl.callNameCtl.callerNameNextId);
+ 1395   3              }
+ 1396   2              if(appDataPtr->para.writeCallerNameCmd.id == 0)
+ 1397   2              {
+ 1398   3                  if(gAirApp_ctl.callNameCtl.callerNameNextId != 0)
+ 1399   3                  {
+ 1400   4                      LightDbgPrint("AirApp: callerNameNextId!=0");
+ 1401   4                      goto CALLER_NAME_SEND_STOP;
+ 1402   4                  }
+ 1403   3                  gAirApp_ctl.callNameCtl.callerNameLinkIndex = linkIndex;
+ 1404   3              }
+ 1405   2              else if(gAirApp_ctl.callNameCtl.callerNameLinkIndex != linkIndex)
+ 1406   2              {
+ 1407   3                  LightDbgPrint("AirApp:callerNameLinkIndex");
+ 1408   3                  goto CALLER_NAME_SEND_STOP;
+ 1409   3              }
+ 1410   2      
+ 1411   2              if(!AirApp_DisableAndSuspendDSP())
+ 1412   2              {
+ 1413   3                  LightDbgPrint("AirApp:AirApp_DisableAndSuspendDSP");
+ 1414   3                  OSMQ_PutFront(&airappLinkInfo->OSMQ_AIRAPP_Data_From_Remote, dataPtr);
+ 1415   3                  return TRUE;
+ 1416   3              }
+ 1417   2      
+ 1418   2              length = *(U16 XDATA_PTR)&appDataPtr->hciLengthL;
+ 1419   2              length = ENDIAN_TRANSFORM_U16(length) - 3;
+ 1420   2      
+ 1421   2              if(length % 256)
+ 1422   2              {
+ 1423   3                  goto CALLER_NAME_SEND_STOP;
+ 1424   3              }
+ 1425   2      
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 24  
+
+ 1426   2              if((dataAlignPtr = SYS_MemoryGet(length + 4)) == (U8 XDATA_PTR)NULL)
+ 1427   2              {
+ 1428   3                  if((dataAlignPtr = OSMEM_Get(&gAlignOSMEM.OSMEM2_small_RX))== (U8 XDATA_PTR)NULL)
+ 1429   3                  {
+ 1430   4                      LightDbgPrint("AirApp:4 bytes Align Fail");
+ 1431   4                      OSMQ_PutFront(&airappLinkInfo->OSMQ_AIRAPP_Data_From_Remote, dataPtr);
+ 1432   4                      return TRUE;
+ 1433   4                  }
+ 1434   3              }
+ 1435   2      
+ 1436   2              dataAlignPtr2 = OS_AlignToNext4ByteAddr(dataAlignPtr);
+ 1437   2              OSMEM_memcpy_xdata_xdata (dataAlignPtr2, (U8 XDATA_PTR)&appDataPtr->para.writeCallerNameCmd.calle
+             -rNameDataBegin, length);
+ 1438   2              AirApp_WriteCallerNameData(dataAlignPtr2, length, 256 * 2 * appDataPtr->para.writeCallerNameCmd.i
+             -d);
+ 1439   2              OSMEM_Put(dataAlignPtr);
+ 1440   2              gAirApp_ctl.callNameCtl.callerNameNextId++;
+ 1441   2              AirApp_SendCallerNameWriteEvt(linkIndex, CALLER_NAME_WRITE_OK, appDataPtr->para.writeCallerNameCm
+             -d.id);
+ 1442   2          }
+ 1443   1          else if(appDataPtr->VOpCode.VCmdOcf == HCI_ACL_OCF_CALLER_NAME_ALL_DATA_READY)
+ 1444   1          {
+ 1445   2              LightDbgPrint("AirApp:CallerNameEnd");
+ 1446   2              AirApp_SetWriteCallerNameDataEnd();
+ 1447   2              #ifdef HFP_Profile
+ 1448   2              MMI_HFP_AirAppNotifyCallerNameReady(linkIndex);
+ 1449   2              #endif
+ 1450   2              AirApp_ResumeDSP();
+ 1451   2          }
+ 1452   1          return FALSE;
+ 1453   1      }
+ 1454          #endif
+ 1455          
+ 1456          #include "..\SECTOR\toolmisc\sector_tool_misc.h"
+ 1457          PRIVATE void AirApp_GetSectorInfo(U8 linkIndex, MMIMsgType XDATA_PTR airCmdPtr)
+ 1458          {
+ 1459   1          U8 CODE_PTR sectorHead;
+ 1460   1          U8 XDATA_PTR dataSentPtr;
+ 1461   1          AirAppMsgType XDATA_PTR airAppRespPtr;
+ 1462   1          SECTOR_AE_INFO_STRU CODE_PTR pAeInfo;
+ 1463   1      
+ 1464   1          pAeInfo = (SECTOR_AE_INFO_STRU CODE_PTR)GET_SECTOR_TOOLMISC_ADDR(SECTOR_AE_INFO);
+ 1465   1          sectorHead = (U8 CODE_PTR)pAeInfo;
+ 1466   1      
+ 1467   1          if((dataSentPtr = AirApp_GetSolicitedInd(AIRAPP_CMD_PARSING_AE_SECTOR,
+ 1468   1              airCmdPtr->msgBodyPtr.hciVEvt.VPara.sectorAEInfo.dataSize))
+ 1469   1              == (U8 XDATA_PTR)NULL)
+ 1470   1          {
+ 1471   2              AirApp_SendResponse(linkIndex, AIRAPP_CMD_PARSING_AE_SECTOR, HCI_VEVT_OCF_RESULT_CODE_FAIL);
+ 1472   2              return;
+ 1473   2          }
+ 1474   1      
+ 1475   1          LightDbgPrint("app Parsing offset %d", (U8)airCmdPtr->msgBodyPtr.hciVEvt.VPara.sectorAEInfo.offset);
+ 1476   1          LightDbgPrint("app Parsing size %d", (U8)airCmdPtr->msgBodyPtr.hciVEvt.VPara.sectorAEInfo.dataSize);
+ 1477   1          LightDbgPrint("sector length %d ", (U8)GET_SECTOR_TOOLMISC_LEN(SECTOR_AE_INFO));
+ 1478   1          if(airCmdPtr->msgBodyPtr.hciVEvt.VPara.sectorAEInfo.offset +
+ 1479   1              airCmdPtr->msgBodyPtr.hciVEvt.VPara.sectorAEInfo.dataSize > GET_SECTOR_TOOLMISC_LEN(SECTOR_AE_INF
+             -O))
+ 1480   1          {
+ 1481   2              LightDbgPrint("Airapp:required size is too large");
+ 1482   2              AirApp_SendResponse(linkIndex, AIRAPP_CMD_PARSING_AE_SECTOR, HCI_VEVT_OCF_RESULT_CODE_NOT_ENOUGH_
+             -DATA);
+ 1483   2              return;
+ 1484   2          }
+ 1485   1      
+ 1486   1          airAppRespPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 25  
+
+ 1487   1          airAppRespPtr->VOpCode.VCmdOcf = airCmdPtr->msgBodyPtr.hciVEvt.VOpCode.VCmdOcf;
+ 1488   1          airAppRespPtr->VOpCode.VCmdOgf = HCI_VENDOR_OGF_AIRAPP_PARSING_SECTOR_INFO;
+ 1489   1      
+ 1490   1          OS_cmemcpy((U8 XDATA_PTR)&airAppRespPtr->VPara.dataBegin,
+ 1491   1              sectorHead + airCmdPtr->msgBodyPtr.hciVEvt.VPara.sectorAEInfo.offset,
+ 1492   1              airCmdPtr->msgBodyPtr.hciVEvt.VPara.sectorAEInfo.dataSize);
+ 1493   1      
+ 1494   1          AirApp_SendData(linkIndex, dataSentPtr);
+ 1495   1      
+ 1496   1      }
+ 1497          
+ 1498          PRIVATE U8 AirApp_DecideRespOGF(U8 ogf)
+ 1499          {
+ 1500   1          if(ogf == HCI_VENDOR_OGF_AIRAPP_RESP)
+ 1501   1          {
+ 1502   2              return (U8)HCI_VENDOR_OGF_AIRAPP_FOLLOWER_RESP;
+ 1503   2          }
+ 1504   1          else if(ogf == HCI_VENDOR_OGF_AIRAPP_RESP_EX)
+ 1505   1          {
+ 1506   2              return (U8)HCI_VENDOR_OGF_AIRAPP_FOLLOWER_RESP_EX;
+ 1507   2          }
+ 1508   1          else
+ 1509   1              return 0;
+ 1510   1      }
+ 1511          
+ 1512          PRIVATE U8 AirApp_DecideUnsolicitedOGF(U8 ogf)
+ 1513          {
+ 1514   1          if(ogf == HCI_VENDOR_OGF_AIRAPP_IND_UNSOLICITED)
+ 1515   1          {
+ 1516   2              return (U8)HCI_VENDOR_OGF_AIRAPP_FOLLOWER_IND_UNSOLICITED;
+ 1517   2          }
+ 1518   1          else if(ogf == HCI_VENDOR_OGF_AIRAPP_IND_UNSOLICITED_EX)
+ 1519   1          {
+ 1520   2              return (U8)HCI_VENDOR_OGF_AIRAPP_FOLLOWER_IND_UNSOLICITED_EX;
+ 1521   2          }
+ 1522   1          else
+ 1523   1              return 0;
+ 1524   1      }
+ 1525          
+ 1526          PRIVATE U8 AirApp_DecideSolicitedOGF(U8 ogf)
+ 1527          {
+ 1528   1          if(ogf == HCI_VENDOR_OGF_AIRAPP_IND_SOLICITED)
+ 1529   1          {
+ 1530   2              return (U8)HCI_VENDOR_OGF_AIRAPP_FOLLOWER_IND_SOLICITED;
+ 1531   2          }
+ 1532   1          else if(ogf == HCI_VENDOR_OGF_AIRAPP_IND_SOLICITED_EX)
+ 1533   1          {
+ 1534   2              return (U8)HCI_VENDOR_OGF_AIRAPP_FOLLOWER_IND_SOLICITED_EX;
+ 1535   2          }
+ 1536   1          else
+ 1537   1              return 0;
+ 1538   1      }
+ 1539          
+ 1540          PRIVATE BOOL AirApp_EventHandler(U8 linkIndex, U8 XDATA_PTR dataPtr)
+ 1541          {
+ 1542   1          U8 targetLink, followerOcf, indLen;
+ 1543   1          U8 XDATA_PTR dataSentPtr;
+ 1544   1          AirAppMsgType XDATA_PTR airAppIndPtr;
+ 1545   1          AirAppDataHCIEventType XDATA_PTR appEventPtr = (AirAppDataHCIEventType XDATA_PTR)&((ProfileDataEvent 
+             -XDATA_PTR)dataPtr)->dataBody;
+ 1546   1      
+ 1547   1      
+ 1548   1          #ifdef BLE_AIRApp
+ 1549   1          if(AirApp_BleIsActivated())
+ 1550   1          {
+ 1551   2              LightDbgPrint("SendBLE:%d", linkIndex);
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 26  
+
+ 1552   2              targetLink = MMI_EOF;
+ 1553   2              goto SEND_EVT_DATA;
+ 1554   2          }
+ 1555   1          #endif
+ 1556   1      
+ 1557   1          LightDbgPrint("SendEvent:%d", linkIndex);
+ 1558   1      
+ 1559   1          if((targetLink = MMI_GetNextNormalLink(linkIndex)) == MMI_EOF || (AirApp_GetLinkInfo(targetLink))->mm
+             -iProfileInfo.state != PROFILE_CONNECTED)
+ 1560   1              return FALSE;
+ 1561   1      
+ 1562   1          SEND_EVT_DATA:
+ 1563   1      
+ 1564   1           followerOcf = appEventPtr->VOpCode.VCmdOcf;
+ 1565   1           indLen = appEventPtr->hciLength - sizeof(HCI_VCMD_OPCODE_STRU);
+ 1566   1      
+ 1567   1          if(appEventPtr->VOpCode.VCmdOgf == HCI_VENDOR_OGF_AIRAPP_RESP)
+ 1568   1          {
+ 1569   2              LightDbgPrint("AirApp Evt Response");
+ 1570   2              AirApp_SendFollowerResponse(targetLink, followerOcf, AirApp_DecideRespOGF(appEventPtr->VOpCode.VC
+             -mdOgf), appEventPtr->paraData[0]);
+ 1571   2          }
+ 1572   1          else if(appEventPtr->VOpCode.VCmdOgf == HCI_VENDOR_OGF_AIRAPP_IND_UNSOLICITED)
+ 1573   1          {
+ 1574   2              LightDbgPrint("AirApp Evt Unsolicited");
+ 1575   2      
+ 1576   2              dataSentPtr = AirApp_GetFollowerUnSolicitedInd(followerOcf, AirApp_DecideUnsolicitedOGF(appEventP
+             -tr->VOpCode.VCmdOgf), indLen);
+ 1577   2              if(dataSentPtr)
+ 1578   2              {
+ 1579   3                  airAppIndPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+ 1580   3      
+ 1581   3                  if(indLen)
+ 1582   3                  {
+ 1583   4                      OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&airAppIndPtr->VPara.followerData[0], (U8 XDATA_PT
+             -R)&appEventPtr->paraData[0], indLen);
+ 1584   4                  }
+ 1585   3      
+ 1586   3                  AirApp_SendData(targetLink, dataSentPtr);
+ 1587   3              }
+ 1588   2          }
+ 1589   1          else //Solicitied Case
+ 1590   1          {
+ 1591   2              LightDbgPrint("AirApp Evt Solicited");
+ 1592   2      
+ 1593   2              dataSentPtr = AirApp_GetFollowerSolicitedInd(followerOcf, AirApp_DecideSolicitedOGF(appEventPtr->
+             -VOpCode.VCmdOgf), indLen);
+ 1594   2              if(dataSentPtr)
+ 1595   2              {
+ 1596   3                  airAppIndPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+ 1597   3                  if(indLen)
+ 1598   3                  {
+ 1599   4                      OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&airAppIndPtr->VPara.followerData[0], (U8 XDATA_PT
+             -R)&appEventPtr->paraData[0], indLen);
+ 1600   4                  }
+ 1601   3                  AirApp_SendData(targetLink, dataSentPtr);
+ 1602   3              }
+ 1603   2          }
+ 1604   1          return FALSE;
+ 1605   1      }
+ 1606          
+ 1607          PRIVATE BOOL AirApp_CmdHandler(U8 linkIndex, U8 XDATA_PTR dataPtr)
+ 1608          {
+ 1609   1          #ifdef AIR_MODULE
+ 1610   1          U8 airlink;
+ 1611   1          #endif
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 27  
+
+ 1612   1          MMIMsgType XDATA_PTR airCmdPtr;
+ 1613   1          AirAppDataHCICmdType XDATA_PTR appDataPtr = (AirAppDataHCICmdType XDATA_PTR)&((ProfileDataEvent XDATA
+             -_PTR)dataPtr)->dataBody;
+ 1614   1          U8 length = appDataPtr->hciLength;
+ 1615   1      
+ 1616   1          airCmdPtr = (MMIMsgType XDATA_PTR)dataPtr;
+ 1617   1          airCmdPtr->dataOffset = CMD_OFFSET;
+ 1618   1          airCmdPtr->msgOpcode = HCI_EVENT_AIROHA_VENDOR;
+ 1619   1          airCmdPtr->paraLen = length;
+ 1620   1      
+ 1621   1          LightDbgPrint("App:%x,%x,%x,%x",(U8)((U8 XDATA_PTR)appDataPtr)[0],(U8)((U8 XDATA_PTR)appDataPtr)[1],(
+             -U8)((U8 XDATA_PTR)appDataPtr)[2],(U8)((U8 XDATA_PTR)appDataPtr)[3]);
+ 1622   1          LightDbgPrint("App:%x,%x,%x,%x",(U8)((U8 XDATA_PTR)appDataPtr)[4],(U8)((U8 XDATA_PTR)appDataPtr)[5],(
+             -U8)((U8 XDATA_PTR)appDataPtr)[6],(U8)((U8 XDATA_PTR)appDataPtr)[7]);
+ 1623   1          OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&airCmdPtr->msgBodyPtr.hciVEvt, (U8 XDATA_PTR)&appDataPtr->VOp
+             -Code, length);
+ 1624   1          LightDbgPrint("AirApp cmd:%x,%x",(U8)airCmdPtr->msgBodyPtr.hciVEvt.VOpCode.VCmdOcf,(U8) airCmdPtr->ms
+             -gBodyPtr.hciVEvt.VOpCode.VCmdOgf);
+ 1625   1          gSYS_update_by_uart_flash_command = FALSE;
+ 1626   1      
+ 1627   1        if(linkIndex == AirApp_GetFlashUpdateLinkIndex() || MMI_HCI_GetFlashUpdateState()!=FLASH_UPDATE_OFF)
+ 1628   1          {
+ 1629   2              AirApp_SetDSPUnlockByOTA();
+ 1630   2              MMI_DRV_FlashUpdateEnd();
+ 1631   2              MMI_HCI_SetFlashUpdateState(FLASH_UPDATE_OFF);
+ 1632   2          }
+ 1633   1      
+ 1634   1          switch(airCmdPtr->msgBodyPtr.hciVEvt.VOpCode.VCmdOgf)
+ 1635   1          {
+ 1636   2              case HCI_VENDOR_OGF_AIRAPP_CMD_EX:
+ 1637   2                  switch (airCmdPtr->msgBodyPtr.hciVEvt.VOpCode.VCmdOcf)
+ 1638   2                  {
+ 1639   3                      #ifdef BLE_AIRApp
+ 1640   3                      case AIRAPP_CMD_GET_LINK_STATUS:
+ 1641   3                          AirApp_BleGetLinkStatus();
+ 1642   3                          break;
+ 1643   3                      #endif
+ 1644   3                      case AIRAPP_CMD_MUTE_SPK:
+ 1645   3                          AirApp_MuteSpeaker(linkIndex, airCmdPtr);
+ 1646   3                          break;
+ 1647   3                  }
+ 1648   2                  break;
+ 1649   2      
+ 1650   2              case HCI_VENDOR_OGF_AIRAPP_FOLLOWER_CMD_EX:
+ 1651   2                  LightDbgPrint("App Follower Ex Command");
+ 1652   2                  AirApp_ProcessFollowerCmd(linkIndex, HCI_VENDOR_OGF_AIRAPP_CMD_EX, airCmdPtr);
+ 1653   2                  break;
+ 1654   2      
+ 1655   2              case HCI_VENDOR_OGF_AIRAPP_FOLLOWER_CMD:
+ 1656   2                  LightDbgPrint("App Follower Command");
+ 1657   2                  AirApp_ProcessFollowerCmd(linkIndex, HCI_VENDOR_OGF_AIRAPP_CMD, airCmdPtr);
+ 1658   2                  break;
+ 1659   2      
+ 1660   2              case HCI_VENDOR_OGF_AIRAPP_CMD:
+ 1661   2                  switch(airCmdPtr->msgBodyPtr.hciVEvt.VOpCode.VCmdOcf)
+ 1662   2                  {
+ 1663   3                      case AIRAPP_CMD_KEY_CONNECTED_TO_CONNECTABLE:
+ 1664   3                          AirApp_KeyConnectToConnectable(linkIndex);
+ 1665   3                          break;
+ 1666   3                      case AIRAPP_CMD_KEY_RESET_PAIRED_DEVICES:
+ 1667   3                          AirApp_KeyResetPairedDevice(linkIndex, airCmdPtr);
+ 1668   3                          break;
+ 1669   3                      case AIRAPP_CMD_KEY_VOICE_PROMPT_ENABLE:
+ 1670   3                          AirApp_KeyVoicePromptOn(linkIndex);
+ 1671   3                          break;
+ 1672   3                      case AIRAPP_CMD_SUSPEND_DSP:
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 28  
+
+ 1673   3                          AirApp_SetDSPSuspend(linkIndex);
+ 1674   3                          break;
+ 1675   3                      case AIRAPP_CMD_RESUME_DSP:
+ 1676   3                          AirApp_SetDSPResume(linkIndex);
+ 1677   3                          break;
+ 1678   3                      case AIRAPP_CMD_KEY_VOICE_PROMPT_DISABLE:
+ 1679   3                          AirApp_KeyVoicePromptOff(linkIndex);
+ 1680   3                          break;
+ 1681   3                      case AIRAPP_CMD_KEY_VOICE_PROMPT_LANG_CHANGE:
+ 1682   3                          AirApp_KeyVoicePromptLangChange(linkIndex);
+ 1683   3                          break;
+ 1684   3                      case AIRAPP_CMD_KEY_PEQ_MODE_CHANGE:
+ 1685   3                          AirApp_KeyPEQModeChange(linkIndex);
+ 1686   3                          break;
+ 1687   3                      case AIRAPP_CMD_FIND_MY_ACCESSORY:
+ 1688   3                          AirApp_FindMyAccessory(linkIndex);
+ 1689   3                          break;
+ 1690   3                      case AIRAPP_CMD_WRITE_DEVICE_NAME:
+ 1691   3                          AirApp_WriteDeviceNameCmd(linkIndex, airCmdPtr);
+ 1692   3                          break;
+ 1693   3                      case AIRAPP_CMD_SET_VOL:
+ 1694   3                          AirApp_GetVolSetCmd(linkIndex, airCmdPtr);
+ 1695   3                          break;
+ 1696   3                      case AIRAPP_CMD_GET_SYNCHRONIZE_DATA:
+ 1697   3                          AirApp_GetSyncDataCmd(linkIndex);
+ 1698   3                          break;
+ 1699   3                      case AIRAPP_CMD_GET_DEVICE_NAME:
+ 1700   3                          AirApp_GetDevNameCmd(linkIndex);
+ 1701   3                          break;
+ 1702   3                      case AIRAPP_CMD_SET_VP_LANG:
+ 1703   3                          AirApp_SetVPLang(linkIndex, airCmdPtr);
+ 1704   3                          break;
+ 1705   3                      case AIRAPP_CMD_CHANNEL_INFORMATION:
+ 1706   3                          AirApp_GetChannelInformationCmd(linkIndex);
+ 1707   3                          break;
+ 1708   3                      case AIRAPP_CMD_SET_PEQ_A2DP:
+ 1709   3                          AirApp_SetPEQA2DP(linkIndex, airCmdPtr);
+ 1710   3                          break;
+ 1711   3                      case AIRAPP_CMD_SET_PEQ_AUX:
+ 1712   3                          AirApp_SetPEQAUX(linkIndex, airCmdPtr);
+ 1713   3                          break;
+ 1714   3                      #ifdef PEQ_ENABLE
+ 1715   3                      case AIRAPP_CMD_SET_REALTIME_PEQ_HPF:
+ 1716   3                          AirApp_SetRealtimePeqHpf(linkIndex, airCmdPtr);
+ 1717   3                          return TRUE;
+ 1718   3                      case AIRAPP_CMD_SET_DEFAULT_PEQ_MODE:
+ 1719   3                          AirApp_SetDefaultPEQMode(linkIndex, airCmdPtr);
+ 1720   3                          break;
+ 1721   3                      #endif
+ 1722   3                      case AIRAPP_CMD_GET_BATTERY:
+ 1723   3                          AirApp_GetBatCmd(linkIndex);
+ 1724   3                          break;
+ 1725   3                      case AIRAPP_CMD_GET_CHGBAT_STATUS:
+ 1726   3                          AirApp_GetChgBatStatusCmd(linkIndex);
+ 1727   3                          break;
+ 1728   3                      case AIRAPP_CMD_GET_CHGBAT_STATUS_FOLLOWER:
+ 1729   3                          AirApp_GetChgBatStatusFollower(linkIndex);
+ 1730   3                          break;
+ 1731   3                      case AIRAPP_CMD_GET_PEQ:
+ 1732   3                          AirApp_GetPEQCmd(linkIndex);
+ 1733   3                          break;
+ 1734   3                      case AIRAPP_CMD_GET_VOICE_PROMPT:
+ 1735   3                          AirApp_GetVPCmd(linkIndex);
+ 1736   3                          break;
+ 1737   3                      case AIRAPP_CMD_GET_VOLUME:
+ 1738   3                          AirApp_GetVolCmd(linkIndex);
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 29  
+
+ 1739   3                          break;
+ 1740   3                      case AIRAPP_CMD_GET_BATTERY_RIGHT_CHANNEL:
+ 1741   3                          AirApp_GetBatCmdRightChannel(linkIndex);
+ 1742   3                          break;
+ 1743   3                      #ifdef LIGHTING_ENABLE
+                               case AIRAPP_CMD_ON_OFF_MUSIC_YOU_CAN_SEE:
+                                   AirApp_EnableMusicYouCanSee(linkIndex, airCmdPtr);
+                                   break;
+                               case AIRAPP_CMD_GET_COLOR_PICKER_RGB:
+                                   AirApp_GetColorPickerRGB(linkIndex, airCmdPtr);
+                                   break;
+                               case AIRAPP_CMD_LIGHTING_MODE_SELECT:
+                                   AirApp_LightingModeSelect(linkIndex, airCmdPtr);
+                                   break;
+                               case AIRAPP_CMD_ALARM_CLOCK:
+                                   AirApp_AlarmClock(linkIndex, airCmdPtr);
+                                   break;
+                               #endif
+ 1757   3                      case AIRAPP_CMD_SET_CALLERNAME:
+ 1758   3                          AirApp_SetCallerNameCmd(linkIndex, airCmdPtr);
+ 1759   3                          break;
+ 1760   3                      #ifdef BLE_AIRApp
+ 1761   3                      case AIRAPP_CMD_SET_TARGET_LINK_INDEX:
+ 1762   3                          AirApp_BleSetEdrTargetIdx(airCmdPtr);
+ 1763   3                          break;
+ 1764   3                      case AIRAPP_CMD_SET_LE_CONN_INTERVAL:
+ 1765   3                          AirApp_BleSetLeConnInterval(airCmdPtr);
+ 1766   3                          break;
+ 1767   3                      #endif
+ 1768   3                      case AIRAPP_CMD_KEY_MMI_KEY_EVENT:
+ 1769   3                          switch(airCmdPtr->msgBodyPtr.hciVCmd.VPara.airMMIKeyEventCmd.mmiKeyCode)
+ 1770   3                          {
+ 1771   4                              case KEY_AUDIO_TRANSPARENCY:
+ 1772   4                                  #if defined AIR_MODULE && defined AVRCP_Profile
+ 1773   4                                  if((airlink = MMI_AIR_GetAirLink(PRODUCT_AIR_TWS)) != MMI_EOF)
+ 1774   4                                  {
+ 1775   5                                      MMI_AVRCP_SendVendorUnique(airlink, AVRCP_VENDOR_UNIQ_SYNC_AND_SWITCH_AUD
+             -IO_TRANSPARENCY, (gMMI_ctl.isAudioTransparencyEnable? FALSE : TRUE));
+ 1776   5                                  }
+ 1777   4                                  #endif
+ 1778   4                                  MMI_DRV_Switch_AudioTransparency(gMMI_ctl.isAudioTransparencyEnable ? FALSE :
+             - TRUE);
+ 1779   4                                  AirApp_MMIKeyEventRsp(linkIndex, airCmdPtr->msgBodyPtr.hciVCmd.VPara.airMMIKe
+             -yEventCmd.mmiKeyCode, gMMI_ctl.isAudioTransparencyEnable);
+ 1780   4                                  break;
+ 1781   4                              case KEY_ROLE_CHANGE:
+ 1782   4                                  #if defined AIR_MODULE
+ 1783   4                                  if((airlink = MMI_AIR_GetAirLink(PRODUCT_AIR_TWS)) != MMI_EOF && A2DP_IsLinkR
+             -elayer(airlink))
+ 1784   4                                  {
+ 1785   5                                      MMI_DRV_KeyEventHandler(airlink, KEY_ROLE_CHANGE);
+ 1786   5                                      AirApp_MMIKeyEventRsp(linkIndex, KEY_ROLE_CHANGE, HCI_VEVT_OCF_RESULT_COD
+             -E_SUCCESS);
+ 1787   5                                      break;
+ 1788   5                                  }
+ 1789   4                                  #endif
+ 1790   4                                  AirApp_MMIKeyEventRsp(linkIndex, airCmdPtr->msgBodyPtr.hciVCmd.VPara.airMMIKe
+             -yEventCmd.mmiKeyCode, HCI_VEVT_OCF_RESULT_CODE_FAIL);
+ 1791   4                                  break;
+ 1792   4                              default:
+ 1793   4                                  AirApp_MMIKeyEventRsp(linkIndex, airCmdPtr->msgBodyPtr.hciVCmd.VPara.airMMIKe
+             -yEventCmd.mmiKeyCode, HCI_VEVT_OCF_RESULT_CODE_FAIL);
+ 1794   4                                  break;
+ 1795   4                          }
+ 1796   3                          break;
+ 1797   3                      case AIRAPP_CMD_SET_MASTER_AT_GAIN_CHANGE:
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 30  
+
+ 1798   3                          if(airCmdPtr->msgBodyPtr.hciVCmd.VPara.setATGainCmd.audioTsprcySoundLv < gMMI_nvram.t
+             -otalLineInSoundLevel)
+ 1799   3                          {
+ 1800   4                              gMMI_LineIn_ctl.currentsoundLevel = airCmdPtr->msgBodyPtr.hciVCmd.VPara.setATGain
+             -Cmd.audioTsprcySoundLv;
+ 1801   4                              MMI_LineIn_SendDriverVolCmd();
+ 1802   4                              AirApp_SendResponse(linkIndex, AIRAPP_CMD_SET_MASTER_AT_GAIN_CHANGE, HCI_VEVT_OCF
+             -_RESULT_CODE_SUCCESS);
+ 1803   4                          }
+ 1804   3                          else
+ 1805   3                          {
+ 1806   4                              AirApp_SendResponse(linkIndex, AIRAPP_CMD_SET_MASTER_AT_GAIN_CHANGE, HCI_VEVT_OCF
+             -_RESULT_CODE_FAIL);
+ 1807   4                          }
+ 1808   3                          break;
+ 1809   3                      case AIRAPP_CMD_SET_SLAVE_AT_GAIN_CHANGE:
+ 1810   3                          #if defined AIR_MODULE && defined AVRCP_Profile
+ 1811   3                          if((airlink = MMI_AIR_GetAirLink(PRODUCT_AIR_TWS)) != MMI_EOF && airCmdPtr->msgBodyPt
+             -r.hciVCmd.VPara.setATGainCmd.audioTsprcySoundLv < gMMI_nvram.totalLineInSoundLevel)
+ 1812   3                          {
+ 1813   4                              MMI_AVRCP_SendVendorUnique(airlink, AVRCP_VENDOR_UNIQ_SET_AT_VOL_CMD, airCmdPtr->
+             -msgBodyPtr.hciVCmd.VPara.setATGainCmd.audioTsprcySoundLv);
+ 1814   4                          }
+ 1815   3                          else
+ 1816   3                          #endif
+ 1817   3                          {
+ 1818   4                              AirApp_SendResponse(linkIndex, AIRAPP_CMD_SET_SLAVE_AT_GAIN_CHANGE, HCI_VEVT_OCF_
+             -RESULT_CODE_FAIL);
+ 1819   4                          }
+ 1820   3                          break;
+ 1821   3                      case AIRAPP_CMD_GET_MASTER_AT_GAIN:
+ 1822   3                          if(MMI_GetAudioTransparencyEnable() && gMMI_LineIn_ctl.currentsoundLevel < gMMI_nvram
+             -.totalLineInSoundLevel)
+ 1823   3                          {
+ 1824   4                              AirApp_SendResponse(linkIndex, AIRAPP_CMD_GET_MASTER_AT_GAIN, gMMI_LineIn_ctl.cur
+             -rentsoundLevel);
+ 1825   4                          }
+ 1826   3                          else
+ 1827   3                          {
+ 1828   4                              AirApp_SendResponse(linkIndex, AIRAPP_CMD_GET_MASTER_AT_GAIN, HCI_VEVT_OCF_RESULT
+             -_CODE_FAIL);
+ 1829   4                          }
+ 1830   3                          break;
+ 1831   3                      case AIRAPP_CMD_GET_SLAVE_AT_GAIN:
+ 1832   3                          #if defined AIR_MODULE && defined AVRCP_Profile
+ 1833   3                          if((airlink = MMI_AIR_GetAirLink(PRODUCT_AIR_TWS)) != MMI_EOF)
+ 1834   3                          {
+ 1835   4                              MMI_AVRCP_SendVendorUnique(airlink, AVRCP_VENDOR_UNIQ_GET_AT_GAIN_LV, 0);
+ 1836   4                          }
+ 1837   3                          else
+ 1838   3                          #endif
+ 1839   3                          {
+ 1840   4                              AirApp_SendResponse(linkIndex, AIRAPP_CMD_GET_SLAVE_AT_GAIN, HCI_VEVT_OCF_RESULT_
+             -CODE_FAIL);
+ 1841   4                          }
+ 1842   3                          break;
+ 1843   3                      case AIRAPP_CMD_GET_MASTER_AT_STATUS:
+ 1844   3                          AirApp_SendResponse(linkIndex, AIRAPP_CMD_GET_MASTER_AT_STATUS, gMMI_ctl.isAudioTrans
+             -parencyEnable ? HCI_VEVT_OCF_RESULT_CODE_SUCCESS : HCI_VEVT_OCF_RESULT_CODE_FAIL);
+ 1845   3                          break;
+ 1846   3                      case AIRAPP_CMD_GET_SLAVE_AT_STATUS:
+ 1847   3                          #if defined AIR_MODULE && defined AVRCP_Profile
+ 1848   3                          if((airlink = MMI_AIR_GetAirLink(PRODUCT_AIR_TWS)) != MMI_EOF)
+ 1849   3                          {
+ 1850   4                              MMI_AVRCP_SendVendorUnique(airlink, AVRCP_VENDOR_UNIQ_GET_AT_STATUS, 0);
+ 1851   4                          }
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 31  
+
+ 1852   3                          else
+ 1853   3                          #endif
+ 1854   3                          {
+ 1855   4                              AirApp_SendResponse(linkIndex, AIRAPP_CMD_GET_SLAVE_AT_STATUS, HCI_VEVT_OCF_RESUL
+             -T_CODE_FAIL);
+ 1856   4                          }
+ 1857   3                          break;
+ 1858   3                      default:
+ 1859   3                          LightDbgPrint("AirApp cmd Fail:%x",(U8)airCmdPtr->msgBodyPtr.hciVEvt.VOpCode.VCmdOcf)
+             -;
+ 1860   3                          AirApp_SendResponse(linkIndex, airCmdPtr->msgBodyPtr.hciVEvt.VOpCode.VCmdOcf, HCI_VEV
+             -T_OCF_RESULT_CODE_FAIL);
+ 1861   3                          break;
+ 1862   3                  }
+ 1863   2                  break;
+ 1864   2              case HCI_VENDOR_OGF_AIRAPP_CUSTOMER_CMD:
+ 1865   2                  if(api_profile_func[API_GRP_PF_CB_AIRAPP_CUSTOMER_CTL])
+ 1866   2                  {
+ 1867   3                      ((API_PROFILE_AIRAPP_CUSTOMER_CTL_FUNC)api_profile_func[API_GRP_PF_CB_AIRAPP_CUSTOMER_CTL
+             -])(linkIndex,(U8 XDATA_PTR) airCmdPtr);
+ 1868   3                  }
+ 1869   2                  break;
+ 1870   2              case HCI_VENDOR_OGF_AIRAPP_PASSTHROUGH_TRANSFER_CMD:
+ 1871   2                  if(airCmdPtr->msgBodyPtr.hciVEvt.VOpCode.VCmdOcf == AIRAPP_CMD_PASSTHROUGH_FROM_APP_TO_BT)
+ 1872   2                  {
+ 1873   3                      AirApp_SendRsp(linkIndex, AIRAPP_RSP_PASSTHROUGH_FROM_APP_TO_BT, HCI_VENDOR_OGF_AIRAPP_PA
+             -SSTHROUGH_TRANSFER_RSP, HCI_VEVT_OCF_RESULT_CODE_SUCCESS);
+ 1874   3                      MMI_HCI_AirohaCmd_PassThroughData(linkIndex, AIRAPP_RSP_PASSTHROUGH_FROM_BT_TO_UART, HCI_
+             -VENDOR_OGF_AIRAPP_PASSTHROUGH_TRANSFER_RSP, airCmdPtr);
+ 1875   3                  }
+ 1876   2                  break;
+ 1877   2              case HCI_VENDOR_OGF_AIRAPP_PARSING_SECTOR_INFO:
+ 1878   2                  switch(airCmdPtr->msgBodyPtr.hciVEvt.VOpCode.VCmdOcf)
+ 1879   2                  {
+ 1880   3                      case AIRAPP_CMD_PARSING_AE_SECTOR:
+ 1881   3                          AirApp_GetSectorInfo(linkIndex, airCmdPtr);
+ 1882   3                          break;
+ 1883   3                  }
+ 1884   2                  break;
+ 1885   2          }
+ 1886   1          return FALSE;
+ 1887   1      }
+ 1888          
+ 1889          PUBLIC void AirApp_OTAFail(void)
+ 1890          {
+ 1891   1          if(AirApp_IsDSPLockedByOTA())
+ 1892   1          {
+ 1893   2              LightDbgPrint("Clear OTA Flag");
+ 1894   2              MMI_SniffEnable(AirApp_GetFlashUpdateLinkIndex(), MMI_SNIFF_OTA);
+ 1895   2              AirApp_SetDSPUnlockByOTA();
+ 1896   2          }
+ 1897   1          MMI_DRV_SetOTAVoicepromptsExist(FALSE);
+ 1898   1      }
+ 1899          
+ 1900          PRIVATE BOOL AirApp_DataHandler(U8 linkIndex, U8 XDATA_PTR dataPtr)
+ 1901          {
+ 1902   1          AirAppDataHCIDataType XDATA_PTR appDataPtr = (AirAppDataHCIDataType XDATA_PTR)&((ProfileDataEvent XDA
+             -TA_PTR)dataPtr)->dataBody;
+ 1903   1      
+ 1904   1          switch (appDataPtr->VOpCode.VCmdOgf)
+ 1905   1          {
+ 1906   2      
+ 1907   2      #ifdef BLE_AIRApp
+ 1908   2              case HCI_ACL_OGF_APP_REMOTE_FLASH_BLE:
+ 1909   2                  LightDbgPrint("@SamAPPin: %x", (U8)appDataPtr->VOpCode.VCmdOgf);
+ 1910   2                  if(A2DP_SearchRelayerLink() == MAX_MULTI_POINT_NO)
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 32  
+
+ 1911   2                  {
+ 1912   3                      AirApp_BleSendAclErrorRsp(appDataPtr->VOpCode.VCmdOcf);
+ 1913   3                      LightDbgPrint("Follower does not exist.");
+ 1914   3                      return FALSE;
+ 1915   3                  }
+ 1916   2                  /* fall through */
+ 1917   2              case HCI_ACL_OGF_APP_FLASH_BLE:
+ 1918   2      #endif
+ 1919   2      
+ 1920   2      #ifdef AB1520_FLASH_REMOTE_UPDATE
+ 1921   2              case HCI_ACL_OGF_APP_REMOTE_FLASH:
+ 1922   2      #endif
+ 1923   2      
+ 1924   2              case HCI_ACL_OGF_APP_FLASH:
+ 1925   2                  if(AirApp_IsDSPLockedByOTA())
+ 1926   2                  {
+ 1927   3                      if(linkIndex != AirApp_GetFlashUpdateLinkIndex())
+ 1928   3                      {
+ 1929   4                          LightDbgPrint("DataHandler fail: %x %x", (U8)gAirApp_ctl.flashUpdateLinkIndex, (U8)li
+             -nkIndex);
+ 1930   4                          return FALSE;
+ 1931   4                      }
+ 1932   3                  }
+ 1933   2                  else
+ 1934   2                  {
+ 1935   3                      LightDbgPrint("To Lock DSP");
+ 1936   3      
+ 1937   3                      AirApp_SetDSPLockByOTA(linkIndex);
+ 1938   3      
+ 1939   3                      //if(MMI_GetNextNormalLink(linkIndex) != MMI_EOF)
+ 1940   3                      //  MMI_ReleaseProfileLinkAndDetach(MMI_GetNextNormalLink(linkIndex));
+ 1941   3      
+ 1942   3                      if(linkIndex != 0xFF) /* SniffDisable when 3.0 normal link exist */
+ 1943   3                          MMI_SniffDisable(linkIndex, MMI_SNIFF_OTA);
+ 1944   3                  }
+ 1945   2                  *(U16 XDATA_PTR)&appDataPtr->hciHandleL = ENDIAN_TRANSFORM_U16(*(U16 XDATA_PTR)&appDataPtr->h
+             -ciHandleL);
+ 1946   2                  *(U16 XDATA_PTR)&appDataPtr->hciLengthL = ENDIAN_TRANSFORM_U16(*(U16 XDATA_PTR)&appDataPtr->h
+             -ciLengthL);
+ 1947   2      
+ 1948   2                  OSMEM_memcpy_xdata_xdata(&((HC_ACL_CMD_STRU XDATA_PTR)dataPtr)->ConnHdl, &appDataPtr->hciHand
+             -leL, *(U16 XDATA_PTR)&appDataPtr->hciLengthL + 4/*ConnHdl+Len*/);
+ 1949   2                  OSMQ_Put(OSMQ_HC_FlashData_From_UART_ptr, dataPtr);
+ 1950   2      
+ 1951   2                  return TRUE;
+ 1952   2      
+ 1953   2      #if AIRAPP_CALLER_NAME
+ 1954   2              case HCI_ACL_OGF_APP_CALLER_NAME:
+ 1955   2                  return AirApp_CallerNameDataHandler(linkIndex, dataPtr);
+ 1956   2      #endif
+ 1957   2      
+ 1958   2          }
+ 1959   1          return FALSE;
+ 1960   1      }
+ 1961          
+ 1962          #define OS_GET_MEM_PTR_FROM_MEMORY_BLOCK(PTR_A) (OS_CONTAINER_OF(PTR_A,OSMEM_BLK,data_space)->header.mem_
+             -ptr)
+ 1963          PRIVATE void AirApp_RemoteDataHandler(U8 linkIndex)
+ 1964          {
+ 1965   1          AIRAPP_LINK_INFO XDATA_PTR airappLinkInfo = AirApp_GetLinkInfo(linkIndex);
+ 1966   1          U8 XDATA_PTR dataPtr = OSMQ_Get(&airappLinkInfo->OSMQ_AIRAPP_Data_From_Remote);
+ 1967   1      
+ 1968   1          if(!dataPtr)
+ 1969   1              return;
+ 1970   1      
+ 1971   1          if(airappLinkInfo->mmiProfileInfo.state == PROFILE_CONNECTED)
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 33  
+
+ 1972   1          {
+ 1973   2              switch(airappLinkInfo->dataCtl.state)
+ 1974   2              {
+ 1975   3                  case AIRAPP_DATA_STATE_NO_DATA:
+ 1976   3                      if(((ProfileDataEvent XDATA_PTR)dataPtr)->dataBody[0] == AIRAPP_HCI_CMD_PACKET)
+ 1977   3                      {
+ 1978   4                          if(AirApp_CmdHandler(linkIndex, dataPtr))
+ 1979   4                              return; //bypass OSMEM_Put()
+ 1980   4                      }
+ 1981   3                      else if(((ProfileDataEvent XDATA_PTR)dataPtr)->dataBody[0] == AIRAPP_HCI_EVENT_PACKET)
+ 1982   3                      {
+ 1983   4                          if(AirApp_EventHandler(linkIndex, dataPtr))
+ 1984   4                              return; //bypass OSMEM_Put();
+ 1985   4                      }
+ 1986   3                      else if(((ProfileDataEvent XDATA_PTR)dataPtr)->dataBody[0] == AIRAPP_HCI_DATA_PACKET)
+ 1987   3                      {
+ 1988   4                          AirAppDataHCIDataType XDATA_PTR airDataPtr = (AirAppDataHCIDataType XDATA_PTR)&((Prof
+             -ileDataEvent XDATA_PTR)dataPtr)->dataBody[0];
+ 1989   4                          U16 totalLength = *(U16 XDATA_PTR)&airDataPtr->hciLengthL;
+ 1990   4                          totalLength = ENDIAN_TRANSFORM_U16(totalLength) + 5;
+ 1991   4      
+ 1992   4                          if(((ProfileDataEvent XDATA_PTR)dataPtr)->dataLength == totalLength)
+ 1993   4                          {
+ 1994   5                              if (AirApp_DataHandler(linkIndex, dataPtr))
+ 1995   5                                  return; //bypass OSMEM_Put()
+ 1996   5                          }
+ 1997   4                          else
+ 1998   4                          {
+ 1999   5                              totalLength += (sizeof(ProfileDataEvent) -1);
+ 2000   5                              if(totalLength > OSMEM2_LARGE_RX_BLKSIZE)
+ 2001   5                              {
+ 2002   6                                  //Do nothing -->Drop packet
+ 2003   6                              }
+ 2004   5                              else if(totalLength > OSMEM2_SMALL_RX_BLKSIZE)
+ 2005   5                              {
+ 2006   6                                  if(OS_GET_MEM_PTR_FROM_MEMORY_BLOCK(dataPtr) == OSMEM_ptr2_large_RX)
+ 2007   6                                  {
+ 2008   7                                      goto SET_DATA_PTR;
+ 2009   7                                  }
+ 2010   6                                  else
+ 2011   6                                  {
+ 2012   7                                      if(airappLinkInfo->dataCtl.dataPtr = OSMEM_Get(OSMEM_ptr2_large_RX))
+ 2013   7                                      {
+ 2014   8                                          goto NEW_DATA_PKT;
+ 2015   8                                      }
+ 2016   7                                  }
+ 2017   6                              }
+ 2018   5                              else if(totalLength > OSMEM2_TINY_RX_BLKSIZE)
+ 2019   5                              {
+ 2020   6                                  if(OS_GET_MEM_PTR_FROM_MEMORY_BLOCK(dataPtr) == OSMEM_ptr2_large_RX || OS_GET
+             -_MEM_PTR_FROM_MEMORY_BLOCK(dataPtr) == OSMEM_ptr2_small_RX)
+ 2021   6                                  {
+ 2022   7                                      goto SET_DATA_PTR;
+ 2023   7                                  }
+ 2024   6                                  else
+ 2025   6                                  {
+ 2026   7                                      if(airappLinkInfo->dataCtl.dataPtr = OSMEM_Get(OSMEM_ptr2_small_RX))
+ 2027   7                                      {
+ 2028   8                                          goto NEW_DATA_PKT;
+ 2029   8                                      }
+ 2030   7                                      else if(airappLinkInfo->dataCtl.dataPtr = OSMEM_Get(OSMEM_ptr2_large_RX))
+ 2031   7                                      {
+ 2032   8                                          goto NEW_DATA_PKT;
+ 2033   8                                      }
+ 2034   7                                  }
+ 2035   6                              }
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 34  
+
+ 2036   5                              else
+ 2037   5                              {
+ 2038   6                                  if(OS_GET_MEM_PTR_FROM_MEMORY_BLOCK(dataPtr) == OSMEM_ptr2_large_RX || OS_GET
+             -_MEM_PTR_FROM_MEMORY_BLOCK(dataPtr) == OSMEM_ptr2_small_RX ||OS_GET_MEM_PTR_FROM_MEMORY_BLOCK(dataPtr) == OSMEM_ptr2_tin
+             -y_RX)
+ 2039   6                                  {
+ 2040   7                                      SET_DATA_PTR:
+ 2041   7                                      totalLength -= (sizeof(ProfileDataEvent) -1);
+ 2042   7                                      airappLinkInfo->dataCtl.dataPtr = dataPtr;
+ 2043   7                                      airappLinkInfo->dataCtl.state = AIRAPP_DATA_STATE_CONTINUE;
+ 2044   7                                      airappLinkInfo->dataCtl.offset = ((ProfileDataEvent XDATA_PTR)dataPtr)->d
+             -ataLength;
+ 2045   7                                      airappLinkInfo->dataCtl.remainLength = totalLength - ((ProfileDataEvent X
+             -DATA_PTR)dataPtr)->dataLength;
+ 2046   7                                      return;
+ 2047   7                                  }
+ 2048   6                                  else
+ 2049   6                                  {
+ 2050   7                                      if(airappLinkInfo->dataCtl.dataPtr = OSMEM_Get(OSMEM_ptr2_tiny_RX))
+ 2051   7                                      {
+ 2052   8                                          goto NEW_DATA_PKT;
+ 2053   8                                      }
+ 2054   7                                      else if(airappLinkInfo->dataCtl.dataPtr = OSMEM_Get(OSMEM_ptr2_small_RX))
+ 2055   7                                      {
+ 2056   8                                          goto NEW_DATA_PKT;
+ 2057   8                                      }
+ 2058   7                                      else if(airappLinkInfo->dataCtl.dataPtr = OSMEM_Get(OSMEM_ptr2_large_RX))
+ 2059   7                                      {
+ 2060   8                                          NEW_DATA_PKT:
+ 2061   8                                          OSMEM_memcpy_xdata_xdata(airappLinkInfo->dataCtl.dataPtr, dataPtr, to
+             -talLength);
+ 2062   8                                          totalLength -= (sizeof(ProfileDataEvent) -1);
+ 2063   8                                          airappLinkInfo->dataCtl.state = AIRAPP_DATA_STATE_CONTINUE;
+ 2064   8                                          airappLinkInfo->dataCtl.offset = ((ProfileDataEvent XDATA_PTR)dataPtr
+             -)->dataLength;
+ 2065   8                                          airappLinkInfo->dataCtl.remainLength = totalLength - ((ProfileDataEve
+             -nt XDATA_PTR)dataPtr)->dataLength;
+ 2066   8                                      }
+ 2067   7                                  }
+ 2068   6                              }
+ 2069   5                          }
+ 2070   4                      }
+ 2071   3                      break;
+ 2072   3                  case AIRAPP_DATA_STATE_CONTINUE:
+ 2073   3                      {
+ 2074   4                          U16 dataLength = ((ProfileDataEvent XDATA_PTR)dataPtr)->dataLength;
+ 2075   4      
+ 2076   4                          if(airappLinkInfo->dataCtl.remainLength >= dataLength)
+ 2077   4                          {
+ 2078   5                              OSMEM_memcpy_xdata_xdata(&(((ProfileDataEvent XDATA_PTR)airappLinkInfo->dataCtl.d
+             -ataPtr)->dataBody[airappLinkInfo->dataCtl.offset]), &(((ProfileDataEvent XDATA_PTR)dataPtr)->dataBody[0]), dataLength);
+ 2079   5                              airappLinkInfo->dataCtl.remainLength -= dataLength;
+ 2080   5                              airappLinkInfo->dataCtl.offset += dataLength;
+ 2081   5                              ((ProfileDataEvent XDATA_PTR)airappLinkInfo->dataCtl.dataPtr)->dataLength += data
+             -Length;
+ 2082   5                          }
+ 2083   4                          else
+ 2084   4                          {
+ 2085   5                              SYS_MemoryRelease(&airappLinkInfo->dataCtl.dataPtr);
+ 2086   5                              airappLinkInfo->dataCtl.state = AIRAPP_DATA_STATE_NO_DATA;
+ 2087   5                          }
+ 2088   4      
+ 2089   4                          if(airappLinkInfo->dataCtl.remainLength == 0)
+ 2090   4                          {
+ 2091   5                              if (AirApp_DataHandler(linkIndex, airappLinkInfo->dataCtl.dataPtr))
+ 2092   5                              {
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 35  
+
+ 2093   6                                  airappLinkInfo->dataCtl.dataPtr = NULL;
+ 2094   6                              }
+ 2095   5                              else
+ 2096   5                              {
+ 2097   6                                  SYS_MemoryRelease(&airappLinkInfo->dataCtl.dataPtr);
+ 2098   6                              }
+ 2099   5                              airappLinkInfo->dataCtl.state = AIRAPP_DATA_STATE_NO_DATA;
+ 2100   5                          }
+ 2101   4                      }
+ 2102   3                      break;
+ 2103   3              }
+ 2104   2          }
+ 2105   1          OSMEM_Put(dataPtr);
+ 2106   1      
+ 2107   1      }
+ 2108          
+ 2109          PRIVATE void AirApp_PollingIndications(U8 linkIndex)
+ 2110          {
+ 2111   1          AIRAPP_LINK_INFO XDATA_PTR airappLinkInfo = AirApp_GetLinkInfo(linkIndex);
+ 2112   1      
+ 2113   1          if(airappLinkInfo->mmiProfileInfo.state == PROFILE_CONNECTED)
+ 2114   1          {
+ 2115   2              AirAppMsgType XDATA_PTR airAppPtr;
+ 2116   2              U8 XDATA_PTR dataSentPtr;
+ 2117   2      
+ 2118   2              U8 para = MMI_BAT_GetLevelInPercent();
+ 2119   2              if(airappLinkInfo->batStatus != para)
+ 2120   2              {
+ 2121   3                  //LightDbgPrint("AirAppBat:%d",(U8)para, (U8)airappLinkInfo->batStatus);
+ 2122   3                  if(airappLinkInfo->batStatus > para)
+ 2123   3                  {
+ 2124   4                      if(airappLinkInfo->batStatus - para < 10)
+ 2125   4                          goto SEND_VP_POLLING;
+ 2126   4                  }
+ 2127   3                  else
+ 2128   3                  {
+ 2129   4                      if(para - airappLinkInfo->batStatus < 10)
+ 2130   4                          goto SEND_VP_POLLING;
+ 2131   4                  }
+ 2132   3      
+ 2133   3                  if((dataSentPtr = AirApp_GetUnSolicitedInd(AIRAPP_IND_REPORT_BAT_STATUS, 1)) == (U8 XDATA_PTR
+             -)NULL)
+ 2134   3                      return;
+ 2135   3      
+ 2136   3                  airAppPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+ 2137   3                  airAppPtr->VPara.batStatus = para;
+ 2138   3                  AirApp_SendData(linkIndex, dataSentPtr);
+ 2139   3                  airappLinkInfo->batStatus = para;
+ 2140   3                  LightDbgPrint("AirApp - report bat:%d",(U8)para);
+ 2141   3              }
+ 2142   2      
+ 2143   2              SEND_VP_POLLING:
+ 2144   2              para = MMI_DRV_IsVoicePromptEnabled();
+ 2145   2              if(airappLinkInfo->isVPOn != para)
+ 2146   2              {
+ 2147   3                  if((dataSentPtr = AirApp_GetUnSolicitedInd(AIRAPP_IND_REPORT_VP_STATUS, 1)) == (U8 XDATA_PTR)
+             -NULL)
+ 2148   3                      return;
+ 2149   3      
+ 2150   3                  airAppPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+ 2151   3                  airAppPtr->VPara.isVPOn = para;
+ 2152   3                  AirApp_SendData(linkIndex, dataSentPtr);
+ 2153   3                  airappLinkInfo->isVPOn = para;
+ 2154   3                  LightDbgPrint("AirApp - VP:%d",(U8)para);
+ 2155   3              }
+ 2156   2      
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 36  
+
+ 2157   2              para = gMMI_driver_variation_nvram.misc_para.init.vpLangIndex;
+ 2158   2              if(airappLinkInfo->VPLang != para)
+ 2159   2              {
+ 2160   3                  if((dataSentPtr = AirApp_GetUnSolicitedInd(AIRAPP_IND_REPORT_VP_LANG, 1)) == (U8 XDATA_PTR)NU
+             -LL)
+ 2161   3                      return;
+ 2162   3      
+ 2163   3                  airAppPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+ 2164   3                  airAppPtr->VPara.VPLang = para;
+ 2165   3                  AirApp_SendData(linkIndex, dataSentPtr);
+ 2166   3                  airappLinkInfo->VPLang = para;
+ 2167   3                  LightDbgPrint("AirApp - VPLang:%d",(U8)para);
+ 2168   3              }
+ 2169   2      
+ 2170   2              para = PEQ_GetModeIndex(PEQ_A2DP);
+ 2171   2              if(airappLinkInfo->PEQMode[PEQ_A2DP] != para)
+ 2172   2              {
+ 2173   3                  if((dataSentPtr = AirApp_GetUnSolicitedInd(AIRAPP_IND_REPORT_PEQ_A2DP_CHANGE, 1)) == (U8 XDAT
+             -A_PTR)NULL)
+ 2174   3                      return;
+ 2175   3      
+ 2176   3                  airAppPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+ 2177   3                  airAppPtr->VPara.PEQMode = para;
+ 2178   3                  AirApp_SendData(linkIndex, dataSentPtr);
+ 2179   3                  airappLinkInfo->PEQMode[PEQ_A2DP] = para;
+ 2180   3                  LightDbgPrint("AirApp - PEQ_A2DP:%d",(U8)para);
+ 2181   3              }
+ 2182   2      
+ 2183   2              para = PEQ_GetModeIndex(PEQ_LINE_IN);
+ 2184   2              if(airappLinkInfo->PEQMode[PEQ_LINE_IN] != para)
+ 2185   2              {
+ 2186   3                  if((dataSentPtr = AirApp_GetUnSolicitedInd(AIRAPP_IND_REPORT_PEQ_AUX_CHANGE, 1)) == (U8 XDATA
+             -_PTR)NULL)
+ 2187   3                      return;
+ 2188   3      
+ 2189   3                  airAppPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+ 2190   3                  airAppPtr->VPara.PEQMode = para;
+ 2191   3                  AirApp_SendData(linkIndex, dataSentPtr);
+ 2192   3                  airappLinkInfo->PEQMode[PEQ_LINE_IN] = para;
+ 2193   3                  LightDbgPrint("AirApp - PEQ_LINE_IN:%d",(U8)para);
+ 2194   3              }
+ 2195   2      
+ 2196   2              #ifdef AVRCP_Profile
+ 2197   2              #ifdef LINEIN_ENABLE
+ 2198   2              if(MMI_LineIn_IsDSPOpen())
+ 2199   2              {
+ 2200   3                  para = MMI_LineIn_GetAbsVolByLineIn();
+ 2201   3              }
+ 2202   2              else
+ 2203   2              #endif
+ 2204   2              if(MMI_CheckLinkInCallRelatedState(linkIndex))
+ 2205   2              {
+ 2206   3                  para = MMI_AVRCP_GetAbsVolBySCO(linkIndex);
+ 2207   3              }
+ 2208   2              else
+ 2209   2              {
+ 2210   3                  para = MMI_AVRCP_GetAbsVolByMusic(linkIndex);
+ 2211   3              }
+ 2212   2              #endif
+ 2213   2      
+ 2214   2              if(airappLinkInfo->vol != para)
+ 2215   2              {
+ 2216   3                  if((dataSentPtr = AirApp_GetUnSolicitedInd(AIRAPP_IND_REPORT_VOL_CHANGE, 1)) == (U8 XDATA_PTR
+             -)NULL)
+ 2217   3                      return;
+ 2218   3      
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 37  
+
+ 2219   3                  airAppPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+ 2220   3                  airAppPtr->VPara.vol = para;
+ 2221   3                  AirApp_SendData(linkIndex, dataSentPtr);
+ 2222   3                  airappLinkInfo->vol = para;
+ 2223   3                  LightDbgPrint("AirApp - vol:%d",(U8)para);
+ 2224   3              }
+ 2225   2      
+ 2226   2              para = PEQ_GetSectorMode(PEQ_A2DP);
+ 2227   2              if(airappLinkInfo->PEQSectorMode[PEQ_A2DP] != para)
+ 2228   2              {
+ 2229   3                  if((dataSentPtr = AirApp_GetUnSolicitedInd(AIRAPP_IND_REPORT_PEQ_SECTOR_CHANGE, 1)) == (U8 XD
+             -ATA_PTR)NULL)
+ 2230   3                      return;
+ 2231   3      
+ 2232   3                  airAppPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+ 2233   3                  airAppPtr->VPara.PEQSectorMode = para;
+ 2234   3                  AirApp_SendData(linkIndex, dataSentPtr);
+ 2235   3                  airappLinkInfo->PEQSectorMode[PEQ_A2DP] = para;
+ 2236   3                  LightDbgPrint("AirApp - A2DP Sector Mode:%d",(U8)para);
+ 2237   3              }
+ 2238   2      
+ 2239   2              para = PEQ_GetSectorMode(PEQ_LINE_IN);
+ 2240   2              if(airappLinkInfo->PEQSectorMode[PEQ_LINE_IN] != para)
+ 2241   2              {
+ 2242   3                  if((dataSentPtr = AirApp_GetUnSolicitedInd(AIRAPP_IND_REPORT_PEQ_SECTOR_CHANGE, 1)) == (U8 XD
+             -ATA_PTR)NULL)
+ 2243   3                      return;
+ 2244   3      
+ 2245   3                  airAppPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+ 2246   3                  airAppPtr->VPara.PEQSectorMode = para;
+ 2247   3                  AirApp_SendData(linkIndex, dataSentPtr);
+ 2248   3                  airappLinkInfo->PEQSectorMode[PEQ_LINE_IN] = para;
+ 2249   3                  LightDbgPrint("AirApp - LINE IN Sector Mode:%d",(U8)para);
+ 2250   3              }
+ 2251   2          }
+ 2252   1      }
+ 2253          
+ 2254          PRIVATE void AirApp_CheckTimer(U8 linkindex)
+ 2255          {
+ 2256   1      #if AIRAPP_CALLER_NAME
+ 2257   1          if(SYS_IsTimerExpired(&gAirApp_ctl.callNameCtl.suspendDSPTimer))
+ 2258   1          {
+ 2259   2              AirApp_ResumeDSP();
+ 2260   2          }
+ 2261   1      #endif
+ 2262   1          UNUSED(linkindex);
+ 2263   1      }
+ 2264          
+ 2265          PRIVATE void AirApp(U8 linkIndex)
+ 2266          {
+ 2267   1          AirApp_RemoteDataHandler(linkIndex);
+ 2268   1          AirApp_PollingIndications(linkIndex);
+ 2269   1          AirApp_CheckTimer(linkIndex);
+ 2270   1          #if AIRAPP_CALLER_NAME
+ 2271   1          if(!MMI_AllLinksInCallRelatedState())
+ 2272   1              AirApp_EraseCallerNameSector();
+ 2273   1          #endif
+ 2274   1      }
+ 2275          
+ 2276          PRIVATE void AirApp_ClearLinkInfo(U8 linkIndex)
+ 2277          {
+ 2278   1          AIRAPP_LINK_INFO XDATA_PTR airappLinkInfo = AirApp_GetLinkInfo(linkIndex);
+ 2279   1          airappLinkInfo->mmiProfileInfo.state = PROFILE_DISCONNECTED;
+ 2280   1          OSMQ_FlushAndReleaseMemoryBlock(&airappLinkInfo->OSMQ_AIRAPP_Data_From_Remote);
+ 2281   1          if(linkIndex == gAirApp_ctl.callNameCtl.callerNameLinkIndex)
+ 2282   1          {
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 38  
+
+ 2283   2              AirApp_ResumeDSP();
+ 2284   2          }
+ 2285   1          if(airappLinkInfo->dataCtl.dataPtr)
+ 2286   1              SYS_MemoryRelease(&airappLinkInfo->dataCtl.dataPtr);
+ 2287   1      
+ 2288   1          airappLinkInfo->dataCtl.state = 0;
+ 2289   1          airappLinkInfo->dataCtl.offset = 0;
+ 2290   1      }
+ 2291          
+ 2292          PRIVATE MMI_PROFILE_INFO XDATA_PTR AirApp_ConnectRequest(U8 linkIndex, U8 profileId)
+ 2293          {
+ 2294   1          AIRAPP_LINK_INFO XDATA_PTR airappLinkInfo = AirApp_GetLinkInfo(linkIndex);
+ 2295   1      
+ 2296   1      #ifdef BLE_AIRApp
+ 2297   1          AirApp_BleResetEdrProfileState(airappLinkInfo);
+ 2298   1      #endif
+ 2299   1      
+ 2300   1          if (airappLinkInfo->mmiProfileInfo.state == PROFILE_DISCONNECTED)
+ 2301   1          {
+ 2302   2              if (RFCOMM_ConnectProfile(linkIndex, profileId) == NO_ERROR)
+ 2303   2              {
+ 2304   3                  return &airappLinkInfo->mmiProfileInfo;
+ 2305   3              }
+ 2306   2          }
+ 2307   1          return (MMI_PROFILE_INFO XDATA_PTR)NULL;
+ 2308   1      }
+ 2309          
+ 2310          PRIVATE U8 AirApp_DisconnectRequest(U8 linkIndex, MMI_PROFILE_INFO XDATA_PTR profileInfo)
+ 2311          {
+ 2312   1          AIRAPP_LINK_INFO XDATA_PTR airappLinkInfo = AirApp_GetLinkInfo(linkIndex);
+ 2313   1      
+ 2314   1          if (&airappLinkInfo->mmiProfileInfo == profileInfo)
+ 2315   1          {
+ 2316   2              if (airappLinkInfo->mmiProfileInfo.state != PROFILE_DISCONNECTED)
+ 2317   2              {
+ 2318   3                  if (CMD_WAITING == RFCOMM_DisconnectProfile(linkIndex, profileInfo->profileDesc->profileId))
+ 2319   3                  {
+ 2320   4                      airappLinkInfo->mmiProfileInfo.state = PROFILE_DISCONNECTING;
+ 2321   4                      return CMD_WAITING;
+ 2322   4                  }
+ 2323   3      
+ 2324   3                  MMI_UnloadProfile(linkIndex, &airappLinkInfo->mmiProfileInfo);
+ 2325   3                  AirApp_ClearLinkInfo(linkIndex);
+ 2326   3              }
+ 2327   2          }
+ 2328   1          return CMD_COMPLETE;
+ 2329   1      }
+ 2330          
+ 2331          PRIVATE void AirApp_LinkEvent(U8 linkIndex, U8 evtCode, LINK_EVENT_PARAMS XDATA_PTR evtParams)
+ 2332          {
+ 2333   1          AIRAPP_LINK_INFO XDATA_PTR airappLinkInfo = AirApp_GetLinkInfo(linkIndex);
+ 2334   1      
+ 2335   1          switch (evtCode)
+ 2336   1          {
+ 2337   2              case PROFILE_LINK_EVENT_CONN_REQUEST:
+ 2338   2                  evtParams->connRequest.result = PROFILE_LINK_RESULT_CONN_REJECT;
+ 2339   2                  if (airappLinkInfo->mmiProfileInfo.state == PROFILE_DISCONNECTED)
+ 2340   2                  {
+ 2341   3                      if(MMI_IsLinkActiveDisconnecting(linkIndex))
+ 2342   3                      {
+ 2343   4                          evtParams->connRequest.result = PROFILE_LINK_RESULT_CONN_REJECT_ACTIVE_DISC;
+ 2344   4                      }
+ 2345   3                      else
+ 2346   3                      {
+ 2347   4                          #ifdef AIR_MODULE
+ 2348   4                          if (!MMI_AIR_IsAirLink(linkIndex))
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 39  
+
+ 2349   4                          #endif
+ 2350   4                          {
+ 2351   5                              #ifdef BLE_AIRApp
+ 2352   5                              if(AirApp_BleIsActivated())
+ 2353   5                              {
+ 2354   6                                  evtParams->connRequest.result = PROFILE_LINK_RESULT_CONN_REJECT_ACTIVE_DISC;
+ 2355   6                                  break;
+ 2356   6                              }
+ 2357   5                              else
+ 2358   5                              {
+ 2359   6                                  AirApp_BleSetEnable(FALSE);
+ 2360   6                              }
+ 2361   5                              #endif
+ 2362   5                          }
+ 2363   4      
+ 2364   4                          evtParams->connRequest.result = PROFILE_LINK_RESULT_CONN_ACCEPT;
+ 2365   4                          evtParams->connRequest.profileInfo = &airappLinkInfo->mmiProfileInfo;
+ 2366   4      
+ 2367   4                      }
+ 2368   3                  }
+ 2369   2                  break;
+ 2370   2      
+ 2371   2              case PROFILE_LINK_EVENT_CONN_COMPLETE:
+ 2372   2                  if (airappLinkInfo->mmiProfileInfo.state == PROFILE_CONNECTING)
+ 2373   2                  {
+ 2374   3                      if (evtParams->connComplete.status == NO_ERROR)
+ 2375   3                      {
+ 2376   4                          airappLinkInfo->mmiProfileInfo.state = PROFILE_CONNECTED;
+ 2377   4                          MMI_ActivateProfile(linkIndex, &airappLinkInfo->mmiProfileInfo);
+ 2378   4                      }
+ 2379   3                      else
+ 2380   3                      {
+ 2381   4                          if(evtParams->connComplete.status == SECURITY_BLOCK)
+ 2382   4                          {
+ 2383   5                              MMI_SetReconnectProfile(linkIndex, airappLinkInfo->mmiProfileInfo.profileDesc->pr
+             -ofileId, ONE_SEC);
+ 2384   5                          }
+ 2385   4                          evtCode = PROFILE_LINK_EVENT_DISC_COMPLETE;
+ 2386   4                          goto AIRAPP_DISC_CPL;
+ 2387   4                      }
+ 2388   3                  }
+ 2389   2                  break;
+ 2390   2      
+ 2391   2              case PROFILE_LINK_EVENT_DISC_COMPLETE:
+ 2392   2              case PROFILE_LINK_EVENT_DISC_LINKLOSS:
+ 2393   2                  if (airappLinkInfo->mmiProfileInfo.state != PROFILE_DISCONNECTED)
+ 2394   2                  {
+ 2395   3                      AIRAPP_DISC_CPL:
+ 2396   3      
+ 2397   3                      MMI_UnloadProfile(linkIndex, &airappLinkInfo->mmiProfileInfo);
+ 2398   3                      MMI_PROTOCOL_L2CAPDisconnected(linkIndex, evtCode, FALSE);
+ 2399   3                      AirApp_ClearLinkInfo(linkIndex);
+ 2400   3                      #ifdef BLE_AIRApp
+ 2401   3                      AirApp_BleSetEnable(TRUE);
+ 2402   3                      #endif
+ 2403   3                  }
+ 2404   2                  break;
+ 2405   2          }
+ 2406   1      }
+ 2407          
+ 2408          PUBLIC void AirApp_FakeMedia_Event(U16 id)
+ 2409          {
+ 2410   1          U8 linkIndex, cmdCode;
+ 2411   1      
+ 2412   1          cmdCode = 0;
+ 2413   1          switch(id)
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 40  
+
+ 2414   1          {
+ 2415   2              case MEDIA_EVT_KEY_VOICE_PROMPT_ENABLE:
+ 2416   2                  cmdCode = AIRAPP_CMD_KEY_VOICE_PROMPT_ENABLE;
+ 2417   2                  break;
+ 2418   2              case MEDIA_EVT_KEY_VOICE_PROMPT_DISABLE:
+ 2419   2                  cmdCode = AIRAPP_CMD_KEY_VOICE_PROMPT_DISABLE;
+ 2420   2                  break;
+ 2421   2              case MEDIA_EVT_VOICE_PROMPT_LANG_CHANGE:
+ 2422   2                  cmdCode = AIRAPP_CMD_KEY_VOICE_PROMPT_LANG_CHANGE;
+ 2423   2                  break;
+ 2424   2              case MEDIA_EVT_KEY_FIND_MY_ACCESSORY:
+ 2425   2                  cmdCode = AIRAPP_CMD_FIND_MY_ACCESSORY;
+ 2426   2                  break;
+ 2427   2              default:
+ 2428   2                  return;
+ 2429   2          }
+ 2430   1          START_SEARCH:
+ 2431   1          for(linkIndex = 0; linkIndex < MAX_MULTI_POINT_NO; linkIndex++)
+ 2432   1          {
+ 2433   2              if(cmdCode && (AirApp_GetLinkInfo(linkIndex))->cmdState == cmdCode)
+ 2434   2              {
+ 2435   3                  AirApp_SendResponse(linkIndex, cmdCode, HCI_VEVT_OCF_RESULT_CODE_SUCCESS);
+ 2436   3                  (AirApp_GetLinkInfo(linkIndex))->cmdState = 0;
+ 2437   3              }
+ 2438   2          }
+ 2439   1      
+ 2440   1          if(cmdCode == AIRAPP_CMD_KEY_VOICE_PROMPT_LANG_CHANGE)
+ 2441   1          {
+ 2442   2              cmdCode = AIRAPP_CMD_SET_VP_LANG;
+ 2443   2              goto START_SEARCH;
+ 2444   2          }
+ 2445   1      }
+ 2446          
+ 2447          PRIVATE void AirApp_DataEvent(U8 linkIndex, U8 XDATA_PTR dataPtr)
+ 2448          {
+ 2449   1          AIRAPP_LINK_INFO XDATA_PTR airappLinkInfo = AirApp_GetLinkInfo(linkIndex);
+ 2450   1      
+ 2451   1          OSMQ_Put(&airappLinkInfo->OSMQ_AIRAPP_Data_From_Remote,dataPtr);
+ 2452   1      }
+ 2453          
+ 2454          #ifdef BLE_AIRApp
+ 2455          PRIVATE void AirApp_BleInit(void)
+ 2456          {
+ 2457   1          gAirApp_ctl.targetIdx = 0xFF;
+ 2458   1      
+ 2459   1          AppCtl.TxIdx = ATT_FindServerIndexByAddr((U8 CODE_PTR)&AppCtl.TxIdx);
+ 2460   1          AppCtl.TxCccdIdx = ATT_FindServerIndexByAddr((U8 CODE_PTR)AppCtl.TX_CCCD);
+ 2461   1      
+ 2462   1          AirApp_SetDSPUnlockByOTA();
+ 2463   1      }
+ 2464          
+ 2465          PUBLIC void AirApp_BleSetEnable(BOOL enabled)
+ 2466          {
+ 2467   1          if (enabled)
+ 2468   1          {
+ 2469   2              ATT_ModifyAttrPermisson(AppCtl.TxCccdIdx, ATT_R_PERMIT | ATT_W_PERMIT);
+ 2470   2          }
+ 2471   1          else
+ 2472   1          {
+ 2473   2              ATT_ModifyAttrPermisson(AppCtl.TxCccdIdx, ATT_R_PERMIT | ATT_W_BANNED);
+ 2474   2          }
+ 2475   1      }
+ 2476          
+ 2477          PUBLIC BOOL AirApp_BleIsConnected(void)
+ 2478          {
+ 2479   1          return gAirApp_ctl.isBleConnected;
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 41  
+
+ 2480   1      }
+ 2481          
+ 2482          PUBLIC BOOL AirApp_BleIsActivated(void)
+ 2483          {
+ 2484   1          U16 cccd;
+ 2485   1      
+ 2486   1          cccd = ATT_GetCCCDByLink(AppCtl.TxCccdIdx, 0);
+ 2487   1      
+ 2488   1          //LightDbgPrint("isBleAct %x %x %x %x", (U8)gAirApp_ctl.isBleConnected, (U8)cccd, (U8)(cccd >> 8), (U
+             -8)((cccd >> 8) & 0x01));
+ 2489   1      
+ 2490   1          return (gAirApp_ctl.isBleConnected && (cccd & 0x0100));
+ 2491   1      }
+ 2492          
+ 2493          PRIVATE void AirApp_BlePollingIndications(void)
+ 2494          {
+ 2495   1          U8 XDATA_PTR dataSentPtr = NULL;
+ 2496   1          AirAppMsgType XDATA_PTR airAppPtr;
+ 2497   1          U8 para;
+ 2498   1      
+ 2499   1          /* Check battery */
+ 2500   1          para = MMI_BAT_GetLevelInPercent();
+ 2501   1      
+ 2502   1          if (gAirApp_ctl.batStatus != para)
+ 2503   1          {
+ 2504   2              if (gAirApp_ctl.batStatus > para)
+ 2505   2              {
+ 2506   3                  if ((gAirApp_ctl.batStatus - para) < 10)
+ 2507   3                      goto BLE_VP_POLLING;
+ 2508   3              }
+ 2509   2              else
+ 2510   2              {
+ 2511   3                  if ((para - gAirApp_ctl.batStatus) < 10)
+ 2512   3                      goto BLE_VP_POLLING;
+ 2513   3              }
+ 2514   2      
+ 2515   2              if ((dataSentPtr = AirApp_GetUnSolicitedInd(AIRAPP_IND_REPORT_BAT_STATUS, 1)) == (U8 XDATA_PTR)NU
+             -LL)
+ 2516   2                  return;
+ 2517   2      
+ 2518   2              airAppPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+ 2519   2              airAppPtr->VPara.batStatus = para;
+ 2520   2              AirApp_SendData(gAirApp_ctl.targetIdx, dataSentPtr);
+ 2521   2              gAirApp_ctl.batStatus = para;
+ 2522   2              //LightDbgPrint("AirApp - ble report bat:%d",(U8)para);
+ 2523   2          }
+ 2524   1      
+ 2525   1      
+ 2526   1          /* Check VP */
+ 2527   1          BLE_VP_POLLING:
+ 2528   1          para = MMI_DRV_IsVoicePromptEnabled();
+ 2529   1      
+ 2530   1          if (gAirApp_ctl.isVPOn != para)
+ 2531   1          {
+ 2532   2              if ((dataSentPtr = AirApp_GetUnSolicitedInd(AIRAPP_IND_REPORT_VP_STATUS, 1)) == (U8 XDATA_PTR)NUL
+             -L)
+ 2533   2                  return;
+ 2534   2      
+ 2535   2              airAppPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+ 2536   2              airAppPtr->VPara.isVPOn = para;
+ 2537   2              AirApp_SendData(gAirApp_ctl.targetIdx, dataSentPtr);
+ 2538   2              gAirApp_ctl.isVPOn = para;
+ 2539   2              //LightDbgPrint("AirApp - ble report VP:%d",(U8)para);
+ 2540   2          }
+ 2541   1      
+ 2542   1      
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 42  
+
+ 2543   1          /* Check VP_Lang */
+ 2544   1          para = gMMI_driver_variation_nvram.misc_para.init.vpLangIndex;
+ 2545   1      
+ 2546   1          if (gAirApp_ctl.VPLang != para)
+ 2547   1          {
+ 2548   2              if ((dataSentPtr = AirApp_GetUnSolicitedInd(AIRAPP_IND_REPORT_VP_LANG, 1)) == (U8 XDATA_PTR)NULL)
+ 2549   2                  return;
+ 2550   2      
+ 2551   2              airAppPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+ 2552   2              airAppPtr->VPara.VPLang = para;
+ 2553   2              AirApp_SendData(gAirApp_ctl.targetIdx, dataSentPtr);
+ 2554   2              gAirApp_ctl.VPLang = para;
+ 2555   2              //LightDbgPrint("AirApp - ble report VPLang:%d",(U8)para);
+ 2556   2          }
+ 2557   1      }
+ 2558          
+ 2559          PUBLIC void AirApp_BlePolling(void)
+ 2560          {
+ 2561   1          if (gAirApp_ctl.delaySendDataTimer != NULL && !SYS_IsTimerExpired(&gAirApp_ctl.delaySendDataTimer))
+ 2562   1          {
+ 2563   2              return;
+ 2564   2          }
+ 2565   1      
+ 2566   1          if ((((ATT_GetCCCDByLink(AppCtl.TxCccdIdx, 0)) >> 8) & 0x01) == 0)
+ 2567   1          {
+ 2568   2              return;
+ 2569   2          }
+ 2570   1      
+ 2571   1          if (!gAirApp_ctl.isCCCDEnable)
+ 2572   1          {
+ 2573   2              gAirApp_ctl.isCCCDEnable = TRUE;
+ 2574   2          }
+ 2575   1      
+ 2576   1          if (AirApp_BleCheckEdrLinkStatus())
+ 2577   1          {
+ 2578   2              AirApp_PollingIndications(gAirApp_ctl.targetIdx);
+ 2579   2          }
+ 2580   1          else
+ 2581   1          {
+ 2582   2              /* 3.0 Normal link not exist */
+ 2583   2              AirApp_BlePollingIndications();
+ 2584   2          }
+ 2585   1      }
+ 2586          
+ 2587          PUBLIC void AirApp_BleUpdateConnStatus(BOOL isConnected, U8 XDATA_PTR ptr1)
+ 2588          {
+ 2589   1          HCI_LE_EVT_STRU XDATA_PTR dataPtr = (HCI_LE_EVT_STRU XDATA_PTR)ptr1;
+ 2590   1      
+ 2591   1          gAirApp_ctl.isBleConnected = isConnected;
+ 2592   1          gAirApp_ctl.targetIdx = 0xFF;
+ 2593   1      
+ 2594   1          if (isConnected)
+ 2595   1          {
+ 2596   2              /* BLE connected */
+ 2597   2              SYS_SetTimer(&gAirApp_ctl.delaySendDataTimer, MMI_LE_DELAY_NUM_CONN_INTERVAL * ENDIAN_TRANSFORM_U
+             -16(*(U16 XDATA_PTR)dataPtr->payload.connCmp.connInterval) * 4);
+ 2598   2          }
+ 2599   1          else
+ 2600   1          {
+ 2601   2              /* BLE disconnected */
+ 2602   2              SYS_ReleaseTimer(&gAirApp_ctl.delaySendDataTimer);
+ 2603   2      
+ 2604   2              if (gAirApp_ctl.isCCCDEnable)
+ 2605   2              {
+ 2606   3                  gAirApp_ctl.isCCCDEnable = FALSE;
+ 2607   3                  gAirApp_ctl.isVPOn = 0;
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 43  
+
+ 2608   3                  gAirApp_ctl.VPLang = 0;
+ 2609   3                  if(gAirApp_ctl.dataCtl.remainLength)
+ 2610   3                  {
+ 2611   4                      OSMEM_Put(gAirApp_ctl.dataCtl.dataPtr);
+ 2612   4                      gAirApp_ctl.dataCtl.dataPtr = NULL;
+ 2613   4                      gAirApp_ctl.dataCtl.remainLength = 0;
+ 2614   4                  }
+ 2615   3                  AirApp_BleResetAllEdrProfileState();
+ 2616   3              }
+ 2617   2          }
+ 2618   1      }
+ 2619          
+ 2620          PRIVATE BOOL AirApp_BleUpdateEdrTargetIdx(U8 connectedIdx)
+ 2621          {
+ 2622   1          if (((gAirApp_ctl.targetIdx == 0xFF) && (gAirApp_ctl.targetIdx != connectedIdx)) ||
+ 2623   1              ((gAirApp_ctl.targetIdx < MAX_MULTI_POINT_NO) && (!MMI_IsNormalLink(gAirApp_ctl.targetIdx))))
+ 2624   1          {
+ 2625   2              gAirApp_ctl.targetIdx = connectedIdx;
+ 2626   2      
+ 2627   2              return TRUE;
+ 2628   2          }
+ 2629   1      
+ 2630   1          return FALSE;
+ 2631   1      }
+ 2632          
+ 2633          PRIVATE U8 AirApp_BleNum2String(U8 num)
+ 2634          {
+ 2635   1          if (num > 9)
+ 2636   1          {
+ 2637   2              return (num + 0x37);
+ 2638   2          }
+ 2639   1          else
+ 2640   1          {
+ 2641   2              return (num + 0x30);
+ 2642   2          }
+ 2643   1      }
+ 2644          
+ 2645          PRIVATE void AirApp_BleBdAddr2ASCII(U8 XDATA_PTR bdAddrPtr, U8 XDATA_PTR dstBdAddrPtr)
+ 2646          {
+ 2647   1          U8 i;
+ 2648   1          U8 dstIdx = 11;
+ 2649   1      
+ 2650   1          for(i = 0; i < 6; i++)
+ 2651   1          {
+ 2652   2              dstBdAddrPtr[dstIdx--] = AirApp_BleNum2String(bdAddrPtr[i] & 0x0F);
+ 2653   2              dstBdAddrPtr[dstIdx--] = AirApp_BleNum2String((bdAddrPtr[i] >> 4) & 0x0F);
+ 2654   2          }
+ 2655   1      }
+ 2656          
+ 2657          PRIVATE BOOL AirApp_BleUpdateEdrRemoteName(U8 linkIndex)
+ 2658          {
+ 2659   1          AIRAPP_LINK_INFO XDATA_PTR airAppLinkInfo = AirApp_GetLinkInfo(linkIndex);
+ 2660   1      
+ 2661   1          if (gMMI_ctl.mmiInfo[linkIndex].linkPara.remoteName[0] && !SYS_ValueCompare(airAppLinkInfo->remoteNam
+             -e, gMMI_ctl.mmiInfo[linkIndex].linkPara.remoteName, MAX_REMOTE_NAME_LEN))
+ 2662   1          {
+ 2663   2              OSMEM_memcpy_xdata_xdata(airAppLinkInfo->remoteName, gMMI_ctl.mmiInfo[linkIndex].linkPara.remoteN
+             -ame, MAX_REMOTE_NAME_LEN);
+ 2664   2      
+ 2665   2              airAppLinkInfo->remoteNameLen = 0;
+ 2666   2              while (gMMI_ctl.mmiInfo[linkIndex].linkPara.remoteName[airAppLinkInfo->remoteNameLen])
+ 2667   2              {
+ 2668   3                  airAppLinkInfo->remoteNameLen++;
+ 2669   3              }
+ 2670   2      
+ 2671   2              return TRUE;
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 44  
+
+ 2672   2          }
+ 2673   1          else if (!gMMI_ctl.mmiInfo[linkIndex].linkPara.remoteName[0] && !airAppLinkInfo->remoteName[0])
+ 2674   1          {
+ 2675   2              AirApp_BleBdAddr2ASCII(gMMI_ctl.mmiInfo[linkIndex].bdAddr, airAppLinkInfo->remoteName);
+ 2676   2      
+ 2677   2              airAppLinkInfo->remoteNameLen = 12;
+ 2678   2      
+ 2679   2              return TRUE;
+ 2680   2          }
+ 2681   1      
+ 2682   1          return FALSE;
+ 2683   1      }
+ 2684          
+ 2685          PRIVATE void AirApp_BleGetEdrLinkStatus(AIRAPP_BLE_REPORT_STATUS XDATA_PTR pData)
+ 2686          {
+ 2687   1          AIRAPP_LINK_INFO XDATA_PTR airAppLinkInfo;
+ 2688   1          U8 i;
+ 2689   1      
+ 2690   1          OSMEM_memset_xdata(pData, 0, sizeof(AIRAPP_BLE_REPORT_STATUS));
+ 2691   1      
+ 2692   1          for (i = 0; i < MAX_MULTI_POINT_NO; i++)
+ 2693   1          {
+ 2694   2              airAppLinkInfo = AirApp_GetLinkInfo(i);
+ 2695   2      
+ 2696   2              if (airAppLinkInfo->mmiProfileInfo.state == PROFILE_CONNECTED)
+ 2697   2              {
+ 2698   3                  pData->report[i].status = TRUE;
+ 2699   3                  OSMEM_memcpy_xdata_xdata(&pData->report[i].remoteNameLen, &airAppLinkInfo->remoteNameLen, air
+             -AppLinkInfo->remoteNameLen + 1);
+ 2700   3              }
+ 2701   2          }
+ 2702   1      
+ 2703   1          pData->targetIdx = gAirApp_ctl.targetIdx;
+ 2704   1      }
+ 2705          
+ 2706          PRIVATE void AirApp_BleReportEdrLinkStatus(void)
+ 2707          {
+ 2708   1          U8 XDATA_PTR dataSentPtr;
+ 2709   1          AirAppMsgType XDATA_PTR airAppPtr;
+ 2710   1      
+ 2711   1          if ((dataSentPtr = AirApp_GetUnSolicitedInd(AIRAPP_IND_REPORT_LINK_STATUS, sizeof(AIRAPP_BLE_REPORT_S
+             -TATUS))) == (U8 XDATA_PTR)NULL)
+ 2712   1              return;
+ 2713   1      
+ 2714   1          airAppPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+ 2715   1      
+ 2716   1          AirApp_BleGetEdrLinkStatus(&airAppPtr->VPara.bleReportStatus);
+ 2717   1      
+ 2718   1          AirApp_SendData(gAirApp_ctl.targetIdx, dataSentPtr);
+ 2719   1      }
+ 2720          
+ 2721          PRIVATE BOOL AirApp_BleSetEdrProfileState(AIRAPP_LINK_INFO XDATA_PTR airAppLinkInfo, U8 state)
+ 2722          {
+ 2723   1          if (state == PROFILE_CONNECTED)
+ 2724   1          {
+ 2725   2              if (airAppLinkInfo->mmiProfileInfo.state == PROFILE_DISCONNECTED)
+ 2726   2              {
+ 2727   3                  /* BLE set AirApp profile as connected  */
+ 2728   3                  /* (only when 3.0 link is Normal Link) */
+ 2729   3                  airAppLinkInfo->mmiProfileInfo.state = PROFILE_CONNECTED;
+ 2730   3      
+ 2731   3                  return TRUE;
+ 2732   3              }
+ 2733   2          }
+ 2734   1          else if (state == PROFILE_DISCONNECTED)
+ 2735   1          {
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 45  
+
+ 2736   2              if ((airAppLinkInfo->mmiProfileInfo.state == PROFILE_CONNECTED) && (!airAppLinkInfo->mmiProfileIn
+             -fo.isAlive))
+ 2737   2              {
+ 2738   3                  /* BLE set AirApp profile as disconnected */
+ 2739   3                  /* (only when 3.0 link is Normal Link) */
+ 2740   3                  airAppLinkInfo->mmiProfileInfo.state = PROFILE_DISCONNECTED;
+ 2741   3      
+ 2742   3                  return TRUE;
+ 2743   3              }
+ 2744   2          }
+ 2745   1      
+ 2746   1          return FALSE;
+ 2747   1      }
+ 2748          
+ 2749          PUBLIC U8 AirApp_BleCheckEdrLinkStatus(void)
+ 2750          {
+ 2751   1          BOOL bUpdate = FALSE;
+ 2752   1          U8 i;
+ 2753   1          AIRAPP_LINK_INFO XDATA_PTR airAppLinkInfo;
+ 2754   1          U8 connectedIdx = 0xFF;
+ 2755   1          U8 normalLinkNum = 0;
+ 2756   1      
+ 2757   1          /* Check 3.0 connection status */
+ 2758   1          for (i = 0; i < MAX_MULTI_POINT_NO; i++)
+ 2759   1          {
+ 2760   2              airAppLinkInfo = AirApp_GetLinkInfo(i);
+ 2761   2      
+ 2762   2              if (MMI_IsNormalLink(i))
+ 2763   2              {
+ 2764   3                  if (AirApp_BleSetEdrProfileState(airAppLinkInfo, PROFILE_CONNECTED))
+ 2765   3                  {
+ 2766   4                      LightDbgPrint("update 1");
+ 2767   4                      bUpdate = TRUE;
+ 2768   4                  }
+ 2769   3      
+ 2770   3                  if (AirApp_BleUpdateEdrRemoteName(i))
+ 2771   3                  {
+ 2772   4                      LightDbgPrint("update 2");
+ 2773   4                      bUpdate = TRUE;
+ 2774   4                  }
+ 2775   3      
+ 2776   3                  normalLinkNum++;
+ 2777   3                  connectedIdx = i;
+ 2778   3      
+ 2779   3              }
+ 2780   2      #ifdef AIR_MODULE
+ 2781   2              else if (!MMI_AIR_IsAirLink(i))
+ 2782   2      #else
+                       else
+               #endif
+ 2785   2              {
+ 2786   3                  if (AirApp_BleSetEdrProfileState(airAppLinkInfo, PROFILE_DISCONNECTED))
+ 2787   3                  {
+ 2788   4                      LightDbgPrint("update 3");
+ 2789   4                      OSMEM_memset_xdata(airAppLinkInfo->remoteName, 0, MAX_REMOTE_NAME_LEN);
+ 2790   4                      airAppLinkInfo->remoteNameLen = 0;
+ 2791   4              if(AirApp_IsDSPLockedByOTA())
+ 2792   4                          AirApp_SetDSPUnlockByOTA();
+ 2793   4                      bUpdate = TRUE;
+ 2794   4                  }
+ 2795   3              }
+ 2796   2          }
+ 2797   1      
+ 2798   1          /* Check 3.0 normal link number */
+ 2799   1          if (gAirApp_ctl.normalLinkNum != normalLinkNum)
+ 2800   1          {
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 46  
+
+ 2801   2              LightDbgPrint("update 4");
+ 2802   2              gAirApp_ctl.normalLinkNum = normalLinkNum;
+ 2803   2              bUpdate = TRUE;
+ 2804   2          }
+ 2805   1      
+ 2806   1          /* Check target index */
+ 2807   1          if (AirApp_BleUpdateEdrTargetIdx(connectedIdx))
+ 2808   1          {
+ 2809   2              LightDbgPrint("update 5");
+ 2810   2              bUpdate = TRUE;
+ 2811   2          }
+ 2812   1      
+ 2813   1          if (bUpdate)
+ 2814   1          {
+ 2815   2              AirApp_BleReportEdrLinkStatus();
+ 2816   2          }
+ 2817   1      
+ 2818   1          if (gAirApp_ctl.targetIdx == 0xFF)
+ 2819   1          {
+ 2820   2              return FALSE;
+ 2821   2          }
+ 2822   1      
+ 2823   1          return TRUE;
+ 2824   1      }
+ 2825          
+ 2826          PRIVATE BOOL AirApp_BleConsiderCmd(U8 XDATA_PTR ptr)
+ 2827          {
+ 2828   1          LightDbgPrint("cmd %x %x %x", (U8)ptr[0], (U8)ptr[4], (U8)ptr[5]);
+ 2829   1      
+ 2830   1          if (ptr[0] != AIRAPP_HCI_CMD_PACKET)
+ 2831   1          {
+ 2832   2              return FALSE;
+ 2833   2          }
+ 2834   1      
+ 2835   1          switch(ptr[4])
+ 2836   1          {
+ 2837   2              case AIRAPP_CMD_GET_LINK_STATUS:
+ 2838   2              {
+ 2839   3                  if(ptr[5] == HCI_VENDOR_OGF_AIRAPP_CMD_EX)
+ 2840   3                      return TRUE;
+ 2841   3              }
+ 2842   2              break;
+ 2843   2      
+ 2844   2              case AIRAPP_CMD_KEY_RESET_PAIRED_DEVICES:
+ 2845   2              case AIRAPP_CMD_FIND_MY_ACCESSORY:
+ 2846   2              case AIRAPP_CMD_GET_BATTERY:
+ 2847   2              case AIRAPP_CMD_SET_LE_CONN_INTERVAL:
+ 2848   2              case AIRAPP_CMD_GET_SYNCHRONIZE_DATA:
+ 2849   2              case AIRAPP_CMD_CHANNEL_INFORMATION:
+ 2850   2              case AIRAPP_CMD_WRITE_DEVICE_NAME:
+ 2851   2              case AIRAPP_CMD_GET_DEVICE_NAME:
+ 2852   2                  return TRUE;
+ 2853   2          }
+ 2854   1      
+ 2855   1          return FALSE;
+ 2856   1      }
+ 2857          
+ 2858          PRIVATE U8 XDATA_PTR AirApp_BleGetProfileDataEvtPtr(U8 XDATA_PTR ptr, U16 length)
+ 2859          {
+ 2860   1          ProfileDataEvent XDATA_PTR dataPtr;
+ 2861   1      
+ 2862   1          if ((dataPtr = (ProfileDataEvent XDATA_PTR)SYS_MemoryGet(sizeof(ProfileDataEvent)+length)) != NEAR_NU
+             -LL)
+ 2863   1          {
+ 2864   2              OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)dataPtr->dataBody, ptr, length);
+ 2865   2          }
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 47  
+
+ 2866   1          return dataPtr;
+ 2867   1      }
+ 2868          
+ 2869          PUBLIC U8 AirApp_BleDataEvent(U8 XDATA_PTR ptr, U16 length)
+ 2870          {
+ 2871   1          AIRAPP_DATA_CTL_TYPE XDATA_PTR airAppDataCtl;
+ 2872   1          U8 XDATA_PTR dataPtr;
+ 2873   1          U16 dataLen;
+ 2874   1          BOOL isOTA = FALSE;
+ 2875   1      
+ 2876   1          if (!AirApp_BleIsActivated())
+ 2877   1          {
+ 2878   2              return FALSE;
+ 2879   2          }
+ 2880   1      
+ 2881   1          if (gAirApp_ctl.targetIdx < MAX_MULTI_POINT_NO)
+ 2882   1          {
+ 2883   2              LightDbgPrint("LE_DEa:%x %x %x %x %x", (U8)ptr[0], (U8)ptr[1], (U8)ptr[2], (U8)ptr[3], (U8)ptr[4]
+             -);
+ 2884   2              airAppDataCtl = &(AirApp_GetLinkInfo(gAirApp_ctl.targetIdx)->dataCtl);
+ 2885   2          }
+ 2886   1          else
+ 2887   1          {
+ 2888   2              LightDbgPrint("LE_DEb:%x %x %x %x %x", (U8)ptr[0], (U8)ptr[1], (U8)ptr[2], (U8)ptr[3], (U8)ptr[4]
+             -);
+ 2889   2              /* 3.0 Normal link not exist */
+ 2890   2              airAppDataCtl = &gAirApp_ctl.dataCtl;
+ 2891   2          }
+ 2892   1      
+ 2893   1          LightDbgPrint("LE_DE 0:%x %x %x", (U8)gAirApp_ctl.targetIdx, (U8)ptr[5], (U8)ptr[6]);
+ 2894   1          if (airAppDataCtl->remainLength)
+ 2895   1          {
+ 2896   2              ProfileDataEvent XDATA_PTR profileDataPtr;
+ 2897   2              profileDataPtr = (ProfileDataEvent XDATA_PTR)airAppDataCtl->dataPtr;
+ 2898   2      
+ 2899   2              LightDbgPrint("LE_DE 1:%h %h", (U16)airAppDataCtl->remainLength, (U16)length);
+ 2900   2              if (airAppDataCtl->remainLength < length)
+ 2901   2              {
+ 2902   3                  airAppDataCtl->remainLength = 0;
+ 2903   3      
+ 2904   3                  if (profileDataPtr->dataBody[0] == AIRAPP_HCI_CMD_PACKET)
+ 2905   3                  {
+ 2906   4                      AirApp_SendResponse(gAirApp_ctl.targetIdx, profileDataPtr->dataBody[4], HCI_VEVT_OCF_RESU
+             -LT_CODE_FAIL);
+ 2907   4                  }
+ 2908   3                  else
+ 2909   3                  {
+ 2910   4                      AirApp_SendResponse(gAirApp_ctl.targetIdx, profileDataPtr->dataBody[5], HCI_VEVT_OCF_RESU
+             -LT_CODE_FAIL);
+ 2911   4                  }
+ 2912   3      
+ 2913   3                  SYS_MemoryRelease(&airAppDataCtl->dataPtr);
+ 2914   3                  return FALSE;
+ 2915   3              }
+ 2916   2      
+ 2917   2              airAppDataCtl->remainLength -= length;
+ 2918   2              OSMEM_memcpy_xdata_xdata(profileDataPtr->dataBody+airAppDataCtl->offset, ptr, length);
+ 2919   2              airAppDataCtl->offset += length;
+ 2920   2      
+ 2921   2              if (airAppDataCtl->remainLength == 0)
+ 2922   2              {
+ 2923   3                  LightDbgPrint("LE_DE 2:%x %x", (U8)profileDataPtr->dataBody[5], (U8)profileDataPtr->dataBody[
+             -6]);
+ 2924   3                  if (AirApp_DataHandler(gAirApp_ctl.targetIdx, (U8 XDATA_PTR)airAppDataCtl->dataPtr))
+ 2925   3                  {
+ 2926   4                      airAppDataCtl->dataPtr = NULL;
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 48  
+
+ 2927   4                  }
+ 2928   3                  else
+ 2929   3                  {
+ 2930   4                      LightDbgPrint("LE_DE 3:DataHandler FALSE");
+ 2931   4                      SYS_MemoryRelease(&airAppDataCtl->dataPtr);
+ 2932   4                  }
+ 2933   3              }
+ 2934   2      
+ 2935   2              return TRUE;
+ 2936   2          }
+ 2937   1          else if ((ptr[0] == AIRAPP_HCI_DATA_PACKET) && (ptr[6] == HCI_ACL_OGF_APP_FLASH_BLE || ptr[6] == HCI_
+             -ACL_OGF_APP_REMOTE_FLASH_BLE))
+ 2938   1          {
+ 2939   2              dataLen = ENDIAN_TRANSFORM_U16(*(U16 XDATA_PTR)(ptr+3)) + 5;
+ 2940   2      
+ 2941   2              LightDbgPrint("LE_DE 4:%h %h %x %x", (U16)dataLen, (U16)length, (U8)ptr[7], (U8)ptr[8]);
+ 2942   2      
+ 2943   2              if (dataLen > length)
+ 2944   2              {
+ 2945   3                  airAppDataCtl->dataPtr = SYS_MemoryGet(sizeof(ProfileDataEvent) + dataLen);
+ 2946   3                  if (airAppDataCtl->dataPtr)
+ 2947   3                  {
+ 2948   4                      airAppDataCtl->remainLength = dataLen - length;
+ 2949   4                      airAppDataCtl->offset = length;
+ 2950   4                      OSMEM_memcpy_xdata_xdata(((ProfileDataEvent XDATA_PTR)airAppDataCtl->dataPtr)->dataBody, 
+             -ptr, length);
+ 2951   4      
+ 2952   4                      return TRUE;
+ 2953   4                  }
+ 2954   3      
+ 2955   3                  LightDbgPrint("LE_DE 6");
+ 2956   3                  AirApp_SendResponse(gAirApp_ctl.targetIdx, ptr[5], HCI_VEVT_OCF_RESULT_CODE_FAIL);
+ 2957   3                  return FALSE;
+ 2958   3              }
+ 2959   2              else if (dataLen < length)
+ 2960   2              {
+ 2961   3      
+ 2962   3                  LightDbgPrint("LE_DE 7");
+ 2963   3                  AirApp_SendResponse(gAirApp_ctl.targetIdx, ptr[5], HCI_VEVT_OCF_RESULT_CODE_FAIL);
+ 2964   3                  return FALSE;
+ 2965   3              }
+ 2966   2      
+ 2967   2              /* Don't care 3.0 */
+ 2968   2              isOTA = TRUE;
+ 2969   2          }
+ 2970   1          else
+ 2971   1          {
+ 2972   2              AirAppDataHCICmdType XDATA_PTR appDataPtr =(AirAppDataHCICmdType XDATA_PTR) ptr;
+ 2973   2      
+ 2974   2              if ((appDataPtr->hciOpCode == AIRAPP_HCI_CMD_PACKET) && ((appDataPtr->hciLength+4) != length))
+ 2975   2              {
+ 2976   3                  LightDbgPrint("Return packet");
+ 2977   3                  return FALSE;
+ 2978   3              }
+ 2979   2      
+ 2980   2              if (!AirApp_BleCheckEdrLinkStatus())
+ 2981   2              {
+ 2982   3                  /* 3.0 Normal link not exist */
+ 2983   3                  if (AirApp_BleConsiderCmd(ptr))
+ 2984   3                  {
+ 2985   4                      if ((dataPtr = AirApp_BleGetProfileDataEvtPtr(ptr, length)) != NEAR_NULL)
+ 2986   4                      {
+ 2987   5                          AirApp_CmdHandler(gAirApp_ctl.targetIdx, dataPtr);
+ 2988   5                          OSMEM_Put(dataPtr);
+ 2989   5                          return TRUE;
+ 2990   5                      }
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 49  
+
+ 2991   4                      else
+ 2992   4                      {
+ 2993   5                          return FALSE;
+ 2994   5                      }
+ 2995   4                  }
+ 2996   3                  else
+ 2997   3                  {
+ 2998   4                      if (ptr[5] == HCI_VENDOR_OGF_AIRAPP_CMD)
+ 2999   4                      {
+ 3000   5                          AirApp_SendRsp(gAirApp_ctl.targetIdx, ptr[4], HCI_VENDOR_OGF_AIRAPP_RESP, HCI_VEVT_OC
+             -F_RESULT_CODE_FAIL);
+ 3001   5                      }
+ 3002   4                      else if (ptr[5] == HCI_VENDOR_OGF_AIRAPP_CMD_EX)
+ 3003   4                      {
+ 3004   5                          AirApp_SendRsp(gAirApp_ctl.targetIdx, ptr[4], HCI_VENDOR_OGF_AIRAPP_RESP_EX, HCI_VEVT
+             -_OCF_RESULT_CODE_FAIL);
+ 3005   5                      }
+ 3006   4      
+ 3007   4                      return FALSE;
+ 3008   4                  }
+ 3009   3              }
+ 3010   2          }
+ 3011   1      
+ 3012   1          if((dataPtr = AirApp_BleGetProfileDataEvtPtr(ptr, length)) == NEAR_NULL)
+ 3013   1          {
+ 3014   2              LightDbgPrint("LE_DE 12");
+ 3015   2              return FALSE;
+ 3016   2          }
+ 3017   1      
+ 3018   1          if (isOTA)
+ 3019   1          {
+ 3020   2              if(!AirApp_DataHandler(gAirApp_ctl.targetIdx, dataPtr))
+ 3021   2              {
+ 3022   3                  LightDbgPrint("LeDEvt13");
+ 3023   3                  OSMEM_Put(dataPtr);
+ 3024   3              }
+ 3025   2          }
+ 3026   1          else
+ 3027   1          {
+ 3028   2              AirApp_DataEvent(gAirApp_ctl.targetIdx, dataPtr);
+ 3029   2              AirApp_RemoteDataHandler(gAirApp_ctl.targetIdx);
+ 3030   2          }
+ 3031   1          return TRUE;
+ 3032   1      }
+ 3033          
+ 3034          PRIVATE void AirApp_BleResetEdrProfileState(AIRAPP_LINK_INFO XDATA_PTR airAppLinkInfo)
+ 3035          {
+ 3036   1          if ((AirApp_BleIsActivated()) &&
+ 3037   1              (airAppLinkInfo->mmiProfileInfo.state == PROFILE_CONNECTED) && (!airAppLinkInfo->mmiProfileInfo.i
+             -sAlive))
+ 3038   1          {
+ 3039   2              /* BLE set airapp profile as disconnected */
+ 3040   2              /* (only when 3.0 link is Normal Link) */
+ 3041   2              airAppLinkInfo->mmiProfileInfo.state = PROFILE_DISCONNECTED;
+ 3042   2          }
+ 3043   1      
+ 3044   1      }
+ 3045          
+ 3046          PRIVATE void AirApp_BleResetAllEdrProfileState(void)
+ 3047          {
+ 3048   1          U8 i;
+ 3049   1          AIRAPP_LINK_INFO XDATA_PTR airAppLinkInfo;
+ 3050   1      
+ 3051   1          for (i = 0; i < MAX_MULTI_POINT_NO; i++)
+ 3052   1          {
+ 3053   2              airAppLinkInfo = AirApp_GetLinkInfo(i);
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 50  
+
+ 3054   2      
+ 3055   2              if ((airAppLinkInfo->mmiProfileInfo.state == PROFILE_CONNECTED) && (!airAppLinkInfo->mmiProfileIn
+             -fo.isAlive))
+ 3056   2              {
+ 3057   3                  /* BLE set airapp profile as disconnected */
+ 3058   3                  /* (only when 3.0 link is Normal Link) */
+ 3059   3                  airAppLinkInfo->mmiProfileInfo.state = PROFILE_DISCONNECTED;
+ 3060   3      
+ 3061   3              }
+ 3062   2          }
+ 3063   1      
+ 3064   1      }
+ 3065          PRIVATE BOOL AirApp_BleSendAclErrorRsp(U8 ocf)
+ 3066          {
+ 3067   1          U8 errrsp[8];
+ 3068   1      
+ 3069   1          errrsp[0] = HCI_UART_XPORT_PKT_ID_ACL_DATA;
+ 3070   1          errrsp[1] = 0x00;
+ 3071   1          errrsp[2] = 0x0F;
+ 3072   1          errrsp[3] = 0x03;
+ 3073   1          errrsp[4] = 0x00;
+ 3074   1          errrsp[5] = ocf;
+ 3075   1          errrsp[6] = 0x09;
+ 3076   1          errrsp[7] = 0xFF;
+ 3077   1      
+ 3078   1      
+ 3079   1          if (APP_sendTxData((U8 XDATA_PTR)&errrsp[0], 5 + 3))
+ 3080   1          {
+ 3081   2              return TRUE;
+ 3082   2          }
+ 3083   1          else
+ 3084   1          {
+ 3085   2              return FALSE;
+ 3086   2          }
+ 3087   1      }
+ 3088          
+ 3089          
+ 3090          #endif
+ 3091          
+ 3092          PUBLIC void AirApp_Init(void)
+ 3093          {
+ 3094   1          extern SdpServiceNode gAirApp_ServiceNode;
+ 3095   1          RFCOMM_RegisterProfile(&gAirApp_ProfileNode);
+ 3096   1          SDAP_RegisterServiceRecord(&gAirApp_ServiceNode);
+ 3097   1      
+ 3098   1          #ifdef BLE_AIRApp
+ 3099   1          AirApp_BleInit();
+ 3100   1          #endif
+ 3101   1          #if AIRAPP_CALLER_NAME
+ 3102   1          AirApp_EraseCallerNameSector();
+ 3103   1          #endif
+ 3104   1      }
+ 3105          
+ 3106          PUBLIC void AirApp_EnterIncomingState(U8 linkIndex)
+ 3107          {
+ 3108   1      #if AIRAPP_CALLER_NAME
+ 3109   1          AirAppMsgType XDATA_PTR airAppPtr;
+ 3110   1          U8 XDATA_PTR dataSentPtr;
+ 3111   1          if((AirApp_GetLinkInfo(linkIndex))->mmiProfileInfo.state != PROFILE_CONNECTED)
+ 3112   1              return;
+ 3113   1      
+ 3114   1          if(!(AirApp_GetLinkInfo(linkIndex))->isCallerNameOn || !AirApp_IsCallerNameSectorValid() || !AirApp_I
+             -sMMIAllowWrite(linkIndex))
+ 3115   1              return;
+ 3116   1          if((dataSentPtr = AirApp_GetUnSolicitedInd(AIRAPP_IND_INCOMING_CALL_STATUS, 1)) == (U8 XDATA_PTR)NULL
+             -)
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 51  
+
+ 3117   1              return;
+ 3118   1          airAppPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+ 3119   1          airAppPtr->VPara.isEnterIncoming = TRUE;
+ 3120   1          AirApp_SendData(linkIndex, dataSentPtr);
+ 3121   1      
+ 3122   1          AirApp_DisableAndSuspendDSP();
+ 3123   1      #else
+                   UNUSED(linkIndex);
+               #endif
+ 3126   1      }
+ 3127          
+ 3128          PUBLIC void AirApp_ExitIncomingState(U8 linkIndex)
+ 3129          {
+ 3130   1      #if AIRAPP_CALLER_NAME
+ 3131   1      
+ 3132   1          AirAppMsgType XDATA_PTR airAppPtr;
+ 3133   1          U8 XDATA_PTR dataSentPtr;
+ 3134   1      
+ 3135   1          if(gAirApp_ctl.callNameCtl.callerNameLinkIndex == linkIndex || gAirApp_ctl.callNameCtl.callerNameLink
+             -Index == MMI_EOF)
+ 3136   1          {
+ 3137   2              AirApp_ResumeDSP();
+ 3138   2          }
+ 3139   1      
+ 3140   1          if((AirApp_GetLinkInfo(linkIndex))->mmiProfileInfo.state != PROFILE_CONNECTED)
+ 3141   1              return;
+ 3142   1      
+ 3143   1          if((dataSentPtr = AirApp_GetUnSolicitedInd(AIRAPP_IND_INCOMING_CALL_STATUS, 1)) == (U8 XDATA_PTR)NULL
+             -)
+ 3144   1              return;
+ 3145   1      
+ 3146   1          airAppPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+ 3147   1          airAppPtr->VPara.isEnterIncoming = FALSE;
+ 3148   1          AirApp_SendData(linkIndex, dataSentPtr);
+ 3149   1      #endif
+ 3150   1          UNUSED(linkIndex);
+ 3151   1      }
+ 3152          
+ 3153          PUBLIC BOOL AirApp_IsCallerNameDataValid(void)
+ 3154          {
+ 3155   1          return (gAirApp_ctl.callNameCtl.dataValid == 0)? TRUE: FALSE;
+ 3156   1      }
+ 3157          
+ 3158          PUBLIC void AirApp_DumpMicData(U8 linkIndex, U8 XDATA_PTR ptr, U16 length)
+ 3159          {
+ 3160   1          AirAppMsgType XDATA_PTR airAppPtr;
+ 3161   1          U8 XDATA_PTR dataSentPtr;
+ 3162   1      
+ 3163   1          if((AirApp_GetLinkInfo(linkIndex))->mmiProfileInfo.state != PROFILE_CONNECTED)
+ 3164   1              return;
+ 3165   1      
+ 3166   1          if((dataSentPtr = AirApp_GetUnSolicitedInd(AIRAPP_IND_DUMP_MIC_DATA, length)) == (U8 XDATA_PTR)NULL)
+ 3167   1              return;
+ 3168   1      
+ 3169   1          airAppPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+ 3170   1          OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&airAppPtr->VPara, ptr, length);
+ 3171   1          AirApp_SendData(linkIndex, dataSentPtr);
+ 3172   1      }
+ 3173          
+ 3174          PUBLIC void AirApp_CustomerDataRsp(U8 linkIndex, U8 vOcf, U8 result, U8 dataLen, U8 XDATA_PTR dataPtr)
+ 3175          {
+ 3176   1          U8 XDATA_PTR dataSentPtr;
+ 3177   1      
+ 3178   1          if(linkIndex >= MAX_MULTI_POINT_NO)
+ 3179   1              return;
+ 3180   1      
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 52  
+
+ 3181   1          if((dataSentPtr = AirApp_GetMemory(dataLen + 1)) != (U8 XDATA_PTR)NULL)
+ 3182   1          {
+ 3183   2              AirAppMsgType XDATA_PTR airAppRespPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+ 3184   2              airAppRespPtr->VOpCode.VCmdOcf = vOcf;
+ 3185   2              airAppRespPtr->VOpCode.VCmdOgf = HCI_VENDOR_OGF_AIRAPP_CUSTOMER_RSP;
+ 3186   2              airAppRespPtr->VPara.getAirAppCstRsp.result = result;
+ 3187   2              if(dataPtr != (U8 XDATA_PTR)NULL)
+ 3188   2              {
+ 3189   3                  OSMEM_memcpy_xdata_xdata(   (U8 XDATA_PTR)&airAppRespPtr->VPara.getAirAppCstRsp.dataStart,
+ 3190   3                                              (U8 XDATA_PTR)&dataPtr,
+ 3191   3                                              dataLen);
+ 3192   3              }
+ 3193   2              AirApp_SendData(linkIndex, dataSentPtr);
+ 3194   2          }
+ 3195   1      }
+ 3196          
+ 3197          PUBLIC void AirApp_PassThroughTransferData(U8 XDATA_PTR ptr, U8 cmdOpcode, U8 vogf)
+ 3198          {
+ 3199   1          MMIMsgType XDATA_PTR airCmdPtr = (MMIMsgType XDATA_PTR)ptr;
+ 3200   1          U8 XDATA_PTR dataSentPtr;
+ 3201   1          U8 airLinkIndex = MMI_GetLinkIndexByBdA((U8 XDATA_PTR)&airCmdPtr->msgBodyPtr.hciVCmd.VPara.passThroug
+             -hCmd.bdAddr);
+ 3202   1      
+ 3203   1          if(airLinkIndex >= MAX_MULTI_POINT_NO)
+ 3204   1              return;
+ 3205   1      
+ 3206   1          if((dataSentPtr = AirApp_GetMemory(airCmdPtr->paraLen - sizeof(HCI_VCMD_OPCODE_STRU) - sizeof(airCmdP
+             -tr->msgBodyPtr.hciVCmd.VPara.passThroughCmd.bdAddr))) != (U8 XDATA_PTR)NULL)
+ 3207   1          {
+ 3208   2              AirAppMsgType XDATA_PTR airAppRespPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+ 3209   2              LightDbgPrint("AirApp: PassThrogh[%d]:%x,%d",(U8) airLinkIndex,(U8)cmdOpcode,(U8)airCmdPtr->paraL
+             -en);
+ 3210   2              airAppRespPtr->VOpCode.VCmdOcf = cmdOpcode;
+ 3211   2              airAppRespPtr->VOpCode.VCmdOgf = vogf;
+ 3212   2              OSMEM_memcpy_xdata_xdata(   (U8 XDATA_PTR)&airAppRespPtr->VPara.dataBegin,
+ 3213   2                                          (U8 XDATA_PTR)&airCmdPtr->msgBodyPtr.hciVCmd.VPara.passThroughCmd.dat
+             -aStart,
+ 3214   2                                          (airCmdPtr->paraLen - sizeof(HCI_VCMD_OPCODE_STRU) - sizeof(airCmdPtr
+             -->msgBodyPtr.hciVCmd.VPara.passThroughCmd.bdAddr)));
+ 3215   2              AirApp_SendData(airLinkIndex, dataSentPtr);
+ 3216   2          }
+ 3217   1          OSMEM_Put((U8 XDATA_PTR)ptr);
+ 3218   1      }
+ 3219          
+ 3220          PRIVATE void AirApp_MMIKeyEventRsp(U8 linkIndex, U16 mmiKeyCode,U8 result)
+ 3221          {
+ 3222   1          U8 XDATA_PTR dataSentPtr;
+ 3223   1          if((dataSentPtr = AirApp_GetMemory(sizeof(HCI_VEVT_PARA_AIRAPP_MMI_KEY_CODE_RSP))) != (U8 XDATA_PTR)N
+             -ULL)
+ 3224   1          {
+ 3225   2              AirAppMsgType XDATA_PTR airAppRespPtr = (AirAppMsgType XDATA_PTR)(dataSentPtr + *dataSentPtr);
+ 3226   2              LightDbgPrint("AirApp: Key Rsp:%X,%d",(U32)mmiKeyCode,(U8) result);
+ 3227   2              airAppRespPtr->VOpCode.VCmdOcf = AIRAPP_CMD_KEY_MMI_KEY_EVENT;
+ 3228   2              airAppRespPtr->VOpCode.VCmdOgf = HCI_VENDOR_OGF_AIRAPP_RESP;
+ 3229   2              airAppRespPtr->VPara.airMMIKeyCodeRsp.mmiKeyCode = mmiKeyCode;
+ 3230   2              airAppRespPtr->VPara.airMMIKeyCodeRsp.result = result;
+ 3231   2              AirApp_SendData(linkIndex, dataSentPtr);
+ 3232   2          }
+ 3233   1      }
+ 3234          
+ 3235          PUBLIC void AirApp_SlaveATGainRsp(U8 linkIndex, U8 cmdOpcode, U8 resultCode)
+ 3236          {
+ 3237   1          AirApp_SendRsp(linkIndex, cmdOpcode, HCI_VENDOR_OGF_AIRAPP_RESP, resultCode);
+ 3238   1      }
+ 3239          #endif //AIRAPP_Profile
+
+C251 COMPILER V5.57.0,  AirApp                                                             08/11/20  05:53:20  PAGE 53  
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =     13105     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =       152     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =      1388     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

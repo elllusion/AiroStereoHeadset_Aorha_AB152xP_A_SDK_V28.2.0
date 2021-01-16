@@ -1,0 +1,74 @@
+?EP?P014_f1_0xFE7F58?P014 SEGMENT 'ECODE_FLASH'
+PUBLIC P014_f1_0xFE7F58??
+RSEG ?EP?P014_f1_0xFE7F58?P014	;program segment
+
+P014_f1_0xFE7F58??:
+DB		0x58, 0x7F, 0xFE
+DB		0
+EJMP	P014_f1_patch
+
+P014_f1_patch:
+
+MOV      WR6,@DR60+0xFFFD
+MOV      R11,@WR6+0x0005
+CMP      R11,#0x23
+JNE      P014_f1_patch_end
+;MOV      0x80, #0xFF
+CLR      (0xA8.7)     ;//EA = 0
+MOV      0xC1,#0x56
+MOV      0xE7,#0x02
+MOV      0xC1,#0x57
+MOV      0xE7,#0x00
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+SETB     (0xA8.7)     ;//EA = 1
+MOV      0xC1,#0xDC   ;//_BANK_SFR_WRITE(C2, C2OFFS_WO_PMU_ENABLE, 0x80);
+MOV      0xC2,#0x80
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+NOP
+MOV      0xC1,#0x56
+MOV      0xE7,#0x00
+MOV      0xC1,#0x57
+MOV      0xE7,#0x00
+
+P014_f1_patch_end:
+;MOV      0x80, #0x00
+MOV      WR6,WR14
+ECALL    0xFFAEBA     ;//OSMEM_Put(C:0xAEBA)
+EJMP     0xFE7F5C

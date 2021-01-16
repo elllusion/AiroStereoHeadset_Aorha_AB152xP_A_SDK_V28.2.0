@@ -1,0 +1,97 @@
+C251 COMPILER V5.57.0,  sector_lm_parameter_type                                           08/11/20  06:32:11  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_lm_parameter_type
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\sector_lm_parameter_type.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\sector_lm_parameter_type.c XSMALL HPTR FUNCTIONS(REENTRA
+                    -NT) ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.
+                    -\source\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source
+                    -\ROM\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\s
+                    -ource\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\sourc
+                    -e\SECTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMi
+                    -sc) DEFINE(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_Air
+                    -oStereoHeadset\sector_lm_parameter_type.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\sector_lm_parameter_type.
+                    -obj) 
+
+stmt  level    source
+
+    1          /*
+    2           * AIROHA Bluetooth Device Firmware
+    3           * COPYRIGHT (C) 2014 AIROHA TECHNOLOGY CORP. CO., LTD. ALL RIGHTS RESERVED
+    4           *
+    5           * sector_lm_parameter_type.c defines the LM parameters.
+    6           *
+    7           * Programmer : CharlesSu@airoha.com.tw, Ext.2882
+    8           */
+    9          #include "config.h"
+   10          #include "cpu.h"
+   11          #include "bt_config_profile.h"
+   12          #include "sector_lm_param.h"
+   13          
+   14          #pragma userclass (HCONST = CONFIG)
+   15          
+   16          
+   17          ////////////////////////////////////////////////////////////////////////////////
+   18          // Global Variables ////////////////////////////////////////////////////////////
+   19          ////////////////////////////////////////////////////////////////////////////////
+   20          SECTOR_LM_PARAMETER_STRU CODE gSector_LmParameter =
+   21          {
+   22              {
+   23                LM_MISC_SUPP_FEA0_TRANSACTION_TIMER_ENABLE            |
+   24                LM_MISC_SUPP_FEA0_NO_ACTIVE_SNIFF_SUBRATING|
+   25                //LM_MISC_SUPP_FEA0_PLC_ON |
+   26                //LM_MISC_SUPP_FEA0_SLAVE_ACT_UNSNIFF_WHEN_RECV_LMP_ACCEPTED  |
+   27                0x00,
+   28            #if defined SCO_WOOFER
+                   //LM_MISC_SUPP_FEA1_ESCO_NEGOTIATION_ENABLE |
+                   //LM_MISC_SUPP_FEA1_SNIFF_NEGOTIATION_ENABLE |
+                 #elif defined SOUND_BAR
+                   //LM_MISC_SUPP_FEA1_ESCO_NEGOTIATION_ENABLE |
+                   LM_MISC_SUPP_FEA1_SNIFF_NEGOTIATION_ENABLE |
+                   #elif  defined TWS_SETTINGS
+   35                  LM_MISC_SUPP_FEA1_ESCO_NEGOTIATION_ENABLE |
+   36                  LM_MISC_SUPP_FEA1_SNIFF_NEGOTIATION_ENABLE |
+   37            #else
+                   LM_MISC_SUPP_FEA1_ESCO_NEGOTIATION_ENABLE |
+                   LM_MISC_SUPP_FEA1_SNIFF_NEGOTIATION_ENABLE |
+                   #ifdef OPERATION_IN_BB_ASIC_VERSION
+                   #if (defined AB1520C) || (defined AB1520S) || (defined AB1520D)
+                   LM_MISC_SUPP_FEA1_MCU24M_FOR_PAIRING_ENABLE |
+                   #endif
+                   #endif
+                 #endif
+   46          
+   47                0x00,
+   48          
+   49                480   // U16 wait_setup_cpl_interval;   //Unit : Half slot
+   50              },
+   51          
+C251 COMPILER V5.57.0,  sector_lm_parameter_type                                           08/11/20  06:32:11  PAGE 2   
+
+   52              //- CRC
+   53              {0,0}
+   54          };
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =         6     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

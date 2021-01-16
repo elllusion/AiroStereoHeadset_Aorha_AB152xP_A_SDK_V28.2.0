@@ -1,0 +1,1288 @@
+C251 COMPILER V5.57.0,  AVRCP                                                              08/11/20  05:53:10  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE AVRCP
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\AVRCP.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\AVRCP\AVRCP.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) WARNIN
+                    -GLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\source\
+                    -HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\source\ROM
+                    -\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_LE;.\s
+                    -ource\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspData;.\s
+                    -ource\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLASH_INI
+                    -T=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520C_AiroStereoHeadset\AVRCP
+                    -.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\AVRCP.obj) 
+
+stmt  level    source
+
+    1          //////////////////////////////////////////////////////////
+    2          // Copyright@ 2009 Airoha.  All right reserved.
+    3          //////////////////////////////////////////////////////////
+    4          #include "reside_flash.inc"
+    5          
+    6          
+    7          #define _AVRCP_C_
+    8          
+    9          #include "..\MMI\MMI_Base.h"
+   10          #include "..\MMI\MMI_AVRCP.h"
+   11          #include "..\MMI\MMI_SCN.h"
+   12          #include "..\MMI\MMI_SDAP.h"
+   13          #include "..\SDAP\SDAP_Interface.h"
+   14          #ifdef LIGHTING_ENABLE
+               #include "..\MMI\MMI_AirModule.h"
+               #endif
+   17          
+   18          #include "AVRCP_interface.h"
+   19          #include "AVRCP.h"
+   20          #include "..\AVCTP\AVCTP_Interface.h"
+   21          #include "..\HC\HC_interface.h"
+   22          
+   23          #ifdef AVRCP_Profile
+   24          
+   25          //PRIVATE void AVRCP(U8 linkIndex);
+   26          PRIVATE MMI_PROFILE_INFO XDATA_PTR AVRCP_ConnectRequest(U8 linkIndex, U8 profileId);
+   27          PRIVATE U8 AVRCP_DisconnectRequest(U8 linkIndex, MMI_PROFILE_INFO XDATA_PTR profileInfo);
+   28          PRIVATE void AVRCP_LinkEvent(U8 linkIndex, U8 evtCode, LINK_EVENT_PARAMS XDATA_PTR evtParams);
+   29          PRIVATE void AVRCP_DataEvent(U8 linkIndex, U8 XDATA_PTR dataPtr);
+   30          
+   31          static AVRCP_CTL_TYPE XDATA gAVRCP_ctl;
+   32          
+   33          static AVCTP_PROFILE_DESC CODE gAVRCP_ProfileDesc = {
+   34            { //MMI_PROFILE_DESC
+   35              PROFILE_AVRCP,
+   36              NULL/*AVRCP*/,        //ProfileTaskFunc
+   37              AVRCP_ConnectRequest,   //ProfileConnectRequest
+   38              AVRCP_DisconnectRequest,  //ProfileDisconnectRequest
+   39              AVRCP_LinkEvent,      //ProfileLinkEvent
+   40              AVRCP_DataEvent,      //ProfileDataEvent
+   41            },
+   42            AVRCP_PID,
+   43          };
+   44          
+   45          static MMI_PROFILE_NODE XDATA gAVRCP_ProfileNode = {
+   46            &gAVRCP_ProfileDesc.mmiProfileDesc,
+   47            NULL,
+   48          };
+   49          
+   50          
+   51          PRIVATE AVRCP_LINK_INFO XDATA_PTR AVRCP_GetLinkInfo(U8 linkIndex)
+   52          {
+C251 COMPILER V5.57.0,  AVRCP                                                              08/11/20  05:53:10  PAGE 2   
+
+   53   1        return &gAVRCP_ctl.linkInfo[linkIndex];
+   54   1      }
+   55          
+   56          PRIVATE void AVRCP_ClearLinkInfo(AVRCP_LINK_INFO XDATA_PTR avrcpLinkInfo)
+   57          {
+   58   1        OSMEM_memset_xdata ((U8 XDATA_PTR)avrcpLinkInfo, 0, sizeof(AVRCP_LINK_INFO));
+   59   1      }
+   60          
+   61          PRIVATE void AVRCP_SendEvtToMMI(U8 linkIndex, U8 evtCode)
+   62          {
+   63   1        MMI_AVRCP_EventHandler(linkIndex, evtCode, (AVRCP_TO_MMI_EVT_PARAM XDATA_PTR)NULL);
+   64   1      }
+   65          
+   66          PRIVATE void AVRCP_SendEvtToMMI_GetAppSetting(U8 linkIndex, U8 attributeID, U8 attributeValue)
+   67          {
+   68   1        AVRCP_TO_MMI_EVT_PARAM LDATA param;
+   69   1        param.GetPlayAppSettings.attributeID = attributeID;
+   70   1        param.GetPlayAppSettings.attributeValue = attributeValue;
+   71   1        MMI_AVRCP_EventHandler(linkIndex, AVRCP_EVT_TO_MMI_GET_APPLICATION_SETTINGS, &param);
+   72   1      }
+   73          
+   74          PRIVATE void AVRCP_SendEvtToMMI_PlayStatus(U8 linkIndex, U8 evtCode, U8 status)
+   75          {
+   76   1        AVRCP_TO_MMI_EVT_PARAM LDATA param;
+   77   1        param.PlayStatus = status;
+   78   1        MMI_AVRCP_EventHandler(linkIndex, evtCode, &param);
+   79   1      }
+   80          
+   81          PRIVATE void AVRCP_SendEvtToMMI_SetAbsoluteVolume(U8 linkIndex, U8 absoluteVolume)
+   82          {
+   83   1        AVRCP_TO_MMI_EVT_PARAM LDATA param;
+   84   1        param.AbsoluteVolume = absoluteVolume;
+   85   1        MMI_AVRCP_EventHandler(linkIndex, AVRCP_EVT_TO_MMI_SET_ABSOLUTE_VOLUME, &param);  
+   86   1      }
+   87          
+   88          PRIVATE void AVRCP_SendEvtToMMI_VendorUnique(U8 linkIndex, U8 operationId, U8 operationParam)
+   89          {
+   90   1        AVRCP_TO_MMI_EVT_PARAM LDATA param;  
+   91   1        param.VendorUnique.operationId = operationId;
+   92   1        param.VendorUnique.operationParam = operationParam;
+   93   1        
+   94   1        MMI_AVRCP_EventHandler(linkIndex, AVRCP_EVT_TO_MMI_VENDOR_UNIQUE, &param);  
+   95   1      }
+   96          #ifdef LIGHTING_ENABLE
+               PRIVATE void AVRCP_SendEvtToMMI_VendorUniqueExtern(U8 linkIndex, U8 operationId, 
+                                   U8 operationParam, U32 syncClk, U8 XDATA_PTR ledPara)
+               {
+                 AVRCP_TO_MMI_EVT_PARAM LDATA param;  
+                 param.VendorUniqueExtendLighting.operationId = operationId;
+                 param.VendorUniqueExtendLighting.operationParam = operationParam;
+                 param.VendorUniqueExtendLighting.syncClk = syncClk;
+                 OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&(param.VendorUniqueExtendLighting.ledPara[0]), ledPara, 3);
+                 MMI_AVRCP_EventHandler(linkIndex, AVRCP_EVT_TO_MMI_VENDOR_UNIQUE, &param);  
+               }
+               #endif
+  108          PRIVATE U8 XDATA_PTR AVRCP_GetAVCTPMessageBuffer(U8 dataLength)
+  109          {
+  110   1        return AVCTP_GetMessageBuffer(dataLength, AVRCP_PID);
+  111   1      }
+  112          
+  113          PRIVATE U8 AVRCP_GetNextTransactionLabel(U8 linkIndex)
+  114          {
+  115   1        return ((++AVRCP_GetLinkInfo(linkIndex)->nextTransactionLabel) & (AVRCP_MAX_CMD_LABEL_COUNT-1));
+  116   1      }
+  117          
+  118          PRIVATE void AVRCP_SendPassThrough(U8 linkIndex, U8 operationId, U8 buttonState)
+C251 COMPILER V5.57.0,  AVRCP                                                              08/11/20  05:53:10  PAGE 3   
+
+  119          {
+  120   1        U8 XDATA_PTR cmdptr;
+  121   1      
+  122   1        if (cmdptr = AVRCP_GetAVCTPMessageBuffer(sizeof(avrcp_pass_through_operation)))
+  123   1        {
+  124   2          OSMEM_memcpy_xdata_code(&cmdptr[15], avrcp_pass_through_operation, sizeof(avrcp_pass_through_operation)
+             -);
+  125   2          cmdptr[15+3] = (buttonState << 7) | operationId;
+  126   2      
+  127   2          AVCTP_SendMessageCmd(linkIndex, cmdptr, AVRCP_GetNextTransactionLabel(linkIndex));
+  128   2        }
+  129   1      }
+  130          
+  131          PRIVATE void AVRCP_SendGetCapabilities(U8 linkIndex, U8 CapabilityId)
+  132          {
+  133   1        U8 XDATA_PTR cmdptr;
+  134   1      
+  135   1        if (cmdptr = AVRCP_GetAVCTPMessageBuffer(sizeof(avrcp_get_capabilities)))
+  136   1        {
+  137   2          OSMEM_memcpy_xdata_code(&cmdptr[15], avrcp_get_capabilities, sizeof(avrcp_get_capabilities));
+  138   2          cmdptr[15+10] = CapabilityId;
+  139   2      
+  140   2          AVCTP_SendMessageCmd(linkIndex, cmdptr, AVRCP_GetNextTransactionLabel(linkIndex));
+  141   2        }
+  142   1      }
+  143          
+  144          PRIVATE void AVRCP_SendSetPlayerApplicationSettingValue(U8 linkIndex, U8 AttributeId, U8 AttributeValue)
+  145          {
+  146   1        U8 XDATA_PTR cmdptr;
+  147   1      
+  148   1        if (cmdptr = AVRCP_GetAVCTPMessageBuffer(sizeof(avrcp_get_player_application_setting_value)+2))
+  149   1        {
+  150   2          OSMEM_memcpy_xdata_code(&cmdptr[15], avrcp_get_player_application_setting_value, sizeof(avrcp_get_playe
+             -r_application_setting_value));
+  151   2          cmdptr[15+6] = AVRCP_PDU_ID_SET_PALYER_APPLICATION;
+  152   2          cmdptr[15+9] = 0x03;
+  153   2          cmdptr[15+11]= AttributeId;
+  154   2          cmdptr[15+12]= AttributeValue;
+  155   2      
+  156   2          AVCTP_SendMessageCmd(linkIndex, cmdptr, AVRCP_GetNextTransactionLabel(linkIndex));
+  157   2        }
+  158   1      }
+  159          
+  160          PRIVATE void AVRCP_SendGetPlayerApplicationSettingValue(U8 linkIndex, U8 AttributeId)
+  161          {
+  162   1        U8 XDATA_PTR cmdptr;
+  163   1      
+  164   1        if (cmdptr = AVRCP_GetAVCTPMessageBuffer(sizeof(avrcp_get_player_application_setting_value)+1))
+  165   1        {
+  166   2          OSMEM_memcpy_xdata_code(&cmdptr[15], avrcp_get_player_application_setting_value, sizeof(avrcp_get_playe
+             -r_application_setting_value));
+  167   2          cmdptr[15+11] = AttributeId;
+  168   2      
+  169   2          AVCTP_SendMessageCmd(linkIndex, cmdptr, AVRCP_GetNextTransactionLabel(linkIndex));
+  170   2        }
+  171   1      }
+  172          
+  173          PRIVATE void AVRCP_SendGetElementAttributes(U8 linkIndex, U8 AttributeId)
+  174          {
+  175   1        U8 XDATA_PTR cmdptr;
+  176   1      
+  177   1        if (cmdptr = AVRCP_GetAVCTPMessageBuffer(sizeof(avrcp_get_element_attributes)))
+  178   1        {
+  179   2          OSMEM_memcpy_xdata_code(&cmdptr[15], avrcp_get_element_attributes, sizeof(avrcp_get_element_attributes)
+             -);
+  180   2          cmdptr[15+22] = AttributeId;
+C251 COMPILER V5.57.0,  AVRCP                                                              08/11/20  05:53:10  PAGE 4   
+
+  181   2      
+  182   2          AVCTP_SendMessageCmd(linkIndex, cmdptr, AVRCP_GetNextTransactionLabel(linkIndex));
+  183   2        }
+  184   1      }
+  185          
+  186          PRIVATE void AVRCP_SendGetPlayStatus(U8 linkIndex)
+  187          {
+  188   1        U8 XDATA_PTR cmdptr;
+  189   1      
+  190   1        if (cmdptr = AVRCP_GetAVCTPMessageBuffer(sizeof(avrcp_get_play_status)))
+  191   1        {
+  192   2          OSMEM_memcpy_xdata_code(&cmdptr[15], avrcp_get_play_status, sizeof(avrcp_get_play_status));
+  193   2      
+  194   2          AVCTP_SendMessageCmd(linkIndex, cmdptr, AVRCP_GetNextTransactionLabel(linkIndex));
+  195   2        }
+  196   1      }
+  197          
+  198          PRIVATE void AVRCP_SendVolumeChangedNotify(U8 linkIndex, U8 absoluteVolume, U8 transaction)
+  199          {
+  200   1        U8 XDATA_PTR resPtr;
+  201   1      
+  202   1        if (resPtr = AVRCP_GetAVCTPMessageBuffer(sizeof(avrcp_volume_changed_notify)))
+  203   1        {
+  204   2          OSMEM_memcpy_xdata_code(&resPtr[15], avrcp_volume_changed_notify, sizeof(avrcp_volume_changed_notify));
+  205   2          resPtr[15+11] = absoluteVolume;
+  206   2      
+  207   2          AVCTP_SendMessageRsp(linkIndex, resPtr, transaction);
+  208   2        }
+  209   1      }
+  210          
+  211          PRIVATE void AVRCP_SendRegisterNotification(U8 linkIndex, U8 eventId, U8 transaction)
+  212          {
+  213   1        U8 XDATA_PTR cmdptr;
+  214   1      
+  215   1        if (cmdptr = AVRCP_GetAVCTPMessageBuffer(sizeof(avrcp_register_notification_cmd)))
+  216   1        {
+  217   2          OSMEM_memcpy_xdata_code(&cmdptr[15], avrcp_register_notification_cmd, sizeof(avrcp_register_notificatio
+             -n_cmd));
+  218   2          cmdptr[15+10] = eventId;
+  219   2      
+  220   2          if (eventId == AVRCP_EVENT_ID_PLAYBACK_POS_CHANGED)
+  221   2          {
+  222   3            cmdptr[15+14] = gMMI_nvram.mmiAvrcpSettings.playbackPosInterval;
+  223   3          }
+  224   2      
+  225   2          AVCTP_SendMessageCmd(linkIndex, cmdptr, transaction);
+  226   2        }
+  227   1      }
+  228          
+  229          PRIVATE void AVRCP_SendContinueResponse(U8 linkIndex, U8 pduId, U8 conti)
+  230          {
+  231   1        U8 XDATA_PTR cmdptr;
+  232   1      
+  233   1        if (cmdptr = AVRCP_GetAVCTPMessageBuffer(sizeof(avrcp_continue_response)))
+  234   1        {
+  235   2          OSMEM_memcpy_xdata_code(&cmdptr[15], avrcp_continue_response, sizeof(avrcp_continue_response));
+  236   2          cmdptr[15+6] = conti;
+  237   2          cmdptr[15+10] = pduId;
+  238   2      
+  239   2          AVCTP_SendMessageCmd(linkIndex, cmdptr, AVRCP_GetNextTransactionLabel(linkIndex));
+  240   2        }
+  241   1      }
+  242          
+  243          PRIVATE void AVRCP_SendSetAbsoluteVolume(U8 linkIndex, U8 absoluteVolume)
+  244          {
+  245   1        U8 XDATA_PTR cmdptr;
+C251 COMPILER V5.57.0,  AVRCP                                                              08/11/20  05:53:10  PAGE 5   
+
+  246   1      
+  247   1        if (cmdptr = AVRCP_GetAVCTPMessageBuffer(sizeof(avrcp_set_absolute_volume)))
+  248   1        {
+  249   2          OSMEM_memcpy_xdata_code(&cmdptr[15], avrcp_set_absolute_volume, sizeof(avrcp_set_absolute_volume));
+  250   2          cmdptr[15+10] = absoluteVolume;
+  251   2      
+  252   2          AVCTP_SendMessageCmd(linkIndex, cmdptr, AVRCP_GetNextTransactionLabel(linkIndex));
+  253   2        }
+  254   1      }
+  255          
+  256          PRIVATE void AVRCP_SendVendorUnique(U8 linkIndex, U8 operationId, U8 operationParam)
+  257          {
+  258   1        U8 XDATA_PTR cmdptr;
+  259   1      
+  260   1        #ifdef LIGHTING_ENABLE
+                 if(operationId == AVRCP_VENDOR_UNIQ_LIGHT_MODE_CONTROL)
+                 {
+                   if (cmdptr = AVRCP_GetAVCTPMessageBuffer(sizeof(avrcp_vendor_unique_operation_extend)))
+                   {
+                     OSMEM_memcpy_xdata_code(&cmdptr[15], avrcp_vendor_unique_operation_extend, sizeof(avrcp_vendor_unique_
+             -operation_extend));
+                     cmdptr[15+8] = operationId;
+                     cmdptr[15+9] = gMMI_Air_ctl.ledMode; //LED mode
+                     OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&cmdptr[15+10],  (U8 XDATA_PTR)(&gMMI_Air_ctl.ledSyncClkVal), 4
+             -);
+                     //Update Led parameter
+                     OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&cmdptr[15+14],  (U8 XDATA_PTR)(&gMMI_Air_ctl.ledPara[0]), 3);
+                     AVCTP_SendMessageCmd(linkIndex, cmdptr, AVRCP_GetNextTransactionLabel(linkIndex));
+                   }
+                 }
+                 else
+                 #endif
+  276   1        if (cmdptr = AVRCP_GetAVCTPMessageBuffer(sizeof(avrcp_vendor_unique_operation)))
+  277   1        {
+  278   2          OSMEM_memcpy_xdata_code(&cmdptr[15], avrcp_vendor_unique_operation, sizeof(avrcp_vendor_unique_operatio
+             -n));
+  279   2          cmdptr[15+8] = operationId;
+  280   2          cmdptr[15+9] = operationParam;
+  281   2      
+  282   2          AVCTP_SendMessageCmd(linkIndex, cmdptr, AVRCP_GetNextTransactionLabel(linkIndex));
+  283   2        }
+  284   1      }
+  285          
+  286          PRIVATE void AVRCP_SetNotifyMask(U8 linkIndex, U8 notifyEventMask)
+  287          {
+  288   1        AVRCP_LINK_INFO XDATA_PTR avrcpLinkInfo = AVRCP_GetLinkInfo(linkIndex);
+  289   1        U8 addEvt = ~avrcpLinkInfo->avrcpNotifyMask & (avrcpLinkInfo->avrcpCapabilities & notifyEventMask);
+  290   1        
+  291   1        avrcpLinkInfo->avrcpNotifyMask = notifyEventMask;
+  292   1        
+  293   1        if (addEvt & MMI_AVRCP_PLAYBACK_STATUS_CHANGED)
+  294   1        {
+  295   2          AVRCP_SendRegisterNotification(linkIndex, AVRCP_EVENT_ID_PLAYBACK_STATUS_CHANGED, AVRCP_LABEL_PLAYBACK_
+             -STATUS_CHANGED);
+  296   2        }
+  297   1      
+  298   1        if (addEvt & MMI_AVRCP_TRACK_CHANGED)
+  299   1        {
+  300   2          AVRCP_SendRegisterNotification(linkIndex, AVRCP_EVENT_ID_TRACK_CHANGED, AVRCP_LABEL_TRACK_CHANGED);
+  301   2        }
+  302   1      
+  303   1        if (addEvt & MMI_AVRCP_TRACK_REACHED_END)
+  304   1        {
+  305   2          AVRCP_SendRegisterNotification(linkIndex, AVRCP_EVENT_ID_TRACK_REACHED_END, AVRCP_LABEL_TRACK_REACHED_E
+             -ND);
+  306   2        }
+C251 COMPILER V5.57.0,  AVRCP                                                              08/11/20  05:53:10  PAGE 6   
+
+  307   1      
+  308   1        if (addEvt & MMI_AVRCP_TRACK_REACHED_START)
+  309   1        {
+  310   2          AVRCP_SendRegisterNotification(linkIndex, AVRCP_EVENT_ID_TRACK_REACHED_START, AVRCP_LABEL_TRACK_REACHED
+             -_START);
+  311   2        }
+  312   1      
+  313   1        if (addEvt & MMI_AVRCP_PLAYBACK_POS_CHANGED)
+  314   1        {
+  315   2          AVRCP_SendRegisterNotification(linkIndex, AVRCP_EVENT_ID_PLAYBACK_POS_CHANGED, AVRCP_LABEL_PLAYBACK_POS
+             -_CHANGED);
+  316   2        }
+  317   1      
+  318   1        if (addEvt & MMI_AVRCP_VOLUME_CHANGED)
+  319   1        {
+  320   2          AVRCP_SendRegisterNotification(linkIndex, AVRCP_EVENT_ID_VOLUME_CHANGED, AVRCP_LABEL_VOLUME_CHANGED);
+  321   2        }
+  322   1        
+  323   1        if (addEvt & MMI_AVRCP_PLAYER_APPLICATION_SETTING_CHANGED)
+  324   1        {
+  325   2          AVRCP_SendRegisterNotification(linkIndex, AVRCP_EVENT_ID_PLAYER_APPLICATION_SETTING_CHANGED, AVRCP_LABE
+             -L_PLAYER_APPLICATION_SETTING_CHANGED);
+  326   2        }
+  327   1      }
+  328          
+  329          PRIVATE void AVRCP_SendNextGetElementAttributes(U8 linkIndex)
+  330          {
+  331   1        AVRCP_LINK_INFO XDATA_PTR avrcpLinkInfo = AVRCP_GetLinkInfo(linkIndex);
+  332   1        U8 avrcpMediaEvents = avrcpLinkInfo->avrcpMediaEvents;
+  333   1      
+  334   1        if (avrcpMediaEvents)
+  335   1        {
+  336   2          if (avrcpMediaEvents & MMI_AVRCP_MEDIA_TITLE)
+  337   2          {
+  338   3            avrcpMediaEvents &= ~MMI_AVRCP_MEDIA_TITLE;
+  339   3            AVRCP_SendGetElementAttributes(linkIndex, AVRCP_MEDIA_TITLE);
+  340   3          }
+  341   2          else if (avrcpMediaEvents & MMI_AVRCP_MEDIA_ARTIST_NAME)
+  342   2          {
+  343   3            avrcpMediaEvents &= ~MMI_AVRCP_MEDIA_ARTIST_NAME;
+  344   3            AVRCP_SendGetElementAttributes(linkIndex, AVRCP_MEDIA_ARTIST_NAME);
+  345   3          }
+  346   2          else if (avrcpMediaEvents & MMI_AVRCP_MEDIA_ALBUM_NAME)
+  347   2          {
+  348   3            avrcpMediaEvents &= ~MMI_AVRCP_MEDIA_ALBUM_NAME;
+  349   3            AVRCP_SendGetElementAttributes(linkIndex, AVRCP_MEDIA_ALBUM_NAME);
+  350   3          }
+  351   2          else if (avrcpMediaEvents & MMI_AVRCP_MEDIA_TRACK_NUMBER)
+  352   2          {
+  353   3            avrcpMediaEvents &= ~MMI_AVRCP_MEDIA_TRACK_NUMBER;
+  354   3            AVRCP_SendGetElementAttributes(linkIndex, AVRCP_MEDIA_TRACK_NUMBER);
+  355   3          }
+  356   2          else if (avrcpMediaEvents & MMI_AVRCP_MEDIA_TOTAL_TRACKS)
+  357   2          {
+  358   3            avrcpMediaEvents &= ~MMI_AVRCP_MEDIA_TOTAL_TRACKS;
+  359   3            AVRCP_SendGetElementAttributes(linkIndex, AVRCP_MEDIA_TOTAL_TRACKS);
+  360   3          }
+  361   2          else if (avrcpMediaEvents & MMI_AVRCP_MEDIA_GENRE)
+  362   2          {
+  363   3            avrcpMediaEvents &= ~MMI_AVRCP_MEDIA_GENRE;
+  364   3            AVRCP_SendGetElementAttributes(linkIndex, AVRCP_MEDIA_GENRE);
+  365   3          }
+  366   2          else if (avrcpMediaEvents & MMI_AVRCP_MEDIA_PLAYING_TIME)
+  367   2          {
+  368   3            avrcpMediaEvents &= ~MMI_AVRCP_MEDIA_PLAYING_TIME;
+  369   3            AVRCP_SendGetElementAttributes(linkIndex, AVRCP_MEDIA_PLAYING_TIME);
+C251 COMPILER V5.57.0,  AVRCP                                                              08/11/20  05:53:10  PAGE 7   
+
+  370   3          }
+  371   2          avrcpLinkInfo->avrcpMediaEvents = avrcpMediaEvents;
+  372   2        }
+  373   1      }
+  374          
+  375          PRIVATE void AVRCP_RemoteGetCapabilitiesRsp(U8 linkIndex, AVRCP_CMD_TYPE XDATA_PTR remotePduPtr)
+  376          {
+  377   1        U8 XDATA_PTR evtPtr;
+  378   1        U8 avrcpCapabilities = 0;
+  379   1        U8 event, count = remotePduPtr->msgBodyPtr.getCapabilitiesRsp.CapabilityCount;
+  380   1      
+  381   1        if(remotePduPtr->msgBodyPtr.getCapabilitiesRsp.CapabilityId == AVRCP_GET_CAPABILITIES_EVENTS_SUPPORTED)
+  382   1        {
+  383   2          evtPtr = (U8 XDATA_PTR)&remotePduPtr->msgBodyPtr/*.getCapabilitiesRsp eliminate to prevent coverity war
+             -ning*/ + sizeof(remotePduPtr->msgBodyPtr.getCapabilitiesRsp);
+  384   2          while (count--)
+  385   2          {
+  386   3            event = *evtPtr++;
+  387   3            switch (event)
+  388   3            {
+  389   4              case AVRCP_EVENT_ID_PLAYBACK_STATUS_CHANGED:
+  390   4                avrcpCapabilities |= MMI_AVRCP_PLAYBACK_STATUS_CHANGED;
+  391   4                break;
+  392   4              case AVRCP_EVENT_ID_TRACK_CHANGED:
+  393   4                avrcpCapabilities |= MMI_AVRCP_TRACK_CHANGED;
+  394   4                break;
+  395   4              case AVRCP_EVENT_ID_TRACK_REACHED_END:
+  396   4                avrcpCapabilities |= MMI_AVRCP_TRACK_REACHED_END;
+  397   4                break;
+  398   4              case AVRCP_EVENT_ID_TRACK_REACHED_START:
+  399   4                avrcpCapabilities |= MMI_AVRCP_TRACK_REACHED_START;
+  400   4                break;
+  401   4              case AVRCP_EVENT_ID_PLAYBACK_POS_CHANGED:
+  402   4                avrcpCapabilities |= MMI_AVRCP_PLAYBACK_POS_CHANGED;
+  403   4                break;
+  404   4              case AVRCP_EVENT_ID_VOLUME_CHANGED:
+  405   4                avrcpCapabilities |= MMI_AVRCP_VOLUME_CHANGED;
+  406   4                break;
+  407   4              case AVRCP_EVENT_ID_PLAYER_APPLICATION_SETTING_CHANGED:
+  408   4                avrcpCapabilities |= MMI_AVRCP_PLAYER_APPLICATION_SETTING_CHANGED;
+  409   4                break;
+  410   4            }
+  411   3          }                 
+  412   2          AVRCP_GetLinkInfo(linkIndex)->avrcpCapabilities = avrcpCapabilities;
+  413   2          AVRCP_SetNotifyMask(linkIndex, gMMI_nvram.mmiAvrcpSettings.notifyEventMask);
+  414   2        }
+  415   1      }
+  416          
+  417          PRIVATE void AVRCP_RemoteGetElementAttributesRsp(U8 linkIndex, AVRCP_CMD_TYPE XDATA_PTR remotePduPtr)
+  418          {
+  419   1        #define MAX_AVRCP_MEDIA_ATTRIBUTE_SIZE  (255 - (sizeof(HciUARTAvrcpMediaAttribute)-1))
+  420   1      
+  421   1        MMIMsgType XDATA_PTR ptr1 = (MMIMsgType XDATA_PTR) remotePduPtr;
+  422   1        U8 paraLen;
+  423   1      
+  424   1        if (remotePduPtr->msgBodyPtr.getElementAttributesRsp.ParameterLength > MAX_AVRCP_MEDIA_ATTRIBUTE_SIZE)
+  425   1        {
+  426   2          paraLen = remotePduPtr->msgBodyPtr.getElementAttributesRsp.ParameterLength = MAX_AVRCP_MEDIA_ATTRIBUTE_
+             -SIZE;
+  427   2          remotePduPtr->msgBodyPtr.getElementAttributesRsp.Attribute[0].AttributeValueLength = MAX_AVRCP_MEDIA_AT
+             -TRIBUTE_SIZE - 9;
+  428   2        }
+  429   1        else
+  430   1        {
+  431   2          paraLen = remotePduPtr->msgBodyPtr.getElementAttributesRsp.ParameterLength;
+  432   2        }
+C251 COMPILER V5.57.0,  AVRCP                                                              08/11/20  05:53:10  PAGE 8   
+
+  433   1        
+  434   1        ptr1->dataOffset = EVT_OFFSET;
+  435   1        ptr1->eventCode = AVRCP_EVT_TO_MMI_GET_ELEMENT_ATTRIBUTES;
+  436   1        ptr1->paraLen = paraLen + (sizeof(HciUARTAvrcpMediaAttribute)-1);
+  437   1        
+  438   1        OSMEM_memcpy_xdata_xdata(&ptr1->msgBodyPtr.hciUARTAvrcpMediaAttribute.dataBegin,
+  439   1                      &remotePduPtr->msgBodyPtr.getElementAttributesRsp.NumAttributes, paraLen);
+  440   1        MMI_AVRCP_EventHandler(linkIndex, AVRCP_EVT_TO_MMI_GET_ELEMENT_ATTRIBUTES, (AVRCP_TO_MMI_EVT_PARAM XDATA
+             -_PTR)ptr1);  
+  441   1      }
+  442          
+  443          PRIVATE void AVRCP_RemoteRegisterNotification(U8 linkIndex, AVRCP_CMD_TYPE XDATA_PTR remotePduPtr)
+  444          {
+  445   1        //AVRCP_TO_MMI_EVT_PARAM LDATA param;
+  446   1        AVRCP_LINK_INFO XDATA_PTR avrcpLinkInfo = AVRCP_GetLinkInfo(linkIndex);
+  447   1        U8 avrcpNotifyMask = avrcpLinkInfo->avrcpNotifyMask;
+  448   1        U8 i, notifyLabel = 0;
+  449   1        
+  450   1        switch (remotePduPtr->msgBodyPtr.notifyPdu.eventID)
+  451   1        {
+  452   2          case AVRCP_EVENT_ID_PLAYBACK_STATUS_CHANGED:
+  453   2            if (avrcpNotifyMask & MMI_AVRCP_PLAYBACK_STATUS_CHANGED)
+  454   2            {
+  455   3              notifyLabel = AVRCP_LABEL_PLAYBACK_STATUS_CHANGED;
+  456   3            }
+  457   2            break;
+  458   2          case AVRCP_EVENT_ID_TRACK_CHANGED:
+  459   2            if (avrcpNotifyMask & MMI_AVRCP_TRACK_CHANGED)
+  460   2            {
+  461   3              notifyLabel = AVRCP_LABEL_TRACK_CHANGED;
+  462   3            }
+  463   2            break;
+  464   2          case AVRCP_EVENT_ID_TRACK_REACHED_END:
+  465   2            if (avrcpNotifyMask & MMI_AVRCP_TRACK_REACHED_END)
+  466   2            {
+  467   3              notifyLabel = AVRCP_LABEL_TRACK_CHANGED;
+  468   3            }
+  469   2            break;
+  470   2          case AVRCP_EVENT_ID_TRACK_REACHED_START:
+  471   2            if (avrcpNotifyMask & MMI_AVRCP_TRACK_REACHED_START)
+  472   2            {
+  473   3              notifyLabel = AVRCP_LABEL_TRACK_REACHED_START;
+  474   3            }
+  475   2            break;
+  476   2          case AVRCP_EVENT_ID_PLAYBACK_POS_CHANGED:
+  477   2            if (avrcpNotifyMask & MMI_AVRCP_PLAYBACK_POS_CHANGED)
+  478   2            {
+  479   3              notifyLabel = AVRCP_LABEL_PLAYBACK_POS_CHANGED;
+  480   3            }
+  481   2            break;
+  482   2          case AVRCP_EVENT_ID_VOLUME_CHANGED:
+  483   2            if (avrcpNotifyMask & MMI_AVRCP_VOLUME_CHANGED)
+  484   2            {
+  485   3              notifyLabel = AVRCP_LABEL_VOLUME_CHANGED;
+  486   3            }
+  487   2            break;
+  488   2          case AVRCP_EVENT_ID_PLAYER_APPLICATION_SETTING_CHANGED:
+  489   2            if (avrcpNotifyMask & MMI_AVRCP_PLAYER_APPLICATION_SETTING_CHANGED)
+  490   2            {
+  491   3              notifyLabel = AVRCP_LABEL_PLAYER_APPLICATION_SETTING_CHANGED;
+  492   3            }
+  493   2            break;
+  494   2        }
+  495   1        
+  496   1        if (!notifyLabel)
+  497   1          return;
+C251 COMPILER V5.57.0,  AVRCP                                                              08/11/20  05:53:10  PAGE 9   
+
+  498   1          
+  499   1        if (remotePduPtr->ctypeOrResp == AVC_RES_INTERIM)
+  500   1        {
+  501   2          if (notifyLabel == AVRCP_LABEL_TRACK_CHANGED)
+  502   2          {
+  503   3            if (!(avrcpLinkInfo->avrcpMiscFlags & AVRCP_MISC_FIRST_INTERIM_TRACK_CHANGED))
+  504   3            {
+  505   4              avrcpLinkInfo->avrcpMiscFlags |= AVRCP_MISC_FIRST_INTERIM_TRACK_CHANGED;
+  506   4      
+  507   4              /*for (i = 0; i < 8; i++)
+  508   4              {
+  509   4                if (remotePduPtr->msgBodyPtr.notifyPdu.eventParams.UID[i] != 0)
+  510   4                  break;
+  511   4              }
+  512   4              if (i == 8)
+  513   4              { //current track is selected for browsing not supported player
+  514   4                goto label_changed_notify;
+  515   4              }*/
+  516   4      
+  517   4              for (i = 0; i < 8; i++)
+  518   4              {
+  519   5                if (remotePduPtr->msgBodyPtr.notifyPdu.eventParams.UID[i] != 0xFF)
+  520   5                  break;
+  521   5              }
+  522   4              if (i < 8)
+  523   4              { //current track is selected for browsing supported player
+  524   5                goto label_changed_notify;
+  525   5              }
+  526   4            }
+  527   3          }
+  528   2          else if (notifyLabel == AVRCP_LABEL_PLAYBACK_STATUS_CHANGED)
+  529   2          {
+  530   3            goto label_changed_notify;
+  531   3          }
+  532   2          return;
+  533   2        }
+  534   1      
+  535   1      label_changed_notify:
+  536   1        //OSMEM_memcpy_xdata_xdata(&param.Notify.eventID,
+  537   1        //            &remotePduPtr->msgBodyPtr.notifyPdu.eventID, remotePduPtr->msgBodyPtr.notifyPdu.ParameterLength)
+             -;
+  538   1        //MMI_AVRCP_EventHandler(linkIndex, AVRCP_EVT_TO_MMI_REMOTE_NOTIFICATION_CHANGED, &param);
+  539   1        MMI_AVRCP_EventHandler(linkIndex, AVRCP_EVT_TO_MMI_REMOTE_NOTIFICATION_CHANGED, (AVRCP_TO_MMI_EVT_PARAM 
+             -XDATA_PTR)&remotePduPtr->msgBodyPtr.notifyPdu.eventID);
+  540   1      
+  541   1        if (remotePduPtr->ctypeOrResp == AVC_RES_CHANGED)
+  542   1        {
+  543   2          AVRCP_SendRegisterNotification(linkIndex, avrcp_mmi_notify_event_id[notifyLabel-AVRCP_FIRST_NOTIFY_LABE
+             -L], notifyLabel);
+  544   2        }
+  545   1        
+  546   1        if (notifyLabel == AVRCP_LABEL_TRACK_CHANGED)
+  547   1        {
+  548   2          avrcpLinkInfo->avrcpMediaEvents = gMMI_nvram.mmiAvrcpSettings.mediaEventMask;
+  549   2          AVRCP_SendNextGetElementAttributes(linkIndex);
+  550   2        }
+  551   1      }
+  552          
+  553          PRIVATE BOOL AVRCP_CheckBluetoothSIG(U8 XDATA_PTR companyIDPtr)
+  554          {
+  555   1        if (companyIDPtr[0] == 0x00 && companyIDPtr[1] == 0x19 && companyIDPtr[2] == 0x58)
+  556   1          return TRUE;
+  557   1        else
+  558   1          return FALSE;
+  559   1      }
+  560          
+C251 COMPILER V5.57.0,  AVRCP                                                              08/11/20  05:53:10  PAGE 10  
+
+  561          PRIVATE BOOL AVRCP_CheckAirohaUnique(U8 XDATA_PTR companyIDPtr)
+  562          {
+  563   1        if (companyIDPtr[0] == 0x0C && companyIDPtr[1] == 0xFC && companyIDPtr[2] == 0x83)
+  564   1          return TRUE;
+  565   1        else
+  566   1          return FALSE;
+  567   1      }
+  568          
+  569          PRIVATE U8 AVRCP_CheckSupported(U8 linkIndex, AVRCP_CMD_TYPE XDATA_PTR remotePduPtr)
+  570          {
+  571   1        AVRCP_LINK_INFO XDATA_PTR avrcpLinkInfo;
+  572   1        U8 resultCode = AVC_ERROR_CODE_INVALID_COMMAND;
+  573   1        U8 operandID;
+  574   1        
+  575   1        if(remotePduPtr->subUnitType != SUBUNIT_PANEL || remotePduPtr->subUnitID != 0x00)
+  576   1          return AVC_ERROR_CODE_INVALID_COMMAND;
+  577   1      
+  578   1        switch(remotePduPtr->opCode)
+  579   1        {
+  580   2          case AVC_OPCODE_VENDOR_DEPENDENT:
+  581   2            if(AVRCP_CheckBluetoothSIG(remotePduPtr->msgBodyPtr.vendorDependentPdu.companyID))
+  582   2            {
+  583   3              switch(remotePduPtr->msgBodyPtr.vendorDependentPdu.pduID)
+  584   3              {
+  585   4                case AVRCP_PDU_ID_GET_CAPABILITIES:
+  586   4                  if(remotePduPtr->ctypeOrResp == AVC_CMD_STATUS)
+  587   4                  {
+  588   5                    if(remotePduPtr->msgBodyPtr.getCapabilitiesCmd.ParameterLength == 1)
+  589   5                    { 
+  590   6                      if(remotePduPtr->msgBodyPtr.getCapabilitiesCmd.CapabilityId == AVRCP_GET_CAPABILITIES_COMPANY_ID 
+             -|| 
+  591   6                        remotePduPtr->msgBodyPtr.getCapabilitiesCmd.CapabilityId == AVRCP_GET_CAPABILITIES_EVENTS_SUPPOR
+             -TED) 
+  592   6                      {
+  593   7                        resultCode = AVC_ERROR_CODE_NO_ERROR;
+  594   7                      }
+  595   6                      else
+  596   6                      {
+  597   7                        resultCode = AVC_ERROR_CODE_INVALID_PARAMETER;
+  598   7                      }
+  599   6                    }
+  600   5                    else
+  601   5                    {
+  602   6                      resultCode = AVC_ERROR_CODE_PARAMETER_ERROR;
+  603   6                    }
+  604   5                  }
+  605   4                  break;
+  606   4                case AVRCP_PDU_ID_GET_ELEMENT_ATTRIBUTES: /* for AVCTP BQB test case FRA_BV_03_C */
+  607   4                  if(remotePduPtr->ctypeOrResp == AVC_CMD_STATUS)
+  608   4                  {
+  609   5                    resultCode = AVC_ERROR_CODE_NO_ERROR;
+  610   5                  }
+  611   4                  break;
+  612   4                case AVRCP_PDU_ID_REGISTER_NOTIFICATION:
+  613   4                  if(remotePduPtr->ctypeOrResp == AVC_CMD_NOTIFY)
+  614   4                  {
+  615   5                    if(remotePduPtr->msgBodyPtr.registerPdu.ParameterLength == 5)
+  616   5                    {
+  617   6                      if(remotePduPtr->msgBodyPtr.registerPdu.eventID == AVRCP_EVENT_ID_VOLUME_CHANGED)
+  618   6                      {
+  619   7                        if(!MMI_AVRCP_VOLUME_SYNC_DISABLED_FEAT)
+  620   7                        {
+  621   8                          avrcpLinkInfo = AVRCP_GetLinkInfo(linkIndex);
+  622   8                          avrcpLinkInfo->avrcpMiscFlags |= AVRCP_REPORT_VOLUME_CHANGE;
+  623   8                          avrcpLinkInfo->volumeNotifyTransactionLabel = remotePduPtr->transactionLabel;
+  624   8                          resultCode = AVC_ERROR_CODE_NO_ERROR;
+C251 COMPILER V5.57.0,  AVRCP                                                              08/11/20  05:53:10  PAGE 11  
+
+  625   8                        }
+  626   7                      }
+  627   6                      else
+  628   6                      {
+  629   7                        resultCode = AVC_ERROR_CODE_INVALID_PARAMETER;
+  630   7                      }
+  631   6                    }
+  632   5                    else
+  633   5                    {
+  634   6                      resultCode = AVC_ERROR_CODE_PARAMETER_ERROR;
+  635   6                    }
+  636   5                  }
+  637   4                  break;
+  638   4                case AVRCP_PDU_ID_SET_ABSOLUTE_VOLUME:
+  639   4                  if(remotePduPtr->ctypeOrResp == AVC_CMD_CONTROL && !MMI_AVRCP_VOLUME_SYNC_DISABLED_FEAT)
+  640   4                  {
+  641   5                    if(remotePduPtr->msgBodyPtr.absoluteVolumePdu.ParameterLength == 1)
+  642   5                    {
+  643   6                      AVRCP_SendEvtToMMI_SetAbsoluteVolume(linkIndex, remotePduPtr->msgBodyPtr.absoluteVolumePdu.absolu
+             -teVolume);
+  644   6                      resultCode = AVC_ERROR_CODE_NO_ERROR;
+  645   6                    }
+  646   5                    else
+  647   5                    {
+  648   6                      resultCode = AVC_ERROR_CODE_PARAMETER_ERROR;
+  649   6                    }
+  650   5                  }
+  651   4                  break;
+  652   4              }
+  653   3            }
+  654   2            break;
+  655   2          case AVC_OPCODE_PASS_THROUGH:
+  656   2            if(remotePduPtr->ctypeOrResp == AVC_CMD_CONTROL)
+  657   2            {
+  658   3              operandID = remotePduPtr->msgBodyPtr.passThroughPdu.operandID;
+  659   3              if(operandID >= AVC_OPERATION_POWER && operandID <= AVC_OPERATION_BACKWARD)
+  660   3              {
+  661   4                if(remotePduPtr->msgBodyPtr.passThroughPdu.operandLength == 0)
+  662   4                {
+  663   5                  if((operandID == AVC_OPERATION_VOL_UP || operandID == AVC_OPERATION_VOL_DOWN) && MMI_AVRCP_VOLUME_S
+             -YNC_DISABLED_FEAT)
+  664   5                  {
+  665   6                    break;
+  666   6                  }
+  667   5                  
+  668   5                  if(!remotePduPtr->msgBodyPtr.passThroughPdu.buttonReleased)// Nokia sends only press, no release
+  669   5                  {
+  670   6                    AVRCP_SendEvtToMMI(linkIndex, operandID); 
+  671   6                  }
+  672   5                  resultCode = AVC_ERROR_CODE_NO_ERROR;
+  673   5                }
+  674   4                else
+  675   4                {
+  676   5                  resultCode = AVC_ERROR_CODE_PARAMETER_ERROR;
+  677   5                }
+  678   4              }
+  679   3              else if (operandID == AVC_OPERATION_VENDOR_UNIQUE)
+  680   3              {
+  681   4                if(remotePduPtr->msgBodyPtr.vendorUniquePdu.operandLength == 5)
+  682   4                {
+  683   5                  if (AVRCP_CheckAirohaUnique(remotePduPtr->msgBodyPtr.vendorUniquePdu.companyID))
+  684   5                  {
+  685   6                    if(!remotePduPtr->msgBodyPtr.vendorUniquePdu.buttonReleased)// Nokia sends only press, no release
+  686   6                    {
+  687   7                      AVRCP_SendEvtToMMI_VendorUnique(linkIndex, 
+  688   7                                      remotePduPtr->msgBodyPtr.vendorUniquePdu.vendor_unique.airoha.operationId,
+C251 COMPILER V5.57.0,  AVRCP                                                              08/11/20  05:53:10  PAGE 12  
+
+  689   7                                      remotePduPtr->msgBodyPtr.vendorUniquePdu.vendor_unique.airoha.operationParam);
+  690   7                    }
+  691   6                    resultCode = AVC_ERROR_CODE_NO_ERROR;
+  692   6                  }
+  693   5                }
+  694   4                #ifdef LIGHTING_ENABLE
+                         else if(remotePduPtr->msgBodyPtr.vendorUniquePdu.operandLength == avrcp_vendor_unique_operation_exte
+             -nd[4])
+                         {
+                           if (AVRCP_CheckAirohaUnique(remotePduPtr->msgBodyPtr.vendorUniquePdu.companyID))
+                           {
+                             AVRCP_SendEvtToMMI_VendorUniqueExtern(linkIndex, 
+                                               remotePduPtr->msgBodyPtr.vendorUniquePdu.vendor_unique.airoha.operationId,
+                                               remotePduPtr->msgBodyPtr.vendorUniquePdu.vendor_unique.airoha.operationParam,
+                                               remotePduPtr->msgBodyPtr.vendorUniquePdu.vendor_unique.airoha.syncClk,
+                                               &(remotePduPtr->msgBodyPtr.vendorUniquePdu.vendor_unique.airoha.ledPara[0]));
+                             resultCode = AVC_ERROR_CODE_NO_ERROR;
+                           }
+                         }
+                         #endif
+  708   4                else
+  709   4                {
+  710   5                  resultCode = AVC_ERROR_CODE_PARAMETER_ERROR;
+  711   5                }
+  712   4              }
+  713   3            }
+  714   2            break;
+  715   2        }
+  716   1        return resultCode;
+  717   1      }
+  718          
+  719          PRIVATE void AVRCP_SendResp(U8 linkIndex, AVRCP_CMD_TYPE XDATA_PTR remotePduPtr, U8 resultCode)
+  720          {
+  721   1        U8 length;
+  722   1        U8 XDATA_PTR msgPtr;
+  723   1        U8 XDATA_PTR resPtr;
+  724   1      
+  725   1        if(msgPtr = AVRCP_GetAVCTPMessageBuffer(0/*fake length, fixed below*/))
+  726   1        {
+  727   2          resPtr = &msgPtr[15];
+  728   2          switch (remotePduPtr->opCode)
+  729   2          {
+  730   3            case AVC_OPCODE_UNIT_INFO:
+  731   3            case AVC_OPCODE_SUBUNIT_INFO:
+  732   3              OSMEM_memcpy_xdata_code(resPtr, AVRCP_unit_info_resp, (length = sizeof(AVRCP_unit_info_resp)));
+  733   3              resPtr[1] = (remotePduPtr->subUnitType<<3) | remotePduPtr->subUnitID;
+  734   3              resPtr[2] = remotePduPtr->opCode;
+  735   3              break;
+  736   3            case AVC_OPCODE_VENDOR_DEPENDENT:
+  737   3              OSMEM_memcpy_xdata_xdata(resPtr, ((U8 XDATA_PTR)remotePduPtr)+AVRCP_PAYLOAD_OFFSET, sizeof(AVRCP_CMD_
+             -TYPE)-AVRCP_PAYLOAD_OFFSET);
+  738   3              if(resultCode == AVC_ERROR_CODE_NO_ERROR)
+  739   3              {
+  740   4                if(remotePduPtr->msgBodyPtr.vendorDependentPdu.pduID == AVRCP_PDU_ID_GET_CAPABILITIES)
+  741   4                {
+  742   5                  resPtr[0] = AVC_RES_STABLE;
+  743   5                  if(remotePduPtr->msgBodyPtr.getCapabilitiesCmd.CapabilityId == AVRCP_GET_CAPABILITIES_COMPANY_ID)
+  744   5                  {
+  745   6                    *(U16 XDATA_PTR)&resPtr[8] = 5; //ParameterLength
+  746   6                    resPtr[11] = 1;
+  747   6                    resPtr[12] = resPtr[3];
+  748   6                    resPtr[13] = resPtr[4];
+  749   6                    resPtr[14] = resPtr[5];
+  750   6                    length = 15;
+  751   6                    break;
+  752   6                  }
+C251 COMPILER V5.57.0,  AVRCP                                                              08/11/20  05:53:10  PAGE 13  
+
+  753   5                  else if(remotePduPtr->msgBodyPtr.getCapabilitiesCmd.CapabilityId == AVRCP_GET_CAPABILITIES_EVENTS_S
+             -UPPORTED)
+  754   5                  {
+  755   6                    if(MMI_AVRCP_VOLUME_SYNC_DISABLED_FEAT)
+  756   6                    {
+  757   7                      *(U16 XDATA_PTR)&resPtr[8] = 2; //ParameterLength
+  758   7                      resPtr[11] = 0;
+  759   7                      length = 12;
+  760   7                    }
+  761   6                    else
+  762   6                    {
+  763   7                      *(U16 XDATA_PTR)&resPtr[8] = 3; //ParameterLength
+  764   7                      resPtr[11] = 1;
+  765   7                      resPtr[12] = AVRCP_EVENT_ID_VOLUME_CHANGED;
+  766   7                      length = 13;
+  767   7                    }
+  768   6                    break;
+  769   6                  }
+  770   5                }
+  771   4                else if(remotePduPtr->msgBodyPtr.vendorDependentPdu.pduID == AVRCP_PDU_ID_GET_ELEMENT_ATTRIBUTES) /*
+             - for AVCTP BQB test case FRA_BV_03_C */
+  772   4                {
+  773   5                  resPtr[0] = AVC_RES_STABLE;
+  774   5                  *(U16 XDATA_PTR)&resPtr[8] = 1; //ParameterLength
+  775   5                  resPtr[10] = 0;
+  776   5                  length = 11;
+  777   5                  break;
+  778   5                }
+  779   4                else if(remotePduPtr->msgBodyPtr.vendorDependentPdu.pduID == AVRCP_PDU_ID_REGISTER_NOTIFICATION && r
+             -emotePduPtr->msgBodyPtr.registerPdu.eventID == AVRCP_EVENT_ID_VOLUME_CHANGED)
+  780   4                {
+  781   5                  resPtr[0] = AVC_RES_INTERIM;
+  782   5                  *(U16 XDATA_PTR)&resPtr[8] = 2; //ParameterLength
+  783   5                  resPtr[11] = MMI_AVRCP_GetAbsVolByMusic(linkIndex);
+  784   5                  length = 12;
+  785   5                  break;
+  786   5                }
+  787   4                else if(remotePduPtr->msgBodyPtr.vendorDependentPdu.pduID == AVRCP_PDU_ID_SET_ABSOLUTE_VOLUME)
+  788   4                {
+  789   5                  resPtr[0] = AVC_RES_ACCEPTED;
+  790   5                  /* ParameterLength not changed */
+  791   5                  length = 11;
+  792   5                  break;
+  793   5                }
+  794   4              }
+  795   3              
+  796   3              //Implemented according to AVRCP - 6.15.1 AVRCP Specific AV/C Commands
+  797   3              resPtr[0] = (resultCode == AVC_ERROR_CODE_INVALID_COMMAND) ? AVC_RES_NOT_IMPLEMENTED : AVC_RES_REJECT
+             -ED;
+  798   3              *(U16 XDATA_PTR)&resPtr[8] = 1; //ParameterLength
+  799   3              resPtr[10] = resultCode;
+  800   3              length = 11;
+  801   3              break;
+  802   3            case AVC_OPCODE_PASS_THROUGH:
+  803   3              OSMEM_memcpy_xdata_xdata(resPtr, ((U8 XDATA_PTR)remotePduPtr)+AVRCP_PAYLOAD_OFFSET,  (length = 5+remo
+             -tePduPtr->msgBodyPtr.passThroughPdu.operandLength));
+  804   3              resPtr[0] = (resultCode == AVC_ERROR_CODE_NO_ERROR) ? AVC_RES_ACCEPTED : AVC_RES_NOT_IMPLEMENTED;
+  805   3              break;
+  806   3            default:
+  807   3              OSMEM_Put(msgPtr);
+  808   3              return;
+  809   3          }
+  810   2          msgPtr[8] += length; //set correct l2cap packet length
+  811   2          AVCTP_SendMessageRsp(linkIndex, msgPtr, remotePduPtr->transactionLabel);
+  812   2        }
+  813   1      }
+C251 COMPILER V5.57.0,  AVRCP                                                              08/11/20  05:53:10  PAGE 14  
+
+  814          
+  815          PUBLIC U8 AVRCP_GetState(U8 linkIndex)
+  816          {
+  817   1        return AVRCP_GetLinkInfo(linkIndex)->mmiProfileInfo.state;
+  818   1      }
+  819          
+  820          PUBLIC void AVRCP_MMICommandHandler(U8 linkIndex, U8 cmdCode, MMI_TO_AVRCP_CMD_PARAM XDATA_PTR paramPtr)
+  821          {
+  822   1        AVRCP_LINK_INFO XDATA_PTR avrcpLinkInfo = AVRCP_GetLinkInfo(linkIndex);
+  823   1      
+  824   1        MMI_SniffDisable(linkIndex, MMI_SNIFF_AVRCP);
+  825   1        
+  826   1        switch (cmdCode)
+  827   1        {
+  828   2          case AVRCP_SEND_OPERATION:  
+  829   2            if(avrcpLinkInfo->mmiProfileInfo.state == PROFILE_CONNECTED)
+  830   2            {
+  831   3              // If Pause is not supported, send Stop
+  832   3              if((avrcpLinkInfo->avrcpMiscFlags & AVRCP_NOT_SUPPORT_PAUSE_CMD_IN_REMOTE) && paramPtr->operationId =
+             -= AVC_OPERATION_PAUSE)
+  833   3                paramPtr->operationId = AVC_OPERATION_STOP;
+  834   3      
+  835   3              switch(paramPtr->operationId)
+  836   3              {
+  837   4                #ifdef PEQ_ENABLE
+  838   4                case AVC_OPERATION_PEQOFF:
+  839   4                case AVC_OPERATION_PEQON:
+  840   4                  AVRCP_SendSetPlayerApplicationSettingValue(linkIndex, AVRCP_PEQ_ON_OFF_STATUS, paramPtr->operationI
+             -d);
+  841   4                  break;
+  842   4                #endif
+  843   4                case AVC_OPERATION_GET_REPEAT_MODE:
+  844   4                  AVRCP_SendGetPlayerApplicationSettingValue(linkIndex, AVRCP_REPEAT_MODE_STATUS);
+  845   4                  break;
+  846   4                case AVC_OPERATION_SET_REPEAT_MODE:
+  847   4                  AVRCP_SendSetPlayerApplicationSettingValue(linkIndex, AVRCP_REPEAT_MODE_STATUS, paramPtr->PlayAppSe
+             -ttings.attributeValue);
+  848   4                  break;
+  849   4                case AVC_OPERATION_GET_SHUFFLE_MODE:
+  850   4                  AVRCP_SendGetPlayerApplicationSettingValue(linkIndex, AVRCP_SHUFFLE_ON_OFF_STATUS);
+  851   4                  break;
+  852   4                case AVC_OPERATION_SET_SHUFFLE_MODE:
+  853   4                  AVRCP_SendSetPlayerApplicationSettingValue(linkIndex, AVRCP_SHUFFLE_ON_OFF_STATUS, paramPtr->PlayAp
+             -pSettings.attributeValue);
+  854   4                  break;
+  855   4                case AVC_OPERATION_KEY_PLAY:
+  856   4                case AVC_OPERATION_KEY_PAUSE:
+  857   4                  avrcpLinkInfo->avrcpMiscFlags |= AVRCP_SEND_PLAY_PAUSE_AFTER_GET_PLAY_STATUS;
+  858   4                  /* fallthrough *//*comment to prevent coverity warning*/
+  859   4                case AVC_OPERATION_GET_PLAY_STATUS:
+  860   4                  AVRCP_SendGetPlayStatus(linkIndex);
+  861   4                  break;
+  862   4                case AVC_OPERATION_INTERNAL_REWIND_RELEASE:
+  863   4                case AVC_OPERATION_INTERNAL_FAST_FORWARD_RELEASE:
+  864   4                  if(avrcpLinkInfo->avrcpMiscFlags & AVRCP_MISC_REWIND_OR_FAST_FORWARD_SENT)
+  865   4                  {
+  866   5                    avrcpLinkInfo->avrcpMiscFlags &= (~AVRCP_MISC_REWIND_OR_FAST_FORWARD_SENT);
+  867   5                    AVRCP_SendPassThrough(linkIndex, (paramPtr->operationId == AVC_OPERATION_INTERNAL_REWIND_RELEASE ?
+             - AVC_OPERATION_REWIND : AVC_OPERATION_FAST_FORWARD), RELEASED);
+  868   5                  }
+  869   4                  break;
+  870   4                default:
+  871   4                  AVRCP_SendPassThrough(linkIndex, paramPtr->operationId, PUSHED);
+  872   4                  if(paramPtr->operationId == AVC_OPERATION_REWIND || paramPtr->operationId == AVC_OPERATION_FAST_FOR
+             -WARD)
+  873   4                  {
+C251 COMPILER V5.57.0,  AVRCP                                                              08/11/20  05:53:10  PAGE 15  
+
+  874   5                    avrcpLinkInfo->avrcpMiscFlags |=AVRCP_MISC_REWIND_OR_FAST_FORWARD_SENT;
+  875   5                  }
+  876   4                  else
+  877   4                  {
+  878   5                    AVRCP_SendPassThrough(linkIndex, paramPtr->operationId, RELEASED);
+  879   5                  }
+  880   4                  break;
+  881   4              }
+  882   3            }
+  883   2            break;
+  884   2          case AVRCP_VOLUME_CHANGED:
+  885   2            if(avrcpLinkInfo->avrcpMiscFlags & AVRCP_REPORT_VOLUME_CHANGE)
+  886   2            {
+  887   3              avrcpLinkInfo->avrcpMiscFlags &= ~AVRCP_REPORT_VOLUME_CHANGE;
+  888   3              AVRCP_SendVolumeChangedNotify(linkIndex, paramPtr->operationId, avrcpLinkInfo->volumeNotifyTransactio
+             -nLabel);
+  889   3            }
+  890   2            break;
+  891   2          case AVRCP_SET_NOTIFY_MASK:
+  892   2            AVRCP_SetNotifyMask(linkIndex, paramPtr->operationId);
+  893   2            break;
+  894   2          case AVRCP_SET_ABSOLUTE_VOLUME:
+  895   2            AVRCP_SendSetAbsoluteVolume(linkIndex, paramPtr->operationId);
+  896   2            break;
+  897   2          case AVRCP_GET_ELEMENT_ATTRIBUTES:
+  898   2            AVRCP_SendGetElementAttributes(linkIndex, paramPtr->operationId);
+  899   2            break;
+  900   2          case AVRCP_SEND_VENDOR_UNIQUE:
+  901   2            AVRCP_SendVendorUnique( linkIndex, 
+  902   2                        paramPtr->VendorUnique.operationId,
+  903   2                        paramPtr->VendorUnique.operationParam);
+  904   2            break;
+  905   2          default:
+  906   2            ASSERT_PRINT("INVALID CMD CODE(AVRCP)");
+  907   2            break;
+  908   2        }
+  909   1        MMI_SniffEnable(linkIndex, MMI_SNIFF_AVRCP);
+  910   1      }
+  911          
+  912          /*
+  913          PRIVATE void AVRCP(U8 linkIndex)
+  914          {
+  915          }*/
+  916          
+  917          PRIVATE MMI_PROFILE_INFO XDATA_PTR AVRCP_ConnectRequest(U8 linkIndex, U8 profileId)
+  918          {
+  919   1        AVRCP_LINK_INFO XDATA_PTR avrcpLinkInfo = AVRCP_GetLinkInfo(linkIndex);
+  920   1        UNUSED(profileId);
+  921   1        
+  922   1        if (avrcpLinkInfo->mmiProfileInfo.state == PROFILE_DISCONNECTED)
+  923   1        {
+  924   2          if (MMI_SDAP_GetRemoteServiceChannel(linkIndex, PROFILE_AVRCP) != 0)
+  925   2          {
+  926   3            if (AVCTP_ConnectChannel(linkIndex) != INVALID_L2CAP_CHANNEL)
+  927   3            {
+  928   4              return &avrcpLinkInfo->mmiProfileInfo;
+  929   4            }
+  930   3          }
+  931   2        }
+  932   1        return (MMI_PROFILE_INFO XDATA_PTR)NULL;
+  933   1      }
+  934          
+  935          PRIVATE U8 AVRCP_DisconnectRequest(U8 linkIndex, MMI_PROFILE_INFO XDATA_PTR profileInfo)
+  936          {
+  937   1        AVRCP_LINK_INFO XDATA_PTR avrcpLinkInfo = AVRCP_GetLinkInfo(linkIndex);
+  938   1      
+C251 COMPILER V5.57.0,  AVRCP                                                              08/11/20  05:53:10  PAGE 16  
+
+  939   1        if (avrcpLinkInfo->mmiProfileInfo.state != PROFILE_DISCONNECTED && &avrcpLinkInfo->mmiProfileInfo == pro
+             -fileInfo)
+  940   1        {
+  941   2          if(CMD_WAITING == AVCTP_DisconnectChannel(linkIndex))
+  942   2          {
+  943   3            avrcpLinkInfo->mmiProfileInfo.state = PROFILE_DISCONNECTING;
+  944   3            return CMD_WAITING;
+  945   3          }
+  946   2          MMI_AVRCP_ClearCtlData(linkIndex);
+  947   2          MMI_UnloadProfile(linkIndex, &avrcpLinkInfo->mmiProfileInfo);
+  948   2          AVRCP_ClearLinkInfo(avrcpLinkInfo);
+  949   2          MMI_SniffEnable(linkIndex, MMI_SNIFF_AVRCP);
+  950   2        }
+  951   1        return CMD_COMPLETE;
+  952   1      }
+  953          
+  954          PRIVATE void AVRCP_LinkEvent(U8 linkIndex, U8 evtCode, LINK_EVENT_PARAMS XDATA_PTR evtParams)
+  955          {
+  956   1        AVRCP_LINK_INFO XDATA_PTR avrcpLinkInfo = AVRCP_GetLinkInfo(linkIndex);
+  957   1      
+  958   1        switch(evtCode)
+  959   1        {
+  960   2          case PROFILE_LINK_EVENT_CONN_REQUEST:
+  961   2            evtParams->connRequest.result = PROFILE_LINK_RESULT_CONN_REJECT;
+  962   2            if (avrcpLinkInfo->mmiProfileInfo.state == PROFILE_DISCONNECTED)
+  963   2            {
+  964   3              if(MMI_IsLinkActiveDisconnecting(linkIndex))
+  965   3              {
+  966   4                evtParams->connRequest.result = PROFILE_LINK_RESULT_CONN_REJECT_ACTIVE_DISC;
+  967   4              }
+  968   3              else
+  969   3              {
+  970   4                evtParams->connRequest.result = PROFILE_LINK_RESULT_CONN_ACCEPT;
+  971   4                evtParams->connRequest.profileInfo = &avrcpLinkInfo->mmiProfileInfo;
+  972   4              }
+  973   3            }
+  974   2            break;
+  975   2            
+  976   2          case PROFILE_LINK_EVENT_CONN_COMPLETE:
+  977   2            if (avrcpLinkInfo->mmiProfileInfo.state == PROFILE_CONNECTING)
+  978   2            {
+  979   3              if (evtParams->connComplete.status == NO_ERROR)
+  980   3              {
+  981   4                avrcpLinkInfo->mmiProfileInfo.state = PROFILE_CONNECTED;
+  982   4                AVRCP_SendGetCapabilities(linkIndex, AVRCP_GET_CAPABILITIES_EVENTS_SUPPORTED);
+  983   4                MMI_ActivateProfile(linkIndex, &avrcpLinkInfo->mmiProfileInfo);
+  984   4                MMI_AVRCP_ConnectedHandle(linkIndex);
+  985   4              }
+  986   3              else
+  987   3              {
+  988   4                if(evtParams->connComplete.status == SECURITY_BLOCK)
+  989   4                {
+  990   5                  MMI_SetReconnectProfile(linkIndex, avrcpLinkInfo->mmiProfileInfo.profileDesc->profileId, ONE_SEC);
+  991   5                }
+  992   4                evtCode = PROFILE_LINK_EVENT_DISC_COMPLETE;
+  993   4                goto AVRCP_DISC_CPL;
+  994   4              }
+  995   3            }
+  996   2            break;
+  997   2            
+  998   2          case PROFILE_LINK_EVENT_DISC_COMPLETE:
+  999   2          case PROFILE_LINK_EVENT_DISC_LINKLOSS:
+ 1000   2            if (avrcpLinkInfo->mmiProfileInfo.state != PROFILE_DISCONNECTED)
+ 1001   2            {
+ 1002   3              AVRCP_DISC_CPL:
+ 1003   3              MMI_AVRCP_ClearCtlData(linkIndex);
+C251 COMPILER V5.57.0,  AVRCP                                                              08/11/20  05:53:10  PAGE 17  
+
+ 1004   3              MMI_UnloadProfile(linkIndex, &avrcpLinkInfo->mmiProfileInfo);
+ 1005   3              MMI_PROTOCOL_L2CAPDisconnected(linkIndex, evtCode, FALSE);
+ 1006   3              AVRCP_ClearLinkInfo(avrcpLinkInfo);
+ 1007   3              MMI_SniffEnable(linkIndex, MMI_SNIFF_AVRCP);
+ 1008   3            }
+ 1009   2            break;
+ 1010   2        }
+ 1011   1      }
+ 1012          
+ 1013          PRIVATE void AVRCP_DataEvent(U8 linkIndex, U8 XDATA_PTR dataPtr)
+ 1014          {
+ 1015   1        AVRCP_LINK_INFO XDATA_PTR avrcpLinkInfo = AVRCP_GetLinkInfo(linkIndex);
+ 1016   1        AVRCP_CMD_TYPE XDATA_PTR remotePduPtr = (AVRCP_CMD_TYPE XDATA_PTR)dataPtr;
+ 1017   1        U8 operandID;
+ 1018   1      
+ 1019   1        if(avrcpLinkInfo->mmiProfileInfo.state != PROFILE_CONNECTED)
+ 1020   1        {
+ 1021   2          goto AVRCP_DATA_END;
+ 1022   2        }
+ 1023   1      
+ 1024   1        LightDbgPrintWithConnectionHandle (
+ 1025   1          HCI_VOPCODE_VOGF(HCI_VENDOR_OGF_UART_AVRCP_DBGPRINT,HCI_VEVT_OCF_AVRCP_DBGPRINT_RX),
+ 1026   1          MMI_GetConnHandleByLinkIndex(linkIndex),
+ 1027   1          (U8 XDATA_PTR)&remotePduPtr->l2capLength);
+ 1028   1        
+ 1029   1        if(remotePduPtr->ctypeOrResp <= AVC_CMD_GENERAL_INQUIRY) // Command
+ 1030   1        {
+ 1031   2          AVRCP_SendResp(linkIndex, remotePduPtr, AVRCP_CheckSupported(linkIndex, remotePduPtr));
+ 1032   2          goto AVRCP_DATA_END;
+ 1033   2        }
+ 1034   1      
+ 1035   1        if(remotePduPtr->opCode == AVC_OPCODE_VENDOR_DEPENDENT)
+ 1036   1        {
+ 1037   2          switch(remotePduPtr->msgBodyPtr.vendorDependentPdu.pduID)
+ 1038   2          {
+ 1039   3            case AVRCP_PDU_ID_GET_CAPABILITIES:
+ 1040   3              if(remotePduPtr->ctypeOrResp == AVC_RES_STABLE)
+ 1041   3              {
+ 1042   4                AVRCP_RemoteGetCapabilitiesRsp(linkIndex, remotePduPtr);
+ 1043   4              }
+ 1044   3              break;
+ 1045   3            case AVRCP_PDU_ID_GET_PALYER_APPLICATION:
+ 1046   3              if(remotePduPtr->ctypeOrResp == AVC_RES_STABLE)
+ 1047   3              {
+ 1048   4                if( remotePduPtr->msgBodyPtr.playerSettingsValueResp.settingAttributeID == AVRCP_REPEAT_MODE_STATUS 
+             -|| 
+ 1049   4                  remotePduPtr->msgBodyPtr.playerSettingsValueResp.settingAttributeID == AVRCP_SHUFFLE_ON_OFF_STATUS)
+ 1050   4                {
+ 1051   5                  AVRCP_SendEvtToMMI_GetAppSetting(linkIndex, remotePduPtr->msgBodyPtr.playerSettingsValueResp.settin
+             -gAttributeID, remotePduPtr->msgBodyPtr.playerSettingsValueResp.settingValue);
+ 1052   5                }
+ 1053   4              }
+ 1054   3              else if(remotePduPtr->ctypeOrResp == AVC_RES_REJECTED)
+ 1055   3              {
+ 1056   4                AVRCP_SendEvtToMMI_GetAppSetting(linkIndex, remotePduPtr->msgBodyPtr.playerSettingsValueResp.setting
+             -AttributeID, AVRCP_REPEAT_CMD_REJECT);         
+ 1057   4              }
+ 1058   3              break;
+ 1059   3            case AVRCP_PDU_ID_GET_ELEMENT_ATTRIBUTES:
+ 1060   3              if(remotePduPtr->ctypeOrResp == AVC_RES_REJECTED || remotePduPtr->ctypeOrResp == AVC_RES_STABLE)
+ 1061   3              {
+ 1062   4                AVRCP_SendNextGetElementAttributes(linkIndex);
+ 1063   4                if(remotePduPtr->ctypeOrResp == AVC_RES_STABLE)
+ 1064   4                {
+ 1065   5                  U8 packetType = remotePduPtr->msgBodyPtr.vendorDependentPdu.packetType;
+ 1066   5                  if (packetType == AVRCP_PKT_TYPE_START)
+C251 COMPILER V5.57.0,  AVRCP                                                              08/11/20  05:53:10  PAGE 18  
+
+ 1067   5                  {
+ 1068   6                    avrcpLinkInfo->continueResponseCount = gMMI_nvram.mmiAvrcpSettings.continueResponseCount;
+ 1069   6                  }
+ 1070   5      
+ 1071   5                  if (packetType == AVRCP_PKT_TYPE_START || packetType == AVRCP_PKT_TYPE_CONTINUE)
+ 1072   5                  {
+ 1073   6                    if (avrcpLinkInfo->continueResponseCount)
+ 1074   6                    {
+ 1075   7                      avrcpLinkInfo->continueResponseCount--;
+ 1076   7                      AVRCP_SendContinueResponse(linkIndex, AVRCP_PDU_ID_GET_ELEMENT_ATTRIBUTES, AVRCP_PDU_ID_REQUEST_C
+             -ONTINUE_RESPONSE);
+ 1077   7                    }
+ 1078   6                    else
+ 1079   6                    {
+ 1080   7                      AVRCP_SendContinueResponse(linkIndex, AVRCP_PDU_ID_GET_ELEMENT_ATTRIBUTES, AVRCP_PDU_ID_ABORT_CON
+             -TINUE_RESPONSE);
+ 1081   7                    }
+ 1082   6                  }
+ 1083   5      
+ 1084   5                  if (packetType == AVRCP_PKT_TYPE_SINGLE || packetType == AVRCP_PKT_TYPE_START)
+ 1085   5                  {
+ 1086   6                    AVRCP_RemoteGetElementAttributesRsp(linkIndex, remotePduPtr);
+ 1087   6                    return; //redirect remotePduPtr, bypass OSMEM_Put()
+ 1088   6                  }
+ 1089   5                }
+ 1090   4              }
+ 1091   3              break;
+ 1092   3            case AVRCP_PDU_ID_GET_PLAY_STATUS:
+ 1093   3              if(remotePduPtr->ctypeOrResp == AVC_RES_NOT_IMPLEMENTED || remotePduPtr->ctypeOrResp == AVC_RES_REJEC
+             -TED)
+ 1094   3              {
+ 1095   4                AVRCP_SendEvtToMMI_PlayStatus(linkIndex, 
+ 1096   4                              (avrcpLinkInfo->avrcpMiscFlags & AVRCP_SEND_PLAY_PAUSE_AFTER_GET_PLAY_STATUS)?AVRCP_EVT_TO_MM
+             -I_PLAY_STATUS_FOR_KEY_PLAY_PAUSE:AVRCP_EVT_TO_MMI_GET_PLAY_STATUS, 
+ 1097   4                              AVRCP_PLAYBACK_STATUS_REJECT);
+ 1098   4                avrcpLinkInfo->avrcpMiscFlags &= ~AVRCP_SEND_PLAY_PAUSE_AFTER_GET_PLAY_STATUS;
+ 1099   4              }
+ 1100   3              else if(remotePduPtr->ctypeOrResp == AVC_RES_STABLE)
+ 1101   3              {
+ 1102   4                AVRCP_SendEvtToMMI_PlayStatus(linkIndex, 
+ 1103   4                              (avrcpLinkInfo->avrcpMiscFlags & AVRCP_SEND_PLAY_PAUSE_AFTER_GET_PLAY_STATUS)?AVRCP_EVT_TO_MM
+             -I_PLAY_STATUS_FOR_KEY_PLAY_PAUSE:AVRCP_EVT_TO_MMI_GET_PLAY_STATUS, 
+ 1104   4                              remotePduPtr->msgBodyPtr.getPlayStatusRsp.PlayStatus);
+ 1105   4                avrcpLinkInfo->avrcpMiscFlags &= ~AVRCP_SEND_PLAY_PAUSE_AFTER_GET_PLAY_STATUS;
+ 1106   4              }
+ 1107   3              break;
+ 1108   3            case AVRCP_PDU_ID_REGISTER_NOTIFICATION:
+ 1109   3              if(remotePduPtr->ctypeOrResp == AVC_RES_CHANGED || remotePduPtr->ctypeOrResp == AVC_RES_INTERIM)
+ 1110   3              {
+ 1111   4                AVRCP_RemoteRegisterNotification(linkIndex, remotePduPtr);
+ 1112   4              }
+ 1113   3              break;
+ 1114   3          } 
+ 1115   2        }
+ 1116   1        else if(remotePduPtr->opCode == AVC_OPCODE_PASS_THROUGH)
+ 1117   1        {
+ 1118   2          operandID = remotePduPtr->msgBodyPtr.passThroughPdu.operandID;
+ 1119   2          switch(remotePduPtr->ctypeOrResp)
+ 1120   2          {
+ 1121   3            case AVC_RES_NOT_IMPLEMENTED:
+ 1122   3            case AVC_RES_REJECTED:
+ 1123   3              if(operandID == AVC_OPERATION_PAUSE)
+ 1124   3              {
+ 1125   4                if(remotePduPtr->ctypeOrResp == AVC_RES_NOT_IMPLEMENTED)
+ 1126   4                {
+ 1127   5                  avrcpLinkInfo->avrcpMiscFlags |= AVRCP_NOT_SUPPORT_PAUSE_CMD_IN_REMOTE;     
+C251 COMPILER V5.57.0,  AVRCP                                                              08/11/20  05:53:10  PAGE 19  
+
+ 1128   5                }
+ 1129   4                AVRCP_SendPassThrough(linkIndex, AVC_OPERATION_STOP, PUSHED);
+ 1130   4                AVRCP_SendPassThrough(linkIndex, AVC_OPERATION_STOP, RELEASED);
+ 1131   4              }
+ 1132   3              else if(operandID == AVC_OPERATION_STOP)
+ 1133   3              {
+ 1134   4                AVRCP_SendEvtToMMI(linkIndex, AVRCP_EVT_TO_MMI_GET_STOP_REJECTED);
+ 1135   4              }
+ 1136   3              break;
+ 1137   3            case AVC_RES_ACCEPTED:
+ 1138   3              if(remotePduPtr->msgBodyPtr.passThroughPdu.buttonReleased)
+ 1139   3              {
+ 1140   4                if(operandID >= AVC_OPERATION_POWER && operandID <= AVC_OPERATION_BACKWARD)
+ 1141   4                {
+ 1142   5                  AVRCP_SendEvtToMMI(linkIndex, (U8)(operandID + AVRCP_EVT_PASS_THROUGH_OFFSET));
+ 1143   5                }
+ 1144   4              }
+ 1145   3              break;
+ 1146   3          } 
+ 1147   2        
+ 1148   2        }
+ 1149   1        
+ 1150   1        AVRCP_DATA_END:
+ 1151   1        OSMEM_Put((U8 XDATA_PTR)remotePduPtr);
+ 1152   1      }
+ 1153          
+ 1154          PUBLIC void AVRCP_Init(void)
+ 1155          {
+ 1156   1        extern SdpServiceNode gAVRCP_TgServiceNode;
+ 1157   1        extern SdpServiceNode gAVRCP_CtServiceNode;
+ 1158   1        
+ 1159   1        SDAP_RegisterServiceRecord(&gAVRCP_TgServiceNode);
+ 1160   1        SDAP_RegisterServiceRecord(&gAVRCP_CtServiceNode);
+ 1161   1      
+ 1162   1        AVCTP_RegisterProfile(&gAVRCP_ProfileNode);
+ 1163   1      }
+ 1164          
+ 1165          #endif //AVRCP_Profile
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =      4673     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =        32     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       167     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,1784 @@
+C251 COMPILER V5.57.0,  DRIVER_1520                                                        08/11/20  05:51:49  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE DRIVER_1520
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\DRIVER_1520.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\DRIVER\DRIVER_1520.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE)
+                    - WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\
+                    -source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\sou
+                    -rce\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI
+                    -_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspD
+                    -ata;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FL
+                    -ASH_INIT=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520C_AiroStereoHeadse
+                    -t\DRIVER_1520.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\DRIVER_1520.obj) 
+
+stmt  level    source
+
+    1          //////////////////////////////////////////////////////////
+    2          // Copyright@ 2009 Airoha.  All right reserved.
+    3          //////////////////////////////////////////////////////////
+    4          #include "reside_flash.inc"
+    5          
+    6          #define DRIVER1520_C
+    7          #include "os_flash.h"
+    8          #include "bt_config_profile.h"
+    9          #include "drv_sector.h"
+   10          #include "hal.h"
+   11          #include "Driver.h"
+   12          #include "Driver_1520.h"
+   13          #include "Audio_Mailbox.h"
+   14          #include "AudioControl.h"
+   15          #include "sector_merge_runtime.h"
+   16          #include "sector_config1.h"
+   17          #include "..\MMI\MMI.h"
+   18          #include "..\MMI\MMI_HCI.h"
+   19          #include "..\MMI\MMI_Driver.h"
+   20          #include "..\MMI\MMI_SectorManager.h"
+   21          #include "..\A2DP\A2DP_Interface.h"
+   22          #include "..\MMI\MMI_HFP.h"
+   23          #include "..\MMI\MMI_interface.h"
+   24          #include "..\SECTOR\sector_mmi_nvram_type.h"
+   25          #ifdef RINGTONE_ENABLE
+   26            #include "ringtone.h"
+   27          #endif
+   28          #ifdef SUPPORT_VOICE_PROMPT
+   29            #include "VoicePrompt.h"
+   30          #endif
+   31          #ifdef SUPPORT_VOICE_COMMAND
+   32            #include "VoiceCommand.h"
+   33          #endif
+   34          #ifdef PEQ_ENABLE
+   35            #include "Peq_HPF.h"
+   36          #endif
+   37            #include "Audio_Transparency.h"
+   38          #include "sector_boundary.h"
+   39          
+   40          #include "..\SECTOR\sector_mmi_nvram_type.h"
+   41          
+   42          #ifdef AIR_MODULE
+   43            #include "..\MMI\MMI_AirModule.h"
+   44          #endif
+   45          
+   46          #if 1 // Added to make the customer know the DSP playing status.
+   47          #include "..\SDK\include\DSP_Status.h"
+   48          #endif
+   49          
+   50          #ifdef OPERATION_IN_BB_ASIC_VERSION
+   51          #define SET_REG_DA_ANALOG_GAIN(gain) AUDIO_AudioDAGain(gain)
+   52          extern PUBLIC void AUDIO_AudioDAGain(U8 value);
+C251 COMPILER V5.57.0,  DRIVER_1520                                                        08/11/20  05:51:49  PAGE 2   
+
+   53          #endif
+   54          
+   55          #ifdef TWS_SETTINGS
+   56          PUBLIC void DRIVER_TWSClkSetting(BOOL isRelay, U8 linkIndex);
+   57          #endif
+   58          PRIVATE void DRIVER_LINEModeSetting(U8 payloadEncode, U16 eSCORelay);
+   59          PRIVATE U16 DRIVER_CheckDSPClock(BOOL isOn, U8 component);
+   60          
+   61          SOUND_EFFECT_EXTERN SOUND_EFFECT_TYPE XDATA soundEffect_Ctl[SOUND_EFFECT_TOTAL_NO];
+   62          
+   63          #ifdef AIR_MODULE
+   64          PUBLIC BOOL DRIVER_CheckA2DPOffReady(void)
+   65          {
+   66   1        if(AUDIO_COMPONENT_IS_ACTIVE (AUDIO_A2DP))
+   67   1        {
+   68   2          #if defined SCO_WOOFER || defined SOUND_BAR
+                   if(MMI_AIR_IsHoldLineInDisable()) //A2DP_DISABLE_HOLD_FOR_MUTE
+                     return FALSE;
+                   #endif
+   72   2          #ifdef TWS_SETTINGS
+   73   2          if(MAX_MULTI_POINT_NO != A2DP_SearchFollowerLink() || MAX_MULTI_POINT_NO != A2DP_SearchRelayerLink())
+   74   2          {
+   75   3            if((U8)(gAlignDSP.debug_var03 >> 8))
+   76   3            {
+   77   4              #ifdef AIR_MODULE
+   78   4              if(gDriver_ctl.checkDspDataStatusTimer == (OST XDATA_PTR)NULL)
+   79   4              {
+   80   5                SYS_SetTimer(&gDriver_ctl.checkDspDataStatusTimer, (U32) (gAlignDSP.debug_var03 >> 8)* 96);
+   81   5              }
+   82   4              #endif
+   83   4              return FALSE;
+   84   4            }
+   85   3          }
+   86   2          #endif
+   87   2        }
+   88   1        return TRUE;
+   89   1      }
+   90          
+   91          PUBLIC BOOL DRIVER_CheckAUXOffReady(void)
+   92          {
+   93   1        return (AUDIO_COMPONENT_IS_ACTIVE(AUDIO_LINE_IN) && MMI_AIR_IsHoldLineInDisable()) ? FALSE : TRUE;
+   94   1      }
+   95          #endif
+   96          
+   97          PUBLIC void DRIVER_SendAppIdleToMailBox(void)
+   98          {
+   99   1        DriverMsg XDATA_PTR cmdPtr;
+  100   1        if(cmdPtr = OSMEM_Get(OSMEM_ptr1))
+  101   1        {
+  102   2          OSMEM_memset_xdata((U8 XDATA_PTR)cmdPtr, 0, OSMEM1_BLKSIZE);
+  103   2          Mailbox_TaskOgfAPP(cmdPtr, OCF_APP_IDLE_MODE);
+  104   2          DRIVER_SendCmdToMailBox(cmdPtr);
+  105   2        }
+  106   1      }
+  107          
+  108          PUBLIC void DRIVER_BackUpOgfAppCmd(DriverMsg XDATA_PTR msgPtr)
+  109          {
+  110   1        if(!gDriver_ctl.backUpAudioCmdPtr)
+  111   1        {
+  112   2          gDriver_ctl.backUpAudioCmdPtr = (DriverMsg XDATA_PTR)OSMEM_Get(OSMEM_ptr1);
+  113   2        }
+  114   1        OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)gDriver_ctl.backUpAudioCmdPtr, (U8 XDATA_PTR)msgPtr, OSMEM1_BLKSI
+             -ZE);
+  115   1      }
+  116          
+  117          PUBLIC void DRIVER_ReleaseBackUpAppCmd(void)
+C251 COMPILER V5.57.0,  DRIVER_1520                                                        08/11/20  05:51:49  PAGE 3   
+
+  118          {
+  119   1        SYS_MemoryRelease(&gDriver_ctl.backUpAudioCmdPtr);
+  120   1      }
+  121          
+  122          U32 DualMicSectorAddr(void)
+  123          {
+  124   1          U8 CODE_PTR ptr1 = GET_SECTOR_MERGE_RUNTIME_1_ADDR(SECTOR_MMI_DRIVER_V_NVRAM_INIT);
+  125   1        U8 CODE_PTR ptr2 = GET_SECTOR_MERGE_RUNTIME_2_ADDR(SECTOR_MMI_DRIVER_V_NVRAM_INIT2);
+  126   1      
+  127   1        if(*ptr1 == MMI_SECTOR_DATA_VALID)
+  128   1        {
+  129   2          return (U32)DSP_GetCODEAddr((U8 CODE_PTR)GET_SECTOR_MERGE_RUNTIME_1_ADDR(SECTOR_DUAL_MIC_DATA));
+  130   2        }
+  131   1        else if(*ptr2 == MMI_SECTOR_DATA_VALID)
+  132   1        {
+  133   2          return (U32)DSP_GetCODEAddr((U8 CODE_PTR)GET_SECTOR_MERGE_RUNTIME_2_ADDR(SECTOR_DUAL_MIC_DATA2));
+  134   2        }
+  135   1        else
+  136   1        {
+  137   2              return (U32)NULL;
+  138   2        }
+  139   1      }
+  140          
+  141          PUBLIC U8 DRIVER_SCOCmdHandler1520(DriverMsg XDATA_PTR msgPtr)
+  142          {
+  143   1        U8 audioSwitchResult;
+  144   1      
+  145   1        if(IS_DSP_BUSY)
+  146   1          return QUE_PUTFRONT;
+  147   1      
+  148   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_FM))
+  149   1        {
+  150   2          DRIVER_SendRequestCloseFMEvent();
+  151   2          return QUE_PUTFRONT;
+  152   2        }
+  153   1      
+  154   1        #ifdef SUPPORT_VOICE_COMMAND
+  155   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICECOMMAND) && !(gDriver_ctl.lightMonoModeMask & (0x01 << msgPtr->m
+             -sgBodyPtr.driverCmd.scoCmd.linkInd)))
+  156   1        {
+  157   2          DRIVER_BackUpOgfAppCmd(msgPtr);
+  158   2          return MEMORY_PUT;
+  159   2        }
+  160   1        #endif
+  161   1      
+  162   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_SCO))
+  163   1        {
+  164   2          if(gDriver_ctl.dspLink != msgPtr->msgBodyPtr.driverCmd.scoCmd.linkInd)
+  165   2          {
+  166   3            DRIVER_SendAppIdleToMailBox();
+  167   3            return QUE_PUTFRONT;
+  168   3          }
+  169   2          else
+  170   2          {
+  171   3            DRIVER_SendSCOEnableEvent((gDriver_ctl.lightMonoModeMask & (0x01 << gDriver_ctl.dspLink))?TRUE:FALSE);
+  172   3            return MEMORY_PUT;
+  173   3          }
+  174   2        }
+  175   1      
+  176   1        if(DRIVER_IsDSPOgfAppOn())
+  177   1        {
+  178   2          LightDbgPrint("==AppIdleToMailBox2");
+  179   2          DRIVER_SendAppIdleToMailBox();
+  180   2          return QUE_PUTFRONT;
+  181   2        }
+  182   1      
+C251 COMPILER V5.57.0,  DRIVER_1520                                                        08/11/20  05:51:49  PAGE 4   
+
+  183   1        if(!AUDIO_IsAllowSCOEnabled(msgPtr->msgBodyPtr.driverCmd.scoCmd.linkInd))
+  184   1        {
+  185   2          return QUE_PUTFRONT;
+  186   2        }
+  187   1      
+  188   1        if(gAlignDSP.IC_BIST_MODE /*gAlignDSP.IC_BIST_MODE != AUDIO_BIST_DISABLE*/)
+  189   1        {
+  190   2          goto DRIVER_ENABLE_SCO;
+  191   2        }
+  192   1      
+  193   1        if(!MMI_IsActiveLink(msgPtr->msgBodyPtr.driverCmd.scoCmd.linkInd))
+  194   1        {
+  195   2          return MEMORY_PUT;
+  196   2        }
+  197   1        
+  198   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_RINGTONE) || AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICEPROMPT))
+  199   1          return QUE_PUT;
+  200   1      
+  201   1        if(AUDIO_SWITCH_RESULT_OK != (audioSwitchResult = MMI_DRV_SwitchScoToLink(msgPtr->msgBodyPtr.driverCmd.s
+             -coCmd.linkInd)))
+  202   1        {
+  203   2          //Soming wrong will cause pending forever
+  204   2          if(audioSwitchResult == AUDIO_SWITCH_RESULT_PENDING)
+  205   2          {
+  206   3            return QUE_PUTFRONT;
+  207   3          }
+  208   2          else
+  209   2          {
+  210   3            return MEMORY_PUT;
+  211   3          }
+  212   2        }
+  213   1      
+  214   1        DRIVER_ENABLE_SCO:
+  215   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_TRANSPARENCY))
+  216   1        {
+  217   2          DRIVER_ATSwitchVPRTSCO();
+  218   2          return QUE_PUTFRONT;
+  219   2        }
+  220   1        gDriver_ctl.dspLink = msgPtr->msgBodyPtr.driverCmd.scoCmd.linkInd;
+  221   1        if(gDriver_ctl.dspClock != DRIVER_CheckDSPClock(TRUE, AUDIO_SCO))
+  222   1        {
+  223   2          if(!AUDIO_SetDSPOff(AUDIO_SCO))
+  224   2          {
+  225   3            return QUE_PUTFRONT;
+  226   3          }
+  227   2        }
+  228   1        DRIVER_BackUpOgfAppCmd(msgPtr);
+  229   1        AUDIO_SetAudioOn(AUDIO_SCO);
+  230   1      
+  231   1        ASSERT(gDriver_ctl.dspLink < 4);
+  232   1      
+  233   1        #ifdef ECNR_OFF_IN_NORMAL_SCO
+                 if(gDriver_ctl.ecnrMask & (0x01 << gDriver_ctl.dspLink))
+                 {
+                   gAlignDSP.DSP_nvram.DSP_Reserved_PARAM.Feature_Sel &= ~ECNR_DISABLE;
+                 }
+                 else
+                 {
+                   gAlignDSP.DSP_nvram.DSP_Reserved_PARAM.Feature_Sel |= ECNR_DISABLE;
+                 }
+                 #endif
+  243   1        
+  244   1        #ifdef TWS_SETTINGS
+  245   1        if(msgPtr->msgBodyPtr.driverCmd.scoCmd.m2d_ctl.para.mono_para.feature_sel.PAYLOAD_ENCODE)
+  246   1        {
+  247   2          DRIVER_TWSClkSetting(TRUE, gDriver_ctl.dspLink);
+C251 COMPILER V5.57.0,  DRIVER_1520                                                        08/11/20  05:51:49  PAGE 5   
+
+  248   2        }
+  249   1        #endif
+  250   1      
+  251   1        #ifdef SUPPORT_VOICE_COMMAND
+  252   1          Mailbox_TaskOgfAPP(msgPtr, (gDriver_ctl.lightMonoModeMask & (0x01 << gDriver_ctl.dspLink))?OCF_APP_LIGH
+             -T_MONO_MODE:OCF_APP_MONO_MODE);
+  253   1        #else
+                   Mailbox_TaskOgfAPP(msgPtr, OCF_APP_MONO_MODE);
+                 #endif
+  256   1        msgPtr->msgBodyPtr.driverCmd.scoCmd.m2d_ctl.para.mono_para.DualMic_ptr = DualMicSectorAddr();
+  257   1        AUDIO_SetAudioInOutToMailBoxCmd(AUDIO_SCO, &msgPtr->msgBodyPtr.driverCmd.scoCmd.m2d_ctl.para.mono_para.a
+             -udio_scenario);
+  258   1        DRIVER_SendCmdToMailBox(msgPtr);
+  259   1        gOS_PowerSavingMCUPauseRequest = TRUE;
+  260   1        #ifdef PEQ_ENABLE
+  261   1        DRIVER_PEQReload();
+  262   1        #endif
+  263   1      
+  264   1        if(gDriver_ctl.redialMuteTimerPtr)
+  265   1          SYS_SetTimer(&gDriver_ctl.redialMuteTimerPtr,0);
+  266   1      
+  267   1        SYS_ReleaseTimer(&gDriver_ctl.waitQosTimerPtr);
+  268   1        return RETURN_FUNCTION;
+  269   1      }
+  270          
+  271          PUBLIC U8 DRIVER_A2DPCmdHandler1520(DriverMsg XDATA_PTR msgPtr)
+  272          {
+  273   1        if(IS_DSP_BUSY)
+  274   1          return QUE_PUTFRONT;
+  275   1      
+  276   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_FM))
+  277   1        {
+  278   2          DRIVER_SendRequestCloseFMEvent();
+  279   2          return QUE_PUTFRONT;
+  280   2        }
+  281   1      
+  282   1        if(DRIVER_IsRingToneOrVPOrATPlaying() && !AUDIO_COMPONENT_IS_ACTIVE(AUDIO_TRANSPARENCY))
+  283   1          return QUE_PUTFRONT;
+  284   1      
+  285   1        #ifdef SUPPORT_VOICE_COMMAND
+  286   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICECOMMAND))
+  287   1        {
+  288   2          DRIVER_BackUpOgfAppCmd(msgPtr);
+  289   2          return MEMORY_PUT;
+  290   2        }
+  291   1        #endif
+  292   1      
+  293   1        if(AUDIO_COMPONENT_IS_ACTIVE (AUDIO_A2DP))
+  294   1        {
+  295   2          if(gDriver_ctl.dspLink == msgPtr->msgBodyPtr.driverCmd.a2dpCmd.linkInd && gDriver_ctl.musicCodecType ==
+             - msgPtr->msgBodyPtr.driverCmd.a2dpCmd.enablePara.a2dpPara.codec)
+  296   2          {
+  297   3            DRIVER_SendA2DPEnableEvent();
+  298   3            return MEMORY_PUT;
+  299   3          }
+  300   2          else
+  301   2          {
+  302   3            #ifdef AIR_MODULE
+  303   3            if(!DRIVER_CheckA2DPOffReady())
+  304   3              return QUE_PUTFRONT;
+  305   3            #endif
+  306   3      
+  307   3            DRIVER_SendAppIdleToMailBox();
+  308   3            return QUE_PUTFRONT;
+  309   3          }
+  310   2        }
+C251 COMPILER V5.57.0,  DRIVER_1520                                                        08/11/20  05:51:49  PAGE 6   
+
+  311   1        
+  312   1        if(DRIVER_IsDSPOgfAppOn())
+  313   1        {
+  314   2          #ifdef AIR_MODULE
+  315   2          if(!DRIVER_CheckAUXOffReady())
+  316   2            return QUE_PUTFRONT;
+  317   2          #endif
+  318   2      
+  319   2          DRIVER_SendAppIdleToMailBox();
+  320   2          return QUE_PUTFRONT;
+  321   2        }
+  322   1      
+  323   1        if(!MMI_IsActiveLink(msgPtr->msgBodyPtr.driverCmd.a2dpCmd.linkInd))
+  324   1        {
+  325   2          SYS_ReleaseTimer(&gDriver_ctl.waitQosTimerPtr);
+  326   2          return MEMORY_PUT;
+  327   2        }
+  328   1      
+  329   1        if(!MMI_HCI_IsQosReady(msgPtr->msgBodyPtr.driverCmd.a2dpCmd.linkInd) && !SYS_IsTimerExpired(&gDriver_ctl
+             -.waitQosTimerPtr))
+  330   1        {
+  331   2          if(!gDriver_ctl.waitQosTimerPtr)
+  332   2          {
+  333   3            SYS_SetTimer(&gDriver_ctl.waitQosTimerPtr, HALF_SEC);
+  334   3          }
+  335   2          return QUE_PUTFRONT;
+  336   2        }
+  337   1      
+  338   1        gDriver_ctl.dspLink = msgPtr->msgBodyPtr.driverCmd.a2dpCmd.linkInd;
+  339   1        gDriver_ctl.musicCodecType = msgPtr->msgBodyPtr.driverCmd.a2dpCmd.enablePara.a2dpPara.codec;
+  340   1        msgPtr->msgBodyPtr.driverCmd.a2dpCmd.m2d_ctl.para.stereo_start_para.codec_type = msgPtr->msgBodyPtr.driv
+             -erCmd.a2dpCmd.enablePara.a2dpPara.codec;
+  341   1        msgPtr->msgBodyPtr.driverCmd.a2dpCmd.m2d_ctl.para.stereo_start_para.tws_mode = msgPtr->msgBodyPtr.driver
+             -Cmd.a2dpCmd.enablePara.a2dpPara.twsMode;
+  342   1      
+  343   1        #ifdef TWS_SETTINGS
+  344   1        gAlignDSP.dsp_param_update_ctl = AIRO_SYNC_MAGIC_TIME;
+  345   1      
+  346   1        msgPtr->msgBodyPtr.driverCmd.a2dpCmd.m2d_ctl.para.stereo_start_para.start_sync = 1;
+  347   1      
+  348   1        if(msgPtr->msgBodyPtr.driverCmd.a2dpCmd.enablePara.a2dpPara.twsMode == A2DP_TWS_MODE_RELAYER)
+  349   1          DRIVER_TWSClkSetting(TRUE, gDriver_ctl.dspLink);
+  350   1        else if(msgPtr->msgBodyPtr.driverCmd.a2dpCmd.enablePara.a2dpPara.twsMode == A2DP_TWS_MODE_FOLLOWER)
+  351   1          DRIVER_TWSClkSetting(FALSE, gDriver_ctl.dspLink);
+  352   1        else
+  353   1            msgPtr->msgBodyPtr.driverCmd.a2dpCmd.m2d_ctl.para.stereo_start_para.start_sync = 0;
+  354   1        #endif
+  355   1      
+  356   1        if (gDriver_ctl.isSideToneEnabled)
+  357   1        {
+  358   2          LightDbgPrint("open mic2");
+  359   2          msgPtr->msgBodyPtr.driverCmd.a2dpCmd.m2d_ctl.para.stereo_start_para.sidetone_en = 1;
+  360   2        }
+  361   1        else
+  362   1        {
+  363   2          LightDbgPrint("close mic2");
+  364   2          msgPtr->msgBodyPtr.driverCmd.a2dpCmd.m2d_ctl.para.stereo_start_para.sidetone_en = 0;
+  365   2        }
+  366   1        
+  367   1        DRIVER_BackUpOgfAppCmd(msgPtr);
+  368   1        AUDIO_SetAudioOn(AUDIO_A2DP);
+  369   1        Mailbox_TaskOgfAPP(msgPtr, OCF_APP_STEREO_MODE);
+  370   1        AUDIO_SetAudioInOutToMailBoxCmd(AUDIO_A2DP, &msgPtr->msgBodyPtr.driverCmd.a2dpCmd.m2d_ctl.para.stereo_st
+             -art_para.audio_scenario);
+  371   1        DRIVER_SendCmdToMailBox(msgPtr);
+  372   1        gOS_PowerSavingMCUPauseRequest = TRUE;
+C251 COMPILER V5.57.0,  DRIVER_1520                                                        08/11/20  05:51:49  PAGE 7   
+
+  373   1        DRIVER_SetPowerSaving(FALSE, DRIVER_POWER_SAVING_DSP_A2DP);
+  374   1        #ifdef PEQ_ENABLE
+  375   1        DRIVER_PEQReload();
+  376   1        #endif
+  377   1      
+  378   1        SYS_ReleaseTimer(&gDriver_ctl.waitQosTimerPtr);
+  379   1        return RETURN_FUNCTION;
+  380   1      }
+  381          
+  382          extern U8 gAudio_MappingTable[AUDIO_COMPONENT_NO];
+  383          PUBLIC U8 DRIVER_LineInCmdHandler1520(DriverMsg XDATA_PTR msgPtr)
+  384          {
+  385   1        if(IS_DSP_BUSY)
+  386   1          return QUE_PUTFRONT;
+  387   1      
+  388   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_FM))
+  389   1        {
+  390   2          DRIVER_SendRequestCloseFMEvent();
+  391   2          return QUE_PUTFRONT;
+  392   2        }
+  393   1      
+  394   1        #ifdef SUPPORT_VOICE_COMMAND
+  395   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICECOMMAND))
+  396   1        {
+  397   2          DRIVER_BackUpOgfAppCmd(msgPtr);
+  398   2          return MEMORY_PUT;
+  399   2        }
+  400   1        #endif
+  401   1      
+  402   1      
+  403   1        if(DRIVER_IsRingToneOrVPOrATPlaying() && !AUDIO_COMPONENT_IS_ACTIVE(AUDIO_TRANSPARENCY))
+  404   1          return QUE_PUTFRONT;
+  405   1      
+  406   1        if(!gAUDIO_CtrlInfo.isLineInEnabled && !gAlignDSP.IC_BIST_MODE &&
+  407   1          (msgPtr->msgBodyPtr.driverCmd.auxCmd.m2d_ctl.para.linein_start_para.input_fs != 0x10))
+  408   1        {
+  409   2          return MEMORY_PUT;
+  410   2        }
+  411   1      
+  412   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_LINE_IN))
+  413   1        {
+  414   2      #ifndef BLUETOOTH_SPEAKER   
+  415   2          if(msgPtr->msgBodyPtr.driverCmd.auxCmd.m2d_ctl.para.linein_start_para.input_fs == 0x10)
+  416   2            AUDIO_PresetLineInMode(LINE_IN_MIC_ENABLE_ALL);
+  417   2      #endif    
+  418   2          DRIVER_SendLineInEnableEvent();
+  419   2          return MEMORY_PUT;
+  420   2        }
+  421   1      
+  422   1        if(DRIVER_IsDSPOgfAppOn())
+  423   1        {
+  424   2          #ifdef AIR_MODULE
+  425   2          if(!DRIVER_CheckA2DPOffReady())
+  426   2            return QUE_PUTFRONT;
+  427   2          #endif
+  428   2      
+  429   2          DRIVER_SendAppIdleToMailBox();
+  430   2          return QUE_PUTFRONT;
+  431   2        }
+  432   1      
+  433   1      
+  434   1        #ifdef DBG_UART_ENABLE_DRV
+                 LightDbgPrint("DSP - Start DSP Linein:%d", (U8)msgPtr->msgBodyPtr.driverCmd.auxCmd.m2d_ctl.para.linein_s
+             -tart_para.feature_sel.SOUNDBAR_ESCO_RELAY);
+                 #endif
+  437   1      
+C251 COMPILER V5.57.0,  DRIVER_1520                                                        08/11/20  05:51:49  PAGE 8   
+
+  438   1        DRIVER_LINEModeSetting((U8)msgPtr->msgBodyPtr.driverCmd.auxCmd.m2d_ctl.para.linein_start_para.feature_se
+             -l.PAYLOAD_ENCODE, msgPtr->msgBodyPtr.driverCmd.auxCmd.m2d_ctl.para.linein_start_para.feature_sel.SOUNDBAR_ESCO_RELAY);
+  439   1        DRIVER_BackUpOgfAppCmd(msgPtr);
+  440   1      #ifndef BLUETOOTH_SPEAKER
+  441   1        if(msgPtr->msgBodyPtr.driverCmd.auxCmd.m2d_ctl.para.linein_start_para.input_fs == 0x10)
+  442   1          AUDIO_PresetLineInMode(LINE_IN_MIC_ENABLE_ALL);
+  443   1      #endif  
+  444   1        AUDIO_SetAudioOn (AUDIO_LINE_IN);
+  445   1        gDriver_ctl.dspLink = 0xFF;
+  446   1      
+  447   1        #ifdef TWS_SETTINGS
+  448   1        if(msgPtr->msgBodyPtr.driverCmd.auxCmd.m2d_ctl.para.linein_start_para.feature_sel.PAYLOAD_ENCODE)
+  449   1          DRIVER_TWSClkSetting(TRUE, 0xFF);
+  450   1        #endif
+  451   1      
+  452   1        gAudio_MappingTable[AUDIO_LINE_IN]=gAudio_MappingTable[AUDIO_LINE_IN] |AUDIO_ENABLE_MIC;
+  453   1      
+  454   1        Mailbox_TaskOgfAPP(msgPtr, OCF_APP_LINEIN_MODE);
+  455   1        AUDIO_SetAudioInOutToMailBoxCmd(AUDIO_LINE_IN, &msgPtr->msgBodyPtr.driverCmd.auxCmd.m2d_ctl.para.linein_
+             -start_para.audio_scenario);
+  456   1        DRIVER_SendCmdToMailBox(msgPtr);
+  457   1      
+  458   1        #ifdef PEQ_ENABLE
+  459   1        DRIVER_PEQReload();
+  460   1        #endif
+  461   1      
+  462   1        return RETURN_FUNCTION;
+  463   1      }
+  464          
+  465          PUBLIC U8 DRIVER_StopDSPCmdHandler1520(DriverMsg XDATA_PTR msgPtr)
+  466          {
+  467   1        LightDbgPrint("==DRIVER_StopDSP:%d,%d",(U8)gDriver_ctl.dspLink, (U8)msgPtr->msgBodyPtr.driverCmd.stopDSP
+             -Cmd.linkInd);
+  468   1        if((AUDIO_COMPONENT_IS_ACTIVE (AUDIO_A2DP) || AUDIO_COMPONENT_IS_ACTIVE (AUDIO_SCO) || AUDIO_COMPONENT_I
+             -S_ACTIVE(AUDIO_ASYNC_SCO))
+  469   1         && gDriver_ctl.dspLink == msgPtr->msgBodyPtr.driverCmd.stopDSPCmd.linkInd)
+  470   1        {
+  471   2          if(IS_DSP_BUSY)
+  472   2            return QUE_PUTFRONT;
+  473   2          #ifdef AIR_MODULE
+  474   2          if(!DRIVER_CheckA2DPOffReady())
+  475   2          {
+  476   3            if(!SYS_IsTimerExpired(&gDriver_ctl.checkDspDataStatusTimer))
+  477   3            {
+  478   4              return QUE_PUTFRONT;
+  479   4            }
+  480   3          }
+  481   2          SYS_ReleaseTimer(&gDriver_ctl.checkDspDataStatusTimer);
+  482   2          #endif
+  483   2      
+  484   2          DRIVER_ReleaseBackUpAppCmd();
+  485   2          DRIVER_SendAppIdleToMailBox();
+  486   2        }
+  487   1        return MEMORY_PUT;
+  488   1      }
+  489          
+  490          PUBLIC U8 DRIVER_StopLineInCmdHandler1520(DriverMsg XDATA_PTR msgPtr)
+  491          {
+  492   1        UNUSED(msgPtr);
+  493   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_LINE_IN))
+  494   1        {
+  495   2          if(IS_DSP_BUSY)
+  496   2            return QUE_PUTFRONT;
+  497   2      
+  498   2          #ifdef AIR_MODULE
+  499   2          if(!DRIVER_CheckAUXOffReady())
+C251 COMPILER V5.57.0,  DRIVER_1520                                                        08/11/20  05:51:49  PAGE 9   
+
+  500   2            return QUE_PUTFRONT;
+  501   2          #endif
+  502   2      
+  503   2          gAudio_MappingTable[AUDIO_LINE_IN]=AUDIO_ENABLE_DA|AUDIO_ENABLE_AD;     
+  504   2          
+  505   2          DRIVER_ReleaseBackUpAppCmd();
+  506   2          DRIVER_SendAppIdleToMailBox();
+  507   2        }
+  508   1        return MEMORY_PUT;
+  509   1      }
+  510          
+  511          PUBLIC U8 DRIVER_StopDSPPowerOffCmdHandler1520(DriverMsg XDATA_PTR msgPtr)
+  512          {
+  513   1        UNUSED(msgPtr);
+  514   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_FM))
+  515   1        {
+  516   2          DRIVER_SendRequestCloseFMEvent();
+  517   2          return QUE_PUTFRONT;
+  518   2        }
+  519   1        else if(DRIVER_IsDSPOgfAppOn())
+  520   1        {
+  521   2          if(IS_DSP_BUSY)
+  522   2            return QUE_PUTFRONT;
+  523   2      
+  524   2          #ifdef AIR_MODULE
+  525   2          if(!DRIVER_CheckAUXOffReady())
+  526   2            return QUE_PUTFRONT;
+  527   2      
+  528   2          if(!DRIVER_CheckA2DPOffReady())
+  529   2            return QUE_PUTFRONT;
+  530   2          #endif
+  531   2      
+  532   2          DRIVER_ReleaseBackUpAppCmd();
+  533   2          DRIVER_SendAppIdleToMailBox();
+  534   2          return QUE_PUTFRONT;
+  535   2        }
+  536   1        //DRIVER_TurnOffPureOn(); //mantis 8788
+  537   1        gDriver_ctl.dspLink = 0xFF;
+  538   1        return MEMORY_PUT;
+  539   1      }
+  540          
+  541          PUBLIC U8 DRIVER_CloseAllAudioHandler1520(DriverMsg XDATA_PTR msgPtr)
+  542          {
+  543   1        UNUSED(msgPtr);
+  544   1        DRIVER_ClearAudioCmd(DRIVER_INTERNAL_CLEAN_ALL_AUDIO_CMD, NO_MEDIA);
+  545   1      
+  546   1        if(IS_DSP_BUSY)
+  547   1          return QUE_PUTFRONT;
+  548   1      
+  549   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_FM))
+  550   1        {
+  551   2          DRIVER_SendRequestCloseFMEvent();
+  552   2          return QUE_PUTFRONT;
+  553   2        }
+  554   1        #ifdef RINGTONE_ENABLE
+  555   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_RINGTONE) && !Ring_Pause())
+  556   1        {
+  557   2          return QUE_PUTFRONT;
+  558   2        }
+  559   1        #endif
+  560   1        #ifdef SUPPORT_VOICE_PROMPT
+  561   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICEPROMPT) && !VoicePrompt_Pause())
+  562   1        {
+  563   2          return QUE_PUTFRONT;
+  564   2        }
+  565   1        #endif
+C251 COMPILER V5.57.0,  DRIVER_1520                                                        08/11/20  05:51:49  PAGE 10  
+
+  566   1        #ifdef SUPPORT_VOICE_COMMAND
+  567   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICECOMMAND) && !VoiceCommand_Pause())
+  568   1        {
+  569   2          return QUE_PUTFRONT;
+  570   2        }
+  571   1        #endif
+  572   1        
+  573   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_TRANSPARENCY) && !AudioTrspr_Stop())
+  574   1        {
+  575   2          return QUE_PUTFRONT;
+  576   2        }
+  577   1        
+  578   1        if(DRIVER_IsDSPOgfAppOn())
+  579   1        {
+  580   2          #ifdef AIR_MODULE
+  581   2          if(!DRIVER_CheckAUXOffReady())
+  582   2            return QUE_PUTFRONT;
+  583   2      
+  584   2          if(!DRIVER_CheckA2DPOffReady())
+  585   2            return QUE_PUTFRONT;
+  586   2          #endif
+  587   2      
+  588   2          DRIVER_ReleaseBackUpAppCmd();
+  589   2          DRIVER_SendAppIdleToMailBox();
+  590   2          return QUE_PUTFRONT;
+  591   2        }
+  592   1        DRIVER_TurnOffPureOn();
+  593   1        gDriver_ctl.dspLink = 0xFF;
+  594   1        return MEMORY_PUT;
+  595   1      }
+  596          
+  597          
+  598          PUBLIC U8 DRIVER_SuspendDSPCmdHandler1520(DriverMsg XDATA_PTR msgPtr)
+  599          {
+  600   1        if(MEMORY_PUT == DRIVER_CloseAllAudioHandler1520(msgPtr))
+  601   1        {
+  602   2          gDriver_ctl.suspendDSPReason |= msgPtr->msgBodyPtr.driverCmd.suspendDspCmd.reason;
+  603   2          if(msgPtr->msgBodyPtr.driverCmd.suspendDspCmd.callback)
+  604   2            msgPtr->msgBodyPtr.driverCmd.suspendDspCmd.callback();
+  605   2      
+  606   2          return MEMORY_PUT;
+  607   2        }
+  608   1        return QUE_PUTFRONT;
+  609   1      }
+  610          
+  611          
+  612          
+  613          PRIVATE void Driver_CheckWriteFlash(void)
+  614          {
+  615   1        if(!MMI_POWER_DROP_SAVE_LINK_HISTORY_FEAT)
+  616   1          return;
+  617   1      
+  618   1      
+  619   1        if(DRIVER_IsDSPOgfAppOn())
+  620   1        {
+  621   2          switch(MMI_DRV_WriteFlashAfterRingtoneVPStopped())
+  622   2          {
+  623   3            case NO_FLASH_WRITTEN_NEEDED:
+  624   3      
+  625   3              break;
+  626   3            case PENDING_TO_WRITE_FLASH:
+  627   3              gDriver_ctl.isAudioHandlingPending = TRUE;
+  628   3              gDriver_ctl.sendDSPAppIdle = FALSE;
+  629   3              break;
+  630   3            case DIRECTLY_WRITE_FLASH:
+  631   3              gDriver_ctl.isAudioHandlingPending = TRUE;
+C251 COMPILER V5.57.0,  DRIVER_1520                                                        08/11/20  05:51:49  PAGE 11  
+
+  632   3              gDriver_ctl.sendDSPAppIdle = TRUE;
+  633   3              break;
+  634   3            default:
+  635   3              ASSERT(FALSE);
+  636   3              break;
+  637   3          }
+  638   2        }
+  639   1      }
+  640          
+  641          PRIVATE void Driver_MailBoxOgfVPEvtHandle(U8 ocf, U16 cmdType)
+  642          {
+  643   1        UNUSED(cmdType);
+  644   1        Mailbox_ReleaseTASKVPRTATBusyFlag();
+  645   1        switch(ocf)
+  646   1        {
+  647   2          case OCF_VP_START:
+  648   2            #ifdef SUPPORT_VOICE_PROMPT
+  649   2            DRIVER_SetGainAndMute(TARGET_VPRTAT);
+  650   2            #endif
+  651   2            break;
+  652   2          case OCF_VP_STOP:
+  653   2            #ifdef SUPPORT_VOICE_PROMPT
+  654   2            VoicePrompt_Stopped();
+  655   2            #endif
+  656   2            Driver_CheckWriteFlash();
+  657   2            break;
+  658   2        }
+  659   1      }
+  660          
+  661          PRIVATE void Driver_MailBoxOgfRTEvtHandle(U8 ocf, U16 cmdType)
+  662          {
+  663   1        UNUSED(cmdType);
+  664   1        Mailbox_ReleaseTASKVPRTATBusyFlag();
+  665   1        switch(ocf)
+  666   1        {
+  667   2          case OCF_RT_START:
+  668   2            #ifdef RINGTONE_ENABLE
+  669   2            DRIVER_SetGainAndMute(TARGET_VPRTAT);
+  670   2            #endif
+  671   2            break;
+  672   2          case OCF_RT_STOP:
+  673   2            #ifdef RINGTONE_ENABLE
+  674   2            Ring_Stopped();
+  675   2            #endif
+  676   2            Driver_CheckWriteFlash();
+  677   2            break;
+  678   2        }
+  679   1      }
+  680          
+  681          PRIVATE void Driver_MailBoxOgfVCEvtHandle(U8 ocf, U16 cmdType)
+  682          {
+  683   1        UNUSED(cmdType);
+  684   1        Mailbox_ReleaseTASKVCBusyFlag();
+  685   1        switch(ocf)
+  686   1        {
+  687   2          case OCF_VC_START:
+  688   2            #ifdef SUPPORT_VOICE_COMMAND
+  689   2            DRIVER_SetGainAndMute(TARGET_NONE);
+  690   2            #endif
+  691   2            break;
+  692   2          case OCF_VC_STOP:
+  693   2            #ifdef SUPPORT_VOICE_COMMAND
+  694   2            VoiceCommand_Stopped();
+  695   2            #endif
+  696   2            break;
+  697   2        }
+C251 COMPILER V5.57.0,  DRIVER_1520                                                        08/11/20  05:51:49  PAGE 12  
+
+  698   1      }
+  699          
+  700          PRIVATE void Driver_MailBoxOgfAPPEvtHandle(U8 ocf, U16 cmdType)
+  701          {
+  702   1        UNUSED(cmdType);
+  703   1        Mailbox_ReleaseTASKAppBusyFlag();
+  704   1        switch(ocf)
+  705   1        {
+  706   2          case OCF_APP_LIGHT_MONO_MODE:
+  707   2            DRIVER_SendSCOEnableEvent(TRUE);
+  708   2            break;
+  709   2          case OCF_APP_MONO_MODE:
+  710   2            DRIVER_SendSCOEnableEvent(FALSE);
+  711   2            break;
+  712   2          case OCF_APP_STEREO_MODE:
+  713   2            DRIVER_SendA2DPEnableEvent();
+  714   2            break;
+  715   2          case OCF_APP_LINEIN_MODE:
+  716   2            DRIVER_SendLineInEnableEvent();
+  717   2            break;
+  718   2          case OCF_APP_IDLE_MODE:
+  719   2            if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_SCO))
+  720   2            {
+  721   3              DRIVER_TurnOffSCO();
+  722   3            }
+  723   2            else if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_A2DP))
+  724   2            {
+  725   3              DRIVER_TurnOffA2DP();
+  726   3            }
+  727   2            else if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_LINE_IN))
+  728   2            {
+  729   3              DRIVER_TurnOffLineIn();
+  730   3            }
+  731   2            else if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_ASYNC_SCO))
+  732   2            {
+  733   3              DRIVER_TurnOffAsyncSCO();
+  734   3            }
+  735   2            break;
+  736   2          case OCF_APP_ASYNC_MONO_MODE:
+  737   2            DRIVER_SendAsyncSCOEnabledEvent();
+  738   2            break;
+  739   2        }
+  740   1      }
+  741          
+  742          PRIVATE void Driver_MailBoxOgfDSPEvtHandle(U8 ocf, U16 cmdType)
+  743          {
+  744   1        Mailbox_ReleaseTASKDSPBusyFlag();
+  745   1        switch(ocf)
+  746   1        {
+  747   2      
+  748   2          case OCF_DSP_AUDIO_ON:
+  749   2            #ifdef OPERATION_IN_BB_ASIC_VERSION
+  750   2            AUDIO_SetGainCtlOwner(GAIN_OWNER_DSP);
+  751   2            #endif
+  752   2            break;
+  753   2          case OCF_DSP_AUDIO_OFF:
+  754   2            #ifdef OPERATION_IN_BB_ASIC_VERSION
+  755   2            AUDIO_SetGainCtlOwner(GAIN_OWNER_MCU);
+  756   2            #endif
+  757   2            AUDIO_CloseAudios(AUDIO_DSP_RELATED_ENUM);
+  758   2            DRIVER_CheckATEnablePlay();
+  759   2            gMailBox_ctl.setVolumeAgain = FALSE;
+  760   2      
+  761   2            if(gDriver_ctl.isAudioHandlingPending)
+  762   2            {
+  763   3              MMI_SECTOR_SaveData(SAVE_DATA_TYPE_DSP_OFF);
+C251 COMPILER V5.57.0,  DRIVER_1520                                                        08/11/20  05:51:49  PAGE 13  
+
+  764   3              gDriver_ctl.isAudioHandlingPending = FALSE;
+  765   3              if(gDriver_ctl.backUpAudioCmdPtr)
+  766   3              {
+  767   4                OSMQ_PutFront(OSMQ_DRIVER_Command_ptr, (U8 XDATA_PTR)gDriver_ctl.backUpAudioCmdPtr);
+  768   4                gDriver_ctl.backUpAudioCmdPtr = NULL;
+  769   4                DRIVER_ProcMmiCmd();
+  770   4              }
+  771   3            }
+  772   2            break;
+  773   2          case OCF_DSP_SET_VOL:
+  774   2            #ifdef AUDIO_CTL_VERIFY
+                     {
+                       U16 HiLo;
+               
+                       SYS_3WireRead(0xA0, HiLo);
+                       LightDbgPrint("DRV - 3wire 0xA0, %x, %x", ((U8)(HiLo>>8)), ((U8)HiLo));
+                       SYS_3WireRead(0xA1, HiLo);
+                       LightDbgPrint("DRV - 3wire 0xA1, %x, %x", ((U8)(HiLo>>8)), ((U8)HiLo));
+                       SYS_3WireRead(0xA2, HiLo);
+                       LightDbgPrint("DRV - 3wire 0xA2, %x, %x", ((U8)(HiLo>>8)), ((U8)HiLo));
+                       SYS_3WireRead(0xA3, HiLo);
+                       LightDbgPrint("DRV - 3wire 0xA3, %x, %x", ((U8)(HiLo>>8)), ((U8)HiLo));
+                       SYS_3WireRead(0xA4, HiLo);
+                       LightDbgPrint("DRV - 3wire 0xA4, %x, %x", ((U8)(HiLo>>8)), ((U8)HiLo));
+                       SYS_3WireRead(0xA5, HiLo);
+                       LightDbgPrint("DRV - 3wire 0xA5, %x, %x", ((U8)(HiLo>>8)), ((U8)HiLo));
+                       SYS_3WireRead(0xA6, HiLo);
+                       LightDbgPrint("DRV - 3wire 0xA6, %x, %x", ((U8)(HiLo>>8)), ((U8)HiLo));
+                       SYS_3WireRead(0xA7, HiLo);
+                       LightDbgPrint("DRV - 3wire 0xA7, %x, %x", ((U8)(HiLo>>8)), ((U8)HiLo));
+                       SYS_3WireRead(0xA8, HiLo);
+                       LightDbgPrint("DRV - 3wire 0xA8, %x, %x", ((U8)(HiLo>>8)), ((U8)HiLo));
+                       SYS_3WireRead(0xA9, HiLo);
+                       LightDbgPrint("DRV - 3wire 0xA9, %x, %x", ((U8)(HiLo>>8)), ((U8)HiLo));
+                       SYS_3WireRead(0xAA, HiLo);
+                       LightDbgPrint("DRV - 3wire 0xAA, %x, %x", ((U8)(HiLo>>8)), ((U8)HiLo));
+                     }
+                     #endif
+  802   2            break;
+  803   2          case OCF_DSP_UPDATE_PARA:
+  804   2      
+  805   2            if (cmdType == DSP_FEEDBACK_REF_GAIN)
+  806   2            {
+  807   3              MMI_HCI_ToolDSPRefGainCmdResponse(HCI_VCMD_OCF_TOOL_GET_DSP_REF_GAIN,HCI_VEVT_OCF_RESULT_CODE_SUCCESS
+             -);
+  808   3            }
+  809   2            else if (cmdType == DSP_UPDATE_WID)
+  810   2            {
+  811   3              if (AUDIO_COMPONENT_IS_ACTIVE(AUDIO_A2DP))
+  812   3              {
+  813   4                LightDbgPrint("A2DP mode-Sound Effect %d ", (U8)soundEffect_Ctl[SOUND_EFFECT_A2DP].modeSoundEffect);
+  814   4              }
+  815   3              else if (AUDIO_COMPONENT_IS_ACTIVE(AUDIO_LINE_IN))
+  816   3              {
+  817   4                LightDbgPrint("Line-In mode-Sound Effect %d ", (U8)soundEffect_Ctl[SOUND_EFFECT_LINE_IN].modeSoundEf
+             -fect);
+  818   4              }
+  819   3              LightDbgPrint("SoundEffect done");
+  820   3            }
+  821   2            else if (cmdType == DSP_UPDATE_DBB)
+  822   2            {
+  823   3              LightDbgPrint("DBB Switch %d", (U8)dbbOnOff_Ctl);
+  824   3              LightDbgPrint("DBB OnOff done");
+  825   3            }
+  826   2            break;
+  827   2        }
+C251 COMPILER V5.57.0,  DRIVER_1520                                                        08/11/20  05:51:49  PAGE 14  
+
+  828   1      }
+  829          
+  830          PRIVATE void Driver_MailBoxOgfATEvtHandle(U8 ocf, U16 cmdType)
+  831          {
+  832   1        UNUSED(cmdType);
+  833   1        Mailbox_ReleaseTASKVPRTATBusyFlag();
+  834   1        switch(ocf)
+  835   1        {
+  836   2          case OCF_AT_START:
+  837   2            DRIVER_SetGainAndMute(TARGET_VPRTAT);
+  838   2            gDriver_ctl.isATSwitch = AT_NOT_IN_SWITCH;
+  839   2            break;
+  840   2          case OCF_AT_STOP:
+  841   2            AUDIO_SetAudioOff(AUDIO_TRANSPARENCY);
+  842   2            break;
+  843   2        }
+  844   1      }
+  845          
+  846          typedef struct
+  847          {
+  848            void (*driverMailBoxEvent)(U8 ocf,  U16 cmdType);
+  849          }DriverMailBoxEvtFuncType;
+  850          
+  851          DriverMailBoxEvtFuncType CODE DriverMailBoxEvtHandler[OGF_MAX_NUM] =
+  852          {
+  853            Driver_MailBoxOgfVPEvtHandle, //OGF_VP = 0,
+  854            Driver_MailBoxOgfRTEvtHandle, //OGF_RT,
+  855            Driver_MailBoxOgfVCEvtHandle, //OGF_VC,
+  856            Driver_MailBoxOgfAPPEvtHandle, //OGF_APP,
+  857            Driver_MailBoxOgfDSPEvtHandle, //OGF_DSP,
+  858            Driver_MailBoxOgfATEvtHandle, //OGF_AT,
+  859          };
+  860          
+  861          OSMQ XDATA Driver_MailBox_Evt;
+  862          
+  863          PUBLIC void DRIVER_ProcMailboxEvent(U8 XDATA_PTR msgPtr)
+  864          {
+  865   1        OSMQ_Put(&Driver_MailBox_Evt, (U8 XDATA_PTR)msgPtr);
+  866   1      }
+  867          
+  868          PUBLIC void DRIVER_MailBoxHandler(void)
+  869          {
+  870   1        DriverMsg XDATA_PTR msgPtr;
+  871   1        while(OSMQ_Entries(&Driver_MailBox_Evt))
+  872   1        {
+  873   2          msgPtr = (DriverMsg XDATA_PTR)OSMQ_Get(&Driver_MailBox_Evt);
+  874   2          DriverMailBoxEvtHandler[msgPtr->msgBodyPtr.driverEvt.mailBoxEvt.ogf].driverMailBoxEvent(msgPtr->msgBody
+             -Ptr.driverEvt.mailBoxEvt.ocf, msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.dsp_update_para.cmd_type);
+  875   2          OSMEM_Put((U8 XDATA_PTR)msgPtr);
+  876   2        }
+  877   1        if(!IS_DSP_BUSY && gDriver_ctl.isAudioHandlingPending && gDriver_ctl.sendDSPAppIdle)
+  878   1        {
+  879   2          DRIVER_SendAppIdleToMailBox();
+  880   2          gDriver_ctl.sendDSPAppIdle = FALSE;
+  881   2        }
+  882   1      
+  883   1        if(!IS_DSP_BUSY && gAUDIO_CtrlInfo.isGainOwnByDSP && gMailBox_ctl.setVolumeAgain)
+  884   1        {
+  885   2          if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_LINE_IN))
+  886   2          {
+  887   3            DRIVER_SetLineInVolumeToHW();
+  888   3          }
+  889   2          else if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_A2DP))
+  890   2          {
+  891   3            LightDbgPrint("Driver:setVolumeAgainA2DP");
+  892   3            DRIVER_SetA2DPVolumeToHW();
+C251 COMPILER V5.57.0,  DRIVER_1520                                                        08/11/20  05:51:49  PAGE 15  
+
+  893   3          }
+  894   2          else if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_SCO)|| AUDIO_COMPONENT_IS_ACTIVE(AUDIO_ASYNC_SCO))
+  895   2          {
+  896   3            DRIVER_SetNormalVolumeToHW();
+  897   3          }
+  898   2          else if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_RINGTONE) || AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICEPROMPT) || AU
+             -DIO_COMPONENT_IS_ACTIVE(AUDIO_TRANSPARENCY))
+  899   2          {
+  900   3            DRIVER_SetGainAndMute(TARGET_VPRTAT);
+  901   3          }
+  902   2          else if (AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICECOMMAND))
+  903   2          {
+  904   3            DRIVER_SetGainAndMute(TARGET_NONE);
+  905   3          }
+  906   2        }
+  907   1      }
+  908          
+  909          PUBLIC void DRIVER_SetGainAndMute(U8 target)
+  910          {
+  911   1        DriverMsg XDATA_PTR msgPtr;
+  912   1        U8 analogAdGain_R, analogAdGain_L, analogDaGain, digitalAdGain;
+  913   1        U16 spkVolsApp, spkVolsVPRT;
+  914   1        U8 vprtSoundLevel;
+  915   1      
+  916   1        gMailBox_ctl.setVolumeAgain = TRUE;
+  917   1      
+  918   1        if(IS_DSP_BUSY)
+  919   1          return;
+  920   1      
+  921   1        ///////// AD Gain ////////////////////////
+  922   1        analogAdGain_R = VOLUME_DONT_CARE;
+  923   1        analogAdGain_L = VOLUME_DONT_CARE;
+  924   1        digitalAdGain = VOLUME_DONT_CARE;
+  925   1      
+  926   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICECOMMAND))
+  927   1        {
+  928   2          analogAdGain_R = gDriver_ctl.voiceCmdMiscCtl.analogAdGain_R;
+  929   2          analogAdGain_L = gDriver_ctl.voiceCmdMiscCtl.analogAdGain_L;
+  930   2          digitalAdGain = gDriver_ctl.voiceCmdMiscCtl.micVols;
+  931   2        }
+  932   1        else if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_LINE_IN) || AUDIO_COMPONENT_IS_ACTIVE(AUDIO_TRANSPARENCY))
+  933   1        {
+  934   2          analogAdGain_R = gDriver_ctl.lineInSpkMicCtl.analogAdGain_R;
+  935   2          analogAdGain_L = gDriver_ctl.lineInSpkMicCtl.analogAdGain_L;
+  936   2          digitalAdGain = gDriver_ctl.lineInSpkMicCtl.micVols;
+  937   2        }
+  938   1        else if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_SCO)|| AUDIO_COMPONENT_IS_ACTIVE(AUDIO_ASYNC_SCO))
+  939   1        {
+  940   2          analogAdGain_R = gDriver_ctl.normalSpkMicCtl.analogAdGain_R;
+  941   2          analogAdGain_L = gDriver_ctl.normalSpkMicCtl.analogAdGain_L;
+  942   2          digitalAdGain = gDriver_ctl.normalSpkMicCtl.micVols;
+  943   2        }
+  944   1        else if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_A2DP)) // Soundbar case
+  945   1        {
+  946   2          analogAdGain_R = gDriver_ctl.a2dpSpkCtl.analogAdGain_R;
+  947   2          analogAdGain_L = gDriver_ctl.a2dpSpkCtl.analogAdGain_L;
+  948   2          digitalAdGain = gDriver_ctl.a2dpSpkCtl.micVols;
+  949   2        }
+  950   1      
+  951   1      
+  952   1        /////////  DA  Gain  ///////////////////////
+  953   1        analogDaGain = VOLUME_DONT_CARE;
+  954   1        vprtSoundLevel = VOLUME_DONT_CARE;
+  955   1      
+  956   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_A2DP))
+  957   1        {
+C251 COMPILER V5.57.0,  DRIVER_1520                                                        08/11/20  05:51:49  PAGE 16  
+
+  958   2          analogDaGain = gDriver_ctl.a2dpSpkCtl.analogDaGain;
+  959   2          
+  960   2          if(vprtSoundLevel = gDriver_ctl.a2dpSpkCtl.soundLevel)
+  961   2            vprtSoundLevel--;
+  962   2        }
+  963   1        else if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_LINE_IN) || AUDIO_COMPONENT_IS_ACTIVE(AUDIO_TRANSPARENCY))
+  964   1        {
+  965   2          analogDaGain = gDriver_ctl.lineInSpkMicCtl.analogDaGain;
+  966   2          if(vprtSoundLevel = gDriver_ctl.lineInSpkMicCtl.soundLevel)
+  967   2            vprtSoundLevel--;
+  968   2        }
+  969   1        else if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_SCO)|| AUDIO_COMPONENT_IS_ACTIVE(AUDIO_ASYNC_SCO))
+  970   1        {
+  971   2          analogDaGain = gDriver_ctl.normalSpkMicCtl.analogDaGain;
+  972   2          vprtSoundLevel = gDriver_ctl.normalSpkMicCtl.soundLevel;
+  973   2        }
+  974   1      
+  975   1      
+  976   1        ///////////  APP SpkVol  ////////////////////
+  977   1        spkVolsApp = gDriver_ctl.DSPGainLv;
+  978   1      
+  979   1      
+  980   1        //////////    VPRT Vol ///////////////////
+  981   1        spkVolsVPRT = VOLUME_DONT_CARE;
+  982   1      
+  983   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICEPROMPT) || AUDIO_COMPONENT_IS_ACTIVE(AUDIO_RINGTONE))
+  984   1        {
+  985   2          DRIVER_CTL_TYPE CODE_PTR vprtGainTablePtr = (DRIVER_CTL_TYPE CODE_PTR)GET_SECTOR_CFG1_ADDR(SECTOR_DRIVE
+             -R_CTL_INIT);
+  986   2      
+  987   2          if(vprtSoundLevel == VOLUME_DONT_CARE)
+  988   2          {
+  989   3            vprtSoundLevel = gDriver_ctl.vprtSoundLevel;
+  990   3            
+  991   3            analogDaGain = (AUDIO_COMPONENT_IS_ACTIVE(AUDIO_RINGTONE)) ?
+  992   3              vprtGainTablePtr->vprtAnalogGain[vprtSoundLevel].rtAnalogGain :
+  993   3              vprtGainTablePtr->vprtAnalogGain[vprtSoundLevel].vpAnalogGain;
+  994   3            
+  995   3            spkVolsVPRT = (AUDIO_COMPONENT_IS_ACTIVE(AUDIO_RINGTONE)) ?
+  996   3              vprtGainTablePtr->vprtSpkGainSet[vprtSoundLevel].digitalGainRT :
+  997   3              vprtGainTablePtr->vprtSpkGainSet[vprtSoundLevel].digitalGainVP;
+  998   3          }
+  999   2          else
+ 1000   2          {
+ 1001   3            if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_SCO)|| AUDIO_COMPONENT_IS_ACTIVE(AUDIO_ASYNC_SCO))
+ 1002   3            {
+ 1003   4              spkVolsVPRT = (AUDIO_COMPONENT_IS_ACTIVE(AUDIO_RINGTONE)) ?
+ 1004   4                vprtGainTablePtr->vprtSpkGainSetSco[vprtSoundLevel].digitalGainRT :
+ 1005   4                vprtGainTablePtr->vprtSpkGainSetSco[vprtSoundLevel].digitalGainVP;
+ 1006   4            }
+ 1007   3            else if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_A2DP))
+ 1008   3            {
+ 1009   4              spkVolsVPRT = (AUDIO_COMPONENT_IS_ACTIVE(AUDIO_RINGTONE)) ?
+ 1010   4                vprtGainTablePtr->vprtSpkGainSetA2dp[vprtSoundLevel].digitalGainRT :
+ 1011   4                vprtGainTablePtr->vprtSpkGainSetA2dp[vprtSoundLevel].digitalGainVP;
+ 1012   4            }
+ 1013   3            else if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_LINE_IN))
+ 1014   3            {
+ 1015   4              spkVolsVPRT = (AUDIO_COMPONENT_IS_ACTIVE(AUDIO_RINGTONE)) ?
+ 1016   4                vprtGainTablePtr->vprtSpkGainSetLineIn[vprtSoundLevel].digitalGainRT :
+ 1017   4                vprtGainTablePtr->vprtSpkGainSetLineIn[vprtSoundLevel].digitalGainVP;
+ 1018   4            }
+ 1019   3          }
+ 1020   2          target |= TARGET_VPRTAT;
+ 1021   2        }
+ 1022   1        else if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_TRANSPARENCY))
+C251 COMPILER V5.57.0,  DRIVER_1520                                                        08/11/20  05:51:49  PAGE 17  
+
+ 1023   1        {
+ 1024   2          spkVolsVPRT = gDriver_ctl.lineInSpkMicCtl.spkVols;
+ 1025   2          target |= TARGET_VPRTAT;
+ 1026   2        }
+ 1027   1      
+ 1028   1        msgPtr = (DriverMsg XDATA_PTR)OSMEM_Get(OSMEM_ptr1);
+ 1029   1        if(msgPtr)
+ 1030   1        {
+ 1031   2          OSMEM_memset_xdata((U8 XDATA_PTR)msgPtr, 0, OSMEM1_BLKSIZE);
+ 1032   2          Mailbox_TaskOgfDSP(msgPtr, OCF_DSP_SET_VOL);
+ 1033   2          msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.dsp_gain_para.GainTarget = target;
+ 1034   2          msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.dsp_gain_para.APP_GainLv = VOLUME_DONT_CARE;
+ 1035   2          msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.dsp_gain_para.VPRT_GainLv = VOLUME_DONT_CARE;
+ 1036   2          if(target&TARGET_APP)
+ 1037   2          {
+ 1038   3            msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.dsp_gain_para.APP_GainLv = spkVolsApp;
+ 1039   3            LightDbgPrint("DRV-Vol[APP]:%d,%d,%d,%d",(U8)spkVolsApp, (U8)analogDaGain, (U8)analogAdGain_R, (U8)ana
+             -logAdGain_L);
+ 1040   3          }
+ 1041   2          if(target&TARGET_VPRTAT)
+ 1042   2          {
+ 1043   3            msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.dsp_gain_para.VPRT_GainLv = spkVolsVPRT;
+ 1044   3            LightDbgPrint("DRV-Vol[VPRT]:%d,%d,%d,%d",(U8)spkVolsVPRT, (U8)analogDaGain, (U8)analogAdGain_R, (U8)a
+             -nalogAdGain_L);
+ 1045   3          }
+ 1046   2          msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.dsp_gain_para.au_ad_ana_gain.Field.AuInGainCtrl_L 
+             -= analogAdGain_L;
+ 1047   2          msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.dsp_gain_para.au_ad_ana_gain.Field.AuInGainCtrl_R 
+             -= analogAdGain_R;
+ 1048   2          msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.dsp_gain_para.ear_sdmod_gain.Field.AuDAC_DSMGain =
+             - 0x03;
+ 1049   2          msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.dsp_gain_para.ear_sdmod_gain.Field.SpkVolCtrl = an
+             -alogDaGain;
+ 1050   2          msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.dsp_gain_para.MicDigitalGain = digitalAdGain;
+ 1051   2      
+ 1052   2          #ifdef OPERATION_IN_BB_ASIC_VERSION
+ 1053   2          if(analogDaGain == 0)
+ 1054   2          {
+ 1055   3            analogDaGain = 0x10;
+ 1056   3          }
+ 1057   2          else
+ 1058   2          {
+ 1059   3            analogDaGain --;
+ 1060   3          }
+ 1061   2          SET_REG_DA_ANALOG_GAIN(analogDaGain);
+ 1062   2          #endif
+ 1063   2          DRIVER_SendCmdToMailBox(msgPtr);
+ 1064   2        }
+ 1065   1      }
+ 1066          
+ 1067          extern PUBLIC BOOL MMI_DRV_IsScoInCVSD(U8 linkIndex);
+ 1068          #if 1 // Added to make the customer know the DSP playing status.
+ 1069          static DSP_PLAYING_STATUS g_DSPPlayingStatus=SDK_DSP_PLAYING_STOPPED;
+ 1070          #endif
+ 1071          
+ 1072          PRIVATE U16 DRIVER_CheckDSPClock(BOOL isOn, U8 component)
+ 1073          {
+ 1074   1        U8 productType;
+ 1075   1        U16 dspClock;
+ 1076   1        
+ 1077   1        productType = GET_PRODUCT_AIR_TYPE(pMMI_nvram->productType.pnpProductVersion);
+ 1078   1        
+ 1079   1        if(isOn)
+ 1080   1        {
+ 1081   2          switch(component)
+ 1082   2          {
+C251 COMPILER V5.57.0,  DRIVER_1520                                                        08/11/20  05:51:49  PAGE 18  
+
+ 1083   3            case AUDIO_SCO:
+ 1084   3              #if defined(AB1520SC) || defined(AB1520S) || defined(AB1520U)
+                       dspClock = DSP_CLOCK_96M;
+                       UNUSED(productType);
+                       #else
+ 1088   3                #ifdef BLUETOOTH_SPEAKER
+                         dspClock = DSP_CLOCK_96M;
+                         UNUSED(productType);
+                         #else
+ 1092   3                if( !(((DRIVER_CTL_TYPE CODE_PTR)(GET_SECTOR_CFG1_ADDR(SECTOR_DRIVER_CTL_INIT)))->isDualMic) && gDri
+             -ver_ctl.dspLink < MAX_MULTI_POINT_NO &&
+ 1093   3                MMI_DRV_IsScoInCVSD(gDriver_ctl.dspLink) && (productType !=PRODUCT_AIR_SCO_WOOFER))
+ 1094   3                {
+ 1095   4                  dspClock = DSP_CLOCK_48M;
+ 1096   4                }
+ 1097   3                else
+ 1098   3                  dspClock = DSP_CLOCK_96M;
+ 1099   3                #endif
+ 1100   3              #endif
+ 1101   3              break;
+ 1102   3            #ifdef A2DP_Profile
+ 1103   3            case AUDIO_A2DP:
+ 1104   3              #if defined(PEQ_ENABLE) || defined(BLUETOOTH_SPEAKER)
+ 1105   3              dspClock = DSP_CLOCK_96M;
+ 1106   3              UNUSED(productType);
+ 1107   3              #else
+                       if( (gDriver_ctl.musicCodecType == SBC_SRC_SEID || gDriver_ctl.musicCodecType == SBC_SNK_SEID)&&
+                        (soundEffect_Ctl[SOUND_EFFECT_A2DP].modeSoundEffect == DSP_SOUNDEFFECT_NO_UPDATE) && (productType !=
+             -PRODUCT_AIR_SOUNDBAR))
+                       {
+                         dspClock = DSP_CLOCK_48M;
+                       }
+                       else
+                         dspClock = DSP_CLOCK_96M;
+                       #endif
+ 1116   3      
+ 1117   3              break;
+ 1118   3            #endif
+ 1119   3      
+ 1120   3            case AUDIO_LINE_IN:
+ 1121   3              #ifdef PEQ_ENABLE
+ 1122   3              dspClock = DSP_CLOCK_96M;
+ 1123   3              UNUSED(productType);
+ 1124   3              #else
+                       if(gAUDIO_CtrlInfo.isNormalLineMode && (soundEffect_Ctl[SOUND_EFFECT_A2DP].modeSoundEffect == DSP_SOU
+             -NDEFFECT_NO_UPDATE))
+                       {
+                         dspClock = DSP_CLOCK_48M;
+                       }
+                       else
+                         dspClock = DSP_CLOCK_96M;
+                       break;
+                       #endif
+ 1133   3            default:
+ 1134   3              dspClock = DSP_CLOCK_96M;
+ 1135   3              UNUSED(productType);
+ 1136   3              break;
+ 1137   3          }
+ 1138   2        }
+ 1139   1        else
+ 1140   1        {
+ 1141   2          dspClock = DSP_CLOCK_96M;
+ 1142   2        }
+ 1143   1        return dspClock;
+ 1144   1      }
+ 1145          
+C251 COMPILER V5.57.0,  DRIVER_1520                                                        08/11/20  05:51:49  PAGE 19  
+
+ 1146          PUBLIC void DRIVER_AudioOnOffCmdToDSP(BOOL isOn, U8 component)
+ 1147          {
+ 1148   1        DriverMsg XDATA_PTR msgPtr;
+ 1149   1        MMI_NVRAM_TYPE CODE_PTR pMMI_nvram;
+ 1150   1      
+ 1151   1        pMMI_nvram=(MMI_NVRAM_TYPE CODE_PTR) GET_SECTOR_CFG1_ADDR(SECTOR_MMI_NVRAM_INIT);
+ 1152   1      
+ 1153   1        if ((DSP_IsDSPEnabled() && isOn) || (!DSP_IsDSPEnabled() && !isOn))
+ 1154   1          return;
+ 1155   1      
+ 1156   1      #if 1 // Added to make the customer know the DSP playing status.
+ 1157   1        if(isOn){
+ 1158   2          switch(component){
+ 1159   3            case AUDIO_RINGTONE:
+ 1160   3              g_DSPPlayingStatus=SDK_DSP_PLAYING_RINGTONE;
+ 1161   3              break;
+ 1162   3            case AUDIO_SCO:
+ 1163   3              g_DSPPlayingStatus=SDK_DSP_PLAYING_SCO;
+ 1164   3              break;
+ 1165   3            case AUDIO_VOICEPROMPT:
+ 1166   3              g_DSPPlayingStatus=SDK_DSP_PLAYING_VOICEPROMPT;
+ 1167   3              break;
+ 1168   3            case AUDIO_A2DP:
+ 1169   3              g_DSPPlayingStatus=SDK_DSP_PLAYING_A2DP;
+ 1170   3              break;
+ 1171   3            case AUDIO_LINE_IN:
+ 1172   3              g_DSPPlayingStatus=SDK_DSP_PLAYING_AUDIO_LINE_IN;
+ 1173   3              break;
+ 1174   3            case AUDIO_VOICECOMMAND:
+ 1175   3              g_DSPPlayingStatus=SDK_DSP_PLAYING_VOICECOMMAND;
+ 1176   3              break;
+ 1177   3            case AUDIO_ASYNC_SCO:
+ 1178   3              g_DSPPlayingStatus=SDK_DSP_PLAYING_ASYNC_SCO;
+ 1179   3              break;
+ 1180   3            case AUDIO_FM:
+ 1181   3              g_DSPPlayingStatus=SDK_DSP_PLAYING_AUDIO_FM;
+ 1182   3              break;
+ 1183   3            default:
+ 1184   3              g_DSPPlayingStatus=SDK_DSP_PLAYING_STOPPED;
+ 1185   3              break;
+ 1186   3            }
+ 1187   2        }
+ 1188   1        else{
+ 1189   2          g_DSPPlayingStatus=SDK_DSP_PLAYING_STOPPED;
+ 1190   2        }
+ 1191   1      #endif
+ 1192   1        //Mantis 10350 dsp clock should be check when opening mode.
+ 1193   1        gDriver_ctl.dspClock = DRIVER_CheckDSPClock(isOn, component);
+ 1194   1      
+ 1195   1        if(msgPtr = (DriverMsg XDATA_PTR)OSMEM_Get(OSMEM_ptr1))
+ 1196   1        {
+ 1197   2          U16 HiLo;
+ 1198   2          SYS_3WireRead(0xA0, HiLo);
+ 1199   2          HiLo &= 0x001F;  // 5 bits valid
+ 1200   2      
+ 1201   2          if(HiLo == 0x10)
+ 1202   2          {
+ 1203   3            HiLo = 0x00;
+ 1204   3          }
+ 1205   2          else
+ 1206   2          {
+ 1207   3            HiLo ++;
+ 1208   3          }
+ 1209   2      
+ 1210   2          OSMEM_memset_xdata((U8 XDATA_PTR)msgPtr, 0, OSMEM1_BLKSIZE);
+ 1211   2          Mailbox_TaskOgfDSP(msgPtr, isOn? OCF_DSP_AUDIO_ON:OCF_DSP_AUDIO_OFF);
+C251 COMPILER V5.57.0,  DRIVER_1520                                                        08/11/20  05:51:49  PAGE 20  
+
+ 1212   2          msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.dsp_gain_para.GainTarget = 0x00;
+ 1213   2          msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.dsp_gain_para.APP_GainLv = 0x00;
+ 1214   2          msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.dsp_gain_para.VPRT_GainLv = 0x00;
+ 1215   2          msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.dsp_gain_para.au_ad_ana_gain.Field.AuInGainCtrl_L 
+             -= 0x18;
+ 1216   2          msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.dsp_gain_para.au_ad_ana_gain.Field.AuInGainCtrl_R 
+             -= 0x18;
+ 1217   2          msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.dsp_gain_para.ear_sdmod_gain.Field.AuDAC_DSMGain =
+             - 0x00;
+ 1218   2          msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.dsp_gain_para.ear_sdmod_gain.Field.SpkVolCtrl = (U
+             -8)HiLo;
+ 1219   2          msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.dsp_gain_para.MicDigitalGain = 0x03;
+ 1220   2          msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.dsp_gain_para.DspClock = gDriver_ctl.dspClock;
+ 1221   2          msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.dsp_gain_para.DacEnable = (isOn & gAUDIO_CtrlInfo.
+             -isNeedPilotTone)? 0 : 1;
+ 1222   2          DRIVER_SendCmdToMailBox(msgPtr);
+ 1223   2      
+ 1224   2          gAUDIO_CtrlInfo.isNeedPilotTone = FALSE;
+ 1225   2        }
+ 1226   1      }
+ 1227          
+ 1228          PUBLIC void DRIVER_TurnOffSCO(void)
+ 1229          {
+ 1230   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_SCO))
+ 1231   1        {
+ 1232   2          AUDIO_SetAudioOff (AUDIO_SCO);
+ 1233   2          DRIVER_SendSCODisableEvent();
+ 1234   2          DRIVER_CheckATEnablePlay();
+ 1235   2        }
+ 1236   1      }
+ 1237          
+ 1238          PUBLIC void DRIVER_TurnOffA2DP(void)
+ 1239          {
+ 1240   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_A2DP))
+ 1241   1        {
+ 1242   2          AUDIO_SetAudioOff (AUDIO_A2DP);
+ 1243   2          DRIVER_SendA2DPDisableEvent();
+ 1244   2        }
+ 1245   1      }
+ 1246          
+ 1247          PUBLIC void DRIVER_TurnOffLineIn(void)
+ 1248          {
+ 1249   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_LINE_IN))
+ 1250   1        {
+ 1251   2          AUDIO_SetAudioOff (AUDIO_LINE_IN);
+ 1252   2          DRIVER_SendLineInDisableEvent();
+ 1253   2        }
+ 1254   1      }
+ 1255          
+ 1256          PUBLIC void DRIVER_TurnOffAsyncSCO(void)
+ 1257          {
+ 1258   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_ASYNC_SCO))
+ 1259   1        {
+ 1260   2          AUDIO_SetAudioOff (AUDIO_ASYNC_SCO);
+ 1261   2          DRIVER_SendAsyncSCODisabledEvent();
+ 1262   2        }
+ 1263   1      }
+ 1264          
+ 1265          PUBLIC U8 DRIVER_DSPSoundEffect1520(DriverMsg XDATA_PTR msgPtr)
+ 1266          {
+ 1267   1        if (msgPtr)
+ 1268   1        {
+ 1269   2          if(IS_DSP_BUSY)
+ 1270   2            return QUE_PUTFRONT;
+ 1271   2      
+ 1272   2          if (AUDIO_COMPONENT_IS_ACTIVE(AUDIO_LINE_IN) || AUDIO_COMPONENT_IS_ACTIVE(AUDIO_A2DP))
+C251 COMPILER V5.57.0,  DRIVER_1520                                                        08/11/20  05:51:49  PAGE 21  
+
+ 1273   2          {
+ 1274   3            OSMEM_memset_xdata((U8 XDATA_PTR)msgPtr, 0, OSMEM1_BLKSIZE);
+ 1275   3            Mailbox_TaskOgfDSP(msgPtr, OCF_DSP_UPDATE_PARA);
+ 1276   3            msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.dsp_update_para.cmd_type = DSP_UPDATE_WID;
+ 1277   3            msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.dsp_update_para.cmd_para = (AUDIO_COMPONENT_IS_AC
+             -TIVE(AUDIO_LINE_IN)) ? soundEffect_Ctl[SOUND_EFFECT_LINE_IN].modeSoundEffect : soundEffect_Ctl[SOUND_EFFECT_A2DP].modeSo
+             -undEffect;
+ 1278   3      
+ 1279   3            DRIVER_SendCmdToMailBox(msgPtr);
+ 1280   3            return CONTINUE_LOOP;
+ 1281   3          }
+ 1282   2        }
+ 1283   1        return MEMORY_PUT;
+ 1284   1      }
+ 1285          
+ 1286          PUBLIC U8 DRIVER_DSPDBBOnOff1520(DriverMsg XDATA_PTR msgPtr)
+ 1287          {
+ 1288   1        if (msgPtr)
+ 1289   1        {
+ 1290   2          if(IS_DSP_BUSY)
+ 1291   2            return QUE_PUTFRONT;
+ 1292   2      
+ 1293   2          if (AUDIO_COMPONENT_IS_ACTIVE(AUDIO_LINE_IN) || AUDIO_COMPONENT_IS_ACTIVE(AUDIO_A2DP))
+ 1294   2          {
+ 1295   3            OSMEM_memset_xdata((U8 XDATA_PTR)msgPtr, 0, OSMEM1_BLKSIZE);
+ 1296   3            Mailbox_TaskOgfDSP(msgPtr, OCF_DSP_UPDATE_PARA);
+ 1297   3            msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.dsp_update_para.cmd_type = DSP_UPDATE_DBB;
+ 1298   3      
+ 1299   3            if (dbbOnOff_Ctl == DSP_DBB_OFF || dbbOnOff_Ctl ==DSP_DBB_NO_UPDATE)
+ 1300   3            {
+ 1301   4              msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.dsp_update_para.cmd_para = DSP_DBB_ON;
+ 1302   4              dbbOnOff_Ctl = DSP_DBB_ON;
+ 1303   4            }
+ 1304   3            else if (dbbOnOff_Ctl == DSP_DBB_ON)
+ 1305   3            {
+ 1306   4              msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.dsp_update_para.cmd_para = DSP_DBB_OFF;
+ 1307   4              dbbOnOff_Ctl = DSP_DBB_OFF;
+ 1308   4            }
+ 1309   3      
+ 1310   3            DRIVER_SendCmdToMailBox(msgPtr);
+ 1311   3            return CONTINUE_LOOP;
+ 1312   3          }
+ 1313   2        }
+ 1314   1        return MEMORY_PUT;
+ 1315   1      }
+ 1316          
+ 1317          
+ 1318          PUBLIC U8 DRIVER_DSPRefGain1520(DriverMsg XDATA_PTR msgPtr)
+ 1319          {
+ 1320   1        if (msgPtr)
+ 1321   1        {
+ 1322   2          OSMEM_memset_xdata((U8 XDATA_PTR)msgPtr, 0, OSMEM1_BLKSIZE);
+ 1323   2          Mailbox_TaskOgfDSP(msgPtr, OCF_DSP_UPDATE_PARA);
+ 1324   2      
+ 1325   2          msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.dsp_update_para.cmd_type = DSP_FEEDBACK_REF_GAIN;
+ 1326   2          DRIVER_SendCmdToMailBox(msgPtr);
+ 1327   2        }
+ 1328   1      
+ 1329   1        return CONTINUE_LOOP;
+ 1330   1      }
+ 1331          
+ 1332          #ifdef SUPPORT_MIC_IN_A2DP_MODE
+ 1333          PUBLIC U8 DRIVER_A2DPAddMicHandler1520(DriverMsg XDATA_PTR msgPtr)
+ 1334          {
+ 1335   1        if(IS_DSP_BUSY)
+ 1336   1          return QUE_PUTFRONT;
+C251 COMPILER V5.57.0,  DRIVER_1520                                                        08/11/20  05:51:49  PAGE 22  
+
+ 1337   1            
+ 1338   1        if(AUDIO_COMPONENT_IS_ACTIVE (AUDIO_A2DP))
+ 1339   1        {
+ 1340   2          DRIVER_SendAppIdleToMailBox();
+ 1341   2            return QUE_PUTFRONT;
+ 1342   2        }
+ 1343   1        else if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_FM))
+ 1344   1        {
+ 1345   2          return MEMORY_PUT;
+ 1346   2        }
+ 1347   1        else if(DRIVER_IsRingToneOrVPOrATPlaying())
+ 1348   1        {
+ 1349   2          return QUE_PUTFRONT;
+ 1350   2        }
+ 1351   1        #ifdef SUPPORT_VOICE_COMMAND
+ 1352   1        else if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICECOMMAND))
+ 1353   1        {
+ 1354   2          DRIVER_BackUpOgfAppCmd(msgPtr);
+ 1355   2          return MEMORY_PUT;
+ 1356   2        }
+ 1357   1        #endif
+ 1358   1        
+ 1359   1        if(msgPtr->msgBodyPtr.driverCmd.a2dpCmd.m2d_ctl.para.stereo_start_para.sidetone_en)
+ 1360   1        {
+ 1361   2          LightDbgPrint("open mic");
+ 1362   2          gDriver_ctl.isSideToneEnabled = 1;
+ 1363   2          gAudio_MappingTable[AUDIO_A2DP] = gAudio_MappingTable[AUDIO_A2DP] |AUDIO_ENABLE_MIC |AUDIO_ENABLE_AD;   
+ 1364   2        }
+ 1365   1        else
+ 1366   1        {
+ 1367   2          LightDbgPrint("close mic");
+ 1368   2          gDriver_ctl.isSideToneEnabled = 0;
+ 1369   2          gAudio_MappingTable[AUDIO_A2DP] = AUDIO_ENABLE_DA;    
+ 1370   2        }
+ 1371   1        
+ 1372   1        #ifndef BLUETOOTH_SPEAKER //line-in for audio transparency(Non-A2DP MIC)
+ 1373   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_LINE_IN))
+ 1374   1        {
+ 1375   2          if(msgPtr->msgBodyPtr.driverCmd.a2dpCmd.m2d_ctl.para.stereo_start_para.sidetone_en)
+ 1376   2          {
+ 1377   3            DRIVER_SendAppIdleToMailBox();
+ 1378   3            return QUE_PUTFRONT;
+ 1379   3          }
+ 1380   2        }
+ 1381   1        #endif
+ 1382   1        return MEMORY_PUT;
+ 1383   1      }
+ 1384          #endif
+ 1385          
+ 1386          PUBLIC U8 DRIVER_MicTestHandler1520(DriverMsg XDATA_PTR msgPtr)
+ 1387          {
+ 1388   1        if (IS_DSP_BUSY)
+ 1389   1          return QUE_PUTFRONT;
+ 1390   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_LINE_IN) || AUDIO_COMPONENT_IS_ACTIVE(AUDIO_SCO))
+ 1391   1          AUDIO_SetMicSwitch(msgPtr->msgBodyPtr.driverCmd.micTestCmd.micEnableSet);
+ 1392   1        else if(!DSP_IsDSPEnabled())
+ 1393   1          AUDIO_SetECNROnOff(msgPtr->msgBodyPtr.driverCmd.micTestCmd.controlECNR);
+ 1394   1      
+ 1395   1        return MEMORY_PUT;
+ 1396   1      }
+ 1397          
+ 1398          PUBLIC U8 DRIVER_SwitchStereoMonoHandler1520(void)
+ 1399          {
+ 1400   1        AUDIO_SwitchStereoMono();
+ 1401   1        return MEMORY_PUT;
+ 1402   1      }
+C251 COMPILER V5.57.0,  DRIVER_1520                                                        08/11/20  05:51:49  PAGE 23  
+
+ 1403          
+ 1404          PUBLIC U8 DRIVER_SCOModeControlHandler1520(DriverMsg XDATA_PTR msgPtr)
+ 1405          {
+ 1406   1      #if defined SUPPORT_VOICE_COMMAND || defined ECNR_OFF_IN_NORMAL_SCO
+ 1407   1        BOOL isSuspend;
+ 1408   1        #ifdef SUPPORT_VOICE_COMMAND
+ 1409   1        U8 lightMonoModeMaskOld;
+ 1410   1        #endif
+ 1411   1      
+ 1412   1        if(IS_DSP_BUSY)
+ 1413   1          return QUE_PUTFRONT;
+ 1414   1      
+ 1415   1        ASSERT(msgPtr->msgBodyPtr.driverCmd.scoCmd.linkInd < 4);
+ 1416   1      
+ 1417   1        #ifdef ECNR_OFF_IN_NORMAL_SCO
+                 if(msgPtr->msgBodyPtr.driverCmd.scoCmd.enablePara.scoPara.isECNROn)
+                 {
+                   gDriver_ctl.ecnrMask |= (0x01 << msgPtr->msgBodyPtr.driverCmd.scoCmd.linkInd);
+                 }
+                 else
+                 {
+                   gDriver_ctl.ecnrMask &= ~(0x01 << msgPtr->msgBodyPtr.driverCmd.scoCmd.linkInd);
+                 }
+                 #endif
+ 1427   1      
+ 1428   1        #ifdef SUPPORT_VOICE_COMMAND
+ 1429   1        lightMonoModeMaskOld = gDriver_ctl.lightMonoModeMask;
+ 1430   1        if(msgPtr->msgBodyPtr.driverCmd.scoCmd.enablePara.scoPara.isLightMonoMode)
+ 1431   1        {
+ 1432   2          gDriver_ctl.lightMonoModeMask |= (0x01 << msgPtr->msgBodyPtr.driverCmd.scoCmd.linkInd);
+ 1433   2        }
+ 1434   1        else
+ 1435   1        {
+ 1436   2          gDriver_ctl.lightMonoModeMask &= ~(0x01 << msgPtr->msgBodyPtr.driverCmd.scoCmd.linkInd);
+ 1437   2        }
+ 1438   1        #endif
+ 1439   1      
+ 1440   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_SCO) && gDriver_ctl.dspLink == msgPtr->msgBodyPtr.driverCmd.scoCmd.li
+             -nkInd)
+ 1441   1        {
+ 1442   2          isSuspend = FALSE;
+ 1443   2      
+ 1444   2          if(msgPtr->msgBodyPtr.driverCmd.scoCmd.enablePara.scoPara.isECNROn)
+ 1445   2          {
+ 1446   3            if(gAlignDSP.DSP_nvram.DSP_Reserved_PARAM.Feature_Sel & ECNR_DISABLE)
+ 1447   3            {
+ 1448   4              isSuspend = TRUE;
+ 1449   4            }
+ 1450   3          }
+ 1451   2          else
+ 1452   2          {
+ 1453   3            if(!(gAlignDSP.DSP_nvram.DSP_Reserved_PARAM.Feature_Sel & ECNR_DISABLE))
+ 1454   3            {
+ 1455   4              isSuspend = TRUE;
+ 1456   4            }
+ 1457   3          }
+ 1458   2      
+ 1459   2          #if !(defined AB1520S) && !(defined AB1520U)
+ 1460   2          if(msgPtr->msgBodyPtr.driverCmd.scoCmd.enablePara.scoPara.isLightMonoMode)
+ 1461   2          {
+ 1462   3            if(!(lightMonoModeMaskOld & (0x01 << gDriver_ctl.dspLink)))
+ 1463   3            {
+ 1464   4              isSuspend = TRUE;
+ 1465   4            }
+ 1466   3          }
+ 1467   2          else
+C251 COMPILER V5.57.0,  DRIVER_1520                                                        08/11/20  05:51:49  PAGE 24  
+
+ 1468   2          {
+ 1469   3            if(lightMonoModeMaskOld & (0x01 << gDriver_ctl.dspLink))
+ 1470   3            {
+ 1471   4              isSuspend = TRUE;
+ 1472   4            }
+ 1473   3          }
+ 1474   2          #endif
+ 1475   2      
+ 1476   2          if(isSuspend)
+ 1477   2          {
+ 1478   3            DRIVER_SendAppIdleToMailBox();
+ 1479   3            gDriver_ctl.isResumeSCO = TRUE;
+ 1480   3            return QUE_PUTFRONT;
+ 1481   3          }
+ 1482   2          else
+ 1483   2          {
+ 1484   3            gDriver_ctl.isResumeSCO = FALSE;
+ 1485   3            return MEMORY_PUT;
+ 1486   3          }
+ 1487   2        }
+ 1488   1      
+ 1489   1        if(gDriver_ctl.isResumeSCO)
+ 1490   1        {
+ 1491   2          msgPtr->msgOpcode = DRIVER_SCO_CMD;
+ 1492   2          gDriver_ctl.isResumeSCO = FALSE;
+ 1493   2          return QUE_PUTFRONT;
+ 1494   2        }
+ 1495   1      #else
+                 UNUSED(msgPtr);
+               #endif
+ 1498   1      
+ 1499   1        return MEMORY_PUT;
+ 1500   1      }
+ 1501          
+ 1502          PUBLIC U8 DRIVER_AsyncSCOCmdHandler1520(DriverMsg XDATA_PTR msgPtr)
+ 1503          {
+ 1504   1        if(IS_DSP_BUSY)
+ 1505   1          return QUE_PUTFRONT;
+ 1506   1      
+ 1507   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_FM))
+ 1508   1        {
+ 1509   2          DRIVER_SendRequestCloseFMEvent();
+ 1510   2          return QUE_PUTFRONT;
+ 1511   2        }
+ 1512   1      
+ 1513   1        #ifdef SUPPORT_VOICE_COMMAND
+ 1514   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICECOMMAND))
+ 1515   1        {
+ 1516   2          DRIVER_BackUpOgfAppCmd(msgPtr);
+ 1517   2          return MEMORY_PUT;
+ 1518   2        }
+ 1519   1        #endif
+ 1520   1        
+ 1521   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_ASYNC_SCO))
+ 1522   1          return MEMORY_PUT;
+ 1523   1        
+ 1524   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_TRANSPARENCY))
+ 1525   1        {
+ 1526   2          DRIVER_ATSwitchVPRTSCO();
+ 1527   2          return QUE_PUTFRONT;
+ 1528   2        }
+ 1529   1      
+ 1530   1        if(DRIVER_IsDSPOgfAppOn())
+ 1531   1        {
+ 1532   2          DRIVER_SendAppIdleToMailBox();
+ 1533   2          return QUE_PUTFRONT;
+C251 COMPILER V5.57.0,  DRIVER_1520                                                        08/11/20  05:51:49  PAGE 25  
+
+ 1534   2        }
+ 1535   1      
+ 1536   1        if(!MMI_IsActiveLink(msgPtr->msgBodyPtr.driverCmd.scoCmd.linkInd))
+ 1537   1        {
+ 1538   2          return MEMORY_PUT;
+ 1539   2        }
+ 1540   1      
+ 1541   1        if(gDriver_ctl.dspClock != DRIVER_CheckDSPClock(TRUE, AUDIO_ASYNC_SCO))
+ 1542   1        {
+ 1543   2          return QUE_PUTFRONT;
+ 1544   2        }
+ 1545   1        LightDbgPrint("AUDIO_ASYNC_SCO1");
+ 1546   1      
+ 1547   1        gDriver_ctl.dspLink = msgPtr->msgBodyPtr.driverCmd.scoCmd.linkInd;
+ 1548   1        DRIVER_BackUpOgfAppCmd(msgPtr);
+ 1549   1        AUDIO_SetAudioOn(AUDIO_ASYNC_SCO);
+ 1550   1      
+ 1551   1        ASSERT(gDriver_ctl.dspLink < 4);
+ 1552   1      
+ 1553   1        //gAlignDSP.DSP_nvram.DSP_Reserved_PARAM.Feature_Sel &= ~ECNR_DISABLE;
+ 1554   1        #ifdef TWS_SETTINGS
+ 1555   1        DRIVER_TWSClkSetting(FALSE, gDriver_ctl.dspLink);
+ 1556   1        #endif
+ 1557   1        gAlignDSP.dsp_param_update_ctl = AIRO_SYNC_MAGIC_TIME;
+ 1558   1        
+ 1559   1        Mailbox_TaskOgfAPP(msgPtr, OCF_APP_ASYNC_MONO_MODE);
+ 1560   1        AUDIO_SetAudioInOutToMailBoxCmd(AUDIO_ASYNC_SCO, &msgPtr->msgBodyPtr.driverCmd.scoCmd.m2d_ctl.para.async
+             -_mono_para.audio_scenario);
+ 1561   1        DRIVER_SendCmdToMailBox(msgPtr);
+ 1562   1        gOS_PowerSavingMCUPauseRequest = TRUE;
+ 1563   1        #ifdef PEQ_ENABLE
+ 1564   1        //DRIVER_PEQReload();
+ 1565   1        #endif
+ 1566   1      
+ 1567   1        SYS_ReleaseTimer(&gDriver_ctl.waitQosTimerPtr);
+ 1568   1        return RETURN_FUNCTION;
+ 1569   1      }
+ 1570          PRIVATE void DRIVER_LINEModeSetting(U8 payloadEncode, U16 eSCORelay)
+ 1571          {
+ 1572   1        if ((payloadEncode == FALSE) && (eSCORelay == SOUNDBAR_ESCO_DISABLE))
+ 1573   1          gAUDIO_CtrlInfo.isNormalLineMode=1;
+ 1574   1        else
+ 1575   1          gAUDIO_CtrlInfo.isNormalLineMode=0;
+ 1576   1      }
+ 1577          
+ 1578          PUBLIC BOOL DRIVER_IsDSPOgfAppOn(void)
+ 1579          {
+ 1580   1        return (AUDIO_COMPONENT_IS_ACTIVE(AUDIO_LINE_IN) || AUDIO_COMPONENT_IS_ACTIVE(AUDIO_A2DP) || AUDIO_COMPO
+             -NENT_IS_ACTIVE(AUDIO_SCO) || AUDIO_COMPONENT_IS_ACTIVE(AUDIO_ASYNC_SCO))? TRUE : FALSE;
+ 1581   1      }
+ 1582          
+ 1583          #ifdef TWS_SETTINGS
+ 1584          enum host_link_idx_enum
+ 1585          {
+ 1586            HOST_SLAVE_0_LINK   = 0,
+ 1587            HOST_MASTER_0_LINK  = 1,
+ 1588            HOST_MASTER_1_LINK  = 2,
+ 1589            HOST_SLAVE_1_LINK   = 3,
+ 1590          };
+ 1591          
+ 1592          PUBLIC void DRIVER_TWSClkSetting(BOOL isRelay, U8 linkIndex)
+ 1593          {
+ 1594   1        FOUR_BYTE_UNION_TYPE current_time;
+ 1595   1        FOUR_BYTE_UNION_TYPE sc_start_count_time;
+ 1596   1        U8 index;
+ 1597   1      
+C251 COMPILER V5.57.0,  DRIVER_1520                                                        08/11/20  05:51:49  PAGE 26  
+
+ 1598   1        if (!isRelay)
+ 1599   1        {
+ 1600   2              LightDbgPrint("DSP - Slave Device Clock");
+ 1601   2          index = HC_ConnectionHandleToIndex((MMI_GetConnHandleByLinkIndex(linkIndex)));
+ 1602   2        }
+ 1603   1          else
+ 1604   1          {
+ 1605   2              index = HOST_MASTER_0_LINK;
+ 1606   2          }
+ 1607   1      
+ 1608   1          LightDbgPrint("DSP - Airostereo LinkIndex: %d", (U8)index);
+ 1609   1      
+ 1610   1        switch (index)
+ 1611   1        {
+ 1612   2          case HOST_MASTER_0_LINK:
+ 1613   2          case HOST_MASTER_1_LINK:
+ 1614   2                  OS_ENTER_CRITICAL();
+ 1615   2                  LC_SFR_WRITE_BY_E7(E7OFFS_WR_TWS_CLK_SOURCE_SEL,0x01);
+ 1616   2                  LC_SFR_WRITE_BY_E7(E7OFFS_WR_TWS_SC_CNT_FREQ_DIVIDER,0x02);
+ 1617   2                  OS_EXIT_CRITICAL();
+ 1618   2                  current_time.value = HAL_ReadMasterClock();
+ 1619   2            break;
+ 1620   2      
+ 1621   2          case HOST_SLAVE_0_LINK:
+ 1622   2                  OS_ENTER_CRITICAL();
+ 1623   2                  LC_SFR_WRITE_BY_E7(E7OFFS_WR_TWS_CLK_SOURCE_SEL,0x02);
+ 1624   2                  LC_SFR_WRITE_BY_E7(E7OFFS_WR_TWS_SC_CNT_FREQ_DIVIDER,0x02);
+ 1625   2                  OS_EXIT_CRITICAL();
+ 1626   2                  current_time.value = HAL_ReadSlave0Clock();
+ 1627   2            break;
+ 1628   2      
+ 1629   2          case HOST_SLAVE_1_LINK:
+ 1630   2            OS_ENTER_CRITICAL();
+ 1631   2            LC_SFR_WRITE_BY_E7(E7OFFS_WR_TWS_CLK_SOURCE_SEL,0x03);
+ 1632   2            LC_SFR_WRITE_BY_E7(E7OFFS_WR_TWS_SC_CNT_FREQ_DIVIDER,0x02);
+ 1633   2            OS_EXIT_CRITICAL();
+ 1634   2            current_time.value = HAL_ReadSlave1Clock();
+ 1635   2            break;
+ 1636   2        }
+ 1637   1      
+ 1638   1        sc_start_count_time.value = (  current_time.value + (0x40 - ( current_time.value % 0x40 )) );
+ 1639   1      
+ 1640   1        OS_ENTER_CRITICAL();
+ 1641   1        LC_SFR_WRITE_BY_E7(E7OFFS_WR_TWS_SC_NEXT_INSTANT_B0,sc_start_count_time.in_byte.B0);
+ 1642   1        LC_SFR_WRITE_BY_E7(E7OFFS_WR_TWS_SC_NEXT_INSTANT_B1,sc_start_count_time.in_byte.B1);
+ 1643   1        LC_SFR_WRITE_BY_E7(E7OFFS_WR_TWS_SC_NEXT_INSTANT_B2,sc_start_count_time.in_byte.B2);
+ 1644   1        LC_SFR_WRITE_BY_E7(E7OFFS_WR_TWS_SC_NEXT_INSTANT_B3,sc_start_count_time.in_byte.B3);
+ 1645   1        OS_EXIT_CRITICAL();
+ 1646   1      }
+ 1647          #endif //TWS_SETTINGS
+ 1648          #if 1 // Added to make the customer know the DSP playing status.
+ 1649          DSP_PLAYING_STATUS DSP_Playing_Status()
+ 1650          {
+ 1651   1        return g_DSPPlayingStatus;
+ 1652   1      }
+ 1653          #endif
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =      5702     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+C251 COMPILER V5.57.0,  DRIVER_1520                                                        08/11/20  05:51:49  PAGE 27  
+
+  edata size           =        12     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       366     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

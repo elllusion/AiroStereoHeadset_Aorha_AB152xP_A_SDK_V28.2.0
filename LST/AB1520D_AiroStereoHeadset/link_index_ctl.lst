@@ -1,0 +1,312 @@
+C251 COMPILER V5.57.0,  link_index_ctl                                                     08/11/20  06:34:18  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE link_index_ctl
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\link_index_ctl.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\MMI_LE\link_index_ctl.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HU
+                    -GE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS
+                    -;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\
+                    -source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\
+                    -MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\D
+                    -spData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE
+                    -(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoHea
+                    -dset\link_index_ctl.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\link_index_ctl.obj) 
+
+stmt  level    source
+
+    1          //////////////////////////////////////////////////////////
+    2          // Copyright@ 2014 Airoha.  All rights reserved.
+    3          //////////////////////////////////////////////////////////
+    4          #include "reside_flash.inc"
+    5          #include "rc.h"
+    6          
+    7          #ifdef LE_SUPPORTED_HOST_FLASH
+    8          #include "link_index_ctl.h"
+    9          #include "MMI_LE_interface.h"
+   10          
+   11          enum
+   12          {
+   13              LINK_STATE_NONE,
+   14              LINK_STATE_WAITING_ACTIVE,
+   15              LINK_STATE_ACTIVE,
+   16          };
+   17          
+   18          typedef struct 
+   19          {
+   20              U16 connHandle;   //the 2-byte connection handle
+   21              U8 linkState;
+   22              U8 peerAddrType;
+   23              U8 peerAddr[BD_ADDR_LEN];
+   24          } LinkInfoType;
+   25          
+   26          static LinkInfoType gLinkInfo[MAX_NUM_OF_LINK];
+   27          static U8 gActiveLink[MAX_NUM_OF_LINK];             //Active link index list
+   28          static U8 gNumOfActiveLink;
+   29          
+   30          
+   31          
+   32          /*
+   33           * LIC_Update_ActiveLink
+   34           *
+   35           * maintain the list of active link
+   36           *
+   37           */
+   38          PRIVATE void LIC_Update_ActiveLink(void)
+   39          {
+   40   1        U8 idx;
+   41   1      
+   42   1        for(idx = 0, gNumOfActiveLink = 0; idx < MAX_NUM_OF_LINK; idx++)
+   43   1        {
+   44   2          if(gLinkInfo[idx].linkState == LINK_STATE_ACTIVE)
+   45   2          {
+   46   3            gActiveLink[gNumOfActiveLink] = idx;
+   47   3            gNumOfActiveLink++;
+   48   3          }
+   49   2        }
+   50   1      }
+   51          
+   52          
+C251 COMPILER V5.57.0,  link_index_ctl                                                     08/11/20  06:34:18  PAGE 2   
+
+   53          
+   54          /*
+   55           * LIC_LE_AddLinkInfo
+   56           *
+   57           * add connection handle to link table
+   58           *
+   59           */
+   60          PUBLIC void LIC_LE_AddLinkInfo(HCI_LE_EVT_STRU XDATA_PTR ptr)
+   61          {
+   62   1        U8 idx;
+   63   1        U16 connHdl = TO_MCU_ENDIAN_U16(ptr->payload.connCmp.connHandle);
+   64   1      
+   65   1        if(connHdl > LIC_MAX_CONNECTION_HANDLE)
+   66   1        {
+   67   2          return;
+   68   2        }
+   69   1        
+   70   1          #ifdef DBG_UART_ENABLE_LINK_INDEX_CTL
+                 {
+                       U8 XDATA_PTR p1;
+                     p1 = ptr->payload.connCmp.peerAddr;
+                     LightDbgPrint("curr_Addr:%x %x %x %x %x %x", (U8)p1[0], (U8)p1[1], (U8)p1[2], (U8)p1[3], (U8)p1[4], 
+             -(U8)p1[5]);
+                 }
+                   #endif
+   77   1          
+   78   1        for (idx = 0; idx < MAX_NUM_OF_LINK; idx++)
+   79   1        {
+   80   2            if(gLinkInfo[idx].linkState == LINK_STATE_WAITING_ACTIVE)
+   81   2          {
+   82   3              if((!OS_memcmp(gLinkInfo[idx].peerAddr, ptr->payload.connCmp.peerAddr, BD_ADDR_LEN)) 
+   83   3                  && (gLinkInfo[idx].peerAddrType == ptr->payload.connCmp.peerAddrType))
+   84   3                {
+   85   4                      goto AddToLinkTableExit;
+   86   4                  }
+   87   3              }
+   88   2          }
+   89   1      
+   90   1        for(idx = 0; idx < MAX_NUM_OF_LINK; idx++)
+   91   1          {
+   92   2              if(gLinkInfo[idx].linkState != LINK_STATE_ACTIVE)
+   93   2              {
+   94   3                  gLinkInfo[idx].peerAddrType = ptr->payload.connCmp.peerAddrType;
+   95   3                  OSMEM_memcpy_xdata_xdata(gLinkInfo[idx].peerAddr, ptr->payload.connCmp.peerAddr, BD_ADDR_LEN)
+             -;
+   96   3                  goto AddToLinkTableExit;
+   97   3          }
+   98   2        }
+   99   1      
+  100   1      AddToLinkTableExit:
+  101   1      
+  102   1          #ifdef DBG_UART_ENABLE_LINK_INDEX_CTL
+                 LightDbgPrint("LIC add idx:%x, CH:%x %x", idx, (U8)(connHdl>>8), (U8)connHdl);
+                 #endif
+  105   1          gLinkInfo[idx].linkState = LINK_STATE_ACTIVE;
+  106   1          gLinkInfo[idx].connHandle = connHdl;
+  107   1          LIC_Update_ActiveLink();
+  108   1        #ifdef SM_SUPPORTED
+                   MMI_LE_SendUpdateLinkStatusToSM(idx, MMI_LE_LINK_STATUS_CONNECTION_CMP);
+                 #endif
+  111   1      }
+  112          
+  113          
+  114          
+  115          /*
+  116           * LIC_LE_DelLinkInfo
+C251 COMPILER V5.57.0,  link_index_ctl                                                     08/11/20  06:34:18  PAGE 3   
+
+  117           *
+  118           * delete connection handle from link table
+  119           *
+  120           */
+  121          PUBLIC U8 LIC_LE_DelLinkInfo(U16 connHdl)
+  122          {
+  123   1        U8 idx;
+  124   1      
+  125   1          idx = LIC_LE_GetIdxByConnHdl(connHdl);
+  126   1        
+  127   1        //#ifdef DBG_UART_ENABLE_LINK_INDEX_CTL
+  128   1        LightDbgPrint("LIC del idx:%x CH:%x %x", idx, (U8)(connHdl>>8), (U8)connHdl);
+  129   1        //#endif
+  130   1        
+  131   1          if(idx == LIC_INVALID_LINK_INDEX)
+  132   1          {
+  133   2              return idx;
+  134   2          }
+  135   1          gLinkInfo[idx].connHandle = LIC_INVALID_CONNECTION_HANDLE;
+  136   1          gLinkInfo[idx].linkState = LINK_STATE_WAITING_ACTIVE;
+  137   1          LIC_Update_ActiveLink();
+  138   1        #ifdef SM_SUPPORTED
+                 MMI_LE_SendUpdateLinkStatusToSM(idx, MMI_LE_LINK_STATUS_DISCONNECTION);
+                 #endif
+  141   1        return idx;
+  142   1      }
+  143          
+  144          
+  145          
+  146          PUBLIC void LIC_LE_Init(void)
+  147          {
+  148   1          U8 i;
+  149   1          for(i=0; i<MAX_NUM_OF_LINK; i++)
+  150   1          {
+  151   2              gLinkInfo[i].connHandle = LIC_INVALID_CONNECTION_HANDLE;
+  152   2          }
+  153   1      
+  154   1        OSMEM_memset_xdata((U8 XDATA_PTR)&gActiveLink, 0x00, sizeof(gActiveLink));
+  155   1        gNumOfActiveLink = 0;
+  156   1        LIC_HalInit();
+  157   1      }
+  158          
+  159          
+  160          
+  161          /**
+  162           * LIC_LE_GetConnHdl
+  163           *
+  164           * Return the connection handle of corresponding link index
+  165           * Return 0xFFFF if that link is not connected or in link index is not valid
+  166           *
+  167           */
+  168          PUBLIC U16 LIC_LE_GetConnHdl(U8 idx)
+  169          {
+  170   1          if(idx < MAX_NUM_OF_LINK)
+  171   1          {
+  172   2              return gLinkInfo[idx].connHandle;
+  173   2          }
+  174   1        return LIC_INVALID_CONNECTION_HANDLE;
+  175   1      }
+  176          
+  177          
+  178          
+  179          /**
+  180           * LIC_LE_GetPeerAddr
+  181           *
+  182           * Return the peer addrress of corresponding link index
+C251 COMPILER V5.57.0,  link_index_ctl                                                     08/11/20  06:34:18  PAGE 4   
+
+  183           * Return NULL if that link is not connected or in link index is not valid
+  184           *
+  185           */
+  186          PUBLIC U8 XDATA_PTR LIC_LE_GetPeerAddr(U8 idx)
+  187          {
+  188   1          if(idx < MAX_NUM_OF_LINK)
+  189   1          {
+  190   2              return gLinkInfo[idx].peerAddr;
+  191   2          }
+  192   1        return NULL;
+  193   1      }
+  194          
+  195          
+  196          
+  197          PUBLIC U8 LIC_LE_GetPeerAddrType(U8 idx)
+  198          {
+  199   1          if(idx < MAX_NUM_OF_LINK)
+  200   1          {
+  201   2              return gLinkInfo[idx].peerAddrType;
+  202   2          }
+  203   1        return 0;
+  204   1      }
+  205          
+  206          
+  207          
+  208          /**
+  209           * LIC_LE_GetIdxByConnHdl
+  210           *
+  211           * Return the link index 
+  212           * Return 0xFF if connection handle not found
+  213           *
+  214           */
+  215          PUBLIC U8 LIC_LE_GetIdxByConnHdl(U16 connHdl)
+  216          {
+  217   1        U8 idx;
+  218   1      
+  219   1        if(connHdl <= LIC_MAX_CONNECTION_HANDLE)
+  220   1          {
+  221   2            for(idx=0; idx < MAX_NUM_OF_LINK; idx++)
+  222   2            {
+  223   3                if(gLinkInfo[idx].connHandle == connHdl)
+  224   3                {
+  225   4                return idx;
+  226   4                }
+  227   3            }
+  228   2          }
+  229   1          return LIC_INVALID_LINK_INDEX;
+  230   1      }
+  231          
+  232          
+  233          
+  234          /**
+  235           * LIC_LE_GetNumOfActiveLink
+  236           *
+  237           * Return number of Alive link
+  238           *
+  239           */
+  240          PUBLIC U8 LIC_LE_GetNumOfActiveLink(void)
+  241          {
+  242   1        return gNumOfActiveLink;
+  243   1      }
+  244          
+  245          
+  246          
+  247          
+  248          /**
+C251 COMPILER V5.57.0,  link_index_ctl                                                     08/11/20  06:34:18  PAGE 5   
+
+  249           * LIC_LE_GetActiveLinkIdx
+  250           *
+  251           * Return Alive link index
+  252           *
+  253           */
+  254          PUBLIC U8 LIC_LE_GetActiveLinkIdx(U8 i)
+  255          {
+  256   1        return gActiveLink[i];
+  257   1      }
+  258          #endif
+  259          
+  260          
+  261          
+  262          
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =       446     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =        12     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =        24     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

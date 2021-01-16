@@ -1,0 +1,117 @@
+C251 COMPILER V5.57.0,  sector_tool_info                                                   08/11/20  06:32:18  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_tool_info
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\sector_tool_info.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\sector_tool_info.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(
+                    -HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\
+                    -OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;
+                    -.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\RO
+                    -M\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR
+                    -\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFI
+                    -NE(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoH
+                    -eadset\sector_tool_info.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\sector_tool_info.obj) 
+
+stmt  level    source
+
+    1          /*
+    2           * AIROHA Bluetooth Device Firmware
+    3           * COPYRIGHT (C) 2015 AIROHA TECHNOLOGY CORP. CO., LTD. ALL RIGHTS RESERVED
+    4           *
+    5           * sector_tool_info.h defines fields used by tool
+    6           *
+    7           * Programmer : hsianglin@airoha.com.tw, Ext.2861
+    8           */
+    9          #include "config.h"
+   10          #include "cpu.h"
+   11          #include "sector_tool_info.h"
+   12          
+   13          #pragma userclass (HCONST = CONFIG)
+   14          
+   15          
+   16          ////////////////////////////////////////////////////////////////////////////////
+   17          // Global Variables ////////////////////////////////////////////////////////////
+   18          ////////////////////////////////////////////////////////////////////////////////
+   19          SECTOR_TOOL_INFO_STRU CODE gSector_Tool_Info =
+   20          {
+   21              {
+   22              {
+   23                0, //Major Version
+   24                0, //Minor Version
+   25                0, //Build  Number
+   26                0, //Revision Number      
+   27              },
+   28              
+   29              {
+   30                0, //Year
+   31                0, //Month
+   32                0, //Date
+   33              },
+   34              0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+   35              0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+   36              0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+   37              {0},// U8 dspparatooluse[2048]
+   38                  
+   39                  //U8 ReservedForMP[256]
+   40                      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   41                      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   42                      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   43                      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   44                      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   45                      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   46                      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   47                      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   48                      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   49                      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   50                      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   51                      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   52                      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+C251 COMPILER V5.57.0,  sector_tool_info                                                   08/11/20  06:32:18  PAGE 2   
+
+   53                      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   54                      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   55                      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   56                      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   57                      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   58                      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   59                      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   60                      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   61                      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   62                      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   63                      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   64                      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   65                      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   66                      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   67                      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   68                      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   69                      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   70                      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   71                      0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   72              },
+   73              //- CRC
+   74              {0,0}
+   75          };
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =      3145     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,457 @@
+C251 COMPILER V5.57.0,  MMI_ChgBat                                                         08/11/20  06:33:16  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE MMI_ChgBat
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\MMI_ChgBat.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\MMI\MMI_ChgBat.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) WAR
+                    -NINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\sour
+                    -ce\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\source\
+                    -ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_LE;
+                    -.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspData;
+                    -.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLASH_
+                    -INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoHeadset\MM
+                    -I_ChgBat.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\MMI_ChgBat.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #define _MMI_CHGBAT_C_
+    4          
+    5          #include "MMI.h"
+    6          #include "MMI_State.h"
+    7          #include "MMI_Driver.h"
+    8          #include "MMI_Protocol.h"
+    9          #include "MMI_HCI.h"
+   10          #include "MMI_ChgBat.h"
+   11          #include "..\LC\LC_Interface.h"
+   12          #include "..\LC\LC.h"
+   13          #include "..\LC\hal.h"
+   14          #include "drivers.h"
+   15          #include "..\ROM\DRIVER\drv_adc1.h"
+   16          #include "..\Driver\Driver_LED.h"
+   17          #include "..\Driver\Driver_Temp.h"
+   18          
+   19          #ifdef AIRAPP_Profile
+   20          #include "..\AirApp\AirApp_interface.h"
+   21          #endif
+   22          
+   23          #ifdef MMI_BATCHG_ENABLE
+   24          
+   25          #include "..\SDK_Proxy\SDK_Proxy.h"
+   26          extern VFUN XDATA api_iosys_evt_func[API_GRP_IOSYS_CB_CNT];
+   27          
+   28          PRIVATE void MMI_CHG_SetTimeOutDectionTimer(void)
+   29          {
+   30   1        if (gMMI_nvram.timerCtl.CheckChargingTimer)
+   31   1        {
+   32   2          SYS_SetTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.checkChargingTimer,
+   33   2                  gMMI_nvram.timerCtl.CheckChargingTimer*0x57E400L);//unit 0.5 hours
+   34   2        }
+   35   1      }
+   36          
+   37          PRIVATE void MMI_CHG_ReleaseTimeOutDectionTimer(void)
+   38          {
+   39   1        SYS_ReleaseTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.checkChargingTimer);
+   40   1      }
+   41          
+   42          PRIVATE void MMI_CHGBAT_PushBatChgMediaEvt(void)
+   43          {
+   44   1        // Here the timer is use to prevent the condition that user plug in and out the charge rapidly.
+   45   1        // we set timer to prevent the media events are sent a lot continuously.
+   46   1        SYS_SetTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.delayChgMediaEvtTimer, (U32)(gMMI_nvram.timerCtl.DelayChgMe
+             -diaEvtTimer*32));
+   47   1      }
+   48          
+   49          PRIVATE void MMI_BAT_SetSwitchOffInLowBatTimer(void)
+   50          {
+   51   1        if (gMMI_nvram.timerCtl.AutoSwitchOffInLowBatTimer && (gMMI_ctl.mmiTimerInfo.sysTimer.autoSwitchOffInLow
+C251 COMPILER V5.57.0,  MMI_ChgBat                                                         08/11/20  06:33:16  PAGE 2   
+
+             -BatTimer == (OST XDATA_PTR)NULL))
+   52   1        {
+   53   2          SYS_SetTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.autoSwitchOffInLowBatTimer,
+   54   2                      (U32)(gMMI_nvram.timerCtl.AutoSwitchOffInLowBatTimer*192000));
+   55   2        }
+   56   1      }
+   57          
+   58          PRIVATE void MMI_BAT_ReleaseSwitchOffInLowBatTimer(void)
+   59          {
+   60   1        SYS_ReleaseTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.autoSwitchOffInLowBatTimer);
+   61   1      }
+   62          
+   63          #define HW_CHARGER_STATUS_IDLE    0
+   64          #define HW_CHARGER_STATUS_TRICKLE 1
+   65          #define HW_CHARGER_STATUS_CC_MODE 2
+   66          #define HW_CHARGER_STATUS_CV_INIT 3
+   67          #define HW_CHARGER_STATUS_CV_MODE 4
+   68          #define HW_CHARGER_STATUS_COMPLETE  5
+   69          PRIVATE U8 MMI_CHG_GetStatus(void)
+   70          {
+   71   1        if(api_iosys_evt_func[API_GRP_IOSYS_CB_CHG_EXT_CHG_STATUS])
+   72   1        {
+   73   2          return ((API_IOSYS_CHG_EXT_CHG_STATUS_CB_FUNC)api_iosys_evt_func[API_GRP_IOSYS_CB_CHG_EXT_CHG_STATUS])(
+             -);
+   74   2        }
+   75   1        else
+   76   1        {
+   77   2          return DRV_CHARGER.fGetStatus();
+   78   2        }
+   79   1      }
+   80          
+   81          PUBLIC BOOL MMI_CHG_IsComplete(void)
+   82          {
+   83   1        return (HW_CHARGER_STATUS_COMPLETE == MMI_CHG_GetStatus()) ? TRUE : FALSE;
+   84   1      }
+   85          
+   86          PUBLIC void MMI_CHG_ResetTimeOutDectionTimer(void)
+   87          {
+   88   1        if (gMMI_ctl.mmiTimerInfo.sysTimer.checkChargingTimer != (OST XDATA_PTR)NULL)
+   89   1        {
+   90   2          MMI_CHG_SetTimeOutDectionTimer();
+   91   2        }
+   92   1      }
+   93          
+   94          PUBLIC void MMI_CHGBAT_Init(void)
+   95          {
+   96   1        MMI_PollingBatStatus();
+   97   1        if (!MMI_IsChargerIn())
+   98   1        {
+   99   2          //Default shut down low bat should be zero,
+  100   2          //if low bat threashold is not k by tool.
+  101   2          if (MMI_BAT_IsVoltageBelow(pMpParameter->MP_BatteryPara.initBatVolt))
+  102   2          {
+  103   3            MMI_SystemOff();
+  104   3          }
+  105   2        }
+  106   1      }
+  107          
+  108          PUBLIC BOOL MMI_BAT_IsVoltageBelow(VoltageType voltage)
+  109          {
+  110   1      #if defined(OPERATION_IN_BB_FPGA_VERSION)
+                 UNUSED(voltage);
+                 return FALSE;
+               #else
+  114   1        return (DRV_ADC0.fVBat() < voltage) ? TRUE : FALSE;
+  115   1      #endif
+C251 COMPILER V5.57.0,  MMI_ChgBat                                                         08/11/20  06:33:16  PAGE 3   
+
+  116   1      }
+  117          
+  118          PUBLIC U8 MMI_IsChargerIn(void)
+  119          {
+  120   1        if(api_iosys_evt_func[API_GRP_IOSYS_CB_CHG_EXT_CHG_IN])
+  121   1        {
+  122   2          return ((API_IOSYS_CHG_EXT_CHG_IN_CB_FUNC)api_iosys_evt_func[API_GRP_IOSYS_CB_CHG_EXT_CHG_IN])();
+  123   2        }
+  124   1        else
+  125   1        {
+  126   2          return DRV_CHARGER.fIsChargerIn();
+  127   2        }
+  128   1      }
+  129          
+  130          PUBLIC void MMI_CHGBAT_BatteryCheckPoint(void)
+  131          {
+  132   1        switch(MMI_BAT_GetLevelInQuater())
+  133   1        {
+  134   2          case IND_BATTERY_LOW:
+  135   2          case IND_BATTERY_INTERVAL_0:
+  136   2            MMI_PushMediaEvent(MEDIA_EVT_BATTERY_INTERVAL_0);
+  137   2            MMI_PushMediaEvent(MEDIA_EVT_BAT_OK);
+  138   2            break;
+  139   2          case IND_BATTERY_INTERVAL_1:
+  140   2            MMI_PushMediaEvent(MEDIA_EVT_BATTERY_INTERVAL_1);
+  141   2            MMI_PushMediaEvent(MEDIA_EVT_BAT_OK);
+  142   2            break;
+  143   2          case IND_BATTERY_INTERVAL_2:
+  144   2            MMI_PushMediaEvent(MEDIA_EVT_BATTERY_INTERVAL_2);
+  145   2            MMI_PushMediaEvent(MEDIA_EVT_BAT_OK);
+  146   2            break;
+  147   2          case IND_BATTERY_INTERVAL_3:
+  148   2            MMI_PushMediaEvent(MEDIA_EVT_BATTERY_INTERVAL_3);
+  149   2            MMI_PushMediaEvent(MEDIA_EVT_BAT_OK);
+  150   2            break;
+  151   2          default:
+  152   2            ASSERT(FALSE);
+  153   2            break;
+  154   2        }
+  155   1      }
+  156          
+  157          extern PUBLIC void DRIVER_Cmd_LED_UpdateDuration(U8 ledDuration);
+  158          PUBLIC void MMI_CheckCurrentBatLevel(void)
+  159          {
+  160   1        U8 ledDurationPara;
+  161   1      
+  162   1        if (gMMI_ctl.mmiBatInfo.batStatus >= MMI_BAT_CHARGER_IN)
+  163   1        {//Already Charger-In do nothing now.
+  164   2          if (!MMI_BAT_IsVoltageBelow(pMpParameter->MP_BatteryPara.lowBatVolt.lowBatLevel))
+  165   2          {
+  166   3            MMI_ClearActionOfPowerOnInLowBat();
+  167   3          }
+  168   2          if(MMI_BAT_IsVoltageBelow(pMpParameter->MP_BatteryPara.lowBatVolt.shutDownLowBat))
+  169   2          {
+  170   3            MMI_PowerOffHandler(POWEROFF_REASON_SHUT_DOWN_LOW_BAT);
+  171   3          }
+  172   2        }
+  173   1        else
+  174   1        {
+  175   2          if (MMI_BAT_IsVoltageBelow(pMpParameter->MP_BatteryPara.lowBatVolt.shutDownLowBat))
+  176   2          {
+  177   3            MMI_UpdateBatStatus(MMI_BAT_LOW);
+  178   3            MMI_PowerOffHandler(POWEROFF_REASON_SHUT_DOWN_LOW_BAT);
+  179   3          }
+  180   2          else if (MMI_BAT_IsVoltageBelow(pMpParameter->MP_BatteryPara.lowBatVolt.lowBatLevel))
+  181   2          {
+C251 COMPILER V5.57.0,  MMI_ChgBat                                                         08/11/20  06:33:16  PAGE 4   
+
+  182   3            //Under Low battery threshold
+  183   3            MMI_UpdateBatStatus(MMI_BAT_LOW);
+  184   3            if(gMMI_ctl.mmiTimerInfo.sysTimer.lowBatteryLEDtimer == (OST XDATA_PTR)NULL)
+  185   3            {
+  186   4              SYS_SetTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.lowBatteryLEDtimer, (U32)gMMI_nvram.batteryPara.lowBatte
+             -ryLEDTimer * ONE_SEC);
+  187   4              if(gMMI_nvram.batteryPara.lowBatteryLEDTimer != gMMI_nvram.batteryPara.lowBatteryRingTimer)
+  188   4                SYS_SetTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.lowBatteryRingtimer, (U32)gMMI_nvram.batteryPara.lowBat
+             -teryRingTimer * ONE_SEC);
+  189   4      
+  190   4              MMI_PushMediaEvent(MEDIA_EVT_BAT_LOW_LED);
+  191   4              MMI_PushMediaEvent(MEDIA_EVT_BAT_LOW_RING);
+  192   4      
+  193   4            }
+  194   3      
+  195   3            MMI_BAT_SetSwitchOffInLowBatTimer();
+  196   3            MMI_CHGBAT_PushBatChgMediaEvt();
+  197   3          }
+  198   2          else
+  199   2          {
+  200   3            MMI_UpdateBatStatus(MMI_BAT_WELL);
+  201   3            MMI_ClearActionOfPowerOnInLowBat();
+  202   3          }
+  203   2        }
+  204   1        
+  205   1        switch(MMI_BAT_GetLevelInQuater())
+  206   1        {
+  207   2          case IND_BATTERY_LOW:
+  208   2          case IND_BATTERY_INTERVAL_0:
+  209   2            ledDurationPara = gMMI_nvram.batteryPara.ledDuration.level0;
+  210   2            break;
+  211   2          case IND_BATTERY_INTERVAL_1:
+  212   2            ledDurationPara = gMMI_nvram.batteryPara.ledDuration.level1;
+  213   2            break;
+  214   2          case IND_BATTERY_INTERVAL_2:
+  215   2            ledDurationPara = gMMI_nvram.batteryPara.ledDuration.level2;
+  216   2            break;
+  217   2          case IND_BATTERY_INTERVAL_3:
+  218   2            ledDurationPara = gMMI_nvram.batteryPara.ledDuration.level3;
+  219   2            break;
+  220   2          default:
+  221   2            return;
+  222   2        }
+  223   1      
+  224   1        if (gMMI_ctl.mmiBatInfo.currentLedDuration != ledDurationPara)
+  225   1        {
+  226   2          gMMI_ctl.mmiBatInfo.currentLedDuration = ledDurationPara;
+  227   2          DRIVER_Cmd_LED_UpdateDuration(ledDurationPara);
+  228   2        }
+  229   1      }
+  230          
+  231          PUBLIC void MMI_PollingBatStatus(void)
+  232          {
+  233   1        if (MMI_IsChargerIn())
+  234   1        {
+  235   2          //Charger in now.
+  236   2      
+  237   2          //issue1608
+  238   2      
+  239   2          if(MMI_CHG_IsComplete()) //charging complete now.
+  240   2          {
+  241   3            if (gMMI_ctl.mmiBatInfo.batStatus != MMI_BAT_CHARGING_FULL)
+  242   3            {
+  243   4              MMI_UpdateBatStatus(MMI_BAT_CHARGING_FULL);
+  244   4              MMI_CHGBAT_PushBatChgMediaEvt();
+  245   4            }
+C251 COMPILER V5.57.0,  MMI_ChgBat                                                         08/11/20  06:33:16  PAGE 5   
+
+  246   3          }
+  247   2          else //charging is not complete yet.
+  248   2          {
+  249   3            // the moment when charge is plug in
+  250   3            if (gMMI_ctl.mmiBatInfo.batStatus != MMI_BAT_CHARGER_IN && gMMI_ctl.mmiBatInfo.batStatus != MMI_BAT_CH
+             -ARGER_RECHARGE)
+  251   3            {
+  252   4              if (gMMI_ctl.mmiBatInfo.batStatus == MMI_BAT_CHARGING_FULL)
+  253   4              {
+  254   5                MMI_UpdateBatStatus(MMI_BAT_CHARGER_RECHARGE);
+  255   5              }
+  256   4              else
+  257   4              {
+  258   5                MMI_UpdateBatStatus(MMI_BAT_CHARGER_IN);
+  259   5              }
+  260   4              MMI_CHGBAT_PushBatChgMediaEvt();
+  261   4              MMI_CHG_SetTimeOutDectionTimer();
+  262   4              MMI_BAT_ReleaseSwitchOffInLowBatTimer();
+  263   4            }
+  264   3          }
+  265   2          
+  266   2          if (!MMI_IS_POWER_ON())
+  267   2          {
+  268   3            if (!MMI_CheckNestState(MMI_EOF, MMI_FAKEOFF))
+  269   3            {
+  270   4              MMI_AddTopState(MMI_EOF, MMI_FAKEOFF);
+  271   4            }
+  272   3          }
+  273   2        }
+  274   1        else
+  275   1        {
+  276   2          //Charger out now
+  277   2          if (gMMI_ctl.mmiBatInfo.batStatus >= MMI_BAT_CHARGER_IN)
+  278   2          {
+  279   3            MMI_UpdateBatStatus(MMI_BAT_WELL);
+  280   3            DRIVER_TEMP_SetChargeNormal();
+  281   3            MMI_CHG_ReleaseTimeOutDectionTimer();
+  282   3            MMI_CHGBAT_PushBatChgMediaEvt();
+  283   3      
+  284   3            if (MMI_CheckNestState(MMI_EOF, MMI_FAKEOFF))
+  285   3            {
+  286   4              if(MMI_CHARGER_OUT_THEN_POWER_ON_FEAT)
+  287   4              {
+  288   5                MMI_PowerOnLoader();
+  289   5              }
+  290   4              else
+  291   4              {
+  292   5                MMI_SystemOff();
+  293   5              }
+  294   4            }
+  295   3          }
+  296   2        }
+  297   1      }
+  298          
+  299          PUBLIC void MMI_UpdateBatStatus(U8 batStatus)
+  300          {
+  301   1        if(gMMI_ctl.mmiBatInfo.batStatus != batStatus)
+  302   1        {
+  303   2          MMI_NotifyDriverBatteryStatus(batStatus);
+  304   2          
+  305   2          if(batStatus == MMI_BAT_WELL || batStatus == MMI_BAT_LOW)
+  306   2          {
+  307   3            if(gMMI_ctl.mmiBatInfo.batStatus >= MMI_BAT_CHARGER_IN && gMMI_ctl.mmiBatInfo.batStatus <= MMI_BAT_CHA
+             -RGING_FULL)
+  308   3            {
+  309   4              if(api_iosys_evt_func[API_GRP_IOSYS_CB_CHG_STATUS])
+C251 COMPILER V5.57.0,  MMI_ChgBat                                                         08/11/20  06:33:16  PAGE 6   
+
+  310   4              {
+  311   5                ((API_IOSYS_CHG_STATUS_CB_FUNC)api_iosys_evt_func[API_GRP_IOSYS_CB_CHG_STATUS])(0x01);
+  312   5              }
+  313   4            }
+  314   3            
+  315   3            if(batStatus == MMI_BAT_LOW)
+  316   3            {
+  317   4              if(api_iosys_evt_func[API_GRP_IOSYS_CB_BAT_LOW])
+  318   4              {
+  319   5                ((API_IOSYS_BAT_LOW_CB_FUNC)api_iosys_evt_func[API_GRP_IOSYS_CB_BAT_LOW])();
+  320   5              }     
+  321   4            }
+  322   3          }
+  323   2          else
+  324   2          {
+  325   3            if(api_iosys_evt_func[API_GRP_IOSYS_CB_CHG_STATUS])
+  326   3            {
+  327   4              ((API_IOSYS_CHG_STATUS_CB_FUNC)api_iosys_evt_func[API_GRP_IOSYS_CB_CHG_STATUS])(batStatus);
+  328   4            }
+  329   3          }
+  330   2          
+  331   2          #ifdef AIRAPP_Profile
+  332   2          AirApp_ChgBatStatusUpdateEvent(batStatus);
+  333   2          #endif
+  334   2        }
+  335   1        
+  336   1        gMMI_ctl.mmiBatInfo.batStatus = batStatus;
+  337   1      }
+  338          
+  339          PUBLIC U8 MMI_BAT_GetLevelInPercent(void)
+  340          {
+  341   1        U8 i;
+  342   1        U16 lowBd, highBd;
+  343   1        U16 batLevel = DRV_ADC0.fVBat();
+  344   1      
+  345   1        for( i = 0; i < MMI_IPHONE_BATTERY_LEVELS; i++)
+  346   1        {
+  347   2          if(batLevel < pMpParameter->MP_BatteryPara.batteryIPhoneCheckPoints[i])
+  348   2            break;
+  349   2        }
+  350   1      
+  351   1        if(i == 0)
+  352   1        {
+  353   2          lowBd = pMpParameter->MP_BatteryPara.lowBatVolt.shutDownLowBat;
+  354   2          highBd = pMpParameter->MP_BatteryPara.batteryIPhoneCheckPoints[0];
+  355   2          if(batLevel < lowBd)
+  356   2            return 0;   
+  357   2        }
+  358   1        else if(i == MMI_IPHONE_BATTERY_LEVELS)
+  359   1        {
+  360   2          lowBd = pMpParameter->MP_BatteryPara.batteryIPhoneCheckPoints[MMI_IPHONE_BATTERY_LEVELS-1];
+  361   2          highBd = 2 * pMpParameter->MP_BatteryPara.batteryIPhoneCheckPoints[MMI_IPHONE_BATTERY_LEVELS-1] - pMpPa
+             -rameter->MP_BatteryPara.batteryIPhoneCheckPoints[MMI_IPHONE_BATTERY_LEVELS-2];
+  362   2          if(batLevel >= highBd)
+  363   2            return 100;
+  364   2        }
+  365   1        else
+  366   1        {
+  367   2          lowBd = pMpParameter->MP_BatteryPara.batteryIPhoneCheckPoints[i-1];
+  368   2          highBd = pMpParameter->MP_BatteryPara.batteryIPhoneCheckPoints[i];
+  369   2        }
+  370   1      
+  371   1        return (U8)((U16)((10 * (U32)(batLevel - lowBd)) / (U32)(highBd - lowBd))+ (U16)i*10);
+  372   1      }
+  373          
+  374          PUBLIC U8 MMI_BAT_GetLevelInQuater(void)
+C251 COMPILER V5.57.0,  MMI_ChgBat                                                         08/11/20  06:33:16  PAGE 7   
+
+  375          {
+  376   1        if(MMI_CHGBAT_GetBatStatus() == MMI_BAT_LOW)
+  377   1          return IND_BATTERY_LOW;
+  378   1        else if (MMI_BAT_IsVoltageBelow(pMpParameter->MP_BatteryPara.checkpoints.checkpoint1))
+  379   1          return IND_BATTERY_INTERVAL_0;
+  380   1        else if(MMI_BAT_IsVoltageBelow(pMpParameter->MP_BatteryPara.checkpoints.checkpoint2))
+  381   1          return IND_BATTERY_INTERVAL_1;
+  382   1        else if(MMI_BAT_IsVoltageBelow(pMpParameter->MP_BatteryPara.checkpoints.checkpoint3))
+  383   1          return IND_BATTERY_INTERVAL_2;
+  384   1        else
+  385   1          return IND_BATTERY_INTERVAL_3;
+  386   1      }
+  387          
+  388          PUBLIC U16 MMI_BAT_GetLowBatLevel(void)
+  389          {
+  390   1        return pMpParameter->MP_BatteryPara.lowBatVolt.lowBatLevel;
+  391   1      }
+  392          
+  393          PUBLIC U16 MMI_BAT_GetShutDownBatLevel(void)
+  394          {
+  395   1        return pMpParameter->MP_BatteryPara.lowBatVolt.shutDownLowBat;
+  396   1      }
+  397          #endif
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =      1088     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =    ------     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

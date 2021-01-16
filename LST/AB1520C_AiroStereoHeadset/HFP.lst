@@ -1,0 +1,349 @@
+C251 COMPILER V5.57.0,  HFP                                                                08/11/20  05:52:02  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE HFP
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\HFP.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\HFP\HFP.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) WARNINGLEV
+                    -EL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\source\HC;.
+                    -\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\source\ROM\LC;
+                    -.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_LE;.\sourc
+                    -e\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspData;.\sourc
+                    -e\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLASH_INIT=1,
+                    -AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520C_AiroStereoHeadset\HFP.lst) 
+                    -TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\HFP.obj) 
+
+stmt  level    source
+
+    1          //////////////////////////////////////////////////////////
+    2          // Copyright@ 2009 Airoha.  All right reserved.
+    3          //////////////////////////////////////////////////////////
+    4          #include "reside_flash.inc"
+    5          
+    6          #define _HFP_C_
+    7          
+    8          
+    9          #include "os.h"
+   10          #include "bt_config_profile.h"
+   11          
+   12          #ifdef HFP_Profile
+   13          #include "..\MMI\MMI_Base.h"
+   14          #include "..\MMI\MMI_Protocol.h"
+   15          #include "..\MMI\MMI_HFP.h"
+   16          #include "..\MMI\MMI_SCN.h"
+   17          #include "..\SDAP\SDAP_Interface.h"
+   18          #include "..\RFCOMM\RFCOMM_Interface.h"
+   19          #include "..\HC\HC_interface.h"
+   20          
+   21          #include "HFP_interface.h"
+   22          #include "HFP.h"
+   23          
+   24          typedef struct
+   25          { 
+   26            HfpLinkInfo linkInfo[MAX_MULTI_POINT_NO];
+   27          } HFP_CTL_TYPE;
+   28          
+   29          PRIVATE void HFP(U8 linkIndex);
+   30          PRIVATE MMI_PROFILE_INFO XDATA_PTR HFP_ConnectRequest(U8 linkIndex, U8 profileId);
+   31          PUBLIC U8 HFP_DisconnectRequest(U8 linkIndex, MMI_PROFILE_INFO XDATA_PTR profileInfo);
+   32          PRIVATE void HFP_LinkEvent(U8 linkIndex, U8 evtCode, LINK_EVENT_PARAMS XDATA_PTR evtParams);
+   33          PRIVATE void HFP_DataEvent(U8 linkIndex, U8 XDATA_PTR dataPtr);
+   34          
+   35          
+   36          static HFP_CTL_TYPE XDATA gHFP_ctl;
+   37          
+   38          static RFCOMM_PROFILE_DESC CODE gHFP_ProfileDesc = {
+   39            { //MMI_PROFILE_DESC
+   40              PROFILE_HANDSFREE,
+   41              HFP,          //ProfileTaskFunc
+   42              HFP_ConnectRequest,   //ProfileConnectRequest
+   43              HFP_DisconnectRequest,  //ProfileDisconnectRequest
+   44              HFP_LinkEvent,      //ProfileLinkEvent
+   45              HFP_DataEvent,      //ProfileDataEvent
+   46            },
+   47            HFP_MAX_FRAME_SIZE,
+   48            NULL,     //GivenCreditsEvent
+   49          };
+   50          
+   51          static MMI_PROFILE_NODE XDATA gHFP_ProfileNode = {
+   52            &gHFP_ProfileDesc.mmiProfileDesc,
+C251 COMPILER V5.57.0,  HFP                                                                08/11/20  05:52:02  PAGE 2   
+
+   53            NULL,
+   54          };
+   55          
+   56          static RFCOMM_PROFILE_DESC CODE gHSP_ProfileDesc = {
+   57            { //MMI_PROFILE_DESC
+   58              PROFILE_HEADSET,
+   59              HFP,          //ProfileTaskFunc
+   60              HFP_ConnectRequest,   //ProfileConnectRequest
+   61              HFP_DisconnectRequest,  //ProfileDisconnectRequest
+   62              HFP_LinkEvent,      //ProfileLinkEvent
+   63              HFP_DataEvent,      //ProfileDataEvent
+   64            },
+   65            HFP_MAX_FRAME_SIZE,
+   66            NULL,     //GivenCreditsEvent
+   67          };
+   68          
+   69          static MMI_PROFILE_NODE XDATA gHSP_ProfileNode = {
+   70            &gHSP_ProfileDesc.mmiProfileDesc,
+   71            NULL,
+   72          };
+   73          
+   74          PUBLIC HfpLinkInfo XDATA_PTR HFP_GetLinkInfo(U8 linkIndex)
+   75          {
+   76   1        return &gHFP_ctl.linkInfo[linkIndex];
+   77   1      }
+   78          
+   79          PUBLIC void HFP_CommandHandle(U8 linkIndex, U8 cmdCode, MMIMsgType XDATA_PTR cmdPtr)
+   80          {
+   81   1        HfpLinkInfo XDATA_PTR hfpLinkInfo = HFP_GetLinkInfo(linkIndex);
+   82   1      
+   83   1        if( cmdCode == hfpLinkInfo->currentCmd && 
+   84   1          ((cmdCode >= HFP_ATCMD_CANCEL_VOICE_DIAL && cmdCode <= HFP_ATCMD_ACCEPT_CALL) || cmdCode == HFP_ATCMD_C
+             -KPD_200) )
+   85   1        {
+   86   2          OSMEM_Put((U8 XDATA_PTR)cmdPtr);
+   87   2        }
+   88   1        else
+   89   1        {
+   90   2          if(cmdCode < HFP_TABLE_LOOKUP_ATCMD_COUNT &&
+   91   2            cmdCode != HFP_ATCMD_IPHONE_BATTERY_SEND && cmdCode != HFP_ATCMD_XEVENT_BATTERY_SEND && cmdCode != HFP
+             -_ATCMD_BIEV_BATTERY_SEND)
+   92   2          {
+   93   3            MMI_SniffDisable(linkIndex, MMI_SNIFF_HFP);
+   94   3          }
+   95   2          OSMQ_Put(&hfpLinkInfo->OSMQ_HFP_Command, (U8 XDATA_PTR)cmdPtr);
+   96   2        }       
+   97   1      }
+   98          
+   99          PUBLIC void HFP_CommandComplete (U8 linkIndex)
+  100          {
+  101   1        HfpLinkInfo XDATA_PTR hfpLinkInfo = HFP_GetLinkInfo(linkIndex);
+  102   1        
+  103   1        SYS_ReleaseTimer(&hfpLinkInfo->ost_command_ptr);
+  104   1      
+  105   1        hfpLinkInfo->currentCmd = HFP_NO_COMMAND;
+  106   1        hfpLinkInfo->subState = HFP_SUBSTATE_NO_SUBSTATE;
+  107   1        
+  108   1        MMI_SniffEnable(linkIndex, MMI_SNIFF_HFP);
+  109   1      }
+  110          
+  111          PRIVATE void HFP_ClearLinkInfo(HfpLinkInfo XDATA_PTR hfpLinkInfo)
+  112          {
+  113   1        SYS_ReleaseTimer(&hfpLinkInfo->ost_command_ptr);
+  114   1        OSMQ_FlushAndReleaseMemoryBlock(&hfpLinkInfo->OSMQ_HFP_Command);
+  115   1        SYS_MemoryRelease(&hfpLinkInfo->pushedCmdCtlPtr);
+  116   1        OSMEM_memset_xdata((U8 XDATA_PTR)hfpLinkInfo, 0, sizeof(HfpLinkInfo));
+C251 COMPILER V5.57.0,  HFP                                                                08/11/20  05:52:02  PAGE 3   
+
+  117   1      }
+  118          
+  119          PRIVATE MMI_PROFILE_INFO XDATA_PTR HFP_ConnectRequest(U8 linkIndex, U8 profileId)
+  120          {
+  121   1        HfpLinkInfo XDATA_PTR hfpLinkInfo = HFP_GetLinkInfo(linkIndex);
+  122   1        
+  123   1        if (hfpLinkInfo->mmiProfileInfo.state == PROFILE_DISCONNECTED)
+  124   1        {
+  125   2          if (RFCOMM_ConnectProfile(linkIndex, profileId) == NO_ERROR)
+  126   2          {
+  127   3            MMI_SniffDisable(linkIndex, MMI_SNIFF_HFP);
+  128   3            return &hfpLinkInfo->mmiProfileInfo;
+  129   3          }
+  130   2        }
+  131   1        return (MMI_PROFILE_INFO XDATA_PTR)NULL;
+  132   1      }
+  133          
+  134          
+  135          PUBLIC U8 HFP_DisconnectRequest(U8 linkIndex, MMI_PROFILE_INFO XDATA_PTR profileInfo)
+  136          {
+  137   1        HfpLinkInfo XDATA_PTR hfpLinkInfo = HFP_GetLinkInfo(linkIndex);
+  138   1        OSMQ_FlushAndReleaseMemoryBlock(&hfpLinkInfo->OSMQ_HFP_Command);
+  139   1        HFP_CommandComplete(linkIndex);
+  140   1        
+  141   1        if (hfpLinkInfo->mmiProfileInfo.state >= PROFILE_CONNECTING && &hfpLinkInfo->mmiProfileInfo == profileIn
+             -fo)
+  142   1        {
+  143   2          MMI_SniffDisable(linkIndex, MMI_SNIFF_HFP);
+  144   2          
+  145   2          if(CMD_WAITING == RFCOMM_DisconnectProfile(linkIndex, hfpLinkInfo->mmiProfileInfo.profileDesc->profileI
+             -d))
+  146   2          {
+  147   3            hfpLinkInfo->mmiProfileInfo.state = PROFILE_DISCONNECTING;
+  148   3            return CMD_WAITING;
+  149   3          }
+  150   2          MMI_HFP_ProfileDiscHandle(linkIndex);
+  151   2          MMI_UnloadProfile(linkIndex, &hfpLinkInfo->mmiProfileInfo);
+  152   2          HFP_ClearLinkInfo(HFP_GetLinkInfo(linkIndex));
+  153   2          MMI_SniffEnable(linkIndex, MMI_SNIFF_HFP);
+  154   2        }
+  155   1        return CMD_COMPLETE;
+  156   1      }
+  157          
+  158          ///////////////////////////////////////////////////////////
+  159          
+  160          PRIVATE void HFP (U8 linkIndex)
+  161          { 
+  162   1        //Handle no-connection cmd/rsp
+  163   1        HFP_TimeoutMonitor(linkIndex);
+  164   1      
+  165   1        if (HFP_GetLinkInfo(linkIndex)->mmiProfileInfo.state >= PROFILE_CONNECTED)
+  166   1        {
+  167   2          //Main state machine, the most important process in the function is SLC ESTABLISHMENT.
+  168   2          HFP_MainStateEntry(linkIndex);
+  169   2      
+  170   2          //Handle command from MMI
+  171   2          HFP_ProcessCmdFromMMI(linkIndex);     
+  172   2        }
+  173   1      }
+  174          
+  175          PRIVATE void HFP_LinkEvent(U8 linkIndex, U8 evtCode, LINK_EVENT_PARAMS XDATA_PTR evtParams)
+  176          {
+  177   1        HfpLinkInfo XDATA_PTR hfpLinkInfo = HFP_GetLinkInfo(linkIndex);
+  178   1      
+  179   1        switch (evtCode)
+  180   1        {
+C251 COMPILER V5.57.0,  HFP                                                                08/11/20  05:52:02  PAGE 4   
+
+  181   2          case PROFILE_LINK_EVENT_CONN_REQUEST:
+  182   2            evtParams->connRequest.result = PROFILE_LINK_RESULT_CONN_REJECT;
+  183   2            if (hfpLinkInfo->mmiProfileInfo.state == PROFILE_DISCONNECTED)
+  184   2            {
+  185   3              if(MMI_IsLinkActiveDisconnecting(linkIndex))
+  186   3              {
+  187   4                evtParams->connRequest.result = PROFILE_LINK_RESULT_CONN_REJECT_ACTIVE_DISC;
+  188   4              }
+  189   3              else
+  190   3              {
+  191   4                evtParams->connRequest.result = PROFILE_LINK_RESULT_CONN_ACCEPT;
+  192   4                evtParams->connRequest.profileInfo = &hfpLinkInfo->mmiProfileInfo;
+  193   4              }
+  194   3            }
+  195   2            break;
+  196   2          case PROFILE_LINK_EVENT_CONN_COMPLETE:
+  197   2            if (hfpLinkInfo->mmiProfileInfo.state == PROFILE_CONNECTING)
+  198   2            {
+  199   3              if(evtParams->connComplete.status == NO_ERROR)
+  200   3              {
+  201   4                //Disable PowerSaving until SLC Routine is done.
+  202   4                MMI_SniffDisable(linkIndex, MMI_SNIFF_HFP);
+  203   4                hfpLinkInfo->mmiProfileInfo.state = PROFILE_CONNECTED;
+  204   4                if (hfpLinkInfo->mmiProfileInfo.profileDesc->profileId == PROFILE_HANDSFREE)
+  205   4                {
+  206   5                  //Start SLC level connection
+  207   5                  hfpLinkInfo->currentCmd = HFP_CMD_INTERNAL_SLC_INIT_ROUTINE;
+  208   5                  #ifdef HFP_AG_Profile
+                           hfpLinkInfo->subState = HFP_SUBSTATE_WAIT_BRSF_CMD;
+                           #else
+  211   5                  hfpLinkInfo->subState = HFP_SUBSTATE_SEND_BRSF_CMD;
+  212   5                  #endif
+  213   5                }
+  214   4                else
+  215   4                {
+  216   5                  hfpLinkInfo->currentCmd = HFP_CMD_INTERNAL_SLC_INIT_ROUTINE_HEADSET;
+  217   5                  #ifdef HFP_AG_Profile
+                           hfpLinkInfo->subState = (evtParams->connComplete.isPassive) ? HSP_SUBSTATE_WAIT_AT_CKPD200 : HSP_SU
+             -BSTATE_SEND_RING;
+                           #else
+  220   5                  hfpLinkInfo->subState = (evtParams->connComplete.isPassive) ? HSP_SUBSTATE_SLC_PROCESS_COMPLETE : H
+             -SP_SUBSTATE_SEND_CKPD200;
+  221   5                  #endif
+  222   5                }
+  223   4              }
+  224   3              else
+  225   3              {
+  226   4                if(evtParams->connComplete.status == SECURITY_BLOCK)
+  227   4                {
+  228   5                  MMI_SetReconnectProfile(linkIndex, hfpLinkInfo->mmiProfileInfo.profileDesc->profileId, ONE_SEC);      
+             -      
+  229   5                }
+  230   4                evtCode = PROFILE_LINK_EVENT_DISC_COMPLETE;
+  231   4                goto HFP_DISC_CPL;
+  232   4              }
+  233   3            }
+  234   2            break;
+  235   2      
+  236   2          case PROFILE_LINK_EVENT_DISC_COMPLETE:
+  237   2          case PROFILE_LINK_EVENT_DISC_LINKLOSS:
+  238   2            if (hfpLinkInfo->mmiProfileInfo.state != PROFILE_DISCONNECTED)
+  239   2            {
+  240   3              HFP_DISC_CPL:
+  241   3              MMI_HFP_ProfileDiscHandle(linkIndex);
+  242   3              MMI_UnloadProfile(linkIndex, &hfpLinkInfo->mmiProfileInfo);
+  243   3              MMI_PROTOCOL_L2CAPDisconnected(linkIndex, evtCode, FALSE);
+C251 COMPILER V5.57.0,  HFP                                                                08/11/20  05:52:02  PAGE 5   
+
+  244   3              HFP_ClearLinkInfo(HFP_GetLinkInfo(linkIndex));
+  245   3              MMI_SniffEnable(linkIndex, MMI_SNIFF_HFP);
+  246   3            }
+  247   2            break;
+  248   2        }
+  249   1      }
+  250          
+  251          PRIVATE void HFP_DataEvent(U8 linkIndex, U8 XDATA_PTR dataPtr)
+  252          {
+  253   1        AT_SegmentAndEliminateSpace(linkIndex, dataPtr);
+  254   1      
+  255   1        OSMEM_Put(dataPtr);
+  256   1      }
+  257          
+  258          PUBLIC U8 HFP_GetState(U8 linkIndex)
+  259          {
+  260   1        return (HFP_GetLinkInfo(linkIndex))->mmiProfileInfo.state;
+  261   1      }
+  262          
+  263          PUBLIC U8 HFP_GetProfileId(U8 linkIndex)
+  264          {
+  265   1        return (HFP_GetLinkInfo(linkIndex))->mmiProfileInfo.profileDesc->profileId;
+  266   1      }
+  267          
+  268          PUBLIC void HFP_Init (void)
+  269          {
+  270   1        extern SdpServiceNode gHSP_ServiceNode;
+  271   1        extern SdpServiceNode gHFP_ServiceNode;
+  272   1        U8 GENERIC_PTR attributePtr;
+  273   1        
+  274   1        SDAP_RegisterServiceRecord(&gHSP_ServiceNode);
+  275   1        SDAP_RegisterServiceRecord(&gHFP_ServiceNode);
+  276   1      
+  277   1        if (attributePtr = (U8 GENERIC_PTR)SDAP_GetServiceAttribute(PROFILE_HANDSFREE, ATTRID_SupportedFeatures)
+             -)
+  278   1        {
+  279   2          U16 supportedFeatures = gMMI_nvram.mmiFeatureCtl.HFP & 0x001F;
+  280   2          if (MMI_CODEC_NEGOTIATION_FEAT)
+  281   2          {
+  282   3            supportedFeatures |= 0x0020;
+  283   3          }
+  284   2          *(U16 GENERIC_PTR)&attributePtr[4] = supportedFeatures;
+  285   2        }
+  286   1      
+  287   1        RFCOMM_RegisterProfile(&gHSP_ProfileNode);
+  288   1        RFCOMM_RegisterProfile(&gHFP_ProfileNode);
+  289   1      }
+  290          
+  291          #endif // HFP_Profile
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =       862     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =        76     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+C251 COMPILER V5.57.0,  HFP                                                                08/11/20  05:52:02  PAGE 6   
+
+  const size           =    ------     ------
+  hconst size          =        74     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

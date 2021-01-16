@@ -1,0 +1,727 @@
+C251 COMPILER V5.57.0,  VoicePrompt                                                        08/11/20  05:51:43  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE VoicePrompt
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\VoicePrompt.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\DRIVER\VoicePrompt.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE)
+                    - WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\
+                    -source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\sou
+                    -rce\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI
+                    -_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspD
+                    -ata;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FL
+                    -ASH_INIT=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520C_AiroStereoHeadse
+                    -t\VoicePrompt.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\VoicePrompt.obj) 
+
+stmt  level    source
+
+    1          //////////////////////////////////////////////////////////
+    2          // Copyright@ 2009 Airoha.  All right reserved.
+    3          //////////////////////////////////////////////////////////
+    4          #include "reside_flash.inc"
+    5          
+    6          #define VOICE_PROMPT_C
+    7          #include "rc.h"
+    8          #include "bt_config_profile.h"
+    9          
+   10          #ifdef SUPPORT_VOICE_PROMPT
+   11          
+   12          #include "driver_interface.h"
+   13          
+   14          #include "hal.h"
+   15          #include "Audio_Mailbox.h"
+   16          #include "Driver_1520.h"
+   17          
+   18          #include "sector_voice_data.h"
+   19          #include "sector_dsp_data.h"
+   20          #include "sector_runtime.h"
+   21          #include "sector_config1.h"
+   22          
+   23          #include "VoicePrompt.h"
+   24          #include "AudioControl.h"
+   25          
+   26          #ifdef AIRAPP_Profile
+   27            #include "..\AirApp\AirApp_Interface.h"
+   28          #endif
+   29          
+   30          #if (HW_SPI_SUPPORTED)
+   31          #include "drv_spi_flash.h"
+   32          #include "drv_spiflash.h"
+   33          #endif
+   34          
+   35          PRIVATE U8 XDATA_PTR VoicePrompt_GetScript_CallerID(DriverMsg XDATA_PTR msgPtr);
+   36          PRIVATE U8 XDATA_PTR VoicePrompt_GetScript_FMChannelNumber(DriverMsg XDATA_PTR msgPtr);
+   37          PRIVATE U8 XDATA_PTR VoicePrompt_GetScript_BySettings(U8 vpIndex);
+   38          PRIVATE BOOL VoicePrompt_GetVPCtlMemory(U8 scriptCount);
+   39          PRIVATE U8 VoicePrompt_GetItemDataMap(U8 XDATA_PTR scriptPtr);
+   40          PRIVATE U8 VoicePrompt_GetItemData(U8 voicePromptIndex, VoicePromptItem XDATA_PTR itemPtr);
+   41          PRIVATE void VoicePrompt_ReadInitVPData(void);
+   42          
+   43          
+   44          PRIVATE void VoicePrompt_ReleaseCtlResource(void);
+   45          
+   46          extern PUBLIC void DRIVER_VoicePromptOffCallback(void);
+   47          
+   48          U8 CODE gVP_nb_silence[15] =
+   49          {
+   50            0x8c,0xe1,0xe9,0xdc,0x0b,0xe0,0x1b,0x40,0x74,0xff,0x02,0xe8,0x4e,0x00,0xdd
+   51          };
+   52          
+C251 COMPILER V5.57.0,  VoicePrompt                                                        08/11/20  05:51:43  PAGE 2   
+
+   53          U8 CODE gVP_nbh_silence[31] =
+   54          {
+   55            0x21,0x17,0x5b,0xe8,0xfa,0x56,0x01,0x00,0x00,0x00,0x00,0xc0,0x06,0x00,0x00,
+   56            0x00,0x00,0x00,0xab,0x00,0x00,0x00,0x00,0x00,0x60,0x03,0x00,0x00,0x00,0x00,0x00
+   57          };
+   58          
+   59          U8 CODE gVP_wb_silence[32] =
+   60          {
+   61            0x10,0x76,0x38,0xc2,0x43,0xc9,0x80,0x20,0x00,0x00,0x00,0x01,0x18,0x98,0x03,0x21,
+   62            0x90,0x84,0x00,0x09,0xda,0x01,0xa8,0x02,0x40,0xfd,0x98,0x00,0x02,0x00,0x0b,0x00,
+   63          };
+   64          
+   65          U8 CODE gVP_ADPCM_silence[80] =
+   66          {
+   67            0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   68            0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   69            0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   70            0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   71            0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+   72          };
+   73          
+   74          
+   75          
+   76          PUBLIC BOOL VoicePrompt_GetData(DriverMsg XDATA_PTR msgPtr)
+   77          {
+   78   1        U8 dq_state;
+   79   1        U8 XDATA_PTR scriptPtr = (U8 XDATA_PTR)NULL;
+   80   1      
+   81   1        if(msgPtr->msgBodyPtr.driverCmd.voicePromptCmd.vpIndex == VP_EVT_CALLER_ID)
+   82   1        {
+   83   2          scriptPtr = VoicePrompt_GetScript_CallerID(msgPtr);
+   84   2        }
+   85   1        else if(msgPtr->msgBodyPtr.driverCmd.voicePromptCmd.vpIndex == VP_EVT_FM_CHANNEL_NUMBER)
+   86   1        {
+   87   2          scriptPtr = VoicePrompt_GetScript_FMChannelNumber(msgPtr);
+   88   2        }
+   89   1        else if(msgPtr->msgBodyPtr.driverCmd.voicePromptCmd.vpIndex == VP_EVT_CALLER_NAME)
+   90   1        {
+   91   2        #ifdef AIRAPP_Profile
+   92   2          #if AIRAPP_CALLER_NAME
+   93   2          U16 length;
+   94   2          U8 dq;
+   95   2          VoicePromptItem XDATA_PTR itemPtr;
+   96   2          SECTOR_APP_CALLERNAME_DATA_STRU CODE_PTR ptr1 = (SECTOR_APP_CALLERNAME_DATA_STRU CODE_PTR)GET_SECTOR_RU
+             -NTIME_ADDR(SECTOR_APP_CALLERNAME_DATA);
+   97   2      
+   98   2          extern U8 XDATA_PTR largeP;
+   99   2      
+  100   2      
+  101   2          if(!AirApp_IsCallerNameDataValid())
+  102   2            return VP_GET_DATA_FAIL;
+  103   2      
+  104   2          if( !VoicePrompt_GetVPCtlMemory(1) )
+  105   2            return VP_GET_DATA_BUSY;
+  106   2      
+  107   2          itemPtr = gVP_ctl.dataCtlPtr->voice_prompt_item_ptr;
+  108   2          itemPtr->play_ctl.vp_ptr = (U32)&ptr1->callername_data.callerNameData[0];
+  109   2          length = *(U16 GENERIC_PTR)(itemPtr->play_ctl.vp_ptr);
+  110   2          if(length == 0)
+  111   2          {
+  112   3            SYS_MemoryRelease(U8_XDATA_PTR_PTR_CASTING &gVP_ctl.dataCtlPtr->voice_prompt_item_ptr);
+  113   3            SYS_MemoryRelease(U8_XDATA_PTR_PTR_CASTING &gVP_ctl.dataCtlPtr);
+  114   3            return VP_GET_DATA_FAIL;
+  115   3          }
+  116   2          dq = length >> 14;
+  117   2          itemPtr->length = (length & 0x3FFF);
+C251 COMPILER V5.57.0,  VoicePrompt                                                        08/11/20  05:51:43  PAGE 3   
+
+  118   2          itemPtr->play_ctl.vp_ptr += 2;
+  119   2      
+  120   2          gVP_ctl.dataCtlPtr->vp_data_quality = dq;
+  121   2      
+  122   2          gVP_ctl.dataCtlPtr->item_count++;
+  123   2          return VP_GET_DATA_OK;
+  124   2          #else
+                   return VP_GET_DATA_FAIL;
+                   #endif
+  127   2        #endif
+  128   2        }
+  129   1        else
+  130   1        {
+  131   2          scriptPtr = VoicePrompt_GetScript_BySettings(msgPtr->msgBodyPtr.driverCmd.voicePromptCmd.vpIndex);
+  132   2        }
+  133   1      
+  134   1        if (scriptPtr == NULL)
+  135   1          return VP_GET_DATA_FAIL;
+  136   1      
+  137   1        dq_state = VoicePrompt_GetItemDataMap(scriptPtr);
+  138   1        OSMEM_Put(scriptPtr);
+  139   1        return (dq_state) ? VP_GET_DATA_FAIL : VP_GET_DATA_OK;
+  140   1      }
+  141          
+  142          PUBLIC BOOL VoicePrompt_Start(BOOL suspendApp, BOOL isOverSCO)
+  143          {
+  144   1        U16 vp_len;
+  145   1        U8 item_count;
+  146   1        VoicePromptItem XDATA_PTR ptr1;
+  147   1        DriverMsg XDATA_PTR msgPtr;
+  148   1      
+  149   1        if(IS_DSP_BUSY)
+  150   1          return FALSE;
+  151   1      
+  152   1        if(suspendApp)
+  153   1        {
+  154   2          if(gDriver_ctl.resumeAppTimer)
+  155   2          {
+  156   3            gDriver_ctl.resumeAppAfterVPRT = TRUE;
+  157   3            SYS_ReleaseTimer(&gDriver_ctl.resumeAppTimer);
+  158   3          }
+  159   2      
+  160   2          if(DRIVER_IsDSPOgfAppOn())
+  161   2          {
+  162   3            gDriver_ctl.resumeAppAfterVPRT = TRUE;
+  163   3            DRIVER_SendAppIdleToMailBox();
+  164   3            return FALSE;
+  165   3          }
+  166   2        }
+  167   1      
+  168   1        if((msgPtr = (DriverMsg XDATA_PTR)OSMEM_Get(OSMEM_ptr1)) == (DriverMsg XDATA_PTR)NULL)
+  169   1        {
+  170   2          VoicePrompt_ReleaseCtlResource();
+  171   2          return FALSE;
+  172   2        }
+  173   1        OSMEM_memset_xdata((U8 XDATA_PTR)msgPtr, 0, OSMEM1_BLKSIZE);
+  174   1      
+  175   1        if(gVP_ctl.dataCtlPtr->vp_data_quality == VP_DAT_ADPCM)
+  176   1        {
+  177   2          gVP_ctl.dataCtlPtr->vp_pattern_ptr = OSMEM_Get(OSMEM_ptr2);
+  178   2          OSMEM_memset_xdata(gVP_ctl.dataCtlPtr->vp_pattern_ptr, 0, OSMEM2_BLKSIZE);
+  179   2        }
+  180   1        else
+  181   1        {
+  182   2          gVP_ctl.dataCtlPtr->vp_pattern_ptr = OSMEM_Get(OSMEM_ptr1);
+  183   2          OSMEM_memset_xdata(gVP_ctl.dataCtlPtr->vp_pattern_ptr, 0, OSMEM1_BLKSIZE);
+C251 COMPILER V5.57.0,  VoicePrompt                                                        08/11/20  05:51:43  PAGE 4   
+
+  184   2        }
+  185   1      
+  186   1        VP_RAW_PTR = (U16 XDATA_PTR) gVP_ctl.dataCtlPtr->vp_pattern_ptr;
+  187   1        if(PTR16_LSB(VP_RAW_PTR) & 0x01)
+  188   1        {
+  189   2          VP_RAW_PTR = (U16 XDATA_PTR)((U8 XDATA_PTR)VP_RAW_PTR + 1);
+  190   2        }
+  191   1      
+  192   1        switch (gVP_ctl.dataCtlPtr->vp_data_quality)
+  193   1        {
+  194   2          case VP_DAT_NB:
+  195   2            gVP_ctl.dataCtlPtr->frame_length = sizeof(gVP_nb_silence);
+  196   2            gVP_ctl.dataCtlPtr->vp_silence_ptr = gVP_nb_silence;
+  197   2            break;
+  198   2          case VP_DAT_WB:
+  199   2            gVP_ctl.dataCtlPtr->frame_length = sizeof(gVP_wb_silence);
+  200   2            gVP_ctl.dataCtlPtr->vp_silence_ptr = gVP_wb_silence;
+  201   2            break;
+  202   2          case VP_DAT_NBH:
+  203   2            gVP_ctl.dataCtlPtr->frame_length = sizeof(gVP_nbh_silence);
+  204   2            gVP_ctl.dataCtlPtr->vp_silence_ptr = gVP_nbh_silence;
+  205   2            break;
+  206   2          case VP_DAT_ADPCM:
+  207   2            gVP_ctl.dataCtlPtr->frame_length = sizeof(gVP_ADPCM_silence);
+  208   2            gVP_ctl.dataCtlPtr->vp_silence_ptr = gVP_ADPCM_silence;
+  209   2            break;
+  210   2        }
+  211   1      
+  212   1      
+  213   1        vp_len = 0;
+  214   1        item_count = gVP_ctl.dataCtlPtr->item_count;
+  215   1        ptr1 = gVP_ctl.dataCtlPtr->voice_prompt_item_ptr;
+  216   1      
+  217   1        while (item_count--)
+  218   1        {
+  219   2          vp_len += ptr1->length;
+  220   2          ptr1++;
+  221   2        }
+  222   1        msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.vp_start_para.vp_len = ENDIAN_TRANSFORM_U16(vp_len)
+             -;
+  223   1      
+  224   1        VoicePrompt_ReadInitVPData();
+  225   1      
+  226   1        //enable DSP
+  227   1        AUDIO_SetAudioOn (AUDIO_VOICEPROMPT);
+  228   1      
+  229   1        VP_STOP_FLAG = 0;
+  230   1      
+  231   1      
+  232   1        msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.vp_start_para.vp_pattern_ptr = VP_RAW_PTR;
+  233   1        switch (gVP_ctl.dataCtlPtr->vp_data_quality)
+  234   1        {
+  235   2          case VP_DAT_WB:
+  236   2            msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.vp_start_para.vp_quality = AUDIO_MODE_WB_VP;
+  237   2            break;
+  238   2      
+  239   2          case VP_DAT_NB:
+  240   2          case VP_DAT_NBH:
+  241   2            msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.vp_start_para.vp_quality = (gVP_ctl.dataCtlPtr->v
+             -p_data_quality == VP_DAT_NB)? AUDIO_MODE_NB_VP : AUDIO_MODE_NBH_VP;
+  242   2            msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.vp_start_para.dsp_vp_nb_ptr = (U32)DSP_GetCODEAdd
+             -r((U8 CODE_PTR)GET_SECTOR_DSP_DATA_ADDR(SECTOR_DSP_VP_NB));
+  243   2            if(!msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.vp_start_para.dsp_vp_nb_ptr)
+  244   2              ASSERT(FALSE);
+  245   2            break;
+  246   2          case VP_DAT_ADPCM:
+C251 COMPILER V5.57.0,  VoicePrompt                                                        08/11/20  05:51:43  PAGE 5   
+
+  247   2            msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.vp_start_para.vp_quality = AUDIO_MODE_ADPCM_VP;
+  248   2            break;
+  249   2        }
+  250   1        //replace with mailbox command
+  251   1        if(isOverSCO)
+  252   1          msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.vp_start_para.vp_resv = VP_TO_ESCO_RELAY;
+  253   1      
+  254   1          // reserve dynamic config for each prompt
+  255   1          msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.vp_start_para.mute_frame_before_fade_in = 4;
+  256   1      
+  257   1        Mailbox_TaskOgfVPRTAT(msgPtr, OGF_VP, OCF_VP_START);
+  258   1        AUDIO_SetAudioInOutToMailBoxCmd(AUDIO_VOICEPROMPT, &msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para
+             -.vp_start_para.audio_scenario);
+  259   1        DRIVER_SendCmdToMailBox(msgPtr);
+  260   1        return TRUE;
+  261   1      }
+  262          
+  263          PUBLIC BOOL VoicePrompt_Pause(void)
+  264          {
+  265   1        DriverMsg XDATA_PTR msgPtr;
+  266   1      
+  267   1        if(!AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICEPROMPT))
+  268   1          return TRUE;
+  269   1      
+  270   1        if(IS_MAILBOX_TASK_VPRT_BUSY)
+  271   1          return FALSE;
+  272   1      
+  273   1        if(IS_VOICE_PROMPT_OVER)
+  274   1          return TRUE;
+  275   1      
+  276   1        if(IS_DSP_BUSY)
+  277   1          return FALSE;
+  278   1      
+  279   1        if(msgPtr = (DriverMsg XDATA_PTR)OSMEM_Get(OSMEM_ptr1))
+  280   1        {
+  281   2          OSMEM_memset_xdata((U8 XDATA_PTR)msgPtr, 0, OSMEM1_BLKSIZE);
+  282   2          Mailbox_TaskOgfVPRTAT(msgPtr, OGF_VP, OCF_VP_STOP);
+  283   2          DRIVER_SendCmdToMailBox(msgPtr);
+  284   2          return TRUE;
+  285   2        }
+  286   1        return FALSE;
+  287   1      }
+  288          
+  289          PUBLIC void VoicePrompt_Stopped(void)
+  290          {
+  291   1        //Audio off
+  292   1        AUDIO_SetAudioOff (AUDIO_VOICEPROMPT);
+  293   1        DRIVER_CheckATEnablePlay();
+  294   1        VP_STOP_FLAG = 0;
+  295   1      
+  296   1        DRIVER_VoicePromptOffCallback();
+  297   1      
+  298   1        VoicePrompt_ReleaseCtlResource();
+  299   1      
+  300   1        if(gDriver_ctl.resumeAppAfterVPRT)
+  301   1        {
+  302   2          SYS_SetTimer(&gDriver_ctl.resumeAppTimer, ONE_SEC);
+  303   2          gDriver_ctl.resumeAppAfterVPRT = FALSE;
+  304   2        }
+  305   1      }
+  306          
+  307          PRIVATE U8 XDATA_PTR VoicePrompt_GetScript_CallerID(DriverMsg XDATA_PTR msgPtr)
+  308          {
+  309   1        U8 scriptCount;
+  310   1        U8 XDATA_PTR scriptPtr;
+  311   1      
+C251 COMPILER V5.57.0,  VoicePrompt                                                        08/11/20  05:51:43  PAGE 6   
+
+  312   1        if ((scriptCount = msgPtr->msgBodyPtr.driverCmd.voicePromptCmd.vpData.callerIDData.callerIdLength) != 0)
+  313   1        {
+  314   2          if(scriptPtr = SYS_MemoryGet( scriptCount+3 ))
+  315   2          {
+  316   3            scriptPtr[0] = scriptCount + 2;
+  317   3            scriptPtr[1] = VP_DAT_CALLER_ID_PREFIX;
+  318   3            OSMEM_memcpy_xdata_xdata(&scriptPtr[2], msgPtr->msgBodyPtr.driverCmd.voicePromptCmd.vpData.callerIDDat
+             -a.callerID, scriptCount);
+  319   3            scriptPtr[scriptCount+2] = VP_DAT_CALLER_ID_SUFFIX;
+  320   3            return scriptPtr;
+  321   3          }
+  322   2        }
+  323   1      
+  324   1        return (U8 XDATA_PTR)NULL;
+  325   1      }
+  326          
+  327          PRIVATE U8 XDATA_PTR VoicePrompt_GetScript_FMChannelNumber(DriverMsg XDATA_PTR msgPtr)
+  328          {
+  329   1        U8 scriptCount;
+  330   1        U8 XDATA_PTR scriptPtr;
+  331   1      
+  332   1        if ((scriptCount = msgPtr->msgBodyPtr.driverCmd.voicePromptCmd.vpData.fmChannel.digitLength) != 0)
+  333   1        {
+  334   2          if(scriptPtr = SYS_MemoryGet( scriptCount+4 ))
+  335   2          {
+  336   3            scriptPtr[0] = scriptCount + 3;
+  337   3            scriptPtr[1] = VP_DAT_FM_CHANN_PREFIX;
+  338   3            OSMEM_memcpy_xdata_xdata(&scriptPtr[2], &msgPtr->msgBodyPtr.driverCmd.voicePromptCmd.vpData.fmChannel.
+             -number[0], scriptCount-1);
+  339   3            scriptPtr[scriptCount+1] = VP_DAT_POINT;
+  340   3            scriptPtr[scriptCount+2] = msgPtr->msgBodyPtr.driverCmd.voicePromptCmd.vpData.fmChannel.number[scriptC
+             -ount-1];
+  341   3            scriptPtr[scriptCount+3] = VP_DAT_FM_CHANN_SUFFIX;
+  342   3            return scriptPtr;
+  343   3          }
+  344   2        }
+  345   1      
+  346   1        return (U8 XDATA_PTR)NULL;
+  347   1      }
+  348          
+  349          PRIVATE U8 XDATA_PTR VoicePrompt_GetScript_BySettings(U8 vpIndex)
+  350          {
+  351   1        U8 scriptCount;
+  352   1        U8 XDATA_PTR scriptPtr;
+  353   1        VoicePromptOffset vpOffset;
+  354   1      
+  355   1        U16 LDATA scriptOffsetNext;
+  356   1        U16 LDATA scriptOffset;
+  357   1      
+  358   1      
+  359   1        // Check valid vp index
+  360   1        if (gDriver_ctl.voiceLangCtl.vpScriptOffsetEntries == VOICE_PROMPT_INVALID || vpIndex >= gDriver_ctl.voi
+             -ceLangCtl.vpScriptOffsetEntries)
+  361   1        {
+  362   2          return (U8 XDATA_PTR)NULL;
+  363   2        }
+  364   1      
+  365   1        //  1. Read Script count and offset
+  366   1        vpOffset.vp_ptr = gDriver_ctl.voiceLangCtl.vpScriptOffsetTbl.vp_ptr + (vpIndex * sizeof(U16));
+  367   1      
+  368   1        scriptOffset = ((U16 GENERIC_PTR)vpOffset.vp_ptr)[0];
+  369   1        scriptOffsetNext = ((U16 GENERIC_PTR)vpOffset.vp_ptr)[1];
+  370   1      
+  371   1        scriptCount = scriptOffsetNext - scriptOffset;
+  372   1      
+  373   1        if (scriptCount == 0)
+C251 COMPILER V5.57.0,  VoicePrompt                                                        08/11/20  05:51:43  PAGE 7   
+
+  374   1          return (U8 XDATA_PTR)NULL;
+  375   1      
+  376   1        scriptPtr = SYS_MemoryGet( scriptCount+1 );
+  377   1      
+  378   1        if(scriptPtr != (U8 XDATA_PTR)NULL)
+  379   1        {
+  380   2          *scriptPtr = scriptCount;
+  381   2      
+  382   2          vpOffset.vp_ptr = gDriver_ctl.voiceLangCtl.vpScriptDataTbl.vp_ptr + scriptOffset;
+  383   2      
+  384   2          OSMEM_memcpy_xdata_code(scriptPtr+1, (U8 CODE_PTR)vpOffset.vp_ptr, scriptCount);
+  385   2      
+  386   2          return scriptPtr;
+  387   2        }
+  388   1      
+  389   1        return (U8 XDATA_PTR)NULL;
+  390   1      }
+  391          
+  392          
+  393          PRIVATE BOOL VoicePrompt_GetVPCtlMemory(U8 scriptCount)
+  394          {
+  395   1        // Get memory
+  396   1        if((gVP_ctl.dataCtlPtr = (VoicePromptDataCtlType XDATA_PTR)OSMEM_Get(OSMEM_ptr1)) == (VoicePromptDataCtl
+             -Type XDATA_PTR)NULL)
+  397   1        {
+  398   2          return FALSE;
+  399   2        }
+  400   1      
+  401   1        OSMEM_memset_xdata((U8 XDATA_PTR)gVP_ctl.dataCtlPtr, 0, OSMEM1_BLKSIZE);
+  402   1      
+  403   1        // Get item ptr memory
+  404   1        if(scriptCount > (OSMEM1_BLKSIZE/sizeof(VoicePromptItem)))
+  405   1          gVP_ctl.dataCtlPtr->voice_prompt_item_ptr = (VoicePromptItem XDATA_PTR)OSMEM_Get(OSMEM_ptr2);
+  406   1        else
+  407   1          gVP_ctl.dataCtlPtr->voice_prompt_item_ptr = (VoicePromptItem XDATA_PTR)OSMEM_Get(OSMEM_ptr1);
+  408   1      
+  409   1        if(gVP_ctl.dataCtlPtr->voice_prompt_item_ptr == (VoicePromptItem XDATA_PTR)NULL)
+  410   1        {
+  411   2          SYS_MemoryRelease(U8_XDATA_PTR_PTR_CASTING &gVP_ctl.dataCtlPtr);
+  412   2          return FALSE;
+  413   2        }
+  414   1      
+  415   1        // Set parameter
+  416   1        gVP_ctl.dataCtlPtr->item_count = 0;
+  417   1        gVP_ctl.dataCtlPtr->voice_prompt_item_ptr_init = gVP_ctl.dataCtlPtr->voice_prompt_item_ptr;
+  418   1      
+  419   1        return TRUE;
+  420   1      }
+  421          
+  422          PRIVATE U8 VoicePrompt_GetItemDataMap(U8 XDATA_PTR scriptPtr)
+  423          {
+  424   1        U8 scriptCount;
+  425   1        U8 dq, dq_state;
+  426   1        VoicePromptItem XDATA_PTR itemPtr;
+  427   1      
+  428   1        scriptCount = *scriptPtr++;
+  429   1        if( !VoicePrompt_GetVPCtlMemory(scriptCount) )
+  430   1          return VP_DQ_INVALID;
+  431   1      
+  432   1        dq_state = VP_DQ_NOTSET;
+  433   1        itemPtr = gVP_ctl.dataCtlPtr->voice_prompt_item_ptr;
+  434   1        for ( ; scriptCount; scriptPtr++, scriptCount--)
+  435   1        {
+  436   2          if (scriptPtr[0] == VP_DAT_BREAK)
+  437   2          {
+  438   3            itemPtr->length = *(U16 XDATA_PTR)&scriptPtr[1];
+C251 COMPILER V5.57.0,  VoicePrompt                                                        08/11/20  05:51:43  PAGE 8   
+
+  439   3            scriptPtr += 2;
+  440   3            scriptCount -= 2;
+  441   3            if (itemPtr->length == 0)
+  442   3            {
+  443   4              continue;
+  444   4            }
+  445   3      
+  446   3            itemPtr->play_ctl.vp_ptr = 0L;
+  447   3            itemPtr->play_ctl.play_type = VP_DAT_BREAK;
+  448   3      
+  449   3            if (dq_state & VP_DQ_NOTSET)
+  450   3            {
+  451   4              if(scriptCount == 1)
+  452   4              {
+  453   5                dq_state &= ~VP_DQ_NOTSET;
+  454   5                #if VP_NB_LQ_ENABLE
+  455   5                gVP_ctl.dataCtlPtr->vp_data_quality = VP_DAT_NB;
+  456   5                #elif VP_NB_HQ_ENABLE
+                         gVP_ctl.dataCtlPtr->vp_data_quality = VP_DAT_NBH;
+                         #elif VP_WB_ENABLE
+                         gVP_ctl.dataCtlPtr->vp_data_quality = VP_DAT_WB;
+                         #endif
+  461   5              }
+  462   4            }
+  463   3          }
+  464   2          else
+  465   2          {
+  466   3            dq = VoicePrompt_GetItemData(scriptPtr[0], itemPtr);
+  467   3            if (itemPtr->length == 0)
+  468   3              continue;
+  469   3      
+  470   3            if (dq_state & VP_DQ_NOTSET)
+  471   3            {
+  472   4              dq_state &= ~VP_DQ_NOTSET;
+  473   4              gVP_ctl.dataCtlPtr->vp_data_quality = dq;
+  474   4            }
+  475   3            else
+  476   3            {
+  477   4              if (gVP_ctl.dataCtlPtr->vp_data_quality != dq)
+  478   4                dq_state |= VP_DQ_INVALID;
+  479   4            }
+  480   3          }
+  481   2      
+  482   2          if (dq_state & VP_DQ_INVALID)
+  483   2          {
+  484   3            SYS_MemoryRelease(U8_XDATA_PTR_PTR_CASTING &gVP_ctl.dataCtlPtr->voice_prompt_item_ptr);
+  485   3            SYS_MemoryRelease(U8_XDATA_PTR_PTR_CASTING &gVP_ctl.dataCtlPtr);
+  486   3            break;
+  487   3          }
+  488   2      
+  489   2          itemPtr++;
+  490   2          gVP_ctl.dataCtlPtr->item_count++;
+  491   2        }
+  492   1      
+  493   1        return dq_state;
+  494   1      }
+  495          
+  496          #define EXTERNAL_VP_DATA    0x80000000L
+  497          
+  498          PRIVATE U8 VoicePrompt_GetItemData(U8 voicePromptIndex, VoicePromptItem XDATA_PTR itemPtr)
+  499          {
+  500   1        U16 LDATA length;
+  501   1        U8 dq;
+  502   1      
+  503   1        if (voicePromptIndex >= gDriver_ctl.voiceLangCtl.vpDataOffsetEntries)
+  504   1        {
+C251 COMPILER V5.57.0,  VoicePrompt                                                        08/11/20  05:51:43  PAGE 9   
+
+  505   2          itemPtr->length = 0;
+  506   2          return 0;
+  507   2        }
+  508   1      
+  509   1        itemPtr->play_ctl.vp_ptr = (U32)(*(U8 GENERIC_PTR GENERIC_PTR)(gDriver_ctl.voiceLangCtl.vpDataOffsetTbl.
+             -vp_ptr + (voicePromptIndex * sizeof(VoicePromptOffset))));
+  510   1      
+  511   1        #if (HW_SPI_SUPPORTED)
+  512   1        if((U32)itemPtr->play_ctl.vp_ptr & EXTERNAL_VP_DATA)
+  513   1        {
+  514   2          U32 LDATA ext_address;
+  515   2      
+  516   2          if(!gDriver_ctl.extFlashCtl.vpDataSector)
+  517   2          {
+  518   3            itemPtr->length = 0;
+  519   3            return 0;
+  520   3          }
+  521   2      
+  522   2          itemPtr->play_ctl.vp_ptr += gDriver_ctl.extFlashCtl.vpDataSector;
+  523   2          ext_address = (U32)itemPtr->play_ctl.vp_ptr & (~EXTERNAL_VP_DATA);
+  524   2          DRV_SPIFLH_ReadBytes(ext_address, (U8 XDATA_PTR)&itemPtr->play_ctl.vp_ptr, sizeof(U32));
+  525   2          itemPtr->play_ctl.vp_ptr += gDriver_ctl.extFlashCtl.vpDataSector;
+  526   2          DRV_SPIFLH_ReadBytes(itemPtr->play_ctl.vp_ptr, (U8 XDATA_PTR)&length, sizeof(U16));
+  527   2          itemPtr->play_ctl.vp_ptr |= EXTERNAL_VP_DATA;
+  528   2        }
+  529   1        else
+  530   1        #endif
+  531   1        {
+  532   2          itemPtr->play_ctl.vp_ptr += (U32)GET_SECTOR_VOICE_DATA_ADDR(SECTOR_VOICE_LANG_CTL);
+  533   2          length = *(U16 GENERIC_PTR)(itemPtr->play_ctl.vp_ptr);
+  534   2        }
+  535   1      
+  536   1        dq = length >> 14;
+  537   1        itemPtr->length = (length & 0x3FFF);
+  538   1        itemPtr->play_ctl.vp_ptr += 2;
+  539   1      
+  540   1        return dq;
+  541   1      }
+  542          
+  543          PUBLIC void DRIVER_VP_CopySilence(U8 XDATA_PTR destPtr)
+  544          {
+  545   1        OSMEM_memcpy_xdata_generic (destPtr,
+  546   1                      gVP_ctl.dataCtlPtr->vp_silence_ptr,
+  547   1                      gVP_ctl.dataCtlPtr->frame_length);
+  548   1          gAlignDSP.DSP_nvram.DSP_Reserved_PARAM.Feature_Sel &= ~VP_FEEDBACK;
+  549   1      }
+  550          
+  551          PRIVATE void VoicePrompt_ReadInitVPData(void)
+  552          {
+  553   1        if (gVP_ctl.dataCtlPtr->voice_prompt_item_ptr->play_ctl.play_type == VP_DAT_BREAK)
+  554   1        {
+  555   2          DRIVER_VP_CopySilence((U8 XDATA_PTR)VP_COPY_PTR);
+  556   2          return;
+  557   2        }
+  558   1      
+  559   1        #if (HW_SPI_SUPPORTED)
+  560   1        if((U32)(gVP_ctl.dataCtlPtr->voice_prompt_item_ptr->play_ctl.vp_ptr) & EXTERNAL_VP_DATA)
+  561   1        {
+  562   2          U32 LDATA txData = (U32)gVP_ctl.dataCtlPtr->voice_prompt_item_ptr->play_ctl.vp_ptr & (~EXTERNAL_VP_DATA
+             -);
+  563   2      
+  564   2          DRV_SPIFLH_ReadBytes(txData, (U8 XDATA_PTR)VP_COPY_PTR, gVP_ctl.dataCtlPtr->frame_length);
+  565   2        }
+  566   1        else
+  567   1        #endif
+  568   1        {
+C251 COMPILER V5.57.0,  VoicePrompt                                                        08/11/20  05:51:43  PAGE 10  
+
+  569   2          OSMEM_memcpy_xdata_generic ((U8 XDATA_PTR)VP_COPY_PTR,
+  570   2                        (U8 GENERIC_PTR)gVP_ctl.dataCtlPtr->voice_prompt_item_ptr->play_ctl.vp_ptr,
+  571   2                        gVP_ctl.dataCtlPtr->frame_length);
+  572   2        }
+  573   1      }
+  574          
+  575          PUBLIC void DRIVER_VP_ReadVPData(void)
+  576          {
+  577   1        //things should be done within 20ms here.
+  578   1        if(IS_VOICE_PROMPT_OVER)
+  579   1          return;
+  580   1      
+  581   1        if (!gVP_ctl.dataCtlPtr)
+  582   1          return;
+  583   1      
+  584   1        if (!gVP_ctl.dataCtlPtr->item_count)
+  585   1        {
+  586   2          return;
+  587   2        }
+  588   1      
+  589   1        //The following operation may occur overflow.
+  590   1        //for CODE, it is ok.
+  591   1        //for XDATA, the size must be less than 65535 which is ok for AB1500;
+  592   1        //for EEPROM, we must use EEPROM which size is less than 65535 (512Kbit);
+  593   1      
+  594   1        gVP_ctl.dataCtlPtr->voice_prompt_item_ptr->play_ctl.vp_ptr = (U8 GENERIC_PTR) ((U32)gVP_ctl.dataCtlPtr->
+             -voice_prompt_item_ptr->play_ctl.vp_ptr + gVP_ctl.dataCtlPtr->frame_length);
+  595   1        gVP_ctl.dataCtlPtr->voice_prompt_item_ptr->length -= gVP_ctl.dataCtlPtr->frame_length;
+  596   1        if (!gVP_ctl.dataCtlPtr->voice_prompt_item_ptr->length)
+  597   1        {
+  598   2          if (--gVP_ctl.dataCtlPtr->item_count)
+  599   2          {
+  600   3            SYS_MemoryRelease(&gVP_ctl.dataCtlPtr->cmd_ptr1);
+  601   3            SYS_MemoryRelease(&gVP_ctl.dataCtlPtr->cmd_ptr2);
+  602   3      
+  603   3            gVP_ctl.dataCtlPtr->voice_prompt_item_ptr++;
+  604   3          }
+  605   2          else
+  606   2          {
+  607   3            //Make silence
+  608   3            DRIVER_VP_CopySilence((U8 XDATA_PTR)VP_COPY_PTR);
+  609   3            return;
+  610   3          }
+  611   2        }
+  612   1      
+  613   1        if (gVP_ctl.dataCtlPtr->voice_prompt_item_ptr->play_ctl.play_type == VP_DAT_BREAK)
+  614   1        {
+  615   2          DRIVER_VP_CopySilence((U8 XDATA_PTR)VP_COPY_PTR);
+  616   2          return;
+  617   2        }
+  618   1      
+  619   1        #if (HW_SPI_SUPPORTED)
+  620   1        if((U32)(gVP_ctl.dataCtlPtr->voice_prompt_item_ptr->play_ctl.vp_ptr) & EXTERNAL_VP_DATA)
+  621   1        {
+  622   2          U32 LDATA txData = (U32)gVP_ctl.dataCtlPtr->voice_prompt_item_ptr->play_ctl.vp_ptr & (~EXTERNAL_VP_DATA
+             -);
+  623   2          DRV_SPIFLH_ReadBytes(txData, (U8 XDATA_PTR)VP_COPY_PTR, gVP_ctl.dataCtlPtr->frame_length);
+  624   2        }
+  625   1        else
+  626   1        #endif
+  627   1        {
+  628   2          OSMEM_memcpy_xdata_generic ((U8 XDATA_PTR)VP_COPY_PTR,
+  629   2                        (U8 GENERIC_PTR)gVP_ctl.dataCtlPtr->voice_prompt_item_ptr->play_ctl.vp_ptr,
+  630   2                        gVP_ctl.dataCtlPtr->frame_length);
+  631   2        }
+  632   1          gAlignDSP.DSP_nvram.DSP_Reserved_PARAM.Feature_Sel &= ~VP_FEEDBACK;
+C251 COMPILER V5.57.0,  VoicePrompt                                                        08/11/20  05:51:43  PAGE 11  
+
+  633   1      }
+  634          
+  635          
+  636          PRIVATE void VoicePrompt_ReleaseCtlResource(void)
+  637          {
+  638   1        if (gVP_ctl.dataCtlPtr != (VoicePromptDataCtlType XDATA_PTR)0)
+  639   1        {
+  640   2          if (gVP_ctl.dataCtlPtr->voice_prompt_item_ptr != (VoicePromptItem XDATA_PTR)0)
+  641   2          {
+  642   3            SYS_MemoryRelease(U8_XDATA_PTR_PTR_CASTING &gVP_ctl.dataCtlPtr->voice_prompt_item_ptr_init);
+  643   3            gVP_ctl.dataCtlPtr->voice_prompt_item_ptr = (VoicePromptItem XDATA_PTR)0;
+  644   3            SYS_MemoryRelease(&gVP_ctl.dataCtlPtr->vp_pattern_ptr);
+  645   3      
+  646   3            SYS_MemoryRelease(&gVP_ctl.dataCtlPtr->cmd_ptr1);
+  647   3            SYS_MemoryRelease(&gVP_ctl.dataCtlPtr->cmd_ptr2);
+  648   3          }
+  649   2          SYS_MemoryRelease(U8_XDATA_PTR_PTR_CASTING &gVP_ctl.dataCtlPtr);
+  650   2        }
+  651   1      }
+  652          
+  653          #endif //SUPPORT_VOICE_PROMPT
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =      2521     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =         5     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       158     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

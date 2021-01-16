@@ -1,0 +1,132 @@
+C251 COMPILER V5.57.0,  AVRCP_ServiceRecord                                                08/11/20  06:34:06  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE AVRCP_ServiceRecord
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\AVRCP_ServiceRecord.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\AVRCP\AVRCP_ServiceRecord.c XSMALL HPTR FUNCTIONS(REENTRANT) RO
+                    -M(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\sourc
+                    -e\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\L
+                    -L;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\
+                    -ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECT
+                    -OR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DE
+                    -FINE(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStere
+                    -oHeadset\AVRCP_ServiceRecord.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\AVRCP_ServiceRecord.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #include "..\SDAP\SDAP_Interface.h"
+    4          #include "..\MMI\MMI_PSM.h"
+    5          #include "..\MMI\MMI_SCN.h"
+    6          
+    7          #define VERSION_AVCTP 0x0104
+    8          #define VERSION_AVRCP 0x0106
+    9          
+   10          #ifdef AVRCP_Profile
+   11          
+   12          // ====================== AVRCP TG ======================
+   13          
+   14          ATTRDEF_ROM(avrcpTg, ServiceRecordHandle) = 
+   15                { ATTRID(ATTRID_ServiceRecordHandle), ATTRLEN(5), SERVICE_HANDLE32(PROFILE_AVRCP_TG) };
+   16          ATTRDEF_ROM(avrcpTg, ServiceClassIdList) = 
+   17                { ATTRID(ATTRID_ServiceClassIdList), ATTRLEN(5), DEDEF_SEQU8(3), SERVICE_UUID16(SERVICE_UUID_REMOTE_CO
+             -NTROL_TRG) };
+   18          ATTRDEF_ROM(avrcpTg, ProtocolDescriptorList) = 
+   19                { ATTRID(ATTRID_ProtocolDescriptorList), ATTRLEN(18), DEDEF_SEQU8(16),
+   20                                            DEDEF_SEQU8(6), PROTOCOL_UUID16(PROTOCOL_UUID_L2CAP), PSM_U16(PSM_AVCTP),
+   21                                            DEDEF_SEQU8(6), PROTOCOL_UUID16(PROTOCOL_UUID_AVCTP), VERSION_U16(VERSION_AVCTP) };
+   22          ATTRDEF_ROM(avrcpTg, ProfileDescriptorList) = 
+   23                { ATTRID(ATTRID_ProfileDescriptorList), ATTRLEN(10), DEDEF_SEQU8(8), DEDEF_SEQU8(6), PROFILE_UUID16(PR
+             -OFILE_UUID_AVRCP), VERSION_U16(VERSION_AVRCP) };
+   24          ATTRDEF_ROM(avrcpTg, SupportedFeatures) = 
+   25                { ATTRID(ATTRID_SupportedFeatures), ATTRLEN(3), DEDEF_U16(0x0002) };
+   26          
+   27          ATTRLISTDEF_ROM(avrcpTg) =
+   28          {
+   29            (SdpServiceAttributePtr) ATTRNAME(avrcpTg, ServiceRecordHandle),
+   30            (SdpServiceAttributePtr) ATTRNAME(avrcpTg, ServiceClassIdList),
+   31            (SdpServiceAttributePtr) ATTRNAME(avrcpTg, ProtocolDescriptorList),
+   32            (SdpServiceAttributePtr) ATTRNAME(avrcpTg, ProfileDescriptorList),
+   33            (SdpServiceAttributePtr) ATTRNAME(avrcpTg, SupportedFeatures),
+   34          };
+   35          
+   36          SRECORDDEF_ROM(avrcpTg) =
+   37          {
+   38            PROFILE_AVRCP_TG,
+   39            ATTRCOUNT(avrcpTg),
+   40            (SdpServiceAttributeListPtr) ATTRLISTNAME(avrcpTg)
+   41          };
+   42          
+   43          SdpServiceNode gAVRCP_TgServiceNode = 
+   44          {
+   45            (SdpServiceRecordPtr) SRECORDNAME(&avrcpTg),
+   46            NULL
+   47          };
+   48          
+   49          // ====================== AVRCP CT ======================
+   50          
+C251 COMPILER V5.57.0,  AVRCP_ServiceRecord                                                08/11/20  06:34:06  PAGE 2   
+
+   51          ATTRDEF_ROM(avrcpCt, ServiceRecordHandle) = 
+   52                { ATTRID(ATTRID_ServiceRecordHandle), ATTRLEN(5), SERVICE_HANDLE32(PROFILE_AVRCP_CT) };
+   53          ATTRDEF_ROM(avrcpCt, ServiceClassIdList) = 
+   54                { ATTRID(ATTRID_ServiceClassIdList), ATTRLEN(8), DEDEF_SEQU8(6), SERVICE_UUID16(SERVICE_UUID_REMOTE_CO
+             -NTROL), SERVICE_UUID16(SERVICE_UUID_REMOTE_CONTROL_CTL) };
+   55          ATTRDEF_ROM(avrcpCt, ProtocolDescriptorList) = 
+   56                { ATTRID(ATTRID_ProtocolDescriptorList), ATTRLEN(18), DEDEF_SEQU8(16),
+   57                                            DEDEF_SEQU8(6), PROTOCOL_UUID16(PROTOCOL_UUID_L2CAP), PSM_U16(PSM_AVCTP),
+   58                                            DEDEF_SEQU8(6), PROTOCOL_UUID16(PROTOCOL_UUID_AVCTP), VERSION_U16(VERSION_AVCTP) };
+   59          ATTRDEF_ROM(avrcpCt, ProfileDescriptorList) = 
+   60                { ATTRID(ATTRID_ProfileDescriptorList), ATTRLEN(10), DEDEF_SEQU8(8), DEDEF_SEQU8(6), PROFILE_UUID16(PR
+             -OFILE_UUID_AVRCP), VERSION_U16(VERSION_AVRCP) };
+   61          ATTRDEF_ROM(avrcpCt, SupportedFeatures) = 
+   62                { ATTRID(ATTRID_SupportedFeatures), ATTRLEN(3), DEDEF_U16(0x0001) };
+   63          
+   64          ATTRLISTDEF_ROM(avrcpCt) =
+   65          {
+   66            (SdpServiceAttributePtr) ATTRNAME(avrcpCt, ServiceRecordHandle),
+   67            (SdpServiceAttributePtr) ATTRNAME(avrcpCt, ServiceClassIdList),
+   68            (SdpServiceAttributePtr) ATTRNAME(avrcpCt, ProtocolDescriptorList),
+   69            (SdpServiceAttributePtr) ATTRNAME(avrcpCt, ProfileDescriptorList),
+   70            (SdpServiceAttributePtr) ATTRNAME(avrcpCt, SupportedFeatures),
+   71          };
+   72          
+   73          SRECORDDEF_ROM(avrcpCt) =
+   74          {
+   75            PROFILE_AVRCP_CT,
+   76            ATTRCOUNT(avrcpCt),
+   77            (SdpServiceAttributeListPtr) ATTRLISTNAME(avrcpCt)
+   78          };
+   79          
+   80          SdpServiceNode gAVRCP_CtServiceNode = 
+   81          {
+   82            (SdpServiceRecordPtr) SRECORDNAME(&avrcpCt),
+   83            NULL
+   84          };
+   85          
+   86          #endif
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =        12     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       187     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

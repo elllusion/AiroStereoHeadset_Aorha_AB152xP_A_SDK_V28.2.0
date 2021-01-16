@@ -1,0 +1,634 @@
+#ifndef _SECTOR_DSP_FUNC_PARAM_H_
+#define _SECTOR_DSP_FUNC_PARAM_H_
+/*
+ * AIROHA Bluetooth Device Firmware
+ * COPYRIGHT (C) 2014 AIROHA TECHNOLOGY CORP. CO., LTD. ALL RIGHTS RESERVED
+ *
+ * sector_dsp_func_para.h defines the function parameters of DSP.
+ *
+ * Programmer : CharlesSu@airoha.com.tw, Ext.2882
+ */
+#include "config.h"
+#include "cpu.h"
+#include "crc16.h"
+#include "bt_config_profile.h"
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Type Definitions ////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+typedef struct
+{
+    // - AEC/NR/AVC
+    U16 AEC_NR_EN;
+    U16 AEC_CNG_GAIN_M;
+    U16 AEC_ref_pow_min;		//Q25
+    U16 AEC_ECHO_TAIL_LENGTH;
+    U16 AEC_EC_RESIST;
+    U16 AEC_MU_FAC;
+    U16 AEC_MU_MIN;
+    U16 AEC_NORM_CAP1;
+    U16 AEC_NORM_CAP2;
+    U16 AEC_PF_MIN;
+    U16 AEC_block_percent;
+    U16 AEC_DT_boost;
+    U16 AEC_PF_order;
+    U16 AEC_DT_ratio_thrd;
+    U16 AEC_norm_tap;
+    U16 AEC_DT_length;
+    U16 MULT_AFTER_EC;
+    U16 VOICE_TX_GAIN;
+    S16 CH1_REF_GAIN;
+    S16 CH2_REF_GAIN;
+    S16 CH3_REF_GAIN;
+    S16 CH4_REF_GAIN;
+    S16 CH1_REF2_GAIN;
+    S16 CH2_REF2_GAIN;
+    S16 CH3_REF2_GAIN;
+    S16 CH4_REF2_GAIN;
+
+    //WB_NR_TX
+    U16 WB_NR_TX_POW_MIN_BUF_PERIOD;
+    U16 WB_NR_TX_NOISE_GAIN_LIMITER;
+    U16 WB_NR_TX_VAD_THRD1;
+    U16 WB_NR_TX_VAD_THRD_BANDS[5];
+    U16 WB_NR_TX_OVER_SUPPRESS_FAC;
+    U16 WB_NR_TX_SPEECH_RETAIN_FAC;
+    U16 WB_NR_TX_NOISE_LAMDA;
+    U16 WB_NR_TX_NOISE_FLOOR_MIN;
+    U16 WB_NR_FAST_ALPHA;
+    U16 WB_NR_SLOW_ALPHA;
+    U16 WB_NR_NOISE_UPDATE_FAST;
+    U16 WB_NR_NOISE_UPDATE_SLOW;
+    U16 WB_NR_NOISE_UPDATE_ULTRASLOW;
+    U16 WB_NR_TX_EMPH_COEF[2];
+    //NR_RX
+    U16 NR_RX_POW_MIN_BUF_PERIOD;
+    U16 NR_RX_NOISE_GAIN_LIMITER;
+    U16 NR_RX_VAD_THRD1;
+    U16 NR_RX_VAD_THRD_BANDS[4];
+    U16 NR_RX_OVER_SUPPRESS_FAC;
+    U16 NR_RX_SPEECH_RETAIN_FAC;
+    U16 NR_RX_NOISE_LAMDA;
+    U16 NR_RX_NOISE_FLOOR_MIN;
+    U16 NR_RX_EMPH_COEF[2];
+    //WB_NR_RX
+    U16 WB_NR_RX_POW_MIN_BUF_PERIOD;
+    U16 WB_NR_RX_NOISE_GAIN_LIMITER;
+    U16 WB_NR_RX_VAD_THRD1;
+    U16 WB_NR_RX_VAD_THRD_BANDS[5];
+    U16 WB_NR_RX_OVER_SUPPRESS_FAC;
+    U16 WB_NR_RX_SPEECH_RETAIN_FAC;
+    U16 WB_NR_RX_NOISE_LAMDA;
+    U16 WB_NR_RX_NOISE_FLOOR_MIN;
+    U16 WB_NR_RX_EMPH_COEF[2];
+
+    //PITCH DETECT
+    U16 PD_NR_TX_OPT;
+    U16 PD_PEAK_BUF_SIZE;
+    U16 PD_PITCH_VAD_THRD;
+    U16 PD_PITCH_FAC;
+    U16 PD_PEAK_RATIO_FAC;
+    U16 PD_TRANSIENT_THRD;
+    U16 PD_TRANSIENT_AUG;
+    U16 PD_PITCH_AUG;
+    U16 PD_TRANSIENT_THRD2;
+    U16 PD_RESERVE2;
+    //2-MIC
+    U16 M2_MICDIST;
+    U16 M2_WIND_THRD;
+    U16 M2_WIND_TRANS;
+    U16 M2_WIND_BLOCK;
+    U16 M2_FILTER_GRD;
+    U16 M2_DISTANCE_FAC;
+    U16 M2_VAD_THRD_1;
+    U16 M2_VAD_THRD_2;
+    U16 M2_VAD_THRD_3;
+    U16 M2_VAD_THRD_4;
+    U16 M2_NORM_FAC1;
+    U16 M2_PHASE_COMB;
+    U16 M2_PHASE_GAIN;
+    U16 M2_NE_DURATION;
+    U16 M2_BEAM1_NORM_LIMIT;
+    U16 M2_DEEMPH_COEF[3];
+    U16 M2_BAND2_GAIN;
+    U16 M2_BAND3_GAIN;
+
+    U16 M2_OVER_SUPPRESS_FAC2;
+    S16 M2_BAND1_ALPHA;
+    S16 M2_BAND2_ALPHA;
+    S16 M2_BAND3_ALPHA;
+    S16 M2_BANDH_ALPHA;
+
+    //RX_EQ
+    U16 RXEQ_COF[64];
+    U16 RXEQ_GAIN_LEVEL[16];
+    //TX_EQ
+    U16 TXEQ_COF[64];
+    U16 TXEQ_GAIN_LEVEL[16];
+
+    //AVC
+    U16 AVC_ALPHA;
+    U16 AVC_THRD;
+    U16 AVC_VOL_MAX;
+
+    //PLC
+    U16 PLC_MUTE_CONSECUTIVE_ERRS_DEFAULT ;
+    U16 PLC_UNITY_GAIN_CONSECUTIVE_GOODFRM_DEFAULT;
+    U16 PLC_MUTE_PE16_TH_DEFAULT;
+    U16 PLC_GAIN_UPDATE_PE16_TH_DEFAULT;
+    U16 PLC_PE16_ADJ_DEFAULT;
+    U16 PLC_MUTE_GAIN_RATE_FACTOR_ATTACK_DEFAULT;
+    U16 PLC_MUTE_GAIN_RATE_FACTOR_RELEASE_DEFAULT;
+    U16 PLC_WEIGHT_PKTLOSS_EN_DEFAULT;
+    U16 PLC_WEIGHT_PKTLOSS_DEFAULT;
+
+    // - SMART_PLC
+    U16 SMART_PLC_SWITCH   ;
+    U16 PLC_SMART_EN      ;
+    U16 PLC_BER_GFRAME_EN  ;
+    U16 PLC_CRC_GFRAME_EN  ;
+    U16 PLC_BER_GFRAME_TH  ;
+    U16 PLC_HEC_GFRAME_EN  ;
+    U16 PLC_TONE_SBER_EN   ;
+    U16 FRAME_AMP_TH      ;
+    U16 FRAME_UNVOICED_TH  ;
+    U16 ZC_IIR_DIFF_TH    ;
+    U16 ZC_DIFF_TH        ;
+    U16 ZC_DIFF_NUM_TH     ;
+    U16 FBER_MIIR_TH       ;
+    U16 FBER_SLIIR_TH      ;
+    U16 FBER_MLIIR_TH      ;
+
+		//-SUBWOOFER_PLC
+    U16 WF_PLC_MUTE_PE16_TH_DEFAULT;
+    U16 WF_PLC_MUTE_PE16_TH_FACTOR_DEFAULT;
+    U16 WF_PLC_MUTE_CONSECUTIVE_ERRS_DEFAULT;
+    U16 WF_PLC_MUTE_CONSECUTIVE_ERRS_FACTOR_DEFAULT;
+    U16 WF_PLC_UNITY_GAIN_CONSECUTIVE_GOODFRM_DEFAULT;
+    U16 WF_PLC_GAIN_UPDATE_PE16_TH_DEFAULT;
+    U16 WF_PLC_PE16_ADJ_DEFAULT;
+    U16 WF_PLC_XC_AUTO_SCALE_ENABLE_DEFAULT;
+    U16 WF_PLC_XC_SCALE_ADJ_DEFAULT;
+    U16 WF_PLC_MUTE_GAIN_RATE_FACTOR_ATTACK_DEFAULT;
+    U16 WF_PLC_MUTE_GAIN_RATE_FACTOR_RELEASE_DEFAULT;
+    U16 WF_PLC_WEIGHT_PKTLOSS_EN_DEFAULT;
+    U16 WF_PLC_WEIGHT_PKTLOSS_DEFAULT;
+    U16 WF_CVSD_PLC_UNVOICED_ZC_THRES;
+    U16 WF_FRAME_SIZE0_DEFAULT;
+    U16 WF_PLC_EXTRA_IND;
+
+    //INS
+    U16 snap_level;
+    U16 pulse_period;
+    U16 block_period;
+    U16 floor_absx_opt;
+    U16 INS_fac;
+    U16 gain_alpha;
+    U16 INS_upper_thrd;
+    U16 INS_lower_thrd;
+
+    // -PEQ(AGC)
+    U16 AGC_EN;
+    U16 AGC_PRESET_AGC_LEVEL;
+    U16 AGC_MIN_REDUCE_AMOUNT;
+    U16 AGC_MAX_INCREASE_AMOUNT;
+    U16 AGC_ALPHA_UP;
+    U16 AGC_ALPHA_DOWN;
+    U16 AGC_ALPHA ;
+    U16 AGC_FRM_CNT ;
+    // - VOICE_RMS
+    U16 VOICE_RMS_EN;
+    U16 VOICE_RMS_ALPHA_UP;
+    U16 VOICE_RMS_ALPHA_DOWN;
+    U16 VOICE_RMS_VAD_THRD;
+    // - AUDIO_RMS
+    U16 AUDIO_RMS_EN;
+    U16 AUDIO_RMS_ALPHA_UP;
+    U16 AUDIO_RMS_ALPHA_DOWN;
+    U16 AUDIO_RMS_CNT_PERIOD;
+    // - NEW COMPANDER(common)
+    U16 CPD2_SWITCH;
+    U16 CPD2_VO_DELAY_SIZE_WB;
+    U16 CPD2_AU_DELAY_SIZE;
+    U16 CPD2_PACKET_MAX;
+    // - NEW COMPANDER(NB_TX)
+    U16 CPD2_VO_ALPHA_RELEASE_NB_TX;
+    U16 CPD2_VO_ALPHA_ATTACK_NB_TX;
+    U16 CPD2_VO_THRD_NB_TX;
+    U16 CPD2_VO_OUT_MAX_NB_TX;
+    U16 CPD2_VO_INS_thrd_NB_TX;
+    U16 CPD2_VO_INS_atten_NB_TX;
+    U16 CPD2_VO_INS_alpha_vad_NB_TX;
+    U16 CPD2_VO_INS_alpha_no_vad_NB_TX;
+    // - NEW COMPANDER(WB_TX)
+    U16 CPD2_VO_ALPHA_RELEASE_WB_TX;
+    U16 CPD2_VO_ALPHA_ATTACK_WB_TX;
+    U16 CPD2_VO_THRD_WB_TX;
+    U16 CPD2_VO_OUT_MAX_WB_TX;
+    U16 CPD2_VO_INS_thrd_WB_TX;
+    U16 CPD2_VO_INS_atten_WB_TX;
+    U16 CPD2_VO_INS_alpha_vad_WB_TX;
+    U16 CPD2_VO_INS_alpha_no_vad_WB_TX;
+    // - NEW COMPANDER(NB_RX)
+    U16 CPD2_VO_ALPHA_RELEASE_NB_RX;
+    U16 CPD2_VO_ALPHA_ATTACK_NB_RX;
+    U16 CPD2_VO_THRD_NB_RX;
+    U16 CPD2_VO_OUT_MAX_NB_RX;
+    U16 CPD2_VO_INS_thrd_NB_RX;
+    U16 CPD2_VO_INS_atten_NB_RX;
+    U16 CPD2_VO_INS_alpha_NB_RX;
+    // - NEW COMPANDER(WB_RX)
+    U16 CPD2_VO_ALPHA_RELEASE_WB_RX;
+    U16 CPD2_VO_ALPHA_ATTACK_WB_RX;
+    U16 CPD2_VO_THRD_WB_RX;
+    U16 CPD2_VO_OUT_MAX_WB_RX;
+    U16 CPD2_VO_INS_thrd_WB_RX;
+    U16 CPD2_VO_INS_atten_WB_RX;
+    U16 CPD2_VO_INS_alpha_WB_RX;
+    // - NEW COMPANDER(VP)
+    U16 CPD2_VP_ALPHA_RELEASE;
+    U16 CPD2_VP_ALPHA_ATTACK;
+    U16 CPD2_VP_THRD;
+    U16 CPD2_VP_OUT_MAX;
+    // - NEW COMPANDER(A2DP)
+    U16 CPD2_AU_ALPHA_RELEASE;
+    U16 CPD2_AU_ALPHA_ATTACK;
+    U16 CPD2_AU_THRD;
+    U16 CPD2_AU_OUT_MAX;
+	U16 CPD2_AU_alpha_release2;
+	U16 CPD2_AU_alpha_release3;
+	U16 CPD2_AU_alpha_level2;
+	U16 CPD2_AU_alpha_level3;
+    // - NEW COMPANDER(Line-In)
+    U16 CPD2_LI_ALPHA_RELEASE;
+    U16 CPD2_LI_ALPHA_ATTACK;
+    U16 CPD2_LI_THRD;
+    U16 CPD2_LI_OUT_MAX;
+    U16 CPD2_LI_INS_thrd;
+    U16 CPD2_LI_INS_atten;
+    U16 CPD2_LI_INS_alpha;
+	U16 CPD2_LI_alpha_release2;
+	U16 CPD2_LI_alpha_release3;
+	U16 CPD2_LI_alpha_level2;
+	U16 CPD2_LI_alpha_level3;
+	// - Dynamic Bass Boost
+	U16 DBB_AU_THRD;
+	U16 DBB_AU_MAX_GAIN;
+	U16 DBB_LI_THRD;
+	U16 DBB_LI_MAX_GAIN;
+	// NR for VC
+	U16 VC_TH_LEVEL0;
+	U16 VC_TH_LEVEL1;
+	U16 VC_MIC_DIFF_FAC;
+	U16 VC_REJECT_THRESHOLD;
+    //Widening for audio
+    U16 ENHANCE_ENABLE;
+    U16 ENHANCE_DECORRELATOR;
+    U16 ENHANCE_HARMONIC;
+    U16 ENHANCE_WIDENING;
+    U16 ENHANCE_REVERBERATION;
+    //DEREVERBER
+	S16 DRV_Nl_ini;
+	S16 DRV_Nl;
+	S16 DRV_pre_det_time;
+	S16 DRV_ngain_limiter;
+	S16 DRV_threshold;
+	S16 DRV_rt60_weight;
+	S16 DRV_gain_comps;
+	S16 DRV_gain_max;
+	S16 DRV_gain_step;
+	S16 DRV_idle_th;
+    // - DSP_RESERVE
+    U16 DSP_EC_SW;
+    U16 DSP_RESERVE14;
+    U16 DSP_RESERVE15;
+    U16 DSP_RESERVE16;
+    U16 DSP_RESERVE17;
+    U16 DSP_RESERVE18;
+    U16 DSP_RESERVE19;
+    U16 DSP_RESERVE20;
+
+    // Widening for audio
+	U16 CORR_GAIN_H;
+	U16 CORR_GAIN_L;
+	U16 DIFF_GAIN_H;
+	U16 DIFF_GAIN_L;
+	U16 CORRF_DELAY;
+	U16 DIFFER_DELAY;
+	U16 DECORR_DELAY;
+	U16 HARMO_GAIN_H;
+	U16 HARMO_GAIN_L;
+	U16 BASS_HARMO_GAIN;
+
+    //2-MIC part 2
+    U16 M2_VAD_THRD_12;
+    U16 M2_VAD_THRD_22;
+    U16 M2_VAD_THRD_32;
+    U16 M2_VAD_THRD_42;
+    U16 M2_VAD_THRD_13;
+    U16 M2_VAD_THRD_23;
+    U16 M2_VAD_THRD_33;
+    U16 M2_VAD_THRD_43;
+
+    //2-MIC reserve
+	U16 M2_RESERVE0;
+	U16 M2_RESERVE1;
+	U16 M2_RESERVE2;
+	U16 M2_RESERVE3;
+	U16 M2_RESERVE4;
+	U16 M2_RESERVE5;
+	U16 M2_RESERVE6;
+	U16 M2_RESERVE7;
+	U16 M2_RESERVE8;
+	U16 M2_RESERVE9;
+	U16 M2_RESERVE10;
+	U16 M2_RESERVE11;
+	U16 M2_RESERVE12;
+	U16 M2_RESERVE13;
+	U16 M2_RESERVE14;
+	U16 M2_RESERVE15;
+	U16 M2_RESERVE16;
+	U16 M2_RESERVE17;
+	U16 M2_RESERVE18;
+	U16 M2_RESERVE19;
+	U16 M2_RESERVE20;
+	U16 M2_RESERVE21;
+	U16 M2_RESERVE22;
+	U16 M2_RESERVE23;
+	U16 M2_RESERVE24;
+	U16 M2_RESERVE25;
+	U16 M2_RESERVE26;
+	U16 M2_RESERVE27;
+	U16 M2_RESERVE28;
+	U16 M2_RESERVE29;
+	U16 M2_RESERVE30;
+	U16 M2_RESERVE31;
+
+	//Voice TX HP
+	U16 VOICE_TX_HP_COEF[10];
+
+    //Widening for linein
+	U16 LI_CORR_GAIN_H;
+	U16 LI_CORR_GAIN_L;
+	U16 LI_DIFF_GAIN_H;
+	U16 LI_DIFF_GAIN_L;
+	U16 LI_CORRF_DELAY;
+	U16 LI_DIFFER_DELAY;
+	U16 LI_DECORR_DELAY;
+	U16 LI_HARMO_GAIN_H;
+	U16 LI_HARMO_GAIN_L;
+	U16 LI_BASS_HARMO_GAIN;
+
+    // - Compander Reserve Parameters
+	//Multi-band COMPANDER(A2DP low-band)
+	U16 MBCPD_AU_ALPHA_RELEASE_L;
+	U16 MBCPD_AU_ALPHA_ATTACK_L;
+	U16 MBCPD_AU_THRD_L;
+	U16 MBCPD_AU_OUT_MAX_L;
+	U16 MBCPD_AU_alpha_release2_L;
+	U16 MBCPD_AU_alpha_release3_L;
+	U16 MBCPD_AU_alpha_level2_L;
+	U16 MBCPD_AU_alpha_level3_L;
+	//Multi-band COMPANDER(A2DP high-band)
+	U16 MBCPD_AU_ALPHA_RELEASE_H;
+	U16 MBCPD_AU_ALPHA_ATTACK_H;
+	U16 MBCPD_AU_THRD_H;
+	U16 MBCPD_AU_OUT_MAX_H;
+	U16 MBCPD_AU_alpha_release2_H;
+	U16 MBCPD_AU_alpha_release3_H;
+	U16 MBCPD_AU_alpha_level2_H;
+	U16 MBCPD_AU_alpha_level3_H;
+	//Multi-band COMPANDER(Line-In low-band)
+	U16 MBCPD_LI_ALPHA_RELEASE_L;
+	U16 MBCPD_LI_ALPHA_ATTACK_L;
+	U16 MBCPD_LI_THRD_L;
+	U16 MBCPD_LI_OUT_MAX_L;
+	U16 MBCPD_LI_alpha_release2_L;
+	U16 MBCPD_LI_alpha_release3_L;
+	U16 MBCPD_LI_alpha_level2_L;
+	U16 MBCPD_LI_alpha_level3_L;
+	//Multi-band COMPANDER(Line-In high-band)
+	U16 MBCPD_LI_ALPHA_RELEASE_H;
+	U16 MBCPD_LI_ALPHA_ATTACK_H;
+	U16 MBCPD_LI_THRD_H;
+	U16 MBCPD_LI_OUT_MAX_H;
+	U16 MBCPD_LI_alpha_release2_H;
+	U16 MBCPD_LI_alpha_release3_H;
+	U16 MBCPD_LI_alpha_level2_H;
+	U16 MBCPD_LI_alpha_level3_H;
+	U16 MBCPD_RESERVE32;
+	U16 MBCPD_RESERVE33;
+	U16 MBCPD_RESERVE34;
+	U16 MBCPD_RESERVE35;
+	U16 MBCPD_RESERVE36;
+	U16 MBCPD_RESERVE37;
+	U16 MBCPD_RESERVE38;
+	U16 DBB_BAND_SW;
+
+
+    //Multi-band COMPANDER filter coefficient set
+	U16 DBB_HP_COEF32_DF1_48K[20];
+	U16 DBB_LP_COEF32_DF1_48K[20];
+	U16 DBB_HP_COEF32_DF1_44K[20];
+	U16 DBB_LP_COEF32_DF1_44K[20];
+	// - NEW COMPANDER(A2DP low + high)
+	U16 MBCPD_AU_ALPHA_RELEASE_F;
+	U16 MBCPD_AU_ALPHA_ATTACK_F;
+	U16 MBCPD_AU_THRD_F;
+	U16 MBCPD_AU_OUT_MAX_F;
+	U16 MBCPD_AU_alpha_release2_F;
+	U16 MBCPD_AU_alpha_release3_F;
+	U16 MBCPD_AU_alpha_level2_F;
+	U16 MBCPD_AU_alpha_level3_F;
+	// - NEW COMPANDER(Line-in low + high)
+	U16 MBCPD_LI_ALPHA_RELEASE_F;
+	U16 MBCPD_LI_ALPHA_ATTACK_F;
+	U16 MBCPD_LI_THRD_F;
+	U16 MBCPD_LI_OUT_MAX_F;
+	U16 MBCPD_LI_alpha_release2_F;
+	U16 MBCPD_LI_alpha_release3_F;
+	U16 MBCPD_LI_alpha_level2_F;
+	U16 MBCPD_LI_alpha_level3_F;
+	// - Dolby Digital Certification
+	U16 Karaoke_Capable;
+	U16 Compression_Mode;
+	U16 LFE;
+	U16 Output_Mode;
+	U16 Stereo_Output_Mode;
+	U16 Dual_Mono_Reproduction_Mode;
+	U16 DRC_High_Cut;
+	U16 DRC_Low_Boost;
+	//Voice RX HP
+	U16 VOICE_RX_HP_COEF[20];	//0-9 for WB, 10-19 for NB
+
+	//Celt
+	U16 CELT_CRC_LENGTH;
+	U16 CELT_RESERVE0;
+
+    // - INS V2
+	U16 INS_enable;
+	U16 snap_level_v2;
+	U16 INS_thrd;
+	U16 INS_gain_alpha_up;
+	U16 INS_gain_alpha_down;
+
+	//Multi-band COMPANDER 3-biquad filter coefficient set
+	U16 DBB_HP_COEF32_DF1_3B_48K[30];
+	U16 DBB_LP_COEF32_DF1_3B_48K[30];
+	U16 DBB_HP_COEF32_DF1_3B_44K[30];
+	U16 DBB_LP_COEF32_DF1_3B_44K[30];
+
+	// for VC
+	U16 VC_PHASE_COUNT;
+	U16 VC_FRM_LIMIT;
+
+
+	//NB_RX_EQ
+    U16 NB_RXEQ_COF[64];
+	U16 NB_RXEQ_GAIN_LEVEL[16];
+    //NB_TX_EQ
+    U16 NB_TXEQ_COF[64];
+	U16 NB_TXEQ_GAIN_LEVEL[16];
+	
+	// for VC
+	U16 VC_PHASE_RANGE;
+	U16 VC_MIC_DIFF_FACB;
+	U16 VC_CORR_TH;
+	U16 VC_PITCH_TH;
+
+    // for AT Compander
+    U16 CPD2_AT_ALPHA_RELEASE;
+	U16 CPD2_AT_ALPHA_ATTACK;
+	U16 CPD2_AT_THRD;
+	U16 CPD2_AT_OUT_MAX;
+
+	// - DSP_Reserve Parameters
+	U16 ReserveParameters[1038];
+
+
+} DSP_FUNC_PARA_STRU;
+
+typedef struct
+{
+    U16 SNDR_THRESHOLD;
+    U16 SNR_THRESHOLD;
+} IC_BIST_RELATION;
+
+typedef struct
+{
+	U16 aud_fade_out_target_ratio;
+    U16 DSPGainLv_Default;
+    U16 VPGainLv_Default;
+    U16 MinAnalogGain;
+} VP_RELATION;
+
+typedef struct
+{
+	U16 PLC_ENABLE;
+	U16 PLC_OFFSET;
+	U16 PLC_OFFSET_mSBC;
+    U16 PLC_FramePartEn;
+    U16 PLC_FramePartMethod;
+    U16 PLC_CRCChkMethod;
+} PLC_RELATION;
+
+enum i2s_bit_format_enum
+{
+    I2S_RIGHT_JUSTIFIED_MODE = 0,
+    I2S_LEFT_JUSTIFIED_MODE,
+    BITFORM_I2S_MODE,
+    I2S_BITFORM_DISABLE,
+};
+
+enum i2s_bclk_rate_sel
+{
+    I2S_16BIT_FORMAT = 0,
+    I2S_24BIT_FORMAT,
+    I2S_32BIT_FORMAT,
+};
+
+typedef struct
+{
+	U16 woofer_feature_func_sel;
+} SCENARIO_RELATION;
+
+typedef struct
+{
+    U16 I2S_DebugMask[4];
+} I2S_DBG_RELATION;
+
+typedef struct
+{
+    U16 SBC_DA_buffer_size;
+	U16 soundbar_delay_out;
+	U16 aud_fade_rate;
+	U16 aud_fade_enable;
+	U16 Audio_Recovery_Smoother;
+	U16 AiroLineIn_Induce_Aux_Sample_Cnt;
+    U16 DSP_Reserved_Para_2;
+	U16 DSP_Reserved_Para_3;
+} STEREO_RELATION;
+
+typedef struct
+{
+    U16 Mic_LR_Switch;
+	U16 SideTone_Enable;
+    U16 SideTone_Gain;
+} VOICE_RELATION;
+
+typedef struct
+{
+    U16 DspAddr;
+    U16 Length;
+} UD_PATH_t;
+
+typedef struct
+{
+    U16 DumpEnable;
+    U16 DefaultPathMaskBit;
+	UD_PATH_t UserDefinedPath[10];
+} AIR_DUMP_RELATION;
+
+
+typedef struct
+{
+    U16 Howling_Level_UpBND;
+    U16 Howling_Level_LowBND;
+    U16 Howling_Debounce_FRAME_NUM;
+} AT_Howling_RELATION;
+
+typedef struct
+{
+	DSP_FUNC_PARA_STRU      dsp_param_parameter;
+
+    /* The order of sections should be same as DSP's */
+    IC_BIST_RELATION      ic_bist_parameter;
+    VP_RELATION           vp_parameter;
+    PLC_RELATION          plc_parameter;
+    SCENARIO_RELATION     scenario_parameter;
+    I2S_DBG_RELATION      i2s_dbg_parameter;
+    STEREO_RELATION       stereo_parameter;
+    U16                   I2S_BIT_FORMAT;
+	U16                   I2S_BCLK_RATE;
+    VOICE_RELATION        voice_parameter;
+    AIR_DUMP_RELATION     air_dump_parameter;
+    AT_Howling_RELATION   at_howling_parameter;
+} DSP_FUNC_PARA_CTL_STRU;
+
+typedef struct stru_sector_dsp_func_para_init
+{
+    DSP_FUNC_PARA_CTL_STRU DSPFunParaInit;
+
+    CRC16 CRC;
+
+} SECTOR_DSP_FUNC_PARA_INIT_STRU;
+
+
+////////////////////////////////////////////////////////////////////////////////
+// External Variables //////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+EXTERN SECTOR_DSP_FUNC_PARA_INIT_STRU CODE gSector_DspFuncParameter ALIGN(2);
+
+#endif /* _SECTOR_DSP_FUNC_PARAM_H_ */

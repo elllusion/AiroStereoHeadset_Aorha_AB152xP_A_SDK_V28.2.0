@@ -1,0 +1,183 @@
+MERGEPUBLICS
+
+CLASSES (
+        BIT                     (D:0x22-D:0x2F),
+        DATA                    (D:0x09-0x1F,0x30-D:0x7F),
+        EDATA                   (0x981E-0xEFFF),
+        EDATA_HIEDATA           (0xF000-0xFFFF),
+
+        ECODE_STARTUP           (0x800040-0x800FFF),
+	HCONST_MP_PARAM         (0x801000-0x801FFF),
+	HCONST_MP_PARAM_F       (0x801000-0x801FFF),
+        HCONST_DESCRIP          (0x802000-0x8020FF),
+        HCONST_CFGHEAD          (0x802100-0x8022FF),
+        CODE                    (0x802300-0x80FFF7),
+        ECODE                   (0x802300-0x80FFF7,0x810000-0x81FFF7,0x820000-0x82FFF7,0x830000-0x83FFF7,0x840000-0x84FFF7,0x850000-0x85FFF7,0x860000-0x86FFF7),
+        HCONST                  (0x802300-0x88AFFF),
+        ECODE_FLASH             (0x802300-0x80FFF7,0x810000-0x81FFF7,0x820000-0x82FFF7,0x830000-0x83FFF7,0x840000-0x84FFF7,0x850000-0x85FFF7,0x860000-0x86FFF7),
+        HCONST_FLASH            (0x802300-0x888FFF),
+        HCONST_DSP_ROM          (0x889000-0x8DAFFF),
+        HCONST_CONFIG           (0x8DB000-0x8DFFFF),
+        HCONST_VO_DAT           (0x8E0000-0x8FAFFF),
+        HCONST_DSP_FUNCPARA     (0x8FB000-0x8FBFFF),
+        HCONST_DSP_HPFPARA      (0x8FC000-0x8FCFFF),
+        HCONST_DSP_PEQPARA      (0x8FC000-0x8FCFFF),
+        HCONST_APP_CALLNAME     (0x8FD000-0x8FDFFF),
+        HCONST_MMI_V_NVRAM2     (0x8FE000-0x8FEFFF),
+        HCONST_LE_V_NVRAM2      (0x8FE200-0x8FEFFF),
+        HCONST_DUAL_MIC2        (0x8FE400-0x8FEFFF),
+        ;HCONST_MMI_C_V_NVRAM2   (0x8FE600-0x8FEFFF),
+        HCONST_MMI_V_NVRAM      (0x8FF000-0x8FFFFF),
+        HCONST_LE_V_NVRAM       (0x8FF200-0x8FFFFF),
+        HCONST_DUAL_MIC         (0x8FF400-0x8FFFFF)
+        ;HCONST_MMI_C_V_NVRAM    (0x8FF600-0x8FFFFF)
+)
+
+SEGMENTS (
+
+		?C_INITEDATA,
+		?C_INITEDATA_END
+
+)
+
+OVERLAY	(	OS_Scheduler !	(
+								KERNEL??,
+								LM,
+								GAP,
+								L2CAP,
+								SDAP,
+								RFCOMM,
+								AVCTP,
+								AVDTP,
+								A2DP,
+								AVRCP,
+								MMI,
+								MMI_LE,
+								ATT,
+								SM,
+								HFP,
+								DRIVER,
+								SPP
+							),
+			MMI_STATE_PassThruMsg!(
+				MMI_ConnectDiscoverableHandler,
+				MMI_ConnectableHandler,
+				MMI_ConnectedHandler,
+				MMI_HFPImgHandler,
+				MMI_HFPOggHandler,
+				MMI_HFPCaHandler,
+				MMI_HFPCaOggHandler,
+				MMI_HFPCaImgHandler,
+				MMI_HFPCaMultyHandler,
+				MMI_TestModeHandler,
+				MMI_OffHandler,
+				MMI_FakeonHandler,
+				MMI_FakeoffHandler,				
+				MMI_DetachHandler,
+				MMI_LineInHandler,
+				MMI_FMHandler
+				),
+			MMI_LoadHandler!(
+						MMI_ConnectDiscoverableEntry,
+						MMI_ConnectableEntry,
+						MMI_ConnectedEntry,
+						MMI_HFPImgEntry,
+						MMI_HFPOggEntry,
+						MMI_HFPCaEntry,
+						MMI_HFPCaImgEntry,
+						MMI_TestModeEntry,
+						MMI_OffEntry,
+						;MMI_PasskeyEntry,
+						MMI_FakeonEntry,
+						MMI_FakeoffEntry,
+						MMI_DetachEntry,
+						MMI_LineInEntry,
+						MMI_FMEntry,
+						MMI_VoicePromptLangSelectEntry,
+						MMI_TWS_PairingEntry
+						),
+			MMI_UnloadHandler!(
+						MMI_ConnectedExit,
+						MMI_ConnectDiscoverableExit,
+						MMI_HFPCaExit,
+						MMI_HFPImgExit,
+						MMI_TestModeExit,
+						MMI_DetachExit,
+						MMI_VoicePromptLangSelectExit,
+						MMI_LineInExit,
+						MMI_FMExit,
+						MMI_TWS_PairingExit
+						),
+			MMI_TestMode_Execute!(
+						MMI_RxTest,
+						MMI_TxContinuePacket,
+						MMI_TxBurstPacket,
+						MMI_TxSingleTone
+						),
+			LM_PowerControl!(
+						LM_SendIncreasePowerReqHandler,
+						LM_SendDecreasePowerReqHandler
+						),
+			DRIVER_ProcMmiCmd!(
+						DRIVER_BGLedCmdHandler,
+						DRIVER_FGLedCmdHandler,
+						DRIVER_FilterLedCmdHandler,
+						DRIVER_ResetLEDCmdHandler,
+						DRIVER_UpdateLEDPWMCmdHandler,
+						DRIVER_MMIReadyCmdHandler,
+						DRIVER_UpdateGeneralParaCmdHandler,
+						DRIVER_SetNormalVolumeCmdHandler,
+						DRIVER_SetA2DPVolumeCmdHandler,
+						DRIVER_SetLineInVolumeCmdHandler, 
+						DRIVER_BuzzerCmdHandler,
+						DRIVER_RingToneVPCmdHandler,
+						DRIVER_StopSpecificRingCmdHandler,
+						DRIVER_StopSpecificVPCmdHandler,
+						DRIVER_StopRingCmdHandler,
+						DRIVER_StopVPCmdHandler,
+						DRIVER_FakeMediaVPRingCmdHandler,
+						DRIVER_SCOCmdHandler,
+						DRIVER_A2DPCmdHandler,
+						DRIVER_LineInCmdHandler,
+						DRIVER_StopLineInCmdHandler,
+						DRIVER_StopDSPCmdHandler,
+						DRIVER_StopDSPPowerOffCmdHandler,
+						;DRIVER_ReloadPEQCmdHandler,
+						DRIVER_PowerOnCloseADDACmdHandler,
+						DRIVER_BatteryStatusCmdHandler,
+						DRIVER_VoiceCommandHandler,
+						DRIVER_StopVoiceCommandHandler,
+						DRIVER_SetAudioSelHandler
+						),
+			MailBox_CmdHandler!(
+						OneStep_SubStateHandler??,
+                                                PromptStart_SubStateHandler??,
+                                                PromptStop_SubStateHandler??
+						),
+
+			MailBox_EvtHandler!(
+						CMD_REPLY_EvtHandler,
+						VP_END_EvtHandler,
+						RT_END_EvtHandler,
+						VC_END_EvtHandler
+						),
+			CMD_REPLY_EvtHandler!(
+						OneStep_SubStateHandler??,
+                        PromptStart_SubStateHandler??,
+                        PromptStop_SubStateHandler??                        
+						)
+		)
+		
+;allow you to add dummy calls and the linker thinks that the function is called
+OVERLAY (* ! (
+				SDAP_GetServiceAttribute?,
+				
+;follows the uncalled functions in Release_Flash
+				SYSMODE_CTLR_INIT?,
+				SYSMODE_Device_init,
+				_LM_LinkQueueInit?
+			 )
+		)
+SPEEDOVL
+NOSORTSIZE
+NOOVERLAY

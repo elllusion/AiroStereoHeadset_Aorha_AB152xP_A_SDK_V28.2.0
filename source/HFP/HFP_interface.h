@@ -1,0 +1,482 @@
+//////////////////////////////////////////////////////////
+// Copyright@ 2009 Airoha.  All right reserved.
+//////////////////////////////////////////////////////////
+
+#ifndef _HFP_INTERFACE_H_
+#define _HFP_INTERFACE_H_
+
+#include "os.h"
+#include "bt_config_profile.h"
+
+#include "..\MMI\MMI_interface.h"
+
+#define _HFP_LOG_
+#ifdef _HFP_C_
+#define HFP_EXTERN	
+#else
+#define HFP_EXTERN extern
+#endif
+
+#ifdef HFP_Profile	
+
+#define HFP_MAX_FRAME_SIZE	248
+
+#define HFP_CMD_OFFSET		0x10
+#define HFP_EVT_OFFSET		0xE0
+#define HFP_CIEV_IND_OFFSET	0xF0
+
+// battery report event from HFP
+#define HFP_BATTERY_REPORT_NONE			0
+#define HFP_BATTERY_REPORT_IPHONE		1
+#define HFP_BATTERY_REPORT_XEVENT		2
+#define HFP_BATTERY_REPORT_BIEV_SLC_0	3	/* for SLC establish phase */
+#define HFP_BATTERY_REPORT_BIEV_SLC_1	4	/* for SLC establish phase */
+#define HFP_BATTERY_REPORT_BIEV_UNS_0	5	/* for Unsolicited phase */
+#define HFP_BATTERY_REPORT_BIEV_UNS_1	6	/* for Unsolicited phase */
+
+enum
+{		
+	HFP_SLC_CONNECTED = PROFILE_STATE_START,
+};
+
+enum
+{
+	HFP_SUBSTATE_NO_SUBSTATE,
+	HFP_SUBSTATE_SEND_BRSF_CMD,
+	HFP_SUBSTATE_WAIT_PLUS_BRSF,
+	HFP_SUBSTATE_WAIT_BRSF_OK,
+	HFP_SUBSTATE_GET_BRSF_OK,
+	HFP_SUBSTATE_SEND_BAC_CMD,
+	HFP_SUBSTATE_WAIT_BAC_OK,
+	HFP_SUBSTATE_SEND_CIND_EQU,			//6
+	HFP_SUBSTATE_WAIT_PLUS_CIND,
+	HFP_SUBSTATE_WAIT_CIND_OK,
+	HFP_SUBSTATE_GET_CIND_OK,
+	HFP_SUBSTATE_WAIT_2ND_PLUS_CIND,
+	HFP_SUBSTATE_WAIT_2ND_CIND_OK,
+	HFP_SUBSTATE_GET_2ND_CIND_OK,
+	HFP_SUBSTATE_WAIT_CMER_OK,
+	HFP_SUBSTATE_GET_CMER_OK,
+	HFP_SUBSTATE_SEND_CHLD_CMD,
+	HFP_SUBSTATE_WAIT_PLUS_CHLD,
+	HFP_SUBSTATE_WAIT_CHLD_OK,
+	HFP_SUBSTATE_GET_CHLD_OK,
+	HFP_SUBSTATE_SEND_BIND_CMD,
+	HFP_SUBSTATE_WAIT_BIND_OK,
+	HFP_SUBSTATE_GET_BIND_OK,
+	HFP_SUBSTATE_WAIT_2ND_BIND_OK,
+	HFP_SUBSTATE_GET_2ND_BIND_OK,
+	HFP_SUBSTATE_WAIT_3RD_BIND_OK,
+	HFP_SUBSTATE_GET_3RD_BIND_OK,
+	HFP_SUBSTATE_SLC_PROCESS_COMPLETE,
+	HFP_SUBSTATE_WAIT_COPS_OK,
+	HFP_SUBSTATE_GET_COPS_OK,
+	HFP_SUBSTATE_WAIT_PLUS_COPS,
+	HFP_SUBSTATE_GET_PLUS_COPS,
+#ifdef HFP_AG_Profile
+	HFP_SUBSTATE_WAIT_BRSF_CMD,
+	HFP_SUBSTATE_SEND_PLUS_BRSF,
+	HFP_SUBSTATE_WAIT_CIND_EQUAL_QUESTION,
+	HFP_SUBSTATE_SEND_PLUS_CIND_FORMAT,
+	HFP_SUBSTATE_WAIT_CIND_QUESTION,
+	HFP_SUBSTATE_SEND_PLUS_CIND_STATUS,
+	HFP_SUBSTATE_WAIT_CMER_EQUAL,
+	HFP_SUBSTATE_WAIT_CHLD_EQUAL_QUESTION,
+	HFP_SUBSTATE_SEND_PLUS_BCS,
+	HFP_SUBSTATE_WAIT_ATCMD_BCS,
+	HFP_SUBSTATE_RECV_ATCMD_BCS,
+	HFP_SUBSTATE_WAIT_CALL_SETUP,
+	HFP_SUBSTATE_WAIT_CALL_ANSWER,
+	HFP_SUBSTATE_ACCEPT_CALL_SETUP,
+	HFP_SUBSTATE_REJECT_CALL_SETUP,
+	HFP_SUBSTATE_WAIT_CALL_HANGUP,
+	HFP_SUBSTATE_ACCEPT_CALL_HANGUP,
+	HFP_SUBSTATE_CALL_HANGUP_COMPLETE,
+	HSP_SUBSTATE_SEND_RING,
+	HSP_SUBSTATE_WAIT_AT_CKPD200,
+#endif
+	HSP_SUBSTATE_SEND_CKPD200,
+	HSP_SUBSTATE_WAIT_CKPD200_OK,
+	HSP_SUBSTATE_SLC_PROCESS_COMPLETE,
+};
+
+enum
+{ 
+	HFP_NO_COMMAND = 0x00,
+	HFP_ATCMD_INIT_VOICE_DIAL = (0x00 + HFP_CMD_OFFSET),  //0xA0
+	HFP_ATCMD_CANCEL_VOICE_DIAL,
+	HFP_ATCMD_LAST_NUMBER_REDIAL,
+	HFP_ATCMD_CANCEL_OUTGOING_CALL,
+	HFP_ATCMD_REJECT_CALL,
+	HFP_ATCMD_END_CALL,
+	HFP_ATCMD_ACCEPT_CALL,
+	HFP_ATCMD_ADJUST_VOLUME,	 
+	HFP_ATCMD_ADJUST_MIC_GAIN,					
+	HFP_ATCMD_SET_NREC,
+	HFP_ATCMD_CKPD_200,
+	HFP_ATCMD_IPHONE_BATTERY_INQUIRY,				
+	HFP_ATCMD_IPHONE_BATTERY_SEND,
+	HFP_ATCMD_XEVENT_BATTERY_INQUIRY,				
+	HFP_ATCMD_XEVENT_BATTERY_SEND,
+	HFP_ATCMD_BIEV_BATTERY_SEND,
+	HFP_ATCMD_PLACE_CALL_WITH_PHONE_NUMBER,
+	HFP_ATCMD_MEMORY_DIALING, //0x10
+	HFP_ATCMD_HOLD_AND_MULTIPARTY_HANDLING,		
+	HFP_ATCMD_QUERY_OPERATOR_SELECTION,
+	HFP_ATCMD_GET_SUBSCRIBER_NUMBER,
+	HFP_ATCMD_SELECT_CHAR_SET_UTF8,
+	HFP_ATCMD_ENABLE_CLI_NOTIFICATION,
+	HFP_ATCMD_DISABLE_CLI_NOTIFICATION,
+	HFP_ATCMD_SEND_DTMF, 						
+	HFP_ATCMD_ENABLE_CALL_WAITING_NOTIFICATION,
+	HFP_ATCMD_DISABLE_CALL_WAITING_NOTIFICATION,
+	HFP_ATCMD_ENABLE_COMMAND_ERROR,
+	HFP_ATCMD_DISABLE_COMMAND_ERROR,				
+	HFP_ATCMD_QUERY_LIST_OF_CURRENT_CALLS,
+	HFP_ATCMD_ATTACH_LAST_VOICE_TAG_RECORDED,
+	HFP_ATCMD_TEST_GET_SUBSCRIBER_NUMBER,			
+	HFP_ATCMD_AVAILABLE_CODEC,	//0x1F
+	HFP_ATCMD_SELECT_CODEC,
+	HFP_ATCMD_CODEC_CONNECTION,
+	HFP_ATCMD_ACTIVATE_INDICATORS,
+	HFP_ATCMD_PUT_INCOMING_CALL_ON_HOLD,
+	HFP_ATCMD_ACCEPT_HELD_INCOMING_CALL,
+	HFP_ATCMD_REJECT_HELD_INCOMING_CALL,
+	HFP_ATCMD_READ_CURRENT_RSP_AND_HOLD_STATUS,
+	HFP_ATCMD_APPLE_SIRI_STATUS,
+	HFP_ATCMD_ENABLE_APPLE_EYES_FREE_MODE,
+	HFP_ATCMD_DISABLE_APPLE_EYES_FREE_MODE,
+	HFP_TABLE_LOOKUP_ATCMD_COUNT,	//atcmd code defined before here,
+									//should add a corresponding entry in at_code_ptr[]
+
+	HFP_ATCMD_3WAY_RELNUDUB = HFP_TABLE_LOOKUP_ATCMD_COUNT,
+	HFP_ATCMD_3WAY_RELNACP,
+	HFP_ATCMD_3WAY_RELNACP_X,
+	HFP_ATCMD_3WAY_HOLDNACP,
+	HFP_ATCMD_3WAY_HOLDNACP_X,
+	HFP_ATCMD_3WAY_ADD,
+	HFP_ATCMD_3WAY_CALLTRANSFER,
+
+	HFP_TOTAL_ATCMD_COUNT,
+	
+	HFP_CMD_FROM_MMI_RING_GET = HFP_TOTAL_ATCMD_COUNT,
+	HFP_CMD_FROM_MMI_EXIT_INCOMING,
+
+	//Internal Command
+	HFP_CMD_INTERNAL_SLC_INIT_ROUTINE,
+	HFP_CMD_INTERNAL_SLC_INIT_ROUTINE_HEADSET,
+	HFP_CMD_INTERNAL_SLC_VGS_CMD,
+	
+#ifdef HFP_AG_Profile
+	HFP_AGCMD_FROM_MMI_BEGIN,
+	HFP_AGCMD_FROM_MMI_CODEC_SELECTION,
+	HFP_AGCMD_FROM_MMI_AUTO_CALL_SETUP,
+	HFP_AGCMD_FROM_MMI_END,
+#endif
+	HFP_ATCMD_FROM_SDK_MASK = 0xC0,
+	HFP_ATCMD_SDK_START = HFP_ATCMD_FROM_SDK_MASK,
+};
+
+#define CALLER_ID_DIGIT_NO	16
+typedef struct
+{
+	U8 length;
+	U8 numbers[CALLER_ID_DIGIT_NO];
+}PhoneNumber;
+typedef struct
+{
+	U8 para;
+}HFPSimpleCmd;
+
+#define CALLER_ID_DIGIT_NO	16
+typedef struct
+{
+	U8 digitLen;
+	U8 digits[CALLER_ID_DIGIT_NO];
+}HFPDialNumCmd;
+
+typedef struct
+{
+	U16 index;
+}HFPDialMemCmd;
+
+/* 
+	HFP_ATCMD_IPHONE_BATTERY_SEND 
+*/
+typedef struct
+{
+	U8 batteryLevel;
+}HFPIPhoneCmd;
+
+/* 
+	HFP_ATCMD_SELECT_CODEC 
+*/
+typedef struct
+{
+	U8 scoCodec;
+}HFPBCSCmd;
+
+/* 
+	HFP_ATCMD_SDK_START 
+*/
+typedef struct
+{
+	U8 atStringLen;
+	U8 atString[1];
+}HFPVendorCmd;
+
+typedef union
+{
+	HFPSimpleCmd	VGSCmd;			//HFP_ATCMD_ADJUST_VOLUME
+	HFPSimpleCmd	VGMCmd;			//HFP_ATCMD_ADJUST_MIC_GAIN
+	HFPDialNumCmd 	DialNumCmd;		//HFP_ATCMD_PLACE_CALL_WITH_PHONE_NUMBER
+	HFPDialMemCmd 	DialMemCmd;		//HFP_ATCMD_MEMORY_DIALING
+	HFPSimpleCmd 	CHLDCmd;		//HFP_ATCMD_3WAY_RELNUDUB
+	HFPSimpleCmd 	DTMFCmd;		//HFP_ATCMD_SEND_DTMF
+	HFPIPhoneCmd 	IPhoneCmd;		//HFP_ATCMD_IPHONE_BATTERY_SEND
+	HFPBCSCmd 		BCSCmd;			//HFP_ATCMD_SELECT_CODEC
+	HFPVendorCmd	vendorCmd;		//HFP_ATCMD_SDK_START
+}HFPCmdType;
+
+//related HFP event  B
+#ifdef HFP_AG_Profile
+enum
+{
+	HFP_AGEVT_TO_MMI_AT_PLUS_VGS = (0x00 + HFP_EVT_OFFSET),
+	HFP_AGEVT_TO_MMI_AT_PLUS_BVRA,
+	HFP_AGEVT_TO_MMI_AT_PLUS_BLDN,
+	HFP_AGEVT_TO_MMI_EST_SCO,
+	HFP_AGEVT_TO_MMI_REL_SCO,
+	HFP_AGEVT_TO_MMI_CODEC_CONNECTION,
+	HFP_AGEVT_TO_MMI_REJECT_CALL_SETUP,
+};
+#else
+enum
+{ 
+	HFP_EVENT_TO_MMI_RING_INDICATION = (0x00 + HFP_EVT_OFFSET),
+	HFP_EVENT_TO_MMI_INDICATOR_UPDATE_INDICATION,//IND_CIEV
+	HFP_EVENT_TO_MMI_INDICATION_VALUES,//IND_CIND
+	HFP_EVENT_TO_MMI_SET_INBAND_RING_TONE,//IND_BSIR
+	HFP_EVENT_TO_MMI_CALLING_LINE_NUMBER,//IND_CLIP			//0x05
+	HFP_EVENT_TO_MMI_CALL_WAITING_NUMBER,//IND_CCWA
+	HFP_EVENT_TO_MMI_VGS_UPDATE_INDICATION, //IND_VGS
+	HFP_EVENT_TO_MMI_VGM_UPDATE_INDICATION, //IND_VGM
+	HFP_EVENT_TO_MMI_INDICATOR_ORDER, //IND_CIEVODR
+	HFP_EVENT_TO_MMI_ERROR_RESULT_CODE_RESPONSE,				//0x0A
+	HFP_EVENT_TO_MMI_BVRA_INDICATION,
+	HFP_EVENT_TO_MMI_ADDITIONAL_ERROR_RESULT_CODE,			//0x0D
+	HFP_EVENT_TO_MMI_APPLE_SIRI_STATUS_INDICATION,   //0x0E  IND_APLSIRI
+	HFP_EVENT_TO_MMI_BCS_UPDATE_INDICATION,
+	HFP_EVENT_TO_MMI_BVRA_TIMEOUT,
+};
+#endif
+
+enum
+{
+	HFP_CIND_SERVICE,
+	HFP_CIND_CALL,
+	HFP_CIND_CALLSETUP,
+	HFP_CIND_CALLHELD,
+	HFP_CIND_SIGNAL,
+	HFP_CIND_ROAM,
+	HFP_CIND_BATTCHG,
+};
+
+enum
+{
+	HFP_BIND_ENCHANCED_SAFTY = 1,
+	HFP_BIND_BATTERY_LEVEL,
+};
+
+enum
+{
+	//HFP Indicator's Data Range for AT+CIEV: 0xF0 ~ 0xFF-----------------
+	HFP_CIEVIND_SERVICE = 0x01 + HFP_CIEV_IND_OFFSET,
+	HFP_CIEVIND_CALL,
+	HFP_CIEVIND_CALLSETUP,
+	HFP_CIEVIND_CALLHELD,
+	HFP_CIEVIND_SIGNAL,
+	HFP_CIEVIND_ROAM,
+	HFP_CIEVIND_BATTCHG,
+	HFP_CIEVIND_NO = HFP_CIEVIND_BATTCHG - HFP_CIEV_IND_OFFSET,
+};
+
+enum
+{
+	HFP_APLSIRI_NOT_AVAILABLE = 0,
+	HFP_APLSIRI_AVAILABLE_ENABLE,
+	HFP_APLSIRI_AVAILABLE_DISABLE,
+};
+
+//related HFP event  E
+
+#define HFP_AT_COMMAND_PARA0_OFFSET		5
+#define HFP_AT_COMMAND_PARA_LENGTH		4
+
+//Error Code E
+#define HFP_COMMAND_EVENT_CODE(ptr)		(*(ptr + (*ptr)))	//pointer to the code index
+
+typedef struct
+{
+	U8 index;
+	U8 val;
+}HfpCievEvent;
+
+typedef struct
+{
+	U8 indicatorNo;
+	U8 indicatorVal[HFP_CIEVIND_NO]; //there might be other indicators right after, however we dont know the exact no so we cannot define overhere
+}HfpCindEvent;
+
+typedef struct
+{
+	U8 agSuportIR;
+}HfpBsirEvent;
+
+typedef struct
+{
+	U8 length;
+	U8 callNumId[16]; //CALLER_ID_DIGIT_NO
+}HfpClipEvent;
+
+typedef struct
+{
+	U8 level;
+}HfpVgsEvent;
+
+typedef struct
+{
+	U8 level;
+}HfpVgmEvent;
+
+//msg for CIEV & handsfree indicators, e.g., call, callsetup, signal, battchg, etc.	
+typedef struct
+{
+	U8 ind[HFP_CIEVIND_NO];	//place holder, actual size is HFP_CIEVIND_NO
+}HfpCievOrderEvent;
+
+typedef struct
+{
+	U8 errorCode;
+}HfpCMEErrorEvent;
+
+typedef struct
+{
+	U8 voiceRecog;
+}HfpBvraEvent;
+
+typedef struct
+{
+	U8 siriStatus;
+}HfpAppleSiriEvent;
+
+typedef struct
+{
+	U8 codecType;
+}HfpBcsEvent;
+
+typedef struct
+{
+	U8 param;
+}HfpCmdCplEvent;
+
+typedef struct
+{
+	U8 status;
+	U8 profile;
+}HfpSlcConnCpt;
+
+typedef struct
+{
+	U8 para1;
+	U8 para2;
+	U8 para3;
+}HfpCOPSEvent;
+
+typedef struct
+{
+	U8 length;
+	U8 callNumId[16]; //CALLER_ID_DIGIT_NO
+	U8 type;
+	U8 service;
+}HfpCNUMEvent;
+
+typedef struct
+{
+	U8 idx;
+	U8 dir;
+	U8 status;
+	U8 mode;
+	U8 mpty;
+}HfpCLCCEvent;
+
+#ifdef HFP_AG_Profile
+typedef struct
+{
+	U8 status;
+}HfpAGEvent;
+#endif
+
+typedef union
+{
+	HfpCievEvent		cievEvt;
+	HfpCindEvent		cindEvt;
+	HfpBsirEvent		bsirEvt;
+	HfpClipEvent		clipEvt;
+	HfpVgsEvent			vgsEvt;
+	HfpVgmEvent			vgmEvt;
+	HfpCievOrderEvent 	cievOrderEvt;
+	HfpCMEErrorEvent	cmeErrorEvt;
+	HfpBvraEvent		bvraEvt;
+	HfpAppleSiriEvent	siriEvt;
+	HfpBcsEvent			bcsEvt;
+	HfpCmdCplEvent		cmdCplEvt;
+	HfpSlcConnCpt		slcConnCpt;
+	HfpCOPSEvent		copsEvt;
+	HfpCNUMEvent		cnumEvt;
+	HfpCLCCEvent		clccEvt;
+#ifdef HFP_AG_Profile
+	HfpAGEvent			agEvt;
+#endif
+}HfpToMMIEvtParamType;
+	
+
+#define HFP_PUSH_CMD_NO		10
+typedef struct
+{
+	U8 pushIndex;
+	U8 popIndex;
+	U8 cmdCode[HFP_PUSH_CMD_NO];
+}HFP_PUSH_CMD_CTL_TYPE;
+
+typedef struct
+{
+	MMI_PROFILE_INFO mmiProfileInfo;
+	U8 profileX;
+	U8 currentCmd; //Decide Which Command
+	U8 subState;  //main State in the Command
+	U8 miscFlags;
+	#ifdef HFP_AG_Profile
+	#else
+	U8 atCmdParaFromMMI;
+	U16 cindBitMask;
+	#endif
+	OST XDATA_PTR ost_command_ptr;
+	struct
+	{	
+		U16 at_string_byte_num;
+		U8 XDATA_PTR at_string_recv_ptr;
+	} at_string_control;
+	OSMQ OSMQ_HFP_Command;
+	HFP_PUSH_CMD_CTL_TYPE XDATA_PTR	pushedCmdCtlPtr;
+} HfpLinkInfo;
+
+PUBLIC HfpLinkInfo XDATA_PTR HFP_GetLinkInfo(U8 linkIndex);
+
+PUBLIC void HFP_Init (void);
+PUBLIC U8 HFP_GetState(U8 linkIndex);
+PUBLIC U8 HFP_GetProfileId(U8 linkIndex);
+#endif //HFP_Profile
+
+
+#endif

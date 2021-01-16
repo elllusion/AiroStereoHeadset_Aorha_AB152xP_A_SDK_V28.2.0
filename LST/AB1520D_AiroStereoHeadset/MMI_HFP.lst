@@ -1,0 +1,1181 @@
+C251 COMPILER V5.57.0,  MMI_HFP                                                            08/11/20  06:33:34  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE MMI_HFP
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\MMI_HFP.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\MMI\MMI_HFP.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) WARNIN
+                    -GLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\source\
+                    -HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\source\ROM
+                    -\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_LE;.\s
+                    -ource\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspData;.\s
+                    -ource\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLASH_INI
+                    -T=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoHeadset\MMI_H
+                    -FP.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\MMI_HFP.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #define _MMI_HFP_C_
+    4          
+    5          #include "rc.h"
+    6          #include "bt_config_profile.h"
+    7          
+    8          #ifdef HFP_Profile
+    9          
+   10          #include "MMI.h"
+   11          #include "MMI_State.h"
+   12          #include "MMI_Driver.h"
+   13          #include "MMI_Protocol.h"
+   14          #include "MMI_HFP.h"
+   15          #include "MMI_HCI.h"
+   16          #include "MMI_ChgBat.h"
+   17          #include "MMI_Reconnect.h"
+   18          #include "MMI_AirModule.h"
+   19          #ifdef SUPPORT_VOICE_PROMPT
+   20            #include "..\Driver\VoicePrompt.h"
+   21          #endif
+   22          #include "MMI_A2DP.h"
+   23          #include "drivers_flash.h"
+   24          
+   25          #ifdef AIRAPP_Profile
+   26          #include "..\AirApp\AirApp_Interface.h"
+   27          #endif
+   28          
+   29          #ifdef BLE_AIRApp
+   30          #include "..\APP\APP_Interface.h"
+   31          #include "..\ATT\ATT_interface.h"
+   32          #endif
+   33          
+   34          #include "..\A2DP\a2dp_interface.h"
+   35          
+   36          PRIVATE U8 MMI_HFP_CountCallsInCallStatus(U8 linkInd, U8 callStatus);
+   37          
+   38          PRIVATE void MMI_HFP_CreateAudioConnection(U8 linkIndex)
+   39          {
+   40   1        if (!SCO_EXISTS(linkIndex))
+   41   1        {
+   42   2          if(MMI_HFP_IsHFPConnected(linkIndex) && MMI_CODEC_NEGOTIATION_FEAT && (MMI_HFP_GET_AGOPTION(linkIndex) 
+             -& MMI_AG_OPTION_CODEC_NEGOTIATION))
+   43   2          {
+   44   3            MMI_HFP_SendATCmdByLink(linkIndex, HFP_ATCMD_CODEC_CONNECTION);
+   45   3          }
+   46   2          else
+   47   2          {
+   48   3            //New feature - MMI_FORCE_USE_SCO_IN_AUDIO_TRANSFER_FEAT
+   49   3            if (MMI_FORCE_USE_ESCO_IN_AUDIO_TRANSFER_FEAT)
+   50   3            {
+   51   4              MMI_HCI_SendSetupESCO(linkIndex, gMMI_nvram.scoPktPara.scoPktType);
+C251 COMPILER V5.57.0,  MMI_HFP                                                            08/11/20  06:33:34  PAGE 2   
+
+   52   4            }
+   53   3            else
+   54   3            {
+   55   4              //Retrieve bits represents HV1, HV2 and HV3 of LM Version 2.0 and transform
+   56   4              //to LM Version 1.1 by shift 5 bits to the left.
+   57   4              //#define HCIPKTYPE_VER20_HV1 0x0001 //may be used
+   58   4              //#define HCIPKTYPE_VER20_HV2 0x0002 //may be used
+   59   4              //#define HCIPKTYPE_VER20_HV3 0x0004 //may be used
+   60   4              //#define HCIPKTYPE_VER20_EV3 0x0008 //may be used
+   61   4              //#define HCIPKTYPE_VER20_EV4 0x0010 //may be used
+   62   4              //#define HCIPKTYPE_VER20_EV5 0x0020 //may be used
+   63   4              //#define HCIPKTYPE_VER20_2EV3 0x0040 //may not be used
+   64   4              //#define HCIPKTYPE_VER20_3EV3 0x0080 //may not be used
+   65   4              //#define HCIPKTYPE_VER20_2EV5 0x0100 //may not be used
+   66   4              //#define HCIPKTYPE_VER20_3EV5 0x0200 //may not be used
+   67   4      
+   68   4              MMI_HCI_SendSetupESCO(linkIndex, (gMMI_nvram.scoPktPara.scoPktType & 0x0007) | 0x03C0);
+   69   4            }
+   70   3          }
+   71   2        }
+   72   1      }
+   73          
+   74          PRIVATE U8 MMI_HFP_GetIPhoneBatteryLevels(void)
+   75          {
+   76   1        U8 i;
+   77   1      
+   78   1        for( i = 0; i < MMI_IPHONE_BATTERY_LEVELS; i++)
+   79   1        {
+   80   2          if(DRV_ADC0.fVBat() < pMpParameter->MP_BatteryPara.batteryIPhoneCheckPoints[i])
+   81   2            break;
+   82   2        }
+   83   1      
+   84   1        return i;
+   85   1      }
+   86          
+   87          PUBLIC BOOL MMI_HFP_SendATCmdByLink(U8 linkIndex, U8 opcode)
+   88          {
+   89   1        MMIMsgType XDATA_PTR msgPtr = MMI_GetCommandMessageMem(opcode);
+   90   1      
+   91   1        if (msgPtr != (MMIMsgType XDATA_PTR)NULL)
+   92   1        {
+   93   2          if(MMI_HFP_IsHSPConnected(linkIndex))
+   94   2          {
+   95   3            switch(opcode)
+   96   3            {
+   97   4              case HFP_ATCMD_ADJUST_MIC_GAIN:
+   98   4                gMMI_HFP_ctl.HfpCtl[linkIndex].sendingVGSVGM = TRUE;
+   99   4                msgPtr->msgBodyPtr.hfpCmd.VGMCmd.para = CURRENT_SCO_VGM(linkIndex);
+  100   4                break;
+  101   4              case HFP_ATCMD_ADJUST_VOLUME:
+  102   4                gMMI_HFP_ctl.HfpCtl[linkIndex].sendingVGSVGM = TRUE;
+  103   4                msgPtr->msgBodyPtr.hfpCmd.VGSCmd.para = GET_SCO_VGS_BY_LEVEL(CURRENT_SCO_SOUND_LEVEL(linkIndex));
+  104   4                break;
+  105   4              case HFP_CMD_FROM_MMI_RING_GET:
+  106   4              case HFP_CMD_FROM_MMI_EXIT_INCOMING:
+  107   4                break;
+  108   4              default:
+  109   4                msgPtr->msgOpcode = opcode = HFP_ATCMD_CKPD_200;
+  110   4                break;
+  111   4            }
+  112   3          }
+  113   2          else
+  114   2          {
+  115   3            switch(opcode)
+  116   3            {
+  117   4              case HFP_ATCMD_INIT_VOICE_DIAL:
+C251 COMPILER V5.57.0,  MMI_HFP                                                            08/11/20  06:33:34  PAGE 3   
+
+  118   4                gMMI_ctl.mmiInfo[linkIndex].subState = MMI_VDIAL_STARTING;
+  119   4                MMI_PushMediaEvent(MEDIA_EVT_VOICE_DIAL_ENABLE);
+  120   4                break;
+  121   4                
+  122   4              case HFP_ATCMD_ADJUST_VOLUME:
+  123   4                gMMI_HFP_ctl.HfpCtl[linkIndex].sendingVGSVGM = TRUE;
+  124   4                msgPtr->msgBodyPtr.hfpCmd.VGSCmd.para = GET_SCO_VGS_BY_LEVEL(CURRENT_SCO_SOUND_LEVEL(linkIndex));
+  125   4                break;
+  126   4              case HFP_ATCMD_ADJUST_MIC_GAIN:
+  127   4                gMMI_HFP_ctl.HfpCtl[linkIndex].sendingVGSVGM = TRUE;
+  128   4                msgPtr->msgBodyPtr.hfpCmd.VGMCmd.para = CURRENT_SCO_VGM(linkIndex);
+  129   4                break;
+  130   4                
+  131   4              #ifdef _EXTENSION_ENTITIES_   
+  132   4              case  HFP_ATCMD_SEND_DTMF:
+  133   4                msgPtr->msgBodyPtr.hfpCmd.DTMFCmd.para = gMMI_HFP_ctl.HfpCtl[linkIndex].DTMFPara;//0 - 9 and * and #
+  134   4                break;
+  135   4              #endif
+  136   4              #ifdef _MEMORY_DIALING_ 
+  137   4              case HFP_ATCMD_MEMORY_DIALING:
+  138   4                msgPtr->msgBodyPtr.hfpCmd.DialMemCmd.index = gMMI_HFP_ctl.HfpCtl[linkIndex].memoryDialIndex;
+  139   4                break;
+  140   4              #endif
+  141   4              #ifdef _PLACE_CALL_WITH_PHONE_NUMBER_
+  142   4              case HFP_ATCMD_PLACE_CALL_WITH_PHONE_NUMBER:
+  143   4                OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&msgPtr->msgBodyPtr.hfpCmd.DialNumCmd, 
+  144   4                             (U8 XDATA_PTR)&gMMI_HFP_ctl.HfpCtl[linkIndex].incomingCall, 
+  145   4                             sizeof(PhoneNumber));
+  146   4                break;
+  147   4              #endif
+  148   4      
+  149   4              #ifdef _THREE_WAY_HANDLING_
+  150   4              case HFP_ATCMD_3WAY_RELNUDUB:
+  151   4                msgPtr->msgOpcode = HFP_ATCMD_HOLD_AND_MULTIPARTY_HANDLING;
+  152   4                msgPtr->msgBodyPtr.hfpCmd.CHLDCmd.para = 0;
+  153   4                if( gMMI_HFP_ctl.HfpCtl[linkIndex].callCtrlTbl[0].callStatus > MMI_CALL_EMPTY && gMMI_HFP_ctl.HfpCtl
+             -[linkIndex].callCtrlTbl[1].callStatus > MMI_CALL_EMPTY)
+  154   4                  gMMI_HFP_ctl.HfpCtl[linkIndex].is3WayAdd = MMI_CALL_NO_3WAY;
+  155   4                break;
+  156   4      
+  157   4              case HFP_ATCMD_3WAY_RELNACP:
+  158   4                msgPtr->msgOpcode = HFP_ATCMD_HOLD_AND_MULTIPARTY_HANDLING;
+  159   4                msgPtr->msgBodyPtr.hfpCmd.CHLDCmd.para = 1;
+  160   4                if( gMMI_HFP_ctl.HfpCtl[linkIndex].callCtrlTbl[0].callStatus != MMI_CALL_HELD || gMMI_HFP_ctl.HfpCtl
+             -[linkIndex].callCtrlTbl[1].callStatus != MMI_CALL_HELD)
+  161   4                  gMMI_HFP_ctl.HfpCtl[linkIndex].is3WayAdd = MMI_CALL_NO_3WAY;
+  162   4                break;
+  163   4      
+  164   4              case HFP_ATCMD_3WAY_RELNACP_X:
+  165   4                msgPtr->msgOpcode = HFP_ATCMD_HOLD_AND_MULTIPARTY_HANDLING;
+  166   4                msgPtr->msgBodyPtr.hfpCmd.CHLDCmd.para = 12;
+  167   4                if( gMMI_HFP_ctl.HfpCtl[linkIndex].callCtrlTbl[0].callStatus != MMI_CALL_HELD || gMMI_HFP_ctl.HfpCtl
+             -[linkIndex].callCtrlTbl[1].callStatus != MMI_CALL_HELD)
+  168   4                  gMMI_HFP_ctl.HfpCtl[linkIndex].is3WayAdd = MMI_CALL_NO_3WAY;
+  169   4                break;
+  170   4                
+  171   4              case HFP_ATCMD_3WAY_HOLDNACP:
+  172   4                msgPtr->msgOpcode = HFP_ATCMD_HOLD_AND_MULTIPARTY_HANDLING;
+  173   4                msgPtr->msgBodyPtr.hfpCmd.CHLDCmd.para = 2;
+  174   4                gMMI_HFP_ctl.HfpCtl[linkIndex].is3WayAdd = MMI_CALL_IN_3WAY;
+  175   4                break;
+  176   4              
+  177   4              case HFP_ATCMD_3WAY_HOLDNACP_X:
+  178   4                msgPtr->msgOpcode = HFP_ATCMD_HOLD_AND_MULTIPARTY_HANDLING;
+  179   4                msgPtr->msgBodyPtr.hfpCmd.CHLDCmd.para = 22;
+  180   4                gMMI_HFP_ctl.HfpCtl[linkIndex].is3WayAdd = MMI_CALL_IN_3WAY;
+C251 COMPILER V5.57.0,  MMI_HFP                                                            08/11/20  06:33:34  PAGE 4   
+
+  181   4                break;
+  182   4      
+  183   4              case HFP_ATCMD_3WAY_ADD:  
+  184   4                msgPtr->msgOpcode = HFP_ATCMD_HOLD_AND_MULTIPARTY_HANDLING;
+  185   4                msgPtr->msgBodyPtr.hfpCmd.CHLDCmd.para = 3;
+  186   4                gMMI_HFP_ctl.HfpCtl[linkIndex].is3WayAdd = MMI_CALL_IN_3WAY;
+  187   4                break;
+  188   4      
+  189   4              case HFP_ATCMD_3WAY_CALLTRANSFER:
+  190   4                msgPtr->msgOpcode = HFP_ATCMD_HOLD_AND_MULTIPARTY_HANDLING;
+  191   4                msgPtr->msgBodyPtr.hfpCmd.CHLDCmd.para = 4;
+  192   4                gMMI_HFP_ctl.HfpCtl[linkIndex].is3WayAdd = MMI_CALL_NO_3WAY;
+  193   4                break;
+  194   4              #endif
+  195   4      
+  196   4              case HFP_ATCMD_XEVENT_BATTERY_SEND:
+  197   4              case HFP_ATCMD_IPHONE_BATTERY_SEND:
+  198   4                msgPtr->msgBodyPtr.hfpCmd.IPhoneCmd.batteryLevel = MMI_HFP_GetIPhoneBatteryLevels();
+  199   4                break;
+  200   4              
+  201   4              case HFP_ATCMD_BIEV_BATTERY_SEND:
+  202   4                msgPtr->msgBodyPtr.hfpCmd.IPhoneCmd.batteryLevel = MMI_BAT_GetLevelInPercent();
+  203   4                break;
+  204   4      
+  205   4              case HFP_ATCMD_CANCEL_VOICE_DIAL:
+  206   4                gMMI_ctl.mmiInfo[linkIndex].subState = MMI_VDIAL_STOPPING;
+  207   4                MMI_PushMediaEvent(MEDIA_EVT_VOICE_DIAL_ENABLE);
+  208   4                break;
+  209   4              case HFP_ATCMD_LAST_NUMBER_REDIAL:
+  210   4                gMMI_ctl.mmiInfo[linkIndex].subState = MMI_RDIAL_STARTING;
+  211   4                MMI_PushMediaEvent(MEDIA_EVT_REDIAL_ENABLE);
+  212   4                break;
+  213   4                
+  214   4              case HFP_ATCMD_SELECT_CODEC:
+  215   4                msgPtr->msgBodyPtr.hfpCmd.BCSCmd.scoCodec = gMMI_ctl.mmiInfo[linkIndex].linkPara.scoCodecType;
+  216   4                break;
+  217   4            }
+  218   3          }
+  219   2          HFP_CommandHandle(linkIndex, opcode, msgPtr);
+  220   2          return TRUE;
+  221   2        }
+  222   1        return FALSE;
+  223   1      }
+  224          
+  225          PUBLIC BOOL MMI_SendATCmdUnderConnection(U8 linkIndex, U8 opcode)
+  226          {
+  227   1        if(MMI_HFP_IsConnected(linkIndex))
+  228   1        {
+  229   2          return MMI_HFP_SendATCmdByLink(linkIndex, opcode);
+  230   2        }
+  231   1        return FALSE;
+  232   1      }
+  233          
+  234          #ifndef HFP_AG_Profile
+  235          PUBLIC U8 MMI_HFP_GetNextHFPLink(U8 linkIndex)
+  236          {
+  237   1      #ifdef SUPPORT_MULTI_POINT  
+  238   1        U8 i, j;
+  239   1      
+  240   1        for(i = linkIndex+1; i < linkIndex+MAX_MULTI_POINT_NO; i++)
+  241   1        {
+  242   2          j = i % MAX_MULTI_POINT_NO;
+  243   2          if(MMI_IsActiveLink(j) && MMI_HFP_IsConnected(j))
+  244   2            return j;
+  245   2        }
+  246   1      #else
+C251 COMPILER V5.57.0,  MMI_HFP                                                            08/11/20  06:33:34  PAGE 5   
+
+                 UNUSED(linkIndex);
+               #endif  
+  249   1        return MMI_EOF;
+  250   1      }
+  251          #endif
+  252          
+  253          PRIVATE BOOL MMI_HFP_IsSuportAGOptions(U8 linkIndex, U16 agOption)
+  254          {
+  255   1        if(gMMI_HFP_ctl.HfpCtl[linkIndex].agOption & agOption)
+  256   1          return TRUE;
+  257   1      
+  258   1        return FALSE;
+  259   1      }
+  260          
+  261          PUBLIC void MMI_HFP_StopIncomingVPRing(U8 linkIndex)
+  262          {
+  263   1        #ifdef SUPPORT_VOICE_COMMAND
+  264   1        MMI_DRV_SendStopVoiceCommandCmd();
+  265   1        #endif
+  266   1      
+  267   1        MMI_DRV_SpecificEventRingtoneStopCmd(MEDIA_EVT_RINGTONE);
+  268   1        MMI_DRV_SpecificEventRingtoneStopCmd(MEDIA_EVT_ENTER_INCOMING);
+  269   1      
+  270   1        #ifdef SUPPORT_VOICE_PROMPT
+  271   1        MMI_DRV_SpecificEventVPStopCmd(MEDIA_EVT_RINGTONE);
+  272   1        MMI_DRV_SpecificEventVPStopCmd(MEDIA_EVT_ENTER_INCOMING);
+  273   1        #endif
+  274   1        gMMI_HFP_ctl.HfpCtl[linkIndex].isCallerNameGet = FALSE;
+  275   1        #ifdef BLE_AIRApp
+  276   1        SendPhoneNumberToApp(linkIndex, gMMI_HFP_ctl.HfpCtl[linkIndex].incomingCall.length, 0);
+  277   1        #endif
+  278   1        
+  279   1        MMI_DRV_ScoModeControl(linkIndex, FALSE, FALSE);
+  280   1      }
+  281          
+  282          PRIVATE void MMI_HFP_AudioTransferKeyHandler(U8 linkIndex, BOOL isViaKey)
+  283          {
+  284   1        if(gMMI_HFP_ctl.HfpCtl[linkIndex].audioTransfer)
+  285   1          return;
+  286   1      
+  287   1        if (MMI_IsActiveLink(linkIndex))
+  288   1        {
+  289   2          if (!SCO_EXISTS(linkIndex))
+  290   2          {
+  291   3            AUDIO_TRANSFER_ESTABLISH_SCO:
+  292   3            if(isViaKey)
+  293   3              MMI_HFP_CreateAudioConnection(linkIndex);
+  294   3            else
+  295   3            {
+  296   4              //New feature - MMI_FORCE_USE_SCO_IN_AUDIO_TRANSFER_FEAT
+  297   4              if (MMI_FORCE_USE_ESCO_IN_AUDIO_TRANSFER_FEAT)
+  298   4              {
+  299   5                MMI_HCI_SendSetupESCO(linkIndex, gMMI_nvram.scoPktPara.scoPktType);
+  300   5              }
+  301   4              else
+  302   4              {
+  303   5                //Retrieve bits represents HV1, HV2 and HV3 of LM Version 2.0 and transform
+  304   5                //to LM Version 1.1 by shift 5 bits to the left.
+  305   5                //#define HCIPKTYPE_VER20_HV1 0x0001 //may be used
+  306   5                //#define HCIPKTYPE_VER20_HV2 0x0002 //may be used
+  307   5                //#define HCIPKTYPE_VER20_HV3 0x0004 //may be used
+  308   5                //#define HCIPKTYPE_VER20_EV3 0x0008 //may be used
+  309   5                //#define HCIPKTYPE_VER20_EV4 0x0010 //may be used
+  310   5                //#define HCIPKTYPE_VER20_EV5 0x0020 //may be used
+  311   5                //#define HCIPKTYPE_VER20_2EV3 0x0040 //may not be used
+  312   5                //#define HCIPKTYPE_VER20_3EV3 0x0080 //may not be used
+C251 COMPILER V5.57.0,  MMI_HFP                                                            08/11/20  06:33:34  PAGE 6   
+
+  313   5                //#define HCIPKTYPE_VER20_2EV5 0x0100 //may not be used
+  314   5                //#define HCIPKTYPE_VER20_3EV5 0x0200 //may not be used
+  315   5      
+  316   5                MMI_HCI_SendSetupESCO(linkIndex, (gMMI_nvram.scoPktPara.scoPktType & 0x0007) | 0x03C0);
+  317   5              }   
+  318   4            }
+  319   3          }
+  320   2          else
+  321   2          {
+  322   3            U8 anotherLink;
+  323   3            MMI_HCI_SendRelSco(linkIndex);
+  324   3            SYS_SetTimer(&gMMI_HFP_ctl.HfpCtl[linkIndex].audioTransferDetachTimer, (U32)(gMMI_nvram.timerCtl.Audio
+             -TransferDetachTime) * HALF_SEC);
+  325   3            anotherLink = MMI_GetNextActiveLink(linkIndex);
+  326   3            if (anotherLink < MAX_MULTI_POINT_NO && (gMMI_HFP_ctl.HfpCtl[anotherLink].callCtrlTbl[0].callStatus > 
+             -MMI_CALL_EMPTY || gMMI_HFP_ctl.HfpCtl[anotherLink].callCtrlTbl[1].callStatus > MMI_CALL_EMPTY))
+  327   3            {
+  328   4              if(!SCO_EXISTS(anotherLink))
+  329   4              {
+  330   5                linkIndex = anotherLink;
+  331   5                goto AUDIO_TRANSFER_ESTABLISH_SCO;
+  332   5              }
+  333   4            }
+  334   3          }
+  335   2          gMMI_HFP_ctl.HfpCtl[linkIndex].audioTransfer = TRUE;
+  336   2        }
+  337   1        else if (gMMI_ctl.miscMask2 & MMI_CREATE_CONN_AFTER_AUDIO_TRANSFER)
+  338   1        {
+  339   2          //Active Conn, if it exists.
+  340   2          MMI_Reconnect(RECONNECT_LAST_ONCE_AUDIOTRANSFER);
+  341   2          gMMI_ctl.miscMask2 &= ( ~MMI_CREATE_CONN_AFTER_AUDIO_TRANSFER);
+  342   2        }
+  343   1      }
+  344          
+  345          PRIVATE void MMI_HFP_KeyAudioTransfer(U8 linkIndex)
+  346          {
+  347   1        MMI_HFP_AudioTransferKeyHandler(linkIndex, TRUE);
+  348   1      }
+  349          
+  350          PRIVATE void MMI_HFP_KeyDialMemory(U8 linkIndex)
+  351          {
+  352   1      #ifdef _MEMORY_DIALING_
+  353   1        MMI_SendATCmdUnderConnection(linkIndex, HFP_ATCMD_MEMORY_DIALING);
+  354   1      #endif
+  355   1      }
+  356          
+  357          PRIVATE void MMI_HFP_KeyDialNumber(U8 linkIndex)
+  358          {
+  359   1        UNUSED(linkIndex);
+  360   1      #ifdef _PLACE_CALL_WITH_PHONE_NUMBER_
+  361   1        if(gMMI_HFP_ctl.incomingLinkInd == MMI_EOF)
+  362   1          return;
+  363   1        MMI_SendATCmdUnderConnection(gMMI_HFP_ctl.incomingLinkInd, HFP_ATCMD_PLACE_CALL_WITH_PHONE_NUMBER);
+  364   1      #endif
+  365   1      }
+  366          
+  367          PRIVATE void MMI_HFP_KeyCancelOutGoingCall(U8 linkIndex)
+  368          {
+  369   1        MMI_SendATCmdUnderConnection(linkIndex, HFP_ATCMD_CANCEL_OUTGOING_CALL);
+  370   1        gMMI_ctl.mmiInfo[linkIndex].isCallRejectedByKey = TRUE;
+  371   1        gMMI_ctl.mmiInfo[linkIndex].stateEntryExit |= MMI_EXIT_OUTGOING_STATE;
+  372   1      }
+  373          
+  374          PRIVATE void MMI_HFP_KeyRejectCall(U8 linkIndex)
+  375          {
+  376   1        MMI_SendATCmdUnderConnection(linkIndex, HFP_ATCMD_REJECT_CALL);
+C251 COMPILER V5.57.0,  MMI_HFP                                                            08/11/20  06:33:34  PAGE 7   
+
+  377   1        if(MMI_PLAY_DEFAULT_RING_INCOMING_FEAT)
+  378   1          MMI_DRV_RejectCallMuteSCOCmd(TRUE);
+  379   1      
+  380   1        if (MMI_HFP_INCOMMING == MMI_GetTopStateByLink(linkIndex))
+  381   1        {
+  382   2          MMI_HFP_StopIncomingVPRing(linkIndex);
+  383   2        }
+  384   1        gMMI_ctl.mmiInfo[linkIndex].isCallRejectedByKey = TRUE;
+  385   1        gMMI_ctl.mmiInfo[linkIndex].stateEntryExit |= MMI_EXIT_IMGCALL_STATE;
+  386   1      }
+  387          
+  388          PRIVATE void MMI_HFP_KeyRejectCallSecondPhone(U8 linkIndex)
+  389          {
+  390   1        U8 nextLink;
+  391   1      
+  392   1        if(MMI_SUPPORT_MULTI_HFP_FEAT)
+  393   1        {
+  394   2          nextLink = MMI_GetNextActiveLink(linkIndex);
+  395   2          if(nextLink != MMI_EOF && MMI_CheckLinkInIncomingState(nextLink))
+  396   2          {
+  397   3            MMI_HFP_SendATCmdByLink(nextLink, HFP_ATCMD_REJECT_CALL);
+  398   3          }
+  399   2        }
+  400   1      }
+  401          
+  402          PRIVATE void MMI_HFP_KeyOnHoldCall(U8 linkIndex)
+  403          {
+  404   1        #ifdef _HFP_CALLHELD_PREDICT_ 
+  405   1        if (MMI_HFP_CountCallsInCallStatus(linkIndex, MMI_CALL_HELD) == 0 
+  406   1          && MMI_HFP_CountCallsInCallStatus(linkIndex, MMI_CALL_ACTIVE) == 1)
+  407   1        //will receive callheld = 2 (call on hold, no active call) 
+  408   1        {
+  409   2          MMI_HFP_CallheldIndicationHandler_ForNoActiveCalls(linkIndex);
+  410   2        }
+  411   1        else if (MMI_HFP_CountCallsInCallStatus(linkIndex, MMI_CALL_HELD) == 1 
+  412   1          && MMI_HFP_CountCallsInCallStatus(linkIndex, MMI_CALL_ACTIVE) == 0)
+  413   1        //will receive callheld = 0 (no calls held)
+  414   1        {
+  415   2          MMI_HFP_CallheldIndicationHandler_ForNoCallsHeld(linkIndex);
+  416   2        }
+  417   1        #endif
+  418   1        MMI_SendATCmdUnderConnection(linkIndex, HFP_ATCMD_3WAY_HOLDNACP);
+  419   1      }
+  420          
+  421          PRIVATE void MMI_HFP_KeyAcceptCall(U8 linkIndex)
+  422          {
+  423   1        MMI_SendATCmdUnderConnection(linkIndex, HFP_ATCMD_ACCEPT_CALL);
+  424   1        MMI_HFP_StopIncomingVPRing(linkIndex);
+  425   1      }
+  426          
+  427          PRIVATE void MMI_HFP_KeyEndCall(U8 linkIndex)
+  428          {
+  429   1        if(gMMI_HFP_ctl.HfpCtl[linkIndex].indicator.callheld == CALLHELD_ON_HOLD_NOACTIVE)
+  430   1          MMI_SendATCmdUnderConnection(linkIndex, HFP_ATCMD_3WAY_RELNUDUB);
+  431   1        else
+  432   1          MMI_SendATCmdUnderConnection(linkIndex, HFP_ATCMD_END_CALL);
+  433   1      }
+  434          
+  435          PRIVATE void MMI_HFP_Key3WayRelNUDB(U8 linkIndex)
+  436          {
+  437   1      #ifdef _THREE_WAY_HANDLING_
+  438   1        MMI_SendATCmdUnderConnection(linkIndex, HFP_ATCMD_3WAY_RELNUDUB);
+  439   1      #endif
+  440   1      }
+  441          
+  442          PRIVATE void MMI_HFP_Key3WayRelNAcp(U8 linkIndex)
+C251 COMPILER V5.57.0,  MMI_HFP                                                            08/11/20  06:33:34  PAGE 8   
+
+  443          {
+  444   1      #ifdef _THREE_WAY_HANDLING_
+  445   1        MMI_SendATCmdUnderConnection(linkIndex, MMI_HFP_IsSuportAGOptions(linkIndex, MMI_AG_OPTION_THREEWAY_CALL
+             -ING)? HFP_ATCMD_3WAY_RELNACP : HFP_ATCMD_END_CALL);
+  446   1      #endif
+  447   1      }
+  448          
+  449          PRIVATE void MMI_HFP_Key3WayRelNAcp_X(U8 linkIndex)
+  450          {
+  451   1      #ifdef _THREE_WAY_HANDLING_
+  452   1        MMI_SendATCmdUnderConnection(linkIndex, HFP_ATCMD_3WAY_RELNACP_X);
+  453   1      #endif
+  454   1      }
+  455          
+  456          PRIVATE void MMI_HFP_Key3WayHoldNAcp(U8 linkIndex)
+  457          {
+  458   1      #ifdef _THREE_WAY_HANDLING_
+  459   1        MMI_SendATCmdUnderConnection(linkIndex, HFP_ATCMD_3WAY_HOLDNACP);
+  460   1      #endif
+  461   1      }
+  462          
+  463          PRIVATE void MMI_HFP_Key3WayHoldNAcp_X(U8 linkIndex)
+  464          {
+  465   1      #ifdef _THREE_WAY_HANDLING_
+  466   1        MMI_SendATCmdUnderConnection(linkIndex, HFP_ATCMD_3WAY_HOLDNACP_X);
+  467   1      #endif
+  468   1      }
+  469          
+  470          PRIVATE void MMI_HFP_Key3WayAdd(U8 linkIndex)
+  471          {
+  472   1      #ifdef _THREE_WAY_HANDLING_
+  473   1        MMI_SendATCmdUnderConnection(linkIndex, HFP_ATCMD_3WAY_ADD);
+  474   1      #endif
+  475   1      }
+  476          
+  477          PRIVATE void MMI_HFP_Key3WayCallTransfer(U8 linkIndex)
+  478          {
+  479   1      #ifdef _THREE_WAY_HANDLING_
+  480   1        MMI_SendATCmdUnderConnection(linkIndex, HFP_ATCMD_3WAY_CALLTRANSFER);
+  481   1      #endif
+  482   1      }
+  483          
+  484          PRIVATE void MMI_HFP_KeyHSPButtonPressed(U8 linkIndex)
+  485          {
+  486   1        MMI_SendATCmdUnderConnection(linkIndex, HFP_ATCMD_CKPD_200);
+  487   1      }
+  488          
+  489          PRIVATE void MMI_HFP_KeySetNREC(U8 linkIndex)
+  490          {
+  491   1        MMI_SendATCmdUnderConnection(linkIndex, HFP_ATCMD_SET_NREC);
+  492   1      }
+  493          
+  494          PRIVATE void MMI_HFP_KeyGetCallNum(U8 linkIndex)
+  495          {
+  496   1      #ifdef _EXTENSION_ENTITIES_
+  497   1        MMI_SendATCmdUnderConnection(linkIndex, HFP_ATCMD_GET_SUBSCRIBER_NUMBER);
+  498   1      #endif
+  499   1      }
+  500          
+  501          PRIVATE void MMI_HFP_KeyQueryCallList(U8 linkIndex)
+  502          {
+  503   1      #ifdef _EXTENSION_ENTITIES_
+  504   1        MMI_SendATCmdUnderConnection(linkIndex, HFP_ATCMD_QUERY_LIST_OF_CURRENT_CALLS);
+  505   1      #endif
+  506   1      }
+  507          
+C251 COMPILER V5.57.0,  MMI_HFP                                                            08/11/20  06:33:34  PAGE 9   
+
+  508          PRIVATE void MMI_HFP_KeySendDTMF(U8 linkIndex)
+  509          {
+  510   1      #ifdef _EXTENSION_ENTITIES_
+  511   1        MMI_SendATCmdUnderConnection(linkIndex, HFP_ATCMD_SEND_DTMF);
+  512   1      #endif
+  513   1      }
+  514          
+  515          PRIVATE void MMI_HFP_KeyAttachLastVoiceTagRecord(U8 linkIndex)
+  516          {
+  517   1      #ifdef _EXTENSION_ENTITIES_
+  518   1        MMI_SendATCmdUnderConnection(linkIndex, HFP_ATCMD_ATTACH_LAST_VOICE_TAG_RECORDED);
+  519   1      #endif
+  520   1      }
+  521          
+  522          PRIVATE void MMI_HFP_KeySendCLIP(U8 linkIndex)
+  523          {
+  524   1      #ifdef _EXTENSION_ENTITIES_
+  525   1        MMI_SendATCmdUnderConnection(linkIndex, HFP_ATCMD_ENABLE_CLI_NOTIFICATION);
+  526   1      #endif
+  527   1      }
+  528          
+  529          static MMI_KEY_EVT CODE MMI_HFP_KeyEvtHandler[HFP_KEY_EVENT_NO] =
+  530          {
+  531            {MMI_HFP_KeyAudioTransfer}, //HFP_KEY_EVENT_KEY_AUDIO_TRANSFER
+  532            {NULL},           //HFP_KEY_EVENT_KEY_SET_VOICE_RECOGNITION //Wait until voice prompt is over
+  533            {NULL},           //HFP_KEY_EVENT_KEY_RDIAL //Wait until voice prompt is over 
+  534            {MMI_HFP_KeyDialMemory},  //HFP_KEY_EVENT_KEY_DIALMEM
+  535            {MMI_HFP_KeyDialNumber},  //HFP_KEY_EVENT_KEY_DIALNUM, 
+  536            {MMI_HFP_KeyCancelOutGoingCall}, //HFP_KEY_EVENT_KEY_CNLOUTGOING,    
+  537            {MMI_HFP_KeyRejectCall},  //HFP_KEY_EVENT_KEY_REJCALL,
+  538            {MMI_HFP_KeyRejectCallSecondPhone}, //HFP_KEY_EVENT_KEY_REJCALL_SECOND_PHONE,           
+  539            {MMI_HFP_KeyOnHoldCall},  //HFP_KEY_EVENT_KEY_ONHOLD_CALL,    //0x36
+  540            {MMI_HFP_KeyAcceptCall},  //HFP_KEY_EVENT_KEY_ACPCALL, 
+  541            {MMI_HFP_KeyEndCall},     //HFP_KEY_EVENT_KEY_ENDCALL,  
+  542            {MMI_HFP_Key3WayRelNUDB},   //HFP_KEY_EVENT_KEY_3WAYRELNUDUB,  
+  543            {MMI_HFP_Key3WayRelNAcp},   //HFP_KEY_EVENT_KEY_3WAYRELNACP,
+  544            {MMI_HFP_Key3WayRelNAcp_X}, //HFP_KEY_EVENT_KEY_3WAYRELNACP_X,  //0x3B
+  545            {MMI_HFP_Key3WayHoldNAcp},  //HFP_KEY_EVENT_KEY_3WAYHOLDNACP,
+  546            {MMI_HFP_Key3WayHoldNAcp_X}, //HFP_KEY_EVENT_KEY_3WAYHOLDNACP_X,
+  547            {MMI_HFP_Key3WayAdd},     //HFP_KEY_EVENT_KEY_3WAYADD,   
+  548            {MMI_HFP_Key3WayCallTransfer}, //HFP_KEY_EVENT_KEY_3WAYCALLTRANSFER,
+  549            {MMI_HFP_KeyHSPButtonPressed}, //HFP_KEY_EVENT_KEY_HSP_BUTTON_PRESSED,   
+  550            {MMI_HFP_KeySetNREC},     //HFP_KEY_EVENT_KEY_DISABLE_NREC,   //0x46
+  551            {MMI_HFP_KeyGetCallNum},  //HFP_KEY_EVENT_KEY_GETCALLNUM,
+  552            {MMI_HFP_KeyQueryCallList}, //HFP_KEY_EVENT_KEY_QUERY_CALL_LIST,
+  553            {MMI_HFP_KeySendDTMF},    //HFP_KEY_EVENT_KEY_SEND_DTMF,          
+  554            {MMI_HFP_KeyAttachLastVoiceTagRecord}, //HFP_KEY_EVENT_KEY_ATTACH_LAST_VOICE_TAG_RECORDED,
+  555            {MMI_HFP_KeySendCLIP},    //HFP_KEY_EVENT_KEY_SEND_CLIP,      //0x4B
+  556            {NULL},           //HFP_KEY_EVENT_KEY_SET_VOICE_RECOGNITION_SECONDARY //Wait until voice prompt is over
+  557            {NULL},           //HFP_KEY_EVENT_KEY_RDIAL_SECONDARY,   
+  558            {NULL},           //HFP_KEY_EVENT_KEY_SET_VOICE_RECOGNITION_CANCEL,
+  559            {NULL},           //HFP_KEY_EVENT_KEY_SET_VOICE_RECOGNITION_SECONDARY_CANCEL,
+  560            {NULL},           //HFP_KEY_EVENT_KEY_SIRI_START_OR_CONTINUE,   //Wait until voice prompt is over
+  561            {NULL},           //HFP_KEY_EVENT_KEY_SIRI_END,     //Wait until voice prompt is over
+  562            {NULL},           //HFP_KEY_EVENT_KEY_SIRI_START_OR_CONTINUE_SECONDARY, //Wait until voice prompt is over
+  563            {NULL},           //HFP_KEY_EVENT_KEY_SIRI_END_SECONDARY, //Wait until voice prompt is over
+  564          };
+  565          
+  566          PRIVATE U8 MMI_HFP_CheckKeyIsValid(U16 keyCode, U8 isSeperateKey, U8 XDATA_PTR linkIndexPtr, U8 targetInd
+             -ex)
+  567          {
+  568   1        U8 i;
+  569   1      
+  570   1        if(isSeperateKey)
+  571   1        {
+  572   2          //Check link active
+C251 COMPILER V5.57.0,  MMI_HFP                                                            08/11/20  06:33:34  PAGE 10  
+
+  573   2          for(i = 0; i < MAX_MULTI_POINT_NO; i++)
+  574   2          {
+  575   3            if(SYS_IsBDAddrIsTheSame((U8 XDATA_PTR)&gMMI_driver_variation_nvram.misc_para.agInd[*linkIndexPtr].mem
+             -ber[0], (U8 XDATA_PTR)(&gMMI_ctl.mmiInfo[i].bdAddr[0])))
+  576   3            {
+  577   4              if(!MMI_HFP_IsConnected(i))
+  578   4              {
+  579   5                keyCode = KEY_INVALID;
+  580   5              }
+  581   4              *linkIndexPtr = i;
+  582   4              return keyCode;
+  583   4            }
+  584   3          }
+  585   2          *linkIndexPtr = MAX_MULTI_POINT_NO;
+  586   2        }
+  587   1        else
+  588   1        {
+  589   2          if(targetIndex == MMI_EOF)
+  590   2          {
+  591   3            *linkIndexPtr= MAX_MULTI_POINT_NO;
+  592   3            if(!(gMMI_driver_variation_nvram.link_history_info[0].miscMask & NVRAM_LINK_KEY_MISC_MASK_HFP) )  //la
+             -st disc link in history
+  593   3            {
+  594   4              keyCode = KEY_INVALID;
+  595   4            }
+  596   3          }
+  597   2          else
+  598   2          {
+  599   3            *linkIndexPtr= targetIndex;
+  600   3          }
+  601   2        }
+  602   1        
+  603   1        if(*linkIndexPtr != MAX_MULTI_POINT_NO && gMMI_ctl.sdapCtl[*linkIndexPtr].remoteApplicationID != PRODUCT
+             -_AIR_NONE)
+  604   1        {
+  605   2          keyCode = KEY_INVALID;
+  606   2        }
+  607   1        return keyCode;
+  608   1      }
+  609          
+  610          PUBLIC void MMI_HFP_ProcessKeyEvent(U8 linkIndex, U8 index)
+  611          {
+  612   1        if(MMI_HFP_KeyEvtHandler[index].fKeyEvt && (MMI_HFP_IsHFPConnected(linkIndex) || MMI_HFP_IsHSPConnected(
+             -linkIndex)))
+  613   1        {
+  614   2          MMI_HFP_KeyEvtHandler[index].fKeyEvt(linkIndex);
+  615   2        }
+  616   1      }
+  617          
+  618          
+  619          PRIVATE U16 MMI_HFP_CheckKeySetVoiceRecognition(U16 keyCode)
+  620          {
+  621   1        U8 LDATA linkIndex;
+  622   1        
+  623   1        linkIndex = gMMI_HFP_ctl.rdialLinkInd;
+  624   1        if(MMI_SEPARATE_VOICE_DIAL_BUTTONS_FEAT)
+  625   1        {
+  626   2          linkIndex = (keyCode == KEY_SET_VOICE_RECOGNITION)? 0:1;
+  627   2        }
+  628   1      
+  629   1        keyCode = MMI_HFP_CheckKeyIsValid(keyCode, MMI_SEPARATE_VOICE_DIAL_BUTTONS_FEAT, (U8 XDATA_PTR)&linkInde
+             -x, gMMI_HFP_ctl.rdialLinkInd);
+  630   1      
+  631   1        if(linkIndex == MAX_MULTI_POINT_NO ||keyCode == KEY_INVALID )
+  632   1          return keyCode;
+  633   1      
+C251 COMPILER V5.57.0,  MMI_HFP                                                            08/11/20  06:33:34  PAGE 11  
+
+  634   1        if(gMMI_ctl.mmiInfo[linkIndex].subState != MMI_VDIAL_STOP && gMMI_ctl.mmiInfo[linkIndex].subState != MMI
+             -_VDIAL_STARTED &&
+  635   1        gMMI_ctl.mmiInfo[linkIndex].subState != MMI_VDIAL_STOPPING && gMMI_ctl.mmiInfo[linkIndex].subState != MM
+             -I_VDIAL_STARTING)
+  636   1        {
+  637   2          return KEY_INVALID;
+  638   2        }
+  639   1      
+  640   1        if(gMMI_HFP_ctl.HfpCtl[linkIndex].appleSiriStatus == HFP_APLSIRI_AVAILABLE_ENABLE) // ios device
+  641   1        {
+  642   2          if(MMI_VOICE_DIAL_START_AND_END_THE_SAME_KEY_FEAT && 
+  643   2          (gMMI_ctl.mmiInfo[linkIndex].subState == MMI_VDIAL_STARTED || gMMI_ctl.mmiInfo[linkIndex].subState == M
+             -MI_VDIAL_STARTING))
+  644   2          {
+  645   3            if(keyCode == KEY_SET_VOICE_RECOGNITION_SECONDARY)
+  646   3              keyCode = KEY_SIRI_END_SECONDARY;
+  647   3            else
+  648   3              keyCode = KEY_SIRI_END;
+  649   3          }
+  650   2          else
+  651   2          {
+  652   3            if(keyCode == KEY_SET_VOICE_RECOGNITION_SECONDARY)
+  653   3              keyCode = KEY_SIRI_START_OR_CONTINUE_SECONDARY;
+  654   3            else
+  655   3              keyCode = KEY_SIRI_START_OR_CONTINUE;
+  656   3          }
+  657   2        }
+  658   1        else
+  659   1        {
+  660   2          if(!MMI_VOICE_DIAL_START_AND_END_THE_SAME_KEY_FEAT && (gMMI_ctl.mmiInfo[linkIndex].subState == MMI_VDIA
+             -L_STARTED || gMMI_ctl.mmiInfo[linkIndex].subState == MMI_VDIAL_STARTING))
+  661   2          {
+  662   3            keyCode = KEY_INVALID;
+  663   3          }
+  664   2        }
+  665   1        return keyCode;
+  666   1      }
+  667          
+  668          PRIVATE U16 MMI_HFP_CheckKeyRedial(U16 keyCode)
+  669          {
+  670   1        U8 LDATA linkIndex;
+  671   1        linkIndex= gMMI_HFP_ctl.rdialLinkInd;
+  672   1        if(MMI_SEPARATE_LNR_BUTTONS_FEAT)
+  673   1        {
+  674   2          linkIndex = (keyCode == KEY_RDIAL)? 0:1;
+  675   2        }
+  676   1        return (MMI_HFP_CheckKeyIsValid(keyCode, MMI_SEPARATE_LNR_BUTTONS_FEAT, (U8 XDATA_PTR)&linkIndex, gMMI_H
+             -FP_ctl.rdialLinkInd));
+  677   1      }
+  678          
+  679          PRIVATE U16 MMI_HFP_CheckKeyDialNumber(U16 keyCode)
+  680          {
+  681   1        U8 LDATA linkIndex;
+  682   1        keyCode = MMI_HFP_CheckKeyIsValid(keyCode, FALSE, (U8 XDATA_PTR)&linkIndex, gMMI_HFP_ctl.incomingLinkInd
+             -);
+  683   1      
+  684   1        if(linkIndex!= MAX_MULTI_POINT_NO && !gMMI_HFP_ctl.HfpCtl[linkIndex].incomingCall.length)
+  685   1        {
+  686   2          keyCode = KEY_INVALID;
+  687   2        }
+  688   1      
+  689   1        return keyCode;
+  690   1      }
+  691          
+  692          PRIVATE U16 MMI_HFP_CheckKeyIncomingCallDial(U16 keyCode)
+  693          {
+C251 COMPILER V5.57.0,  MMI_HFP                                                            08/11/20  06:33:34  PAGE 12  
+
+  694   1        U8 LDATA linkIndex;
+  695   1        keyCode = MMI_HFP_CheckKeyIsValid(keyCode, FALSE, (U8 XDATA_PTR)&linkIndex, gMMI_ctl.serviceInd);
+  696   1        if(linkIndex!= MAX_MULTI_POINT_NO && !gMMI_HFP_ctl.HfpCtl[linkIndex].incomingCall.length)
+  697   1        {
+  698   2          keyCode = KEY_INVALID;
+  699   2        }
+  700   1        return keyCode;
+  701   1      }
+  702          
+  703          PRIVATE U16 MMI_HFP_CheckKeyCancelVoiceRecognition(U16 keyCode)
+  704          {
+  705   1        U8 LDATA linkIndex;
+  706   1      
+  707   1        linkIndex= gMMI_HFP_ctl.rdialLinkInd;
+  708   1        if(MMI_SEPARATE_VOICE_DIAL_BUTTONS_FEAT)
+  709   1        {
+  710   2          linkIndex = (keyCode == KEY_SET_VOICE_RECOGNITION_CANCEL)? 0:1;
+  711   2        }
+  712   1        keyCode = MMI_HFP_CheckKeyIsValid(keyCode, MMI_SEPARATE_VOICE_DIAL_BUTTONS_FEAT, (U8 XDATA_PTR)&linkInde
+             -x, gMMI_HFP_ctl.rdialLinkInd);
+  713   1      
+  714   1        // Normal voice recognition
+  715   1        if(linkIndex == MAX_MULTI_POINT_NO || keyCode == KEY_INVALID|| 
+  716   1        (gMMI_ctl.mmiInfo[linkIndex].subState != MMI_VDIAL_STARTED && gMMI_ctl.mmiInfo[linkIndex].subState != MM
+             -I_VDIAL_STARTING))
+  717   1        {
+  718   2          return KEY_INVALID;
+  719   2        }
+  720   1      
+  721   1        if(gMMI_HFP_ctl.HfpCtl[linkIndex].appleSiriStatus == HFP_APLSIRI_AVAILABLE_ENABLE) // ios device
+  722   1        {
+  723   2          if(keyCode == KEY_SET_VOICE_RECOGNITION_SECONDARY_CANCEL)
+  724   2            keyCode = KEY_SIRI_END_SECONDARY;
+  725   2          else
+  726   2            keyCode = KEY_SIRI_END;
+  727   2        }
+  728   1        return keyCode;
+  729   1      }
+  730          
+  731          static MMI_KEY_CHECK CODE MMI_HFP_KeyCheckValidHandler[HFP_KEY_EVENT_NO] =
+  732          {
+  733            {NULL},           //HFP_KEY_EVENT_KEY_AUDIO_TRANSFER}
+  734            {MMI_HFP_CheckKeySetVoiceRecognition}, //HFP_KEY_EVENT_KEY_SET_VOICE_RECOGNITION //Wait until voice prom
+             -pt is over
+  735            {MMI_HFP_CheckKeyRedial},   //HFP_KEY_EVENT_KEY_RDIAL //Wait until voice prompt is over 
+  736            {NULL}, //HFP_KEY_EVENT_KEY_DIALMEM
+  737            {MMI_HFP_CheckKeyDialNumber}, //HFP_KEY_EVENT_KEY_DIALNUM, 
+  738            {NULL}, //HFP_KEY_EVENT_KEY_CNLOUTGOING,     
+  739            {NULL}, //HFP_KEY_EVENT_KEY_REJCALL,
+  740            {NULL}, //HFP_KEY_EVENT_KEY_REJCALL_SECOND_PHONE,           
+  741            {NULL}, //HFP_KEY_EVENT_KEY_ONHOLD_CALL,    //0x36
+  742            {NULL}, //HFP_KEY_EVENT_KEY_ACPCALL, 
+  743            {NULL}, //HFP_KEY_EVENT_KEY_ENDCALL,  
+  744            {NULL}, //HFP_KEY_EVENT_KEY_3WAYRELNUDUB,  
+  745            {NULL}, //HFP_KEY_EVENT_KEY_3WAYRELNACP,
+  746            {NULL}, //HFP_KEY_EVENT_KEY_3WAYRELNACP_X,  //0x3B
+  747            {NULL}, //HFP_KEY_EVENT_KEY_3WAYHOLDNACP,
+  748            {NULL}, //HFP_KEY_EVENT_KEY_3WAYHOLDNACP_X,
+  749            {NULL}, //HFP_KEY_EVENT_KEY_3WAYADD,   
+  750            {NULL}, //HFP_KEY_EVENT_KEY_3WAYCALLTRANSFER,
+  751            {MMI_HFP_CheckKeyIncomingCallDial}, //HFP_KEY_EVENT_KEY_HSP_BUTTON_PRESSED,  
+  752            {NULL}, //HFP_KEY_EVENT_KEY_DISABLE_NREC,   //0x46
+  753            {MMI_HFP_CheckKeyIncomingCallDial}, //HFP_KEY_EVENT_KEY_GETCALLNUM,
+  754            {MMI_HFP_CheckKeyIncomingCallDial}, //HFP_KEY_EVENT_KEY_QUERY_CALL_LIST,
+  755            {MMI_HFP_CheckKeyIncomingCallDial}, //HFP_KEY_EVENT_KEY_SEND_DTMF,          
+  756            {MMI_HFP_CheckKeyIncomingCallDial}, //HFP_KEY_EVENT_KEY_ATTACH_LAST_VOICE_TAG_RECORDED,
+C251 COMPILER V5.57.0,  MMI_HFP                                                            08/11/20  06:33:34  PAGE 13  
+
+  757            {MMI_HFP_CheckKeyIncomingCallDial}, //HFP_KEY_EVENT_KEY_SEND_CLIP,      //0x4B
+  758            {MMI_HFP_CheckKeySetVoiceRecognition}, //HFP_KEY_EVENT_KEY_SET_VOICE_RECOGNITION_SECONDARY //Wait until 
+             -voice prompt is over
+  759            {MMI_HFP_CheckKeyRedial}, //HFP_KEY_EVENT_KEY_RDIAL_SECONDARY,   
+  760            {MMI_HFP_CheckKeyCancelVoiceRecognition}, //HFP_KEY_EVENT_KEY_SET_VOICE_RECOGNITION_CANCEL,
+  761            {MMI_HFP_CheckKeyCancelVoiceRecognition}, //HFP_KEY_EVENT_KEY_SET_VOICE_RECOGNITION_SECONDARY_CANCEL,
+  762            {NULL}, //HFP_KEY_EVENT_KEY_SIRI_START_OR_CONTINUE,   //Wait until voice prompt is over
+  763            {NULL}, //HFP_KEY_EVENT_KEY_SIRI_END,     //Wait until voice prompt is over
+  764            {NULL}, //HFP_KEY_EVENT_KEY_SIRI_START_OR_CONTINUE_SECONDARY, //Wait until voice prompt is over
+  765            {NULL}, //HFP_KEY_EVENT_KEY_SIRI_END_SECONDARY, //Wait until voice prompt is over
+  766          };
+  767          
+  768          PUBLIC U16 MMI_HFP_CheckValidKey(U8 index, U16 keyCode)
+  769          {
+  770   1        if(MMI_HFP_KeyCheckValidHandler[index].fKeyCheckValid)
+  771   1        {
+  772   2          keyCode = MMI_HFP_KeyCheckValidHandler[index].fKeyCheckValid(keyCode);
+  773   2        }
+  774   1        return keyCode;
+  775   1      }
+  776          
+  777          PUBLIC BOOL MMI_HFP_SetMemoryDialIndex(U8 linkIndex, U16 index)
+  778          {
+  779   1      #ifdef _MEMORY_DIALING_
+  780   1        if( MMI_HFP_IsConnected(linkIndex))
+  781   1        {
+  782   2          gMMI_HFP_ctl.HfpCtl[linkIndex].memoryDialIndex = index;
+  783   2          return TRUE;
+  784   2        }
+  785   1        return FALSE;
+  786   1      #else
+                 UNUSED(linkIndex);
+                 UNUSED(index);
+                 return FALSE;
+               #endif
+  791   1      }
+  792          
+  793          PUBLIC BOOL MMI_HFP_SetDialNumber(U8 linkIndex, U8 XDATA_PTR numberPtr, U8 length)
+  794          {
+  795   1      #ifdef _PLACE_CALL_WITH_PHONE_NUMBER_
+  796   1        if( MMI_HFP_IsConnected(linkIndex))
+  797   1        {
+  798   2          OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&gMMI_HFP_ctl.HfpCtl[linkIndex].incomingCall, 
+  799   2                  numberPtr,
+  800   2                  length);
+  801   2          gMMI_HFP_ctl.incomingLinkInd = linkIndex;
+  802   2          return TRUE;
+  803   2        }
+  804   1        return FALSE;
+  805   1      #else
+                 UNUSED(linkIndex);
+                 UNUSED(indenumberPtrx);
+                 UNUSED(length);
+                 return FALSE;
+               #endif
+  811   1      }
+  812          
+  813          PUBLIC BOOL MMI_HFP_SetDTMF(U8 linkIndex, U8 index)
+  814          {
+  815   1      #ifdef _EXTENSION_ENTITIES_
+  816   1        if( MMI_HFP_IsConnected(linkIndex))
+  817   1        {
+  818   2          gMMI_HFP_ctl.HfpCtl[linkIndex].DTMFPara = index; //0 - 9 and * and #
+  819   2          return TRUE;
+  820   2        }
+  821   1        return FALSE;
+C251 COMPILER V5.57.0,  MMI_HFP                                                            08/11/20  06:33:34  PAGE 14  
+
+  822   1      #else
+                 UNUSED(linkIndex);
+                 UNUSED(indenumberPtrx);
+                 UNUSED(length);
+                 return FALSE;
+               #endif
+  828   1      }
+  829          
+  830          PUBLIC void MMI_HFP_SCOConnectedHandle(U8 linkIndex)
+  831          {
+  832   1        if(MMI_HFP_IsHSPConnected(linkIndex))
+  833   1        {
+  834   2          MMI_RmvState(linkIndex, MMI_HFP_INCOMMING);
+  835   2      
+  836   2          if(!MMI_NOT_CHG_STATE_ACP_HSP_RING_FEAT)
+  837   2            MMI_InsertState(linkIndex, MMI_HFP_CALLACTIVE, MMI_CONNECTED);
+  838   2        }
+  839   1        else
+  840   1        {
+  841   2          MMI_ReplaceState(linkIndex, MMI_HFP_CALLACTIVE, MMI_HFP_CALLACTIVE_WITHOUT_SCO);
+  842   2        }
+  843   1        
+  844   1        if(gMMI_HFP_ctl.HfpCtl[linkIndex].relSCOCozExitOggState)
+  845   1        {
+  846   2          MMI_HCI_SendRelSco(linkIndex);
+  847   2        }
+  848   1        gMMI_HFP_ctl.HfpCtl[linkIndex].audioTransfer = FALSE;
+  849   1        gMMI_HFP_ctl.HfpCtl[linkIndex].relSCOCozExitOggState = FALSE;
+  850   1        SYS_ReleaseTimer(&gMMI_HFP_ctl.HfpCtl[linkIndex].waitToEstSCOInOggCallTimer);
+  851   1      }
+  852          
+  853          PUBLIC void MMI_HFP_SCOConnectFailHandle(U8 linkIndex)
+  854          {
+  855   1        //sco retry on hv3
+  856   1        if(gMMI_HFP_ctl.HfpCtl[linkIndex].audioTransfer)
+  857   1        {
+  858   2          if (!SCO_EXISTS(linkIndex))
+  859   2          {
+  860   3            MMI_HCI_SendSetupESCO(linkIndex, 0x03c4 /*HV3*/);
+  861   3          }
+  862   2          gMMI_HFP_ctl.HfpCtl[linkIndex].audioTransfer = FALSE;
+  863   2          gMMI_HFP_ctl.HfpCtl[linkIndex].relSCOCozExitOggState = FALSE;
+  864   2        }
+  865   1      }
+  866          
+  867          PUBLIC void MMI_HFP_SCODiscHandle(U8 linkIndex)
+  868          {
+  869   1        if(MMI_CheckNestState(linkIndex, MMI_HFP_CALLACTIVE))
+  870   1        {
+  871   2          if(MMI_HFP_IsHSPConnected(linkIndex))
+  872   2          {
+  873   3            MMI_RmvState(linkIndex, MMI_HFP_CALLACTIVE);
+  874   3          }
+  875   2          else
+  876   2          {
+  877   3            MMI_ReplaceState(linkIndex, MMI_HFP_CALLACTIVE_WITHOUT_SCO, MMI_HFP_CALLACTIVE);
+  878   3          }
+  879   2        }
+  880   1        gMMI_HFP_ctl.HfpCtl[linkIndex].audioTransfer = FALSE;
+  881   1        SYS_ReleaseTimer(&gMMI_HFP_ctl.HfpCtl[linkIndex].waitToEstSCOInOggCallTimer);
+  882   1        if(gMMI_ctl.mmiInfo[linkIndex].subState == MMI_VDIAL_STARTED || gMMI_ctl.mmiInfo[linkIndex].subState == 
+             -MMI_VDIAL_STARTING)
+  883   1        {
+  884   2          gMMI_ctl.mmiInfo[linkIndex].subState = MMI_VDIAL_STOP;
+  885   2        }
+  886   1        
+C251 COMPILER V5.57.0,  MMI_HFP                                                            08/11/20  06:33:34  PAGE 15  
+
+  887   1        #ifdef BLE_AIRApp
+  888   1        //Handle press vol down button when incomming call on iphone
+  889   1        if(MMI_CheckNestState(linkIndex, MMI_HFP_INCOMMING))
+  890   1        {
+  891   2          if(AirApp_BleIsConnected() && (ATT_FindServerIndexByAddr((U8 CODE_PTR)&AppCtl.phoneNumber) != 0) && (((
+             -(ATT_GetCCCDByLink(ATT_FindServerIndexByAddr((U8 CODE_PTR)AppCtl.phnoeNumber_CCCD), 0)) >> 8) & 0x01) == 0x01))
+  892   2          {
+  893   3            MMI_HFP_ImgAudioVoiceHandler(linkIndex, IMG_AUDIO_VOICE_TRIGGER);
+  894   3          }
+  895   2        }
+  896   1        #endif
+  897   1      }
+  898          
+  899          PUBLIC void MMI_HFP_VoiceControl(U8 linkIndex, BOOL isVolumeUp, BOOL isFollowerCmd)
+  900          {
+  901   1        U8  spkSoundLevel;
+  902   1      
+  903   1        #ifdef HFP_Profile
+  904   1        if(gMMI_HFP_ctl.HfpCtl[linkIndex].sendingVGSVGM)
+  905   1          return;
+  906   1        #endif
+  907   1      
+  908   1        spkSoundLevel = CURRENT_SCO_SOUND_LEVEL(linkIndex);
+  909   1      
+  910   1        if (isVolumeUp)
+  911   1        {
+  912   2          CURRENT_SCO_SMALL_STEP(linkIndex) = MMI_DRV_IncreaseSmallStepVolume(CURRENT_SCO_SOUND_LEVEL(linkIndex),
+  913   2                                            gMMI_nvram.totalSoundLevel,
+  914   2                                            MMI_SCO_SMALL_STEP_LEVELS(),
+  915   2                                            CURRENT_SCO_SMALL_STEP(linkIndex));
+  916   2          if(CURRENT_SCO_SMALL_STEP(linkIndex) == 0)
+  917   2          {
+  918   3            if (spkSoundLevel < gMMI_nvram.totalSoundLevel - 1)
+  919   3            {
+  920   4              spkSoundLevel++;
+  921   4            }
+  922   3            else if(MMI_CYCLIC_VOLUME_ENABLED_FEAT)
+  923   3            {
+  924   4              spkSoundLevel = 0;
+  925   4            }
+  926   3            else
+  927   3            {
+  928   4              LightDbgPrint("sco HFP volume reach max");
+  929   4              MMI_PushMediaEvent(MEDIA_EVT_VOLUME_REACH_MAX);
+  930   4              return;
+  931   4            }
+  932   3          }
+  933   2        }
+  934   1        else
+  935   1        {
+  936   2          if(CURRENT_SCO_SMALL_STEP(linkIndex) == 0)
+  937   2          {
+  938   3            if (spkSoundLevel > 0)
+  939   3            {
+  940   4              spkSoundLevel--;
+  941   4            }
+  942   3            else if(MMI_CYCLIC_VOLUME_ENABLED_FEAT)
+  943   3            {
+  944   4              spkSoundLevel = gMMI_nvram.totalSoundLevel - 1;
+  945   4              goto MMI_SEND_SCO_VOL;
+  946   4            }
+  947   3            else
+  948   3            {
+  949   4              LightDbgPrint("sco HFP volume reach min");
+  950   4              MMI_PushMediaEvent(MEDIA_EVT_VOLUME_REACH_MIN);
+  951   4              return;
+C251 COMPILER V5.57.0,  MMI_HFP                                                            08/11/20  06:33:34  PAGE 16  
+
+  952   4            }
+  953   3          }
+  954   2          CURRENT_SCO_SMALL_STEP(linkIndex) = MMI_DRV_DecreaseSmallStepVolume(MMI_SCO_SMALL_STEP_LEVELS(), CURREN
+             -T_SCO_SMALL_STEP(linkIndex));
+  955   2        }
+  956   1        MMI_SEND_SCO_VOL:
+  957   1      
+  958   1        MMI_DRV_SetSCOVolValue(linkIndex, spkSoundLevel, CURRENT_SCO_SMALL_STEP(linkIndex));
+  959   1        if(CURRENT_SCO_SMALL_STEP(linkIndex) == 0)
+  960   1        {
+  961   2          #ifdef HFP_Profile
+  962   2          MMI_HFP_SendATCmdByLink(linkIndex, HFP_ATCMD_ADJUST_VOLUME);
+  963   2          #endif
+  964   2        }
+  965   1      
+  966   1        if(gMMI_ctl.audioDevCtl.currentActiveLinkIndex == linkIndex)
+  967   1        {
+  968   2          MMI_DRV_SendDriverVolCmd(linkIndex, spkSoundLevel, CURRENT_SCO_SMALL_STEP(linkIndex), VOLUME_MIC_FOLLOW
+             -_SPK);
+  969   2          //Beep!
+  970   2          if(!isFollowerCmd)
+  971   2            MMI_DRV_Beep(spkSoundLevel, AUDIO_DEVICE_SCO);
+  972   2        }
+  973   1        
+  974   1        if (MMI_REMEMBER_SOUND_LEVEL_CHANGE_IN_RUNTIME_FEAT)
+  975   1        {
+  976   2          MMI_LinkKey_SaveHistoryInRunTime(linkIndex);
+  977   2        }
+  978   1      }
+  979          
+  980          PUBLIC BOOL MMI_HFP_IsHSPConnected(U8 linkIndex)
+  981          {
+  982   1        if(HFP_SLC_CONNECTED == HFP_GetState(linkIndex) && PROFILE_HEADSET == HFP_GetProfileId(linkIndex))
+  983   1          return TRUE;
+  984   1          
+  985   1        return FALSE;
+  986   1      }
+  987          
+  988          PUBLIC BOOL MMI_HFP_IsHFPConnected(U8 linkIndex)
+  989          {
+  990   1        if(HFP_SLC_CONNECTED == HFP_GetState(linkIndex) && PROFILE_HANDSFREE == HFP_GetProfileId(linkIndex))
+  991   1          return TRUE;
+  992   1          
+  993   1        return FALSE;
+  994   1      }
+  995          
+  996          PUBLIC BOOL MMI_HFP_IsConnected(U8 linkIndex)
+  997          {
+  998   1        if(HFP_SLC_CONNECTED == HFP_GetState(linkIndex))
+  999   1          return TRUE;
+ 1000   1          
+ 1001   1        return FALSE;
+ 1002   1      }
+ 1003          
+ 1004          PUBLIC void MMI_HFP_SetReconnectReason(U8 linkIndex, U8 reason)
+ 1005          {
+ 1006   1        gMMI_HFP_ctl.HfpCtl[linkIndex].reconnectReason = reason;
+ 1007   1      }
+ 1008          
+ 1009          PUBLIC U8 MMI_HFP_SearchCallStatusInd(U8 linkInd, U8 callStatus)
+ 1010          {
+ 1011   1        U8 callInd;
+ 1012   1      
+ 1013   1        for (callInd = 0; callInd < MMI_MAX_ONGOING_CALL_NO; callInd++)
+ 1014   1        {
+ 1015   2          if (callStatus == MMI_CALL_ALL_ONGOING)
+C251 COMPILER V5.57.0,  MMI_HFP                                                            08/11/20  06:33:34  PAGE 17  
+
+ 1016   2          {
+ 1017   3            if (gMMI_HFP_ctl.HfpCtl[linkInd].callCtrlTbl[callInd].callStatus != MMI_CALL_EMPTY)
+ 1018   3              break;
+ 1019   3          }
+ 1020   2          else
+ 1021   2          {
+ 1022   3            if (gMMI_HFP_ctl.HfpCtl[linkInd].callCtrlTbl[callInd].callStatus == callStatus)
+ 1023   3              break;
+ 1024   3          }
+ 1025   2        }
+ 1026   1      
+ 1027   1        return callInd;
+ 1028   1      }
+ 1029          
+ 1030          PRIVATE U8 MMI_HFP_CountCallsInCallStatus(U8 linkInd, U8 callStatus)
+ 1031          {
+ 1032   1        U8 callInd, count = 0;
+ 1033   1      
+ 1034   1        for (callInd = 0; callInd < MMI_MAX_ONGOING_CALL_NO; callInd++)
+ 1035   1        {
+ 1036   2          if (callStatus == MMI_CALL_ALL_ONGOING)
+ 1037   2          {
+ 1038   3            if (gMMI_HFP_ctl.HfpCtl[linkInd].callCtrlTbl[callInd].callStatus != MMI_CALL_EMPTY)
+ 1039   3              count++;
+ 1040   3          }
+ 1041   2          else
+ 1042   2          {
+ 1043   3            if (gMMI_HFP_ctl.HfpCtl[linkInd].callCtrlTbl[callInd].callStatus == callStatus)
+ 1044   3              count++;
+ 1045   3          }
+ 1046   2        }
+ 1047   1      
+ 1048   1        return count;
+ 1049   1      }
+ 1050          
+ 1051          ////////////////////// For HFP //////////////////////////////////
+ 1052          PUBLIC U16 MMI_HFP_GET_AGOPTION(U8 linkIndex) 
+ 1053          {
+ 1054   1        return gMMI_HFP_ctl.HfpCtl[linkIndex].agOption;
+ 1055   1      }
+ 1056          
+ 1057          PUBLIC void MMI_HFP_SET_AGOPTION(U8 linkIndex, U16 agOption) 
+ 1058          {
+ 1059   1        gMMI_HFP_ctl.HfpCtl[linkIndex].agOption = agOption;
+ 1060   1      }
+ 1061          
+ 1062          PUBLIC void MMI_HFP_CLEAR_AGOPTION(U8 linkIndex, U16 agOption) 
+ 1063          {
+ 1064   1        gMMI_HFP_ctl.HfpCtl[linkIndex].agOption &= ~agOption;
+ 1065   1      }
+ 1066          
+ 1067          PUBLIC U8 MMI_HFP_GET_VGS(U8 linkIndex)
+ 1068          {
+ 1069   1        return GET_SCO_VGS_BY_LEVEL(CURRENT_SCO_SOUND_LEVEL(linkIndex));
+ 1070   1      }
+ 1071          
+ 1072          
+ 1073          #ifdef HFP_AG_Profile
+                 #include "MMI_HFP_AG.c"
+               #else
+ 1076            #include "MMI_HFP_HF.c"
+ 1077          #endif
+ 1078          
+ 1079          
+ 1080          #endif //HFP_Profile
+
+C251 COMPILER V5.57.0,  MMI_HFP                                                            08/11/20  06:33:34  PAGE 18  
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =     14193     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =       120     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       563     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

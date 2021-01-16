@@ -1,0 +1,58 @@
+C251 COMPILER V5.57.0,  HFP_ServiceRecord                                                  08/11/20  05:52:06  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE HFP_ServiceRecord
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\HFP_ServiceRecord.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\HFP\HFP_ServiceRecord.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HU
+                    -GE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS
+                    -;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\
+                    -source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\
+                    -MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\D
+                    -spData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE
+                    -(FLASH_INIT=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520C_AiroStereoHea
+                    -dset\HFP_ServiceRecord.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\HFP_ServiceRecord.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #include "..\SDAP\SDAP_Interface.h"
+    4          #include "..\MMI\MMI_PSM.h"
+    5          #include "..\MMI\MMI_SCN.h"
+    6          
+    7          #define VERSION_HSP   0x0102
+    8          #define VERSION_HFP   0x0107
+    9          
+   10          #ifdef HFP_Profile
+   11          
+   12            #ifdef HFP_AG_Profile
+                 #include "HFP_ServiceRecord_AG.c"
+                 #else
+   15            #include "HFP_ServiceRecord_HF.c"
+   16            #endif
+   17          
+   18          #endif
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =        18     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       291     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

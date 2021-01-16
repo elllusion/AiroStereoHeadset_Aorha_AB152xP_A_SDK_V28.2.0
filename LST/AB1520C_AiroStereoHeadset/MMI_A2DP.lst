@@ -1,0 +1,1423 @@
+C251 COMPILER V5.57.0,  MMI_A2DP                                                           08/11/20  05:52:24  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE MMI_A2DP
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\MMI_A2DP.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\MMI\MMI_A2DP.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) WARNI
+                    -NGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\source
+                    -\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\source\RO
+                    -M\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_LE;.\
+                    -source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspData;.\
+                    -source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLASH_IN
+                    -IT=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520C_AiroStereoHeadset\MMI_
+                    -A2DP.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\MMI_A2DP.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #define _MMI_A2DP_C_
+    4          
+    5          #include "MMI.h"
+    6          #include "MMI_State.h"
+    7          #include "MMI_Driver.h"
+    8          #include "MMI_Protocol.h"
+    9          #include "MMI_A2DP.h"
+   10          #include "MMI_HCI.h"
+   11          #include "MMI_AirModule.h"
+   12          #include "MMI_AVRCP.h"
+   13          #include "MMI_SDAP.h"
+   14          #include "MMI_HFP.h"
+   15          #include "MMI_Reconnect.h"
+   16          #include "MMI_LineIn.h"
+   17          #include "MMI_Timer.h"
+   18          #include "..\A2DP\A2DP_Interface.h"
+   19          #include "..\AVRCP\AVRCP_Interface.h"
+   20          #include "..\HC\HC_Interface.h"
+   21          
+   22          #include "..\SDK_Proxy\SDK_Proxy.h"
+   23          extern VFUN XDATA api_profile_func[API_GRP_PF_CB_CNT];
+   24          
+   25          #ifdef A2DP_Profile
+   26          
+   27          PUBLIC void MMI_A2DP_SendCmd(U8 linkIndex, U8 cmdCode)
+   28          {
+   29   1        A2DP_MMICommandHandler(linkIndex, cmdCode);
+   30   1      }
+   31          
+   32          PRIVATE void MMI_A2DP_AcceptStart(U8 linkIndex)
+   33          {
+   34   1        MMI_A2DP_SendCmd(linkIndex, A2DP_ACCEPT_START_RESP);
+   35   1      }
+   36          
+   37          PRIVATE void MMI_A2DP_RejectStart(U8 linkIndex)
+   38          {
+   39   1        MMI_A2DP_SendCmd(linkIndex, A2DP_REJECT_START_RESP);
+   40   1      }
+   41          
+   42          PRIVATE void MMI_A2DP_MediaPktMemPut(U8 linkIndex)
+   43          {
+   44   1        MMI_A2DP_SendCmd(linkIndex, A2DP_MEMPUT_START_RESP);
+   45   1      }
+   46          
+   47          PRIVATE void MMI_A2DP_MusicStopClearPara(U8 linkIndex)
+   48          {
+   49   1        #ifdef AVRCP_Profile
+   50   1        gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].playStatus = 0;
+   51   1        MMI_AVRCP_SetMusicPlay(linkIndex, FALSE);
+   52   1        MMI_AVRCP_ResetKeyPlayToggle(linkIndex);
+C251 COMPILER V5.57.0,  MMI_A2DP                                                           08/11/20  05:52:24  PAGE 2   
+
+   53   1        #else
+                 UNUSED(linkIndex);
+                 #endif
+   56   1      }
+   57          
+   58          PRIVATE void MMI_A2DP_MusicStopped(U8 linkIndex, BOOL isDisc)
+   59          {
+   60   1      #ifdef A2DP_SRC_Profile 
+                 MMI_DRV_AudioDeviceDeRegister(linkIndex, AUDIO_DEVICE_MUSIC);
+                 MMI_DRV_AudioDeviceDeRegister(linkIndex, AUDIO_DEVICE_AVRCP_PLAY);
+                 MMI_LineIn_DriverCmd(DRIVER_STOP_LINE_IN_CMD);
+                 UNUSED(isDisc);
+               #else 
+   66   1        MMI_DRV_AudioDeviceDeRegister(linkIndex, AUDIO_DEVICE_MUSIC_CALL_NOTIFY);
+   67   1        MMI_DRV_AudioDeviceDeRegister(linkIndex, AUDIO_DEVICE_AVRCP_PLAY);
+   68   1        if(!A2DP_IsResume(linkIndex) || isDisc)
+   69   1        {
+   70   2          MMI_DRV_AudioDeviceDeRegister(linkIndex, AUDIO_DEVICE_MUSIC);
+   71   2        }
+   72   1      
+   73   1        MMI_A2DP_MusicStopClearPara(linkIndex);
+   74   1        #ifdef AVRCP_Profile
+   75   1        MMI_AVRCP_CancelMission(linkIndex, MMI_AVRCP_MISSION_SEND_GET_PLAY_STATUS_TO_PAUSE_MUSIC);
+   76   1        MMI_AVRCP_CancelMission(linkIndex, MMI_AVRCP_MISSION_SEND_PAUSE_MUSIC);
+   77   1        MMI_AVRCP_CancelMission(linkIndex, MMI_AVRCP_MISSION_MONITOR_PLAY_STATUS);
+   78   1        #endif
+   79   1        MMI_DRV_ResumeOtherAudioDevice(linkIndex, AUDIO_DEVICE_MUSIC_CALL_NOTIFY);
+   80   1        MMI_DRV_ResumeOtherAudioDevice(linkIndex, AUDIO_DEVICE_AVRCP_PLAY);
+   81   1        MMI_DRV_ResumeOtherAudioDevice(linkIndex, AUDIO_DEVICE_MUSIC);
+   82   1        #ifdef SUPPORT_MIC_IN_A2DP_MODE
+   83   1        if(MMI_GetAudioTransparencyEnable())
+   84   1        {
+   85   2          MMI_LineIn_SendDriverVolCmd();
+   86   2        }
+   87   1        #endif
+   88   1      #endif
+   89   1      }
+   90          
+   91          PRIVATE BOOL MMI_A2DP_GetAudioDevRegister(U8 linkIndex)
+   92          {
+   93   1        BOOL audioDevReg = MMI_DRV_AudioDeviceRegister(linkIndex, AUDIO_DEVICE_MUSIC);
+   94   1      
+   95   1        #ifdef AVRCP_Profile
+   96   1        if(AVRCP_PLAYBACK_STATUS_PLAYING == MMI_AVRCP_GetPlayStatus(linkIndex))
+   97   1        {
+   98   2          audioDevReg |= MMI_DRV_AudioDeviceRegister(linkIndex, AUDIO_DEVICE_AVRCP_PLAY);
+   99   2        }
+  100   1        #endif
+  101   1        
+  102   1        return audioDevReg;
+  103   1      }
+  104          
+  105          PUBLIC void MMI_A2DP_EventHandler(U8 linkIndex, U8 eventCode)
+  106          {
+  107   1        BOOL audioDevReg;
+  108   1      
+  109   1        switch(eventCode)
+  110   1        {     
+  111   2          case A2DP_CHANNEL_OPEN_COMPLETE_EVENT:
+  112   2            #ifdef AIR_MODULE
+  113   2            MMI_AIR_A2DPOpenNotify(linkIndex);
+  114   2            #endif
+  115   2            break;
+  116   2          case A2DP_CHANNEL_START_REQ:
+  117   2            #ifdef AVRCP_Profile
+  118   2            MMI_AVRCP_SetMusicPlay(linkIndex, TRUE);
+C251 COMPILER V5.57.0,  MMI_A2DP                                                           08/11/20  05:52:24  PAGE 3   
+
+  119   2            MMI_AVRCP_ResetKeyPlayToggle(linkIndex);
+  120   2            #endif
+  121   2      
+  122   2            audioDevReg = MMI_A2DP_GetAudioDevRegister(linkIndex);
+  123   2            
+  124   2            if(audioDevReg)
+  125   2            {
+  126   3              MMI_A2DP_AcceptStart(linkIndex);
+  127   3              if(MMI_CheckLinkInCallNotifyState(linkIndex))
+  128   3                MMI_DRV_AudioDeviceRegister(linkIndex, AUDIO_DEVICE_MUSIC_CALL_NOTIFY);
+  129   3            }
+  130   2            else if(MMI_CheckLinkInCallNotifyState(linkIndex) && MMI_DRV_AudioDeviceRegister(linkIndex, AUDIO_DEVI
+             -CE_MUSIC_CALL_NOTIFY))
+  131   2            {
+  132   3              MMI_A2DP_AcceptStart(linkIndex);
+  133   3            }
+  134   2            else
+  135   2            {
+  136   3              if(MMI_DRV_IsActiveAudioDevInFM())
+  137   3              {
+  138   4                if(MMI_A2DP_MEMPUT_WHEN_FM_ON_FEAT)
+  139   4                {
+  140   5                  MMI_A2DP_MediaPktMemPut(linkIndex);
+  141   5                }
+  142   4                else
+  143   4                {
+  144   5                  MMI_A2DP_RejectStart(linkIndex);
+  145   5                }
+  146   4              }
+  147   3              else if(MMI_DRV_IsActiveAudioDevInAUX())
+  148   3              {
+  149   4                if (MMI_A2DP_MEMPUT_WHEN_LINE_IN_FEAT)
+  150   4                {
+  151   5                  MMI_A2DP_MediaPktMemPut(linkIndex);
+  152   5                }
+  153   4                else
+  154   4                {
+  155   5                  MMI_A2DP_RejectStart(linkIndex);
+  156   5                }
+  157   4              }
+  158   3              else if(MMI_DRV_IsActiveAudioDevInCall())
+  159   3              {
+  160   4                if(MMI_A2DP_MEMPUT_WHEN_CALLACTIVE_FEAT)
+  161   4                {
+  162   5                  MMI_A2DP_MediaPktMemPut(linkIndex);
+  163   5                }
+  164   4                else
+  165   4                {
+  166   5                  MMI_A2DP_RejectStart(linkIndex);
+  167   5                }
+  168   4              }
+  169   3              else if(MMI_A2DP_MEMPUT_WHEN_OTHER_IN_MUSIC_FEAT && MMI_DRV_IsActiveAudioDevInMusic())
+  170   3              {
+  171   4                MMI_A2DP_MediaPktMemPut(linkIndex);
+  172   4              }
+  173   3              else
+  174   3              {
+  175   4                MMI_A2DP_RejectStart(linkIndex);
+  176   4              }
+  177   3            }
+  178   2            break;
+  179   2            
+  180   2          case A2DP_CHANNEL_START_RESP:
+  181   2            #ifdef AVRCP_Profile
+  182   2            MMI_AVRCP_SetMusicPlay(linkIndex, TRUE);
+  183   2            MMI_AVRCP_ResetKeyPlayToggle(linkIndex);
+C251 COMPILER V5.57.0,  MMI_A2DP                                                           08/11/20  05:52:24  PAGE 4   
+
+  184   2            #endif
+  185   2            #ifdef AIR_MODULE
+  186   2            MMI_AIR_A2DPAcceptStartReqNotify(linkIndex);
+  187   2            #endif
+  188   2            MMI_SniffDisable(linkIndex, MMI_SNIFF_A2DP_MUSIC);
+  189   2            
+  190   2            audioDevReg = MMI_A2DP_GetAudioDevRegister(linkIndex);
+  191   2            
+  192   2            if(audioDevReg)
+  193   2            {
+  194   3              MMI_A2DP_SendDSPEnableCmd(linkIndex);
+  195   3            }
+  196   2            break;
+  197   2      
+  198   2          case A2DP_CHANNEL_START_RESP_FOR_INT:   
+  199   2            #ifdef AVRCP_Profile
+  200   2            MMI_AVRCP_SetMusicPlay(linkIndex, TRUE);
+  201   2            MMI_AVRCP_ResetKeyPlayToggle(linkIndex);
+  202   2            #endif
+  203   2      
+  204   2            audioDevReg = MMI_A2DP_GetAudioDevRegister(linkIndex);
+  205   2            
+  206   2            if(audioDevReg)
+  207   2            {
+  208   3              MMI_A2DP_SendCmd(linkIndex, A2DP_SET_AFTER_START_RESP);
+  209   3              if(MMI_CheckLinkInCallNotifyState(linkIndex))
+  210   3                MMI_DRV_AudioDeviceRegister(linkIndex, AUDIO_DEVICE_MUSIC_CALL_NOTIFY);
+  211   3            }
+  212   2            else if(MMI_CheckLinkInCallNotifyState(linkIndex) && MMI_DRV_AudioDeviceRegister(linkIndex, AUDIO_DEVI
+             -CE_MUSIC_CALL_NOTIFY))
+  213   2            {
+  214   3              MMI_A2DP_SendCmd(linkIndex, A2DP_SET_AFTER_START_RESP);
+  215   3            }     
+  216   2            break;
+  217   2            
+  218   2          case A2DP_CHANNEL_SUSPEND_REQ:
+  219   2            if(eventCode == A2DP_CHANNEL_SUSPEND_REQ)
+  220   2              MMI_A2DP_SendCmd(linkIndex, A2DP_ACCEPT_SUSPEND_RESP);
+  221   2            /* fallthrough *//*comment to prevent coverity warning*/
+  222   2          case A2DP_CHANNEL_SUSPEND_EVT:
+  223   2            MMI_A2DP_MusicStopped(linkIndex, FALSE);        
+  224   2            break;
+  225   2            
+  226   2          case A2DP_CHANNEL_CLOSE_REQ:
+  227   2            MMI_A2DP_SendCmd(linkIndex, A2DP_CLOSE_COMPLETE_RESP);
+  228   2            MMI_ClearProfileInReconnectList(linkIndex, PROFILE_AVRCP);
+  229   2            /* fallthrough *//*comment to prevent coverity warning*/
+  230   2          case A2DP_CHANNEL_CLOSED_EVT:
+  231   2          case A2DP_CHANNEL_MEDIA_CHANNEL_CLOSED_EVT:
+  232   2            MMI_A2DP_MusicStopped(linkIndex, TRUE);   
+  233   2            break;
+  234   2            
+  235   2          case A2DP_CHANNEL_FOLLOWER_AUX:
+  236   2            gMMI_A2DP_ctl.auxGainReplaced = TRUE;
+  237   2            break;
+  238   2          case A2DP_CHANNEL_FOLLOWER_MUSIC:
+  239   2            gMMI_A2DP_ctl.auxGainReplaced = FALSE;
+  240   2            break;
+  241   2          #ifdef A2DP_SRC_Profile 
+                   case A2DP_CHANNEL_SOURCE_START_EVT:
+                     if(MMI_DRV_AudioDeviceRegister(linkIndex, AUDIO_DEVICE_MUSIC))
+                     {
+                       MMI_HCI_SendVCmdAudioQosSetup(linkIndex, SERVICE_TYPE_GUARANTEED, TRUE, FALSE);
+                       MMI_LineIn_DriverCmd(DRIVER_LINE_IN_CMD);
+                     }
+                     break;
+C251 COMPILER V5.57.0,  MMI_A2DP                                                           08/11/20  05:52:24  PAGE 5   
+
+                   #endif
+  250   2          
+  251   2          case A2DP_CHANNEL_RECONNECT_AFTER_ABORT_EVT:
+  252   2            MMI_A2DP_ConnectMediaChannelSource(linkIndex);
+  253   2            break;
+  254   2          
+  255   2          default:
+  256   2            break;      
+  257   2        }
+  258   1      }
+  259          
+  260          PUBLIC void MMI_A2DP_ConnectedHandle(U8 linkIndex)
+  261          {
+  262   1        if(MMI_GetProfileDesc(PROFILE_AVRCP))
+  263   1        {
+  264   2          if(!MMI_IsProfileIdLoaded(linkIndex, PROFILE_AVRCP))
+  265   2          {
+  266   3            MMI_SetReconnectProfile(linkIndex, PROFILE_AVRCP, 3 * ONE_SEC);
+  267   3          }
+  268   2        }
+  269   1      }
+  270          
+  271          PUBLIC BOOL MMI_A2DP_IsConnected(U8 linkIndex)
+  272          {
+  273   1        return (A2DP_GetState(linkIndex) >= PROFILE_CONNECTED) ? TRUE : FALSE;
+  274   1      }
+  275          
+  276          extern MmiCtlType XDATA gMMI_ctl;
+  277          PUBLIC void MMI_A2DP_SetDriverVolPara(U8 soundLevel, U8 smallStepLevel, DriverVolumeSetCmd XDATA_PTR volP
+             -tr)
+  278          {
+  279   1        U8 spkGainSetIndex, micGainSetIndex;
+  280   1        U8 deltaDigitalGainL, deltaAnalogGainL;
+  281   1        BOOL isMute;
+  282   1        
+  283   1        volPtr->soundLevel = soundLevel;
+  284   1        
+  285   1        isMute = (soundLevel)? FALSE:TRUE;
+  286   1        
+  287   1        if(soundLevel)
+  288   1          soundLevel--;
+  289   1      
+  290   1        if(gMMI_A2DP_ctl.auxGainReplaced)
+  291   1        {
+  292   2          spkGainSetIndex = GET_LINEIN_SPK_GAIN_BY_LEVEL(soundLevel);  
+  293   2          micGainSetIndex = GET_LINEIN_MIC_GAIN_BY_LEVEL(soundLevel); 
+  294   2          
+  295   2          volPtr->spkVols = MMI_SPK_GAINSET[spkGainSetIndex].digitalGainL;
+  296   2          volPtr->analogDaGain = MMI_SPK_GAINSET[spkGainSetIndex].analogGainL;
+  297   2          volPtr->micVols = MMI_MIC_GAINSET[micGainSetIndex].digitalGainL;
+  298   2          volPtr->analogAdGain_L = MMI_MIC_GAINSET[micGainSetIndex].analogGainL_L;
+  299   2          volPtr->analogAdGain_R = MMI_MIC_GAINSET[micGainSetIndex].analogGainL_R;
+  300   2          volPtr->smallStepLevel = smallStepLevel;
+  301   2          if(smallStepLevel && !isMute)
+  302   2          {
+  303   3            deltaDigitalGainL = (U16)(MMI_SPK_GAINSET[GET_LINEIN_SPK_GAIN_BY_LEVEL(soundLevel+1)].digitalGainL - M
+             -MI_SPK_GAINSET[spkGainSetIndex].digitalGainL)*smallStepLevel/(gMMI_nvram.smallStepVolume.lineInVolumeSmallStep+1);
+  304   3            deltaAnalogGainL = (U16)(MMI_SPK_GAINSET[GET_LINEIN_SPK_GAIN_BY_LEVEL(soundLevel+1)].analogGainL - MMI
+             -_SPK_GAINSET[spkGainSetIndex].analogGainL)*smallStepLevel/(gMMI_nvram.smallStepVolume.lineInVolumeSmallStep+1);
+  305   3            volPtr->spkVols += deltaDigitalGainL;
+  306   3            volPtr->analogDaGain += deltaAnalogGainL;
+  307   3          }
+  308   2          #ifdef LINEIN_ENABLE
+  309   2          soundLevel++;
+  310   2          MMI_LineIn_SetVolByLevel(soundLevel, smallStepLevel);
+  311   2          LightDbgPrint("LineIn SoundLevel:%d - Aux", (U8) soundLevel);
+C251 COMPILER V5.57.0,  MMI_A2DP                                                           08/11/20  05:52:24  PAGE 6   
+
+  312   2          #endif
+  313   2        }
+  314   1        else
+  315   1        {
+  316   2          spkGainSetIndex = GET_A2DP_SPK_GAIN_BY_LEVEL(soundLevel);
+  317   2          micGainSetIndex = GET_A2DP_MIC_GAIN_BY_LEVEL(soundLevel);
+  318   2          
+  319   2          volPtr->spkVols = MMI_SPK_GAINSET[spkGainSetIndex].digitalGainA;
+  320   2          volPtr->analogDaGain = MMI_SPK_GAINSET[spkGainSetIndex].analogGainA;
+  321   2          volPtr->micVols = MMI_MIC_GAINSET[micGainSetIndex].digitalGainA;
+  322   2          volPtr->analogAdGain_L = MMI_MIC_GAINSET[micGainSetIndex].analogGainA_L;
+  323   2          volPtr->analogAdGain_R = MMI_MIC_GAINSET[micGainSetIndex].analogGainA_R;
+  324   2          volPtr->smallStepLevel = smallStepLevel;
+  325   2      
+  326   2          if(smallStepLevel && !isMute)
+  327   2          {
+  328   3            deltaDigitalGainL = (U16)(MMI_SPK_GAINSET[GET_A2DP_SPK_GAIN_BY_LEVEL(soundLevel+1)].digitalGainA - MMI
+             -_SPK_GAINSET[spkGainSetIndex].digitalGainA)*smallStepLevel/(gMMI_nvram.smallStepVolume.a2dpVolumeSmallStep+1);
+  329   3            deltaAnalogGainL = (U16)(MMI_SPK_GAINSET[GET_A2DP_SPK_GAIN_BY_LEVEL(soundLevel+1)].analogGainA - MMI_S
+             -PK_GAINSET[spkGainSetIndex].analogGainA)*smallStepLevel/(gMMI_nvram.smallStepVolume.a2dpVolumeSmallStep+1);
+  330   3            volPtr->spkVols += deltaDigitalGainL;
+  331   3            volPtr->analogDaGain += deltaAnalogGainL;
+  332   3          }
+  333   2        }
+  334   1      }
+  335          
+  336          PUBLIC void MMI_A2DP_SetDriverVolParaforMicCtlInA2DP(U8 soundLevel, U8 smallStepLevel, DriverVolumeSetCmd
+             - XDATA_PTR volPtr)
+  337          {
+  338   1        U8 spkGainSetIndex, micGainSetIndex;
+  339   1        U8 deltaDigitalGainL, deltaAnalogGainL;
+  340   1        BOOL isMute;
+  341   1      
+  342   1        isMute = (soundLevel)?FALSE:TRUE;
+  343   1        volPtr->soundLevel = soundLevel;
+  344   1        if(soundLevel)
+  345   1          soundLevel--;
+  346   1      
+  347   1        spkGainSetIndex = GET_A2DP_SPK_GAIN_BY_LEVEL(soundLevel);
+  348   1      
+  349   1        if (gMMI_ctl.isMicAdjsutInA2DP && !gMMI_ctl.isVolumeSetInitInA2DP)
+  350   1        {
+  351   2          U8 micCtlInA2DPSoundLevel = CURRENT_A2DP_SOUND_LEVEL(gMMI_ctl.linkIndexMicCtlInA2DP);
+  352   2          
+  353   2          volPtr->soundLevel = micCtlInA2DPSoundLevel;
+  354   2          if(micCtlInA2DPSoundLevel)
+  355   2            micCtlInA2DPSoundLevel--;
+  356   2          
+  357   2          spkGainSetIndex = GET_A2DP_SPK_GAIN_BY_LEVEL(micCtlInA2DPSoundLevel);
+  358   2      
+  359   2          volPtr->spkVols =  MMI_SPK_GAINSET[spkGainSetIndex].digitalGainA;//VOLUME_DONT_CARE;
+  360   2          volPtr->analogDaGain =  MMI_SPK_GAINSET[spkGainSetIndex].analogGainA;//VOLUME_DONT_CARE;
+  361   2          volPtr->micVols =     gMMI_nvram.micGainSetA2DP[soundLevel].digitalGainA2DP;
+  362   2          volPtr->analogAdGain_L =  gMMI_nvram.micGainSetA2DP[soundLevel].analogGainA2DP_L;
+  363   2          volPtr->analogAdGain_R =  gMMI_nvram.micGainSetA2DP[soundLevel].analogGainA2DP_R;
+  364   2          gMMI_ctl.isMicAdjsutInA2DP = FALSE; 
+  365   2        }
+  366   1        else if (!gMMI_ctl.isMicAdjsutInA2DP && !gMMI_ctl.isVolumeSetInitInA2DP)
+  367   1        {
+  368   2          spkGainSetIndex = GET_A2DP_SPK_GAIN_BY_LEVEL(soundLevel);
+  369   2          micGainSetIndex = CURRENT_MIC_SOUND_LEVEL_IN_A2DP(gMMI_ctl.linkIndexMicCtlInA2DP);
+  370   2      
+  371   2          volPtr->spkVols =   MMI_SPK_GAINSET[spkGainSetIndex].digitalGainA;
+  372   2          volPtr->analogDaGain = MMI_SPK_GAINSET[spkGainSetIndex].analogGainA;
+  373   2          volPtr->micVols =     gMMI_nvram.micGainSetA2DP[micGainSetIndex].digitalGainA2DP;
+  374   2          volPtr->analogAdGain_L =  gMMI_nvram.micGainSetA2DP[micGainSetIndex].analogGainA2DP_L;
+C251 COMPILER V5.57.0,  MMI_A2DP                                                           08/11/20  05:52:24  PAGE 7   
+
+  375   2          volPtr->analogAdGain_R =  gMMI_nvram.micGainSetA2DP[micGainSetIndex].analogGainA2DP_R;
+  376   2        }
+  377   1        else if (gMMI_ctl.isVolumeSetInitInA2DP)
+  378   1        {
+  379   2          spkGainSetIndex = GET_A2DP_SPK_GAIN_BY_LEVEL(soundLevel);
+  380   2          micGainSetIndex = GET_A2DP_MIC_GAIN_BY_LEVEL(soundLevel);
+  381   2          volPtr->spkVols =   MMI_SPK_GAINSET[spkGainSetIndex].digitalGainA;
+  382   2          volPtr->analogDaGain = MMI_SPK_GAINSET[spkGainSetIndex].analogGainA;
+  383   2          volPtr->micVols =  MMI_MIC_GAINSET[micGainSetIndex].digitalGainA;
+  384   2          volPtr->analogAdGain_L = MMI_MIC_GAINSET[micGainSetIndex].analogGainA_L;
+  385   2          volPtr->analogAdGain_R = MMI_MIC_GAINSET[micGainSetIndex].analogGainA_R;
+  386   2          gMMI_ctl.isVolumeSetInitInA2DP = FALSE;
+  387   2        }
+  388   1        
+  389   1        volPtr->smallStepLevel = smallStepLevel;
+  390   1      
+  391   1        if(smallStepLevel && !isMute)
+  392   1        {
+  393   2          deltaDigitalGainL = (U16)(MMI_SPK_GAINSET[GET_A2DP_SPK_GAIN_BY_LEVEL(soundLevel+1)].digitalGainA - MMI_
+             -SPK_GAINSET[spkGainSetIndex].digitalGainA)*smallStepLevel/(gMMI_nvram.smallStepVolume.a2dpVolumeSmallStep+1);
+  394   2          deltaAnalogGainL = (U16)(MMI_SPK_GAINSET[GET_A2DP_SPK_GAIN_BY_LEVEL(soundLevel+1)].analogGainA - MMI_SP
+             -K_GAINSET[spkGainSetIndex].analogGainA)*smallStepLevel/(gMMI_nvram.smallStepVolume.a2dpVolumeSmallStep+1);
+  395   2          volPtr->spkVols += deltaDigitalGainL;
+  396   2          volPtr->analogDaGain += deltaAnalogGainL;
+  397   2        }
+  398   1      }
+  399          
+  400          
+  401          PUBLIC void MMI_A2DP_SendDriverVolCmd(U8 soundLevel, U8 smallStepLevel)
+  402          {
+  403   1        MMIMsgType XDATA_PTR msgPtr = MMI_GetMMIMsgTypeCmdMemory(DRIVER_A2DP_VOLUME_SET_CMD);
+  404   1        if(msgPtr != (MMIMsgType XDATA_PTR)NULL)
+  405   1        {
+  406   2          if (gMMI_ctl.isMicEnableInA2DP)
+  407   2            MMI_A2DP_SetDriverVolParaforMicCtlInA2DP(soundLevel, smallStepLevel, &msgPtr->msgBodyPtr.driverCmd.a2d
+             -pVolSetCmd);
+  408   2          else
+  409   2            MMI_A2DP_SetDriverVolPara(soundLevel, smallStepLevel, &msgPtr->msgBodyPtr.driverCmd.a2dpVolSetCmd);
+  410   2      
+  411   2          OSMQ_Put(OSMQ_DRIVER_Command_ptr, (U8 XDATA_PTR)msgPtr);
+  412   2      
+  413   2          LightDbgPrint("A2DP SoundLevel:%d, %d", (U8)soundLevel, (U8)smallStepLevel);
+  414   2        }
+  415   1      }
+  416          
+  417          PUBLIC void MMI_A2DP_VolumeControl(U8 linkIndex, BOOL isVolumeUp, BOOL isFollowerCmd)
+  418          {
+  419   1        U8 XDATA_PTR spkSoundLevelPtr;
+  420   1      
+  421   1        spkSoundLevelPtr =  &CURRENT_A2DP_SOUND_LEVEL(linkIndex);
+  422   1        gMMI_ctl.linkIndexMicCtlInA2DP = linkIndex;
+  423   1        if (isVolumeUp)
+  424   1        {
+  425   2          CURRENT_A2DP_SMALL_STEP(linkIndex) = MMI_DRV_IncreaseSmallStepVolume( CURRENT_A2DP_SOUND_LEVEL(linkInde
+             -x), 
+  426   2                                                  gMMI_nvram.totalMusicSoundLevel,
+  427   2                                                  gMMI_nvram.smallStepVolume.a2dpVolumeSmallStep,
+  428   2                                                  CURRENT_A2DP_SMALL_STEP(linkIndex));
+  429   2      
+  430   2          if(CURRENT_A2DP_SMALL_STEP(linkIndex) == 0)
+  431   2          {
+  432   3            if (*spkSoundLevelPtr < MMI_MAX_MUSIC_SOUND_LEVEL())
+  433   3            {
+  434   4              (*spkSoundLevelPtr)++;
+  435   4            }
+  436   3            else if(MMI_A2DP_CYCLIC_VOLUME_ENABLED_FEAT)
+C251 COMPILER V5.57.0,  MMI_A2DP                                                           08/11/20  05:52:24  PAGE 8   
+
+  437   3            {
+  438   4              *spkSoundLevelPtr = 0;
+  439   4            }
+  440   3            else
+  441   3            {
+  442   4              LightDbgPrint("A2DP volume reach max volume");
+  443   4              MMI_PushMediaEvent(MEDIA_EVT_A2DP_VOLUME_REACH_MAX);
+  444   4              return;
+  445   4            }
+  446   3          }
+  447   2        }
+  448   1        else
+  449   1        {
+  450   2          if(CURRENT_A2DP_SMALL_STEP(linkIndex) == 0)
+  451   2          {
+  452   3            if (*spkSoundLevelPtr > 0)
+  453   3            {
+  454   4              (*spkSoundLevelPtr)--;
+  455   4            }
+  456   3            else if(MMI_A2DP_CYCLIC_VOLUME_ENABLED_FEAT)
+  457   3            {
+  458   4              *spkSoundLevelPtr = MMI_MAX_MUSIC_SOUND_LEVEL();
+  459   4              goto MMI_SEND_A2DP_VOL;
+  460   4            }
+  461   3            else
+  462   3            {
+  463   4              LightDbgPrint("A2DP volume reach min volume");
+  464   4              MMI_PushMediaEvent(MEDIA_EVT_A2DP_VOLUME_REACH_MIN);
+  465   4              return;
+  466   4            }
+  467   3          }
+  468   2          CURRENT_A2DP_SMALL_STEP(linkIndex) = MMI_DRV_DecreaseSmallStepVolume(gMMI_nvram.smallStepVolume.a2dpVol
+             -umeSmallStep, CURRENT_A2DP_SMALL_STEP(linkIndex));
+  469   2        }
+  470   1        MMI_SEND_A2DP_VOL:
+  471   1        
+  472   1        MMI_A2DP_SetVolByLevel(linkIndex, CURRENT_A2DP_SOUND_LEVEL(linkIndex), CURRENT_A2DP_SMALL_STEP(linkIndex
+             -));
+  473   1        #ifdef AVRCP_Profile
+  474   1        LightDbgPrint("MMI-SendAVRCPVolChanged[%d]:%d",(U8)linkIndex, (U8)MMI_AVRCP_GetAbsVolByMusic(linkIndex))
+             -;
+  475   1        MMI_AVRCP_CmdGenerator(linkIndex, AVRCP_VOLUME_CHANGED, MMI_AVRCP_GetAbsVolByMusic(linkIndex));
+  476   1        #endif
+  477   1        
+  478   1        if(linkIndex == MMI_DRV_GetAudioInMusicLink() 
+  479   1        #ifdef AVRCP_Profile
+  480   1          && MMI_AVRCP_IsMusicPlaying(linkIndex)
+  481   1        #endif
+  482   1        )
+  483   1        {
+  484   2          #ifdef AIR_MODULE
+  485   2          MMI_AIR_A2DPKeyVolUpDn(linkIndex, isVolumeUp);
+  486   2          #endif
+  487   2          MMI_A2DP_SendDriverVolCmd(*spkSoundLevelPtr, CURRENT_A2DP_SMALL_STEP(linkIndex));
+  488   2          if(!isFollowerCmd)
+  489   2            MMI_DRV_Beep(*spkSoundLevelPtr, AUDIO_DEVICE_MUSIC);
+  490   2        }
+  491   1            
+  492   1        if (MMI_REMEMBER_SOUND_LEVEL_CHANGE_IN_RUNTIME_FEAT)
+  493   1        {
+  494   2          MMI_LinkKey_SaveHistoryInRunTime(linkIndex);
+  495   2        }
+  496   1      }
+  497          
+  498          PRIVATE void MMI_A2DP_RemoveAudioLink(U8 linkIndex)
+  499          {
+C251 COMPILER V5.57.0,  MMI_A2DP                                                           08/11/20  05:52:24  PAGE 9   
+
+  500   1        MMI_DRV_AudioDeviceDeRegister(linkIndex, AUDIO_DEVICE_MUSIC_CALL_NOTIFY);
+  501   1        MMI_DRV_AudioDeviceDeRegister(linkIndex, AUDIO_DEVICE_AVRCP_PLAY);
+  502   1        MMI_DRV_AudioDeviceDeRegister(linkIndex, AUDIO_DEVICE_MUSIC);
+  503   1        MMI_DRV_ResumeOtherAudioDevice(linkIndex, AUDIO_DEVICE_MUSIC_CALL_NOTIFY);
+  504   1        MMI_DRV_ResumeOtherAudioDevice(linkIndex, AUDIO_DEVICE_AVRCP_PLAY);
+  505   1        MMI_DRV_ResumeOtherAudioDevice(linkIndex, AUDIO_DEVICE_MUSIC);
+  506   1      }
+  507          
+  508          PUBLIC void MMI_A2DP_ClearCtlData(U8 linkIndex)
+  509          {
+  510   1        MMI_ClearProfileInReconnectList(linkIndex, PROFILE_AVRCP);
+  511   1        MMI_A2DP_RemoveAudioLink(linkIndex);
+  512   1        MMI_A2DP_MusicStopClearPara(linkIndex);
+  513   1        MMI_A2DP_EventHandler(linkIndex, A2DP_CHANNEL_FOLLOWER_MUSIC);
+  514   1        OSMEM_memset_xdata((U8 XDATA_PTR)&gMMI_A2DP_ctl.A2dpCtl[linkIndex], 0x00, sizeof(MmiA2dpCtlType));
+  515   1      }
+  516          
+  517          PUBLIC void MMI_A2DP_ClearResumeState(U8 linkInd)
+  518          {
+  519   1        A2DP_SetResume(linkInd, FALSE);
+  520   1        MMI_DRV_AudioDeviceDeRegister(linkInd, AUDIO_DEVICE_MUSIC);
+  521   1        MMI_DRV_AudioDeviceDeRegister(linkInd, AUDIO_DEVICE_AVRCP_PLAY);
+  522   1      }
+  523          
+  524          #ifdef AVRCP_Profile
+  525          PRIVATE void MMI_A2DP_MonitorPlayStatus(U8 linkIndex, U8 isSuccessful)
+  526          {
+  527   1        if(isSuccessful)
+  528   1        {
+  529   2          MMI_AVRCP_MISSION_PARAM_TYPE LDATA avrcpParam;
+  530   2          avrcpParam.taskId = MMI_AVRCP_MISSION_MONITOR_PLAY_STATUS;
+  531   2          avrcpParam.timer = HALF_SEC;
+  532   2          avrcpParam.fcallback = MMI_A2DP_MonitorPlayStatus;
+  533   2          MMI_AVRCP_PushMission(linkIndex, &avrcpParam);
+  534   2        }
+  535   1      }
+  536          #endif
+  537          
+  538          PRIVATE void MMI_A2DP_SendPause(U8 linkIndex, U8 playStatus)
+  539          {
+  540   1        MMI_A2DP_SendCmd(linkIndex, A2DP_MUSIC_DATA_MEMORY_PUT_CMD);
+  541   1        
+  542   1        #ifdef AVRCP_Profile
+  543   1        if(MMI_AVRCP_IsConnected(linkIndex))
+  544   1        {
+  545   2          MMI_AVRCP_MISSION_PARAM_TYPE LDATA avrcpParam;
+  546   2          switch(playStatus)
+  547   2          {
+  548   3            case AVRCP_PLAYBACK_STATUS_PLAYING:
+  549   3              MMI_AVRCP_CmdGenerator(linkIndex,AVRCP_SEND_OPERATION,AVC_OPERATION_PAUSE);
+  550   3              
+  551   3              //A2DP_SetResume(linkIndex, TRUE);
+  552   3              if(!gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].isDisablePlayStatusMonitor)
+  553   3              {
+  554   4                avrcpParam.taskId = MMI_AVRCP_MISSION_MONITOR_PLAY_STATUS;
+  555   4                avrcpParam.timer = 2*320L;
+  556   4                avrcpParam.fcallback = MMI_A2DP_MonitorPlayStatus;
+  557   4                MMI_AVRCP_PushMission(linkIndex, &avrcpParam);
+  558   4                gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].playStatus = AVRCP_PLAYBACK_STATUS_PAUSED;
+  559   4              }
+  560   3              break;
+  561   3            case AVRCP_PLAYBACK_STATUS_STOPPED:
+  562   3              MMI_AVRCP_CmdGenerator(linkIndex,AVRCP_SEND_OPERATION,AVC_OPERATION_STOP);
+  563   3              /* fallthrough *//*comment to prevent coverity warning*/
+  564   3            case AVRCP_PLAYBACK_STATUS_PAUSED:
+  565   3              break;
+C251 COMPILER V5.57.0,  MMI_A2DP                                                           08/11/20  05:52:24  PAGE 10  
+
+  566   3            case AVRCP_PLAYBACK_STATUS_FWD_SEEK:
+  567   3            case AVRCP_PLAYBACK_STATUS_REV_SEEK:
+  568   3              break;
+  569   3      
+  570   3            default:
+  571   3              MMI_AVRCP_CmdGenerator(linkIndex,AVRCP_SEND_OPERATION,AVC_OPERATION_STOP);
+  572   3              break;
+  573   3      
+  574   3          }
+  575   2        }
+  576   1        else
+  577   1        #else
+                 UNUSED(playStatus);
+                 #endif
+  580   1        {
+  581   2          MMI_A2DP_SendCmd(linkIndex, A2DP_PAUSE_CMD);
+  582   2        }
+  583   1      
+  584   1        // Reset the resume record in other link in case of confusion.
+  585   1      #ifdef SUPPORT_MULTI_POINT  
+  586   1        if(A2DP_IsResume(linkIndex) && (A2DP_STREAMING == A2DP_GetState(linkIndex)))
+  587   1        {
+  588   2          U8 nextActiveLink;
+  589   2          for(nextActiveLink = 0; nextActiveLink < MAX_MULTI_POINT_NO; nextActiveLink++)
+  590   2          {
+  591   3            if(nextActiveLink == linkIndex || !MMI_IsActiveLink(nextActiveLink))
+  592   3              continue;
+  593   3      
+  594   3            MMI_A2DP_ClearResumeState(nextActiveLink);
+  595   3          }
+  596   2        }
+  597   1      #endif  
+  598   1      }
+  599          
+  600          #ifdef AVRCP_Profile
+  601          PRIVATE void MMI_A2DP_GetPauseMusicCallBack(U8 linkIndex, U8 isSuccessful)
+  602          {
+  603   1        UNUSED(isSuccessful);
+  604   1        if(!MMI_CheckLinkInCallActiveState(linkIndex))
+  605   1        {
+  606   2          MMI_A2DP_SendPause(linkIndex, AVRCP_PLAYBACK_STATUS_STOPPED);
+  607   2        }
+  608   1      }
+  609          
+  610          PRIVATE void MMI_A2DP_GetPlayStatusToPauseMusicCallBack(U8 linkIndex, U8 isSuccessful)
+  611          {
+  612   1        #ifdef AVRCP_Profile
+  613   1        if(isSuccessful)
+  614   1        {
+  615   2          MMI_AVRCP_MISSION_PARAM_TYPE LDATA avrcpParam;
+  616   2          avrcpParam.taskId = MMI_AVRCP_MISSION_SEND_PAUSE_MUSIC;
+  617   2          avrcpParam.timer = ONE_SEC;
+  618   2          avrcpParam.fcallback = MMI_A2DP_GetPauseMusicCallBack;
+  619   2          MMI_AVRCP_PushMission(linkIndex, &avrcpParam);
+  620   2        }
+  621   1        else
+  622   1        #else
+                 UNUSED(isSuccessful);
+                 #endif
+  625   1        {
+  626   2          if(!MMI_CheckLinkInCallActiveState(linkIndex))
+  627   2          {
+  628   3            MMI_A2DP_SendPause(linkIndex, AVRCP_PLAYBACK_STATUS_STOPPED);
+  629   3          }
+  630   2        }
+  631   1      }
+C251 COMPILER V5.57.0,  MMI_A2DP                                                           08/11/20  05:52:24  PAGE 11  
+
+  632          
+  633          PUBLIC void MMI_A2DP_CheckPlayStatusConsistency(U8 linkIndex, U8 playStatus, U8 needDelay)
+  634          {
+  635   1        if (playStatus == AVRCP_PLAYBACK_STATUS_PLAYING)
+  636   1        {
+  637   2          if (A2DP_OPEN == A2DP_GetState(linkIndex))
+  638   2          // play status is playing but no AVDTP_START received
+  639   2          {
+  640   3            LightDbgPrint("check streaming state later");
+  641   3            MMI_AVRCP_CheckStreamingStateLater(linkIndex, playStatus, needDelay);
+  642   3          }
+  643   2        }
+  644   1      }
+  645          
+  646          PUBLIC void MMI_A2DP_PlayStatusChanged(U8 linkIndex, U8 playStatus)
+  647          {
+  648   1        #ifdef AVRCP_Profile
+  649   1        switch(playStatus)
+  650   1        {
+  651   2          case AVRCP_PLAYBACK_STATUS_PLAYING:
+  652   2            if(MMI_AVRCP_CheckMission(linkIndex, MMI_AVRCP_MISSION_SEND_GET_PLAY_STATUS_TO_PAUSE_MUSIC) || MMI_AVR
+             -CP_CheckMission(linkIndex, MMI_AVRCP_MISSION_SEND_PAUSE_MUSIC))
+  653   2            {
+  654   3              if(!MMI_CheckLinkInCallActiveState(linkIndex))
+  655   3              {
+  656   4                MMI_A2DP_SendPause(linkIndex, AVRCP_PLAYBACK_STATUS_PLAYING);
+  657   4              }
+  658   3            }
+  659   2            else if(A2DP_STREAMING == A2DP_GetState(linkIndex))
+  660   2            {
+  661   3              BOOL audioDevReg = MMI_DRV_AudioDeviceRegister(linkIndex, AUDIO_DEVICE_AVRCP_PLAY);
+  662   3              if(MMI_AllLinksInCallRelatedState())
+  663   3              {
+  664   4                if(!MMI_CheckLinkInCallActiveState(linkIndex) && !MMI_A2DP_MEMPUT_WHEN_CALLACTIVE_FEAT)
+  665   4                {
+  666   5                  A2DP_SetResume(linkIndex, TRUE);
+  667   5                  MMI_A2DP_SendPause(linkIndex, AVRCP_PLAYBACK_STATUS_PLAYING);
+  668   5                }
+  669   4              }
+  670   3              else if(audioDevReg)
+  671   3              {
+  672   4                MMI_A2DP_SendDSPEnableCmd(linkIndex);
+  673   4              }     
+  674   3            }
+  675   2            else
+  676   2            {
+  677   3              MMI_A2DP_CheckPlayStatusConsistency(linkIndex, playStatus, FALSE);
+  678   3            }
+  679   2            break;
+  680   2            
+  681   2          case AVRCP_PLAYBACK_STATUS_STOPPED:
+  682   2          case AVRCP_PLAYBACK_STATUS_PAUSED:
+  683   2            MMI_DRV_AudioDeviceDeRegister(linkIndex, AUDIO_DEVICE_AVRCP_PLAY);
+  684   2            if(MMI_AVRCP_CheckMission(linkIndex, MMI_AVRCP_MISSION_SEND_GET_PLAY_STATUS_TO_PAUSE_MUSIC) || MMI_AVR
+             -CP_CheckMission(linkIndex, MMI_AVRCP_MISSION_SEND_PAUSE_MUSIC))
+  685   2            {
+  686   3              MMI_A2DP_StopDSP(linkIndex);
+  687   3            }
+  688   2            else
+  689   2            {
+  690   3              MMI_DRV_ResumeOtherAudioDevice(linkIndex, AUDIO_DEVICE_AVRCP_PLAY);
+  691   3            }
+  692   2            A2DP_MMICommandHandler(linkIndex, A2DP_MUSIC_PAUSED_BY_AVRCP_PLAY_STATUS);
+  693   2            break;
+  694   2          case AVRCP_PLAYBACK_STATUS_FWD_SEEK:
+  695   2          case AVRCP_PLAYBACK_STATUS_REV_SEEK:  
+C251 COMPILER V5.57.0,  MMI_A2DP                                                           08/11/20  05:52:24  PAGE 12  
+
+  696   2            if(MMI_AVRCP_CheckMission(linkIndex, MMI_AVRCP_MISSION_SEND_PAUSE_MUSIC))
+  697   2            {
+  698   3              MMI_AVRCP_MISSION_PARAM_TYPE LDATA avrcpParam;
+  699   3              avrcpParam.taskId = MMI_AVRCP_MISSION_SEND_GET_PLAY_STATUS_TO_PAUSE_MUSIC;
+  700   3              avrcpParam.timer = HALF_SEC;
+  701   3              avrcpParam.fcallback = MMI_A2DP_GetPlayStatusToPauseMusicCallBack;
+  702   3              MMI_AVRCP_PushMission(linkIndex, &avrcpParam);      
+  703   3            }
+  704   2            break;
+  705   2          case AVRCP_PLAYBACK_STATUS_REJECT:
+  706   2            if(MMI_AVRCP_CheckMission(linkIndex, MMI_AVRCP_MISSION_SEND_PAUSE_MUSIC))
+  707   2            {
+  708   3              if(!MMI_CheckLinkInCallActiveState(linkIndex))
+  709   3              {
+  710   4                MMI_A2DP_SendPause(linkIndex, AVRCP_PLAYBACK_STATUS_PLAYING);
+  711   4              }
+  712   3            }   
+  713   2            break;
+  714   2        }
+  715   1        #else
+                 UNUSED(linkIndex);
+                 UNUSED(playStatus);
+                 #endif
+  719   1      }
+  720          
+  721          PUBLIC void MMI_A2DP_PlayStatusTheSame(U8 linkIndex, U8 playStatus)
+  722          {
+  723   1        #ifdef AVRCP_Profile
+  724   1        switch(playStatus)
+  725   1        {
+  726   2          case AVRCP_PLAYBACK_STATUS_PLAYING:
+  727   2            if(MMI_AVRCP_CheckMission(linkIndex, MMI_AVRCP_MISSION_SEND_GET_PLAY_STATUS_TO_PAUSE_MUSIC) || MMI_AVR
+             -CP_CheckMission(linkIndex, MMI_AVRCP_MISSION_SEND_PAUSE_MUSIC))
+  728   2            {
+  729   3              if(!MMI_CheckLinkInCallActiveState(linkIndex))
+  730   3              {
+  731   4                MMI_A2DP_SendPause(linkIndex, AVRCP_PLAYBACK_STATUS_PLAYING);
+  732   4              }
+  733   3            }
+  734   2            else if(A2DP_STREAMING == A2DP_GetState(linkIndex))
+  735   2            {
+  736   3              if(MMI_AllLinksInCallRelatedState())
+  737   3              {
+  738   4                if(!MMI_CheckLinkInCallActiveState(linkIndex) && !MMI_A2DP_MEMPUT_WHEN_CALLACTIVE_FEAT)
+  739   4                {
+  740   5                  A2DP_SetResume(linkIndex, TRUE);
+  741   5                  MMI_A2DP_SendPause(linkIndex, AVRCP_PLAYBACK_STATUS_PLAYING);
+  742   5                }
+  743   4              }     
+  744   3            }
+  745   2            break;
+  746   2            
+  747   2          case AVRCP_PLAYBACK_STATUS_STOPPED:
+  748   2            if(MMI_AVRCP_CheckMission(linkIndex, MMI_AVRCP_MISSION_SEND_PAUSE_MUSIC))
+  749   2            {
+  750   3              if(!MMI_CheckLinkInCallActiveState(linkIndex))
+  751   3              {
+  752   4                MMI_A2DP_SendPause(linkIndex, AVRCP_PLAYBACK_STATUS_STOPPED);
+  753   4              }     
+  754   3            }
+  755   2            /* fallthrough */
+  756   2          case AVRCP_PLAYBACK_STATUS_PAUSED:
+  757   2            MMI_AVRCP_CheckMission(linkIndex, MMI_AVRCP_MISSION_SEND_GET_PLAY_STATUS_TO_PAUSE_MUSIC);
+  758   2            //MMI_AVRCP_CheckMission(linkIndex, MMI_AVRCP_MISSION_SEND_PAUSE_MUSIC);
+  759   2            break;
+  760   2          case AVRCP_PLAYBACK_STATUS_FWD_SEEK:
+C251 COMPILER V5.57.0,  MMI_A2DP                                                           08/11/20  05:52:24  PAGE 13  
+
+  761   2          case AVRCP_PLAYBACK_STATUS_REV_SEEK:  
+  762   2            if(MMI_AVRCP_CheckMission(linkIndex, MMI_AVRCP_MISSION_SEND_PAUSE_MUSIC))
+  763   2            {
+  764   3              MMI_AVRCP_MISSION_PARAM_TYPE LDATA avrcpParam;
+  765   3              avrcpParam.taskId = MMI_AVRCP_MISSION_SEND_GET_PLAY_STATUS_TO_PAUSE_MUSIC;
+  766   3              avrcpParam.timer = HALF_SEC;
+  767   3              avrcpParam.fcallback = MMI_A2DP_GetPlayStatusToPauseMusicCallBack;
+  768   3              MMI_AVRCP_PushMission(linkIndex, &avrcpParam);      
+  769   3            }
+  770   2            break;
+  771   2          case AVRCP_PLAYBACK_STATUS_REJECT:
+  772   2            if(MMI_AVRCP_CheckMission(linkIndex, MMI_AVRCP_MISSION_SEND_PAUSE_MUSIC))
+  773   2            {
+  774   3              if(!MMI_CheckLinkInCallActiveState(linkIndex))
+  775   3              {
+  776   4                MMI_A2DP_SendPause(linkIndex, AVRCP_PLAYBACK_STATUS_PLAYING);
+  777   4              }
+  778   3            }   
+  779   2            break;
+  780   2        }
+  781   1        #else
+                 UNUSED(linkIndex);
+                 UNUSED(playStatus);
+                 #endif
+  785   1      }
+  786          #endif
+  787          
+  788          PUBLIC void MMI_A2DP_SendPauseMusic(U8 linkIndex, U8 isCall)
+  789          {
+  790   1        if(A2DP_STREAMING == A2DP_GetState(linkIndex) && !A2DP_IsResume(linkIndex))
+  791   1        {
+  792   2          MMI_A2DP_StopDSP(linkIndex);
+  793   2      
+  794   2          if (isCall && MMI_A2DP_MEMPUT_WHEN_CALLACTIVE_FEAT)
+  795   2          {
+  796   3      
+  797   3          }
+  798   2          #ifdef AVRCP_Profile
+  799   2          else if(MMI_AVRCP_IsConnected(linkIndex) || MMI_IsProfileInReconnectList(linkIndex, PROFILE_AVRCP) || M
+             -MI_IsProfileIdLoaded(linkIndex, PROFILE_AVRCP)) 
+  800   2          {
+  801   3            MMI_AVRCP_MISSION_PARAM_TYPE LDATA avrcpParam;
+  802   3            
+  803   3            if(gMMI_ctl.audioDevCtl.currentActiveLinkIndex == linkIndex)
+  804   3            {
+  805   4              if(gMMI_AVRCP_ctl.AvrcpCtl[linkIndex].isDisablePlayStatusMonitor)
+  806   4              {
+  807   5                avrcpParam.taskId = MMI_AVRCP_MISSION_SEND_PAUSE_MUSIC;
+  808   5                avrcpParam.timer = 2 * ONE_SEC;
+  809   5                avrcpParam.fcallback = MMI_A2DP_GetPauseMusicCallBack;
+  810   5                MMI_AVRCP_PushMission(linkIndex, &avrcpParam);
+  811   5                
+  812   5                avrcpParam.taskId = MMI_AVRCP_MISSION_QUERY_CURRENT_PLAY_STATUS;
+  813   5                avrcpParam.timer = 0;
+  814   5                avrcpParam.fcallback = NULL;
+  815   5                MMI_AVRCP_PushMission(linkIndex, &avrcpParam);
+  816   5                
+  817   5              }
+  818   4              else
+  819   4              {
+  820   5                avrcpParam.taskId = MMI_AVRCP_MISSION_SEND_GET_PLAY_STATUS_TO_PAUSE_MUSIC;
+  821   5                avrcpParam.timer = 0;
+  822   5                avrcpParam.fcallback = MMI_A2DP_GetPlayStatusToPauseMusicCallBack;
+  823   5                MMI_AVRCP_PushMission(linkIndex, &avrcpParam);        
+  824   5              }
+  825   4            }
+C251 COMPILER V5.57.0,  MMI_A2DP                                                           08/11/20  05:52:24  PAGE 14  
+
+  826   3            else
+  827   3            {
+  828   4              // Wait for AVRCP state transition
+  829   4              // Just got A2DP connected. waiting for AVRCP
+  830   4              avrcpParam.taskId = MMI_AVRCP_MISSION_SEND_GET_PLAY_STATUS_TO_PAUSE_MUSIC;
+  831   4              avrcpParam.timer = HALF_SEC;
+  832   4              avrcpParam.fcallback = MMI_A2DP_GetPlayStatusToPauseMusicCallBack;
+  833   4              MMI_AVRCP_PushMission(linkIndex, &avrcpParam);
+  834   4            }
+  835   3          }
+  836   2          #endif
+  837   2          else
+  838   2          {
+  839   3            MMI_A2DP_SendPause(linkIndex, AVRCP_PLAYBACK_STATUS_NONE);
+  840   3          }
+  841   2        }
+  842   1      }
+  843          
+  844          PUBLIC BOOL MMI_A2DP_EncodedDataHandler(U8 XDATA_PTR ptr1)
+  845          {
+  846   1        U8 linkIndex;
+  847   1        for(linkIndex = 0; linkIndex < MAX_MULTI_POINT_NO; linkIndex++)
+  848   1        {
+  849   2          #ifdef SUPPORT_SBC_SRC
+  850   2          if(MMI_A2DP_IsInStreaming(linkIndex) && A2DP_IsMediaDataPlay(linkIndex))
+  851   2          {
+  852   3            return A2DP_SendEncodedMediaPacket(linkIndex, ptr1);
+  853   3          }
+  854   2          #endif
+  855   2          #ifdef AIR_MODULE
+  856   2          if(MMI_A2DP_IsInStreaming(linkIndex) && A2DP_IsLinkRelayer(linkIndex))
+  857   2          {
+  858   3            return A2DP_SendEncodedMediaPacket(linkIndex, ptr1);
+  859   3          }
+  860   2          #endif
+  861   2          UNUSED(ptr1);
+  862   2        }
+  863   1        return FALSE;
+  864   1      }
+  865          
+  866          PUBLIC void MMI_A2DP_ConnectMediaChannelSource(U8 linkIndex)
+  867          {
+  868   1        MMI_A2DP_SendCmd(linkIndex, A2DP_CONNECT_MEDIA_CMD_SOURCE);
+  869   1      }
+  870          
+  871          PUBLIC void MMI_A2DP_HighQualityCodecHandle(U8 settings)
+  872          {
+  873   1        gMMI_A2DP_ctl.isHQCodecDisabled = (settings & UART_CMD_HQ_CODEC_ENABLED) ? FALSE : TRUE;
+  874   1      }
+  875          
+  876          PUBLIC BOOL MMI_A2DP_IsHighQualityCodecDisbaled(void)
+  877          {
+  878   1        return gMMI_A2DP_ctl.isHQCodecDisabled;
+  879   1      }
+  880          
+  881          PUBLIC BOOL MMI_A2DP_IsInStreaming(U8 linkIndex)
+  882          {
+  883   1        return (A2DP_STREAMING == A2DP_GetState(linkIndex) && !A2DP_IsResume(linkIndex)) ? TRUE : FALSE;
+  884   1      }
+  885          
+  886          PUBLIC void MMI_A2DP_StopDSP(U8 linkIndex)
+  887          {
+  888   1        MMI_A2DP_SendCmd(linkIndex, A2DP_MUSIC_DATA_MEMORY_PUT_CMD);
+  889   1        MMI_SendDSPCmd(linkIndex, DSP_DISABLED);
+  890   1      }
+  891          
+C251 COMPILER V5.57.0,  MMI_A2DP                                                           08/11/20  05:52:24  PAGE 15  
+
+  892          PUBLIC void MMI_A2DP_SendResume(U8 linkIndex)
+  893          {
+  894   1        #ifdef AVRCP_Profile
+  895   1        if(MMI_AVRCP_IsConnected(linkIndex))
+  896   1        {
+  897   2          MMI_AVRCP_CmdGenerator(linkIndex, AVRCP_SEND_OPERATION,AVC_OPERATION_PLAY);
+  898   2          MMI_A2DP_ClearResumeState(linkIndex);
+  899   2        }
+  900   1        else 
+  901   1        #endif
+  902   1        {
+  903   2          MMI_A2DP_SendCmd(linkIndex, A2DP_PLAY_CMD);
+  904   2        }
+  905   1      }
+  906          
+  907          PUBLIC BOOL MMI_A2DP_IsAudioOn(U8 linkIndex)
+  908          {
+  909   1        return (gMMI_ctl.audioableA2DPLink == linkIndex)? TRUE : FALSE;
+  910   1      }
+  911          
+  912          PUBLIC void MMI_A2DP_NotifyDSPStatus(BOOL isEnable, U8 linkIndex)
+  913          {
+  914   1        if(isEnable)
+  915   1        {
+  916   2          //A2DP DSP Enabled
+  917   2          DriverVolumeSetCmd LDATA volPara;
+  918   2          if(linkIndex < MAX_MULTI_POINT_NO)
+  919   2          {
+  920   3            MMI_A2DP_SetDriverVolPara(CURRENT_A2DP_SOUND_LEVEL(linkIndex), CURRENT_A2DP_SMALL_STEP(linkIndex), &vo
+             -lPara);
+  921   3            LightDbgPrint("SendA2DPVol[%d]:%d,%d",(U8)linkIndex, (U8)CURRENT_A2DP_SOUND_LEVEL(linkIndex), (U8)CURR
+             -ENT_A2DP_SMALL_STEP(linkIndex));
+  922   3            DRIVER_SetA2DPVolPara(&volPara);
+  923   3            MMI_A2DP_SendCmd(linkIndex, A2DP_AIR_SET_CHANNEL_SEL_CMD);
+  924   3            MMI_A2DP_SendCmd(linkIndex, A2DP_MUSIC_DATA_PLAY_CMD);
+  925   3            MMI_PushMediaEvent(MEDIA_EVT_A2DP_ENABLE);
+  926   3          }
+  927   2          #ifdef DEMOSOUND
+                   else
+                   {
+                     MMI_A2DP_SetDriverVolPara(gMMI_A2DP_ctl.demoSoundCtl.soundLevel, gMMI_A2DP_ctl.demoSoundCtl.smallStep,
+             - &volPara);
+                     LightDbgPrint("SendA2DPVol:%d,%d",(U8)gMMI_A2DP_ctl.demoSoundCtl.soundLevel, (U8)gMMI_A2DP_ctl.demoSou
+             -ndCtl.smallStep);
+                     DRIVER_SetA2DPVolPara(&volPara);
+                   }
+                   #endif
+  935   2          #ifdef AIR_MODULE
+  936   2          MMI_AIR_A2DPDSPEnabledNotify(linkIndex);
+  937   2          #endif
+  938   2      
+  939   2          gMMI_ctl.audioableA2DPLink = linkIndex;
+  940   2        }
+  941   1        else
+  942   1        {
+  943   2          //A2DP DSP Disabled
+  944   2          gMMI_ctl.audioableA2DPLink = MMI_EOF;
+  945   2          MMI_A2DP_SendCmd(linkIndex, A2DP_MUSIC_DATA_MEMORY_PUT_CMD);
+  946   2          MMI_PushMediaEvent(MEDIA_EVT_A2DP_DISABLE);
+  947   2          MMI_A2DP_SendCmd(linkIndex, A2DP_DSP_CLOSED_CLEAN_MEMORY_CMD);
+  948   2          #ifdef AIR_MODULE
+  949   2          MMI_AIR_A2DPDSPDisabledNotify(linkIndex);
+  950   2          #endif
+  951   2        }
+  952   1        
+  953   1        if(api_profile_func[API_GRP_PF_CB_A2DP_AUDIO_STATUS] && linkIndex < MAX_MULTI_POINT_NO)
+C251 COMPILER V5.57.0,  MMI_A2DP                                                           08/11/20  05:52:24  PAGE 16  
+
+  954   1        {
+  955   2          ((API_PROFILE_A2DP_AUDIO_STATUS_FUNC)api_profile_func[API_GRP_PF_CB_A2DP_AUDIO_STATUS])(linkIndex, isEn
+             -able);
+  956   2        }
+  957   1      }
+  958          
+  959          PUBLIC void MMI_A2DP_SendDSPA2DPEnableRelatedCmd(U8 linkIndex, U8 opCode)
+  960          {
+  961   1        MMIMsgType XDATA_PTR msgPtr = MMI_GetMMIMsgTypeCmdMemory(opCode);
+  962   1      
+  963   1        if(msgPtr != (MMIMsgType XDATA_PTR)NULL)
+  964   1        {
+  965   2          DRIVER_ClearStopDSPCmd(linkIndex);
+  966   2      
+  967   2          msgPtr->msgBodyPtr.driverCmd.a2dpCmd.enablePara.a2dpPara.codec = A2DP_GetCodec(linkIndex);
+  968   2          msgPtr->msgBodyPtr.driverCmd.a2dpCmd.linkInd = linkIndex;
+  969   2          
+  970   2          #ifdef AIR_MODULE
+  971   2          if(MMI_AIR_IsTWSApplication())
+  972   2          {
+  973   3            if(A2DP_IsLinkFollower(linkIndex))
+  974   3              msgPtr->msgBodyPtr.driverCmd.a2dpCmd.enablePara.a2dpPara.twsMode = A2DP_TWS_MODE_FOLLOWER;
+  975   3            else
+  976   3            {
+  977   4              msgPtr->msgBodyPtr.driverCmd.a2dpCmd.enablePara.a2dpPara.twsMode = A2DP_TWS_MODE_RELAYER;
+  978   4              msgPtr->msgBodyPtr.driverCmd.a2dpCmd.enablePara.a2dpPara.sbc_target_blocks_offset = gMMI_nvram.tws_pa
+             -ra.tws_sbc_target_blocks_offset;
+  979   4            }
+  980   3          }
+  981   2          else
+  982   2          {
+  983   3            msgPtr->msgBodyPtr.driverCmd.a2dpCmd.enablePara.a2dpPara.twsMode = A2DP_TWS_MODE_NONE;
+  984   3          }
+  985   2          MMI_AIR_DriverSendA2DPDSPEnableCmd(linkIndex);
+  986   2          MMI_AIR_AVRCPSetDriverVol(linkIndex);
+  987   2      
+  988   2          if(GET_PRODUCT_AIR_TYPE(MMI_PNP_PRODUCT_VER)== PRODUCT_AIR_SOUNDBAR)
+  989   2          {
+  990   3            msgPtr->msgBodyPtr.driverCmd.a2dpCmd.m2d_ctl.para.stereo_start_para.feature_sel.SOUNDBAR_ESCO_RELAY = 
+             -SOUNDBAR_MIX_TWO_CHANNEL;
+  991   3            msgPtr->msgBodyPtr.driverCmd.a2dpCmd.m2d_ctl.para.stereo_start_para.feature_sel.SOUNDBAR_EXTERNAL_MCU 
+             -= gMMI_nvram.airPara.relayScoSource;
+  992   3            switch(gMMI_nvram.airPara.A2DP_FS_SEL)
+  993   3            {
+  994   4              case PCM_FS_SEL_2KHZ:
+  995   4                msgPtr->msgBodyPtr.driverCmd.a2dpCmd.m2d_ctl.para.stereo_start_para.feature_sel.SOUNDBAR_ESCO_PACKET
+             -_LENGTH = 60; //HCIPKTYPE_AIROHA_PKT_24SLOTS
+  996   4                msgPtr->msgBodyPtr.driverCmd.a2dpCmd.m2d_ctl.para.stereo_start_para.feature_sel.SOUNDBAR_ESCO_BANDWI
+             -TH = 4000L; //HCIPKTYPE_AIROHA_PKT_24SLOTS
+  997   4                break;
+  998   4              case PCM_FS_SEL_8KHZ:
+  999   4                msgPtr->msgBodyPtr.driverCmd.a2dpCmd.m2d_ctl.para.stereo_start_para.feature_sel.SOUNDBAR_ESCO_PACKET
+             -_LENGTH = 60; //HCIPKTYPE_AIROHA_PKT_6SLOTS
+ 1000   4                msgPtr->msgBodyPtr.driverCmd.a2dpCmd.m2d_ctl.para.stereo_start_para.feature_sel.SOUNDBAR_ESCO_BANDWI
+             -TH = 16000L; //HCIPKTYPE_AIROHA_PKT_6SLOTS
+ 1001   4                break;
+ 1002   4              case PCM_FS_SEL_4KHZ:
+ 1003   4                msgPtr->msgBodyPtr.driverCmd.a2dpCmd.m2d_ctl.para.stereo_start_para.feature_sel.SOUNDBAR_ESCO_PACKET
+             -_LENGTH = 60; //HCIPKTYPE_AIROHA_PKT_6SLOTS
+ 1004   4                msgPtr->msgBodyPtr.driverCmd.a2dpCmd.m2d_ctl.para.stereo_start_para.feature_sel.SOUNDBAR_ESCO_BANDWI
+             -TH = 16000L; //HCIPKTYPE_AIROHA_PKT_6SLOTS
+ 1005   4              default:
+ 1006   4                ASSERT(FALSE);
+ 1007   4                break;
+ 1008   4            }
+ 1009   3          }
+C251 COMPILER V5.57.0,  MMI_A2DP                                                           08/11/20  05:52:24  PAGE 17  
+
+ 1010   2          #endif
+ 1011   2          
+ 1012   2          msgPtr->msgBodyPtr.driverCmd.a2dpCmd.m2d_ctl.para.stereo_start_para.sidetone_en = (gMMI_ctl.isMicEnable
+             -InA2DP)? 1: 0;
+ 1013   2      
+ 1014   2          LightDbgPrint("sidetone:[%d]",msgPtr->msgBodyPtr.driverCmd.a2dpCmd.m2d_ctl.para.stereo_start_para.sidet
+             -one_en);
+ 1015   2      
+ 1016   2          OSMQ_Put(OSMQ_DRIVER_Command_ptr, (U8 XDATA_PTR)msgPtr);
+ 1017   2      
+ 1018   2          // To accelerate the speed of open DSP
+ 1019   2          SYS_InsertOSTask(DRIVER_TASK);
+ 1020   2          SYS_InsertOSTask(MMI_TASK);
+ 1021   2          
+ 1022   2          if(gMMI_ctl.audioableA2DPLink != MMI_EOF && gMMI_ctl.audioableA2DPLink != linkIndex)
+ 1023   2          {
+ 1024   3            MMI_HCI_SendVCmdAudioQosSetup(gMMI_ctl.audioableA2DPLink, SERVICE_TYPE_BEST_EFFORT, FALSE, FALSE);
+ 1025   3          }
+ 1026   2          if(gMMI_ctl.audioableSCOLink != MMI_EOF && gMMI_ctl.audioableSCOLink != linkIndex)
+ 1027   2          {
+ 1028   3            MMI_HCI_SendVCmdAudioQosSetup(gMMI_ctl.audioableSCOLink, SERVICE_TYPE_BEST_EFFORT, FALSE, FALSE);
+ 1029   3          }
+ 1030   2          if (A2DP_IsLinkFollower(linkIndex))
+ 1031   2          {
+ 1032   3            MMI_HCI_SendVCmdAudioQosSetup(linkIndex, SERVICE_TYPE_GUARANTEED, TRUE, TRUE);
+ 1033   3          }
+ 1034   2          else
+ 1035   2          {
+ 1036   3            MMI_HCI_SendVCmdAudioQosSetup(linkIndex, SERVICE_TYPE_GUARANTEED, TRUE, FALSE);
+ 1037   3          }
+ 1038   2      
+ 1039   2          #ifdef DBG_UART_ENABLE_MMI
+                   LightDbgPrint("USR - [%d]Send A2DPMusicEnable:%x",(U8)linkIndex, (U8)opCode);
+                   #endif
+ 1042   2        }
+ 1043   1      
+ 1044   1      }
+ 1045          
+ 1046          PUBLIC void MMI_A2DP_SendDSPEnableCmd(U8 linkIndex)
+ 1047          {
+ 1048   1        MMI_A2DP_SendDSPA2DPEnableRelatedCmd(linkIndex, DRIVER_A2DP_CMD);
+ 1049   1      }
+ 1050          
+ 1051          PUBLIC void MMI_A2DP_SetVolByLevel(U8 linkIndex, U8 soundLevel, U8 smallStep)
+ 1052          {
+ 1053   1        CURRENT_A2DP_SOUND_LEVEL(linkIndex) = soundLevel;
+ 1054   1        CURRENT_A2DP_SMALL_STEP(linkIndex) = smallStep;
+ 1055   1        #ifdef AVRCP_Profile
+ 1056   1        CURRENT_AVRCP_VOLUME(linkIndex) = MMI_AVRCP_SoundLevelToAbsoluteVol(CURRENT_A2DP_SOUND_LEVEL(linkIndex),
+             - (U8)MMI_MAX_MUSIC_SOUND_LEVEL(), CURRENT_A2DP_SMALL_STEP(linkIndex), MMI_A2DP_SMALL_STEP_LEVELS());
+ 1057   1        #endif
+ 1058   1      }
+ 1059          
+ 1060          #ifdef A2DP_SRC_Profile
+               PUBLIC void MMI_A2DP_LineInEnableNotify(void)
+               {
+                 if(MMI_A2DP_IsInStreaming(gMMI_ctl.audioDevCtl.currentActiveLinkIndex))
+                   MMI_A2DP_SendCmd(gMMI_ctl.audioDevCtl.currentActiveLinkIndex, A2DP_MUSIC_DATA_PLAY_CMD);
+               }
+               #endif
+ 1067          
+ 1068          #ifdef DEMOSOUND
+               PUBLIC void MMI_A2DP_DemoSoundSetCmd(MMIMsgType XDATA_PTR msgPtr)
+               {
+                 #ifdef AIR_MODULE
+                 if(MMI_AIR_IsTWSApplication())
+C251 COMPILER V5.57.0,  MMI_A2DP                                                           08/11/20  05:52:24  PAGE 18  
+
+                 {
+                   msgPtr->msgBodyPtr.driverCmd.a2dpCmd.enablePara.a2dpPara.twsMode = A2DP_TWS_MODE_RELAYER;
+                   msgPtr->msgBodyPtr.driverCmd.a2dpCmd.enablePara.a2dpPara.sbc_target_blocks_offset = gMMI_nvram.tws_para
+             -.tws_sbc_target_blocks_offset;
+                 }
+                 else
+                 {
+                   msgPtr->msgBodyPtr.driverCmd.a2dpCmd.enablePara.a2dpPara.twsMode = A2DP_TWS_MODE_NONE;
+                 }
+               
+                 if(GET_PRODUCT_AIR_TYPE(MMI_PNP_PRODUCT_VER)== PRODUCT_AIR_SOUNDBAR)
+                 {
+                   msgPtr->msgBodyPtr.driverCmd.a2dpCmd.m2d_ctl.para.stereo_start_para.feature_sel.SOUNDBAR_ESCO_RELAY = S
+             -OUNDBAR_MIX_TWO_CHANNEL;
+                   msgPtr->msgBodyPtr.driverCmd.a2dpCmd.m2d_ctl.para.stereo_start_para.feature_sel.SOUNDBAR_EXTERNAL_MCU =
+             - gMMI_nvram.airPara.relayScoSource;
+                   switch(gMMI_nvram.airPara.A2DP_FS_SEL)
+                   {
+                     case PCM_FS_SEL_2KHZ:
+                       msgPtr->msgBodyPtr.driverCmd.a2dpCmd.m2d_ctl.para.stereo_start_para.feature_sel.SOUNDBAR_ESCO_PACKET_
+             -LENGTH = 60; //HCIPKTYPE_AIROHA_PKT_24SLOTS
+                       msgPtr->msgBodyPtr.driverCmd.a2dpCmd.m2d_ctl.para.stereo_start_para.feature_sel.SOUNDBAR_ESCO_BANDWIT
+             -H = 4000L; //HCIPKTYPE_AIROHA_PKT_24SLOTS
+                       break;
+                     case PCM_FS_SEL_8KHZ:
+                       msgPtr->msgBodyPtr.driverCmd.a2dpCmd.m2d_ctl.para.stereo_start_para.feature_sel.SOUNDBAR_ESCO_PACKET_
+             -LENGTH = 60; //HCIPKTYPE_AIROHA_PKT_6SLOTS
+                       msgPtr->msgBodyPtr.driverCmd.a2dpCmd.m2d_ctl.para.stereo_start_para.feature_sel.SOUNDBAR_ESCO_BANDWIT
+             -H = 16000L; //HCIPKTYPE_AIROHA_PKT_6SLOTS
+                       break;
+                     case PCM_FS_SEL_4KHZ:
+                       msgPtr->msgBodyPtr.driverCmd.a2dpCmd.m2d_ctl.para.stereo_start_para.feature_sel.SOUNDBAR_ESCO_PACKET_
+             -LENGTH = 60; //HCIPKTYPE_AIROHA_PKT_6SLOTS
+                       msgPtr->msgBodyPtr.driverCmd.a2dpCmd.m2d_ctl.para.stereo_start_para.feature_sel.SOUNDBAR_ESCO_BANDWIT
+             -H = 16000L; //HCIPKTYPE_AIROHA_PKT_6SLOTS
+                     default:
+                       ASSERT(FALSE);
+                       break;
+                   }
+                 }
+                 #else
+                 UNUSED(msgPtr);
+                 #endif
+               }
+               
+               PUBLIC void MMI_A2DP_DemoSoundPlayCmd(void)
+               {
+                 MMIMsgType XDATA_PTR msgPtr = MMI_GetMMIMsgTypeCmdMemory(DRIVER_DEMOSOUND_PLAY_CMD);
+               
+                 if(msgPtr != (MMIMsgType XDATA_PTR)NULL)
+                 {   
+                   MMI_A2DP_DemoSoundSetCmd(msgPtr);
+               
+                   OSMQ_Put(OSMQ_DRIVER_Command_ptr, (U8 XDATA_PTR)msgPtr);
+               
+                   // To accelerate the speed of open DSP
+                   SYS_InsertOSTask(DRIVER_TASK);
+                   SYS_InsertOSTask(MMI_TASK);
+                   /*
+                   if(gMMI_ctl.audioableA2DPLink != MMI_EOF && gMMI_ctl.audioableA2DPLink != linkIndex)
+                   {
+                     MMI_HCI_SendVCmdAudioQosSetup(gMMI_ctl.audioableA2DPLink, SERVICE_TYPE_BEST_EFFORT, FALSE, FALSE);
+                   }
+                   if(gMMI_ctl.audioableSCOLink != MMI_EOF && gMMI_ctl.audioableSCOLink != linkIndex)
+                   {
+                     MMI_HCI_SendVCmdAudioQosSetup(gMMI_ctl.audioableSCOLink, SERVICE_TYPE_BEST_EFFORT, FALSE, FALSE);
+C251 COMPILER V5.57.0,  MMI_A2DP                                                           08/11/20  05:52:24  PAGE 19  
+
+                   }
+                   if (A2DP_IsLinkFollower(linkIndex))
+                   {
+                     MMI_HCI_SendVCmdAudioQosSetup(linkIndex, SERVICE_TYPE_GUARANTEED, TRUE, TRUE);
+                   }
+                   else
+                   {
+                     MMI_HCI_SendVCmdAudioQosSetup(linkIndex, SERVICE_TYPE_GUARANTEED, TRUE, FALSE);
+                   }
+                   */
+                   LightDbgPrint("MMI Send DemoSound Play");
+                 }
+               }
+               
+               PRIVATE void MMI_A2DP_DemoSoundPauseCmd(void)
+               {
+                 MMIMsgType XDATA_PTR msgPtr = MMI_GetMMIMsgTypeCmdMemory(DRIVER_DEMOSOUND_PAUSE_CMD);
+               
+                 if(msgPtr != (MMIMsgType XDATA_PTR)NULL)
+                 {   
+                   MMI_A2DP_DemoSoundSetCmd(msgPtr);
+               
+                   OSMQ_Put(OSMQ_DRIVER_Command_ptr, (U8 XDATA_PTR)msgPtr);
+                   LightDbgPrint("MMI Send DemoSound Pause");
+                 }
+               }
+               
+               PUBLIC void MMI_A2DP_DemoSoundStopCmd(void)
+               {
+                 MMIMsgType XDATA_PTR msgPtr = MMI_GetMMIMsgTypeCmdMemory(DRIVER_DEMOSOUND_STOP_CMD);
+               
+                 if(msgPtr != (MMIMsgType XDATA_PTR)NULL)
+                 {   
+                   MMI_A2DP_DemoSoundSetCmd(msgPtr);
+               
+                   OSMQ_Put(OSMQ_DRIVER_Command_ptr, (U8 XDATA_PTR)msgPtr);
+                   LightDbgPrint("MMI Send DemoSound Stop");
+                 }
+               }
+               
+               PRIVATE void MMI_A2DP_DemoSoundForwardCmd(void)
+               {
+                 MMIMsgType XDATA_PTR msgPtr = MMI_GetMMIMsgTypeCmdMemory(DRIVER_DEMOSOUND_FORWARD_CMD);
+               
+                 if(msgPtr != (MMIMsgType XDATA_PTR)NULL)
+                 {   
+                   MMI_A2DP_DemoSoundSetCmd(msgPtr);
+               
+                   OSMQ_Put(OSMQ_DRIVER_Command_ptr, (U8 XDATA_PTR)msgPtr);
+                   LightDbgPrint("MMI Send DemoSound Forward");
+                 }
+               }
+               
+               PRIVATE void MMI_A2DP_DemoSoundBackwardCmd(void)
+               {
+                 MMIMsgType XDATA_PTR msgPtr = MMI_GetMMIMsgTypeCmdMemory(DRIVER_DEMOSOUND_BACKWARD_CMD);
+               
+                 if(msgPtr != (MMIMsgType XDATA_PTR)NULL)
+                 {   
+                   MMI_A2DP_DemoSoundSetCmd(msgPtr);
+               
+                   OSMQ_Put(OSMQ_DRIVER_Command_ptr, (U8 XDATA_PTR)msgPtr);
+                   LightDbgPrint("MMI Send DemoSound Backward");
+                 }
+               }
+               
+C251 COMPILER V5.57.0,  MMI_A2DP                                                           08/11/20  05:52:24  PAGE 20  
+
+               PUBLIC void MMI_A2DP_KeyDemoSoundPlay(void)
+               {
+                 if(!DRIVER_IsDemoSoundReady())
+                   return;
+                 
+                 if(!MMI_DRV_AudioDeviceRegister(MMI_EOF, AUDIO_DEVICE_DEMO_SOUND))
+                   return;
+                 SYS_ReleaseTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.autoSwitchOffTimer);
+                 MMI_A2DP_DemoSoundPlayCmd();
+               }
+               
+               PUBLIC void MMI_A2DP_KeyDemoSoundPause(void)
+               {
+                 if(!gMMI_ctl.activeLinkRecord)
+                   MMI_TIMER_ResetAutoSwitchOffTimer();
+                 MMI_A2DP_DemoSoundPauseCmd();
+                 MMI_DRV_AudioDeviceDeRegister(MMI_EOF, AUDIO_DEVICE_DEMO_SOUND);
+                 MMI_DRV_ResumeOtherAudioDevice(MMI_EOF, AUDIO_DEVICE_DEMO_SOUND);
+               }
+               
+               PUBLIC void MMI_A2DP_KeyDemoSoundStop(void)
+               {
+                 if(!gMMI_ctl.activeLinkRecord)
+                   MMI_TIMER_ResetAutoSwitchOffTimer();
+                 MMI_A2DP_DemoSoundStopCmd();
+                 MMI_DRV_AudioDeviceDeRegister(MMI_EOF, AUDIO_DEVICE_DEMO_SOUND);
+                 MMI_DRV_ResumeOtherAudioDevice(MMI_EOF, AUDIO_DEVICE_DEMO_SOUND);
+               }
+               
+               PUBLIC void MMI_A2DP_KeyDemoSoundForward(void)
+               {
+                 MMI_A2DP_DemoSoundForwardCmd();
+               }
+               
+               PUBLIC void MMI_A2DP_KeyDemoSoundBackward(void)
+               {
+                 MMI_A2DP_DemoSoundBackwardCmd();
+               }
+               
+               PUBLIC void MMI_A2DP_DemoSoundVolumeControl(U8 isVolumeUp)
+               {
+                 U8 XDATA_PTR spkSoundLevelPtr;
+               
+                 spkSoundLevelPtr =  &gMMI_A2DP_ctl.demoSoundCtl.soundLevel;
+               
+                 if (isVolumeUp)
+                 {
+                   gMMI_A2DP_ctl.demoSoundCtl.smallStep = MMI_DRV_IncreaseSmallStepVolume( gMMI_A2DP_ctl.demoSoundCtl.soun
+             -dLevel, 
+                                                       gMMI_nvram.totalMusicSoundLevel,
+                                                       gMMI_nvram.smallStepVolume.a2dpVolumeSmallStep,
+                                                       gMMI_A2DP_ctl.demoSoundCtl.smallStep);
+               
+                   if(gMMI_A2DP_ctl.demoSoundCtl.smallStep == 0)
+                   {
+                     if (*spkSoundLevelPtr < MMI_MAX_MUSIC_SOUND_LEVEL())
+                     {
+                       (*spkSoundLevelPtr)++;
+                     }
+                     else if(MMI_A2DP_CYCLIC_VOLUME_ENABLED_FEAT)
+                     {
+                       *spkSoundLevelPtr = 0;
+                     }
+                     else
+                     {
+                       LightDbgPrint("A2DP demo sound volume reach max volume");
+C251 COMPILER V5.57.0,  MMI_A2DP                                                           08/11/20  05:52:24  PAGE 21  
+
+                       MMI_PushMediaEvent(MEDIA_EVT_A2DP_VOLUME_REACH_MAX);
+                       return;
+                     }
+                   }
+                 }
+                 else
+                 {
+                   if(gMMI_A2DP_ctl.demoSoundCtl.smallStep == 0)
+                   {
+                     if (*spkSoundLevelPtr > 0)
+                     {
+                       (*spkSoundLevelPtr)--;
+                     }
+                     else if(MMI_A2DP_CYCLIC_VOLUME_ENABLED_FEAT)
+                     {
+                       *spkSoundLevelPtr = MMI_MAX_MUSIC_SOUND_LEVEL();
+                       goto MMI_SEND_A2DP_VOL;
+                     }
+                     else
+                     {
+                       LightDbgPrint("A2DP demo sound volume reach min volume");
+                       MMI_PushMediaEvent(MEDIA_EVT_A2DP_VOLUME_REACH_MIN);
+                       return;
+                     }
+                   }
+                   gMMI_A2DP_ctl.demoSoundCtl.smallStep = MMI_DRV_DecreaseSmallStepVolume(gMMI_nvram.smallStepVolume.a2dpV
+             -olumeSmallStep, gMMI_A2DP_ctl.demoSoundCtl.smallStep);
+                 }
+                 MMI_SEND_A2DP_VOL:
+                 #ifdef AIR_MODULE
+                 MMI_AIR_DemoSoundKeyVolUpDn();
+                 #endif
+                 MMI_A2DP_SendDriverVolCmd(*spkSoundLevelPtr, gMMI_A2DP_ctl.demoSoundCtl.smallStep,FALSE);
+               }
+               #endif
+ 1295          
+ 1296          #endif //A2DP_Profile
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =      5074     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =         3     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       203     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,424 @@
+C251 COMPILER V5.57.0,  MMI_TestMode                                                       08/11/20  06:33:52  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE MMI_TestMode
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\MMI_TestMode.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\MMI\MMI_TestMode.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) W
+                    -ARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\so
+                    -urce\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\sourc
+                    -e\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_L
+                    -E;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspDat
+                    -a;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLAS
+                    -H_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoHeadset\
+                    -MMI_TestMode.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\MMI_TestMode.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #define _MMI_TEST_MODE_C_
+    4          
+    5          #include "rc.h"
+    6          #include "bt_config_profile.h"
+    7          
+    8          #include "MMI.h"
+    9          #include "MMI_TestMode.h"
+   10          #include "MMI_State.h"
+   11          #include "MMI_HCI.h"
+   12          #include "..\HC\HC_Interface.h"
+   13          #include "..\LC\LC_Interface.h"
+   14          #ifdef MMI_LE_ENABLE
+   15          #include "..\MMI_LE\MMI_LE_interface.h"
+   16          #endif
+   17          
+   18          PRIVATE void MMI_TestModeEntry(U8 linkIndex);
+   19          PRIVATE void MMI_TestModeExit(U8 linkIndex);
+   20          PRIVATE void MMI_TestMode_StartLabTest(void);
+   21          PRIVATE void MMI_TxSingleTone(U8 channel, U16 power);
+   22          PRIVATE void MMI_TxContinuePacket(U8 channel, U16 power);
+   23          PRIVATE void MMI_TxBurstPacket(U8 channel, U16 power);
+   24          PRIVATE void MMI_RxTest(U8 channel, U16 power);
+   25          PRIVATE U16 MMI_LabTest_TransferPowerToGC1GC2 (U16 power);
+   26          PRIVATE void MMI_TestMode_LedHandler(U8 type, U8 repeat);
+   27          PRIVATE void MMI_TestMode_Execute(void);
+   28          PRIVATE void MMI_TestMode_KeyEnterTestMode(U8 linkIndex);
+   29          PRIVATE void MMI_TestMode_KeyTestModeChannel(U8 linkIndex);
+   30          PRIVATE void MMI_TestMode_KeyTestModePower(U8 linkIndex);
+   31          PRIVATE void MMI_TestMode_KeyTestModeState(U8 linkIndex);
+   32          PRIVATE void MMI_TestMode_KeyTestModeTxPktType(U8 linkIndex);
+   33          
+   34          U8 CODE TestModeChannelMap[] = {0, 39, 78};
+   35          U8 CODE TestModePowerDiffMap[] = {0, 1, 2, 3, 4, 7, 10, 13, 16, 19}; // {X,X-1,X-2,X-3,X-4,X-7,X-10,X-13,
+             -X-16,X-19}
+   36          
+   37          static MMI_KEY_EVT CODE MMI_TestMode_KeyEvtHandler[TESTMODE_KEY_EVENT_NO] = 
+   38          {
+   39            {MMI_TestMode_KeyEnterTestMode},  //TESTMODE_KEY_EVENT_KEY_ENTER_TESTMODE
+   40            {MMI_TestMode_KeyTestModeChannel},  //TESTMODE_KEY_EVENT_KEY_SWITCH_TEST_MODE_CHANNEL,  
+   41            {MMI_TestMode_KeyTestModePower},  //TESTMODE_KEY_EVENT_KEY_SWITCH_TEST_MODE_POWER,                
+   42            {MMI_TestMode_KeyTestModeState},  //TESTMODE_KEY_EVENT_KEY_SWITCH_TEST_MODE_STATE,          
+   43            {MMI_TestMode_KeyTestModeTxPktType},//TESTMODE_KEY_EVENT_KEY_SWITCH_TEST_MODE_TX_PACKET_TYPE,
+   44          };
+   45          
+   46          MmiTestModeInfo XDATA gMMI_TestMode_ctl;
+   47          
+   48          #ifdef Ab1500
+               PRIVATE MmiTestModeHandlerSetType XDATA MMI_TestModeHandlerSet[TOTAL_TESTMODE_STATE_NO] =
+               #else
+   51          PRIVATE MmiTestModeHandlerSetType CODE MMI_TestModeHandlerSet[TOTAL_TESTMODE_STATE_NO] =
+C251 COMPILER V5.57.0,  MMI_TestMode                                                       08/11/20  06:33:52  PAGE 2   
+
+   52          #endif
+   53          {
+   54            MMI_TxSingleTone,
+   55            MMI_TxContinuePacket,
+   56            MMI_TxBurstPacket,
+   57            MMI_TxBurstPacket,
+   58            MMI_RxTest,
+   59          };
+   60          
+   61          extern MmiHandlerSetType CODE_PTR XDATA MMI_StateHandlerSet[MMI_TOTAL_STATE_NO];
+   62          
+   63          PRIVATE MmiHandlerSetType CODE  MMI_StateTestModeHandler = 
+   64          {
+   65            MMI_TestModeEntry, NULL, MMI_TestModeExit, //MMI_TEST_MODE
+   66          };
+   67          
+   68          PUBLIC void MMI_TestMode_ProcessKeyEvent(U8 linkIndex, U8 index)
+   69          {
+   70   1        if(MMI_TestMode_KeyEvtHandler[index].fKeyEvt)
+   71   1        {
+   72   2          MMI_TestMode_KeyEvtHandler[index].fKeyEvt(linkIndex);
+   73   2        }
+   74   1      }
+   75          
+   76          PUBLIC void MMI_TestMode_Init(void)
+   77          {
+   78   1        MMI_StateHandlerSet[MMI_TEST_MODE] = &MMI_StateTestModeHandler;
+   79   1      }
+   80          
+   81          PRIVATE void MMI_TestModeEntry(U8 linkIndex)
+   82          {
+   83   1        UNUSED(linkIndex);
+   84   1        SYS_ReleaseTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.autoSwitchOffTimer);
+   85   1        
+   86   1        MMI_SECTOR_SetUpdateFlag(FALSE);
+   87   1        
+   88   1        #ifdef MMI_LE_ENABLE
+   89   1        MMI_LE_DisableAdv();
+   90   1        #endif
+   91   1      
+   92   1        MMI_PowerSaving(FALSE, MMI_PWRSAVING_WRITE_CONNECTABILITY, MAX_MULTI_POINT_NO);
+   93   1      
+   94   1        //New Event - "MEDIA_EVT_ENTER_TESTMODE_STATE"
+   95   1        MMI_PushMediaEvent(MEDIA_EVT_ENTER_TESTMODE_STATE);
+   96   1      
+   97   1      
+   98   1        ((U8 XDATA_PTR)&gHC_ctl.BdAddr)[0] = 0x7E;
+   99   1        ((U8 XDATA_PTR)&gHC_ctl.BdAddr)[1] = 0x96;
+  100   1        ((U8 XDATA_PTR)&gHC_ctl.BdAddr)[2] = 0xC6;
+  101   1        ((U8 XDATA_PTR)&gHC_ctl.BdAddr)[3] = 0x6B;
+  102   1        ((U8 XDATA_PTR)&gHC_ctl.BdAddr)[4] = 0x00;
+  103   1        ((U8 XDATA_PTR)&gHC_ctl.BdAddr)[5] = 0x00;
+  104   1      
+  105   1        gMMI_TestMode_ctl.state = TOTAL_TESTMODE_STATE_NO - 1;
+  106   1        MMI_TestMode_StartLabTest();
+  107   1        
+  108   1      }
+  109          
+  110          PRIVATE void MMI_TestModeExit(U8 linkIndex)
+  111          {
+  112   1        UNUSED(linkIndex);
+  113   1        MMI_PowerSaving(TRUE, MMI_PWRSAVING_WRITE_CONNECTABILITY, MAX_MULTI_POINT_NO);
+  114   1      }
+  115          
+  116          PRIVATE void MMI_TestMode_StartLabTest(void)
+  117          {
+C251 COMPILER V5.57.0,  MMI_TestMode                                                       08/11/20  06:33:52  PAGE 3   
+
+  118   1        MMI_HCI_SendVCmdLabTestSwitchMCUTo12M();
+  119   1        
+  120   1        MMI_HCI_SendVCmdLabTestStart();
+  121   1          OS_delay_ms(1000);
+  122   1      
+  123   1      
+  124   1        //RX
+  125   1        OS_ENTER_CRITICAL();
+  126   1        //324B2A
+  127   1        SYS_3WireWrite(0x13,gMMI_nvram.mmiFCCInfo.Reg32B1,gMMI_nvram.mmiFCCInfo.Reg32B2);
+  128   1          OS_delay_us(1000);
+  129   1        //350580
+  130   1        SYS_3WireWrite(0x15,gMMI_nvram.mmiFCCInfo.Reg35B1,gMMI_nvram.mmiFCCInfo.Reg35B2);
+  131   1          OS_delay_us(1000);
+  132   1          OS_EXIT_CRITICAL();
+  133   1        
+  134   1      
+  135   1        MMI_HCI_SendVCmdLabTestUpdateUapLap((U8 XDATA_PTR)&gHC_ctl.BdAddr);
+  136   1        MMI_HCI_SendVCmdLabTestLTAddrInTxPkt();
+  137   1        MMI_HCI_SendVCmdLabTestReportRateSetup();
+  138   1      }
+  139          
+  140          PRIVATE void MMI_TxSingleTone(U8 channel, U16 power)
+  141          {
+  142   1        MMI_HCI_SendVCmdLabTestPause(); 
+  143   1        MMI_HCI_SendVCmdLabTestSingleToneSetup( channel, 
+  144   1                            MMI_LabTest_TransferPowerToGC1GC2(power), 
+  145   1                            ((U16)gLC_ctl.rf_ctl.tx_gain_ctl.tx_default_gfsk_bias2_1<<8) | (U16)gLC_ctl.rf_ctl.tx_gain_ctl
+             -.tx_default_gfsk_bias2_2);
+  146   1      
+  147   1      }
+  148          
+  149          PRIVATE void MMI_TxContinuePacket(U8 channel, U16 power)
+  150          {
+  151   1        HCI_VCMD_PARA_LABTEST_CTX_DATA LDATA cTxData; 
+  152   1      
+  153   1        MMI_HCI_SendVCmdLabTestPause();
+  154   1        
+  155   1        MMI_HCI_SendVCmdLabTestTxModemManualOff();
+  156   1        
+  157   1        power = MMI_LabTest_TransferPowerToGC1GC2 (power);
+  158   1      
+  159   1        cTxData.Channel = channel;
+  160   1          cTxData.Gc2 = (U8)power;
+  161   1          cTxData.Gc1 = (U8)(power >> 8);
+  162   1          cTxData.Bias2_2 = gLC_ctl.rf_ctl.tx_gain_ctl.tx_default_gfsk_bias2_2;
+  163   1          cTxData.Bias2_1 = gLC_ctl.rf_ctl.tx_gain_ctl.tx_default_gfsk_bias2_1;
+  164   1          cTxData.PatternType = 0x60; //SFR 228:PN sequence
+  165   1          cTxData.ModType = 0x04; //SFR 231: GFSK
+  166   1        MMI_HCI_SendVCmdLabTestContinueTxData((HCI_VCMD_PARA_LABTEST_CTX_DATA XDATA_PTR)&cTxData);
+  167   1      }
+  168          
+  169          PRIVATE void MMI_TxBurstPacket(U8 channel, U16 power)
+  170          {
+  171   1        HCI_VCMD_PARA_LABTEST_BTX_PACKET LDATA bTxPkt;
+  172   1        OSMEM_memset_xdata((U8 XDATA_PTR)&bTxPkt, 0, sizeof(bTxPkt));
+  173   1        MMI_HCI_SendVCmdLabTestPause();
+  174   1        power = MMI_LabTest_TransferPowerToGC1GC2 (power);
+  175   1        bTxPkt.Channel = channel;
+  176   1          bTxPkt.Gc2 = (U8)power;
+  177   1          bTxPkt.Gc1 = (U8)(power >> 8);
+  178   1          bTxPkt.Bias2_2 = gLC_ctl.rf_ctl.tx_gain_ctl.tx_default_gfsk_bias2_2;
+  179   1          bTxPkt.Bias2_1 = gLC_ctl.rf_ctl.tx_gain_ctl.tx_default_gfsk_bias2_1;
+  180   1        switch(gMMI_TestMode_ctl.packetTypeIndex[MMI_BTX])
+  181   1        {
+  182   2          case MMI_2DH5:
+C251 COMPILER V5.57.0,  MMI_TestMode                                                       08/11/20  06:33:52  PAGE 4   
+
+  183   2            bTxPkt.PacketType = BT_PKT_2DH5;
+  184   2            bTxPkt.PacketSizeB0 = 0xA7;
+  185   2            bTxPkt.PacketSizeB1 = 0x02;
+  186   2            bTxPkt.DataType = 0x30;
+  187   2            bTxPkt.EDREnb = 0x01;
+  188   2            break;
+  189   2          case MMI_3DH5:
+  190   2            bTxPkt.PacketType = BT_PKT_3DH5;
+  191   2            bTxPkt.PacketSizeB0 = 0xFD;
+  192   2            bTxPkt.PacketSizeB1 = 0x03;
+  193   2            bTxPkt.DataType = 0x30;
+  194   2            bTxPkt.EDREnb = 0x01;
+  195   2            break;
+  196   2          default:
+  197   2            bTxPkt.PacketType = BT_PKT_DH5;
+  198   2            bTxPkt.PacketSizeB0 = 0x53;
+  199   2            bTxPkt.PacketSizeB1 = 0x01;
+  200   2            bTxPkt.DataType = 0x30;
+  201   2            bTxPkt.EDREnb = 0x00;
+  202   2            break;
+  203   2        }
+  204   1          bTxPkt.HopEnb =  (gMMI_TestMode_ctl.state == MMI_HBTX)?0x01:0x00;
+  205   1        
+  206   1          bTxPkt.ESCOEnb = 0x00;
+  207   1          //bTxPkt.TempCompInvlB0;
+  208   1          //bTxPkt.TempCompInvlB1;
+  209   1          bTxPkt.BdrMaxGain = gLC_ctl.rf_ctl.mp_tx_gain_ctl.tx_gfsk_max_gain;
+  210   1          bTxPkt.BdrMinGain = gLC_ctl.rf_ctl.tx_gain_ctl.tx_gfsk_min_gain;
+  211   1          bTxPkt.EdrMaxGain = gLC_ctl.rf_ctl.mp_tx_gain_ctl.tx_edr_max_gain;
+  212   1          bTxPkt.EdrMinGain = gLC_ctl.rf_ctl.tx_gain_ctl.tx_edr_min_gain;
+  213   1          bTxPkt.BleMaxGain = gLC_ctl.rf_ctl.tx_gain_ctl.tx_ble_max_gain;
+  214   1          bTxPkt.BleMinGain = gLC_ctl.rf_ctl.tx_gain_ctl.tx_ble_min_gain;
+  215   1        MMI_HCI_SendVCmdLabTestBurstTxPacket((HCI_VCMD_PARA_LABTEST_BTX_PACKET XDATA_PTR)&bTxPkt);
+  216   1      }
+  217          
+  218          PRIVATE void MMI_RxTest(U8 channel, U16 power)
+  219          {
+  220   1        UNUSED(power);
+  221   1        // issue 4917
+  222   1        SYS_3WireWrite(0x13, 0xC9, 0x4A);
+  223   1        SYS_3WireWrite(0x15, 0x00, 0xF8);
+  224   1        MMI_HCI_SendVCmdLabTestPause();
+  225   1        MMI_HCI_SendVCmdLabTestTxModemManualOff();
+  226   1        MMI_HCI_SendVCmdLabTestContinueRxStart(channel, 0, 0);
+  227   1      }
+  228          
+  229          PRIVATE U16 MMI_LabTest_TransferPowerToGC1GC2 (U16 power)
+  230          {
+  231   1        U16 temp;
+  232   1      
+  233   1        temp = gLC_ctl.rf_ctl.mp_tx_gain_ctl.tx_default_gfsk_gc1 + ((U16)gLC_ctl.rf_ctl.mp_tx_gain_ctl.tx_defaul
+             -t_gfsk_gc2 << 8);
+  234   1        temp &= ~((U16)0x003F << 7);
+  235   1        temp |= (power << 7);
+  236   1        return (U16)((temp<<8)|(temp>>8));
+  237   1      }
+  238          
+  239          #define LED_BRAMPFLASH  0
+  240          #define LED_BSFLASH   1
+  241          #define LED_BFFLASH   2
+  242          #define LED_RRAMPFLASH  3
+  243          
+  244          #include "drv_led.h"
+  245          
+  246          //Program Size: data=122.3 xdata=22163 const=5247 code=246160
+  247          PRIVATE void MMI_TestMode_LedHandler(U8 type, U8 repeat)
+C251 COMPILER V5.57.0,  MMI_TestMode                                                       08/11/20  06:33:52  PAGE 5   
+
+  248          {
+  249   1        LedPatternType XDATA_PTR LedCtrlPtr;
+  250   1        
+  251   1        LedCtrlPtr = SYS_MemoryGet(sizeof(LedPatternType));
+  252   1        
+  253   1        if(!LedCtrlPtr)
+  254   1          ASSERT(FALSE);
+  255   1        
+  256   1        OSMEM_memset_xdata((U8 XDATA_PTR)LedCtrlPtr, 0, sizeof(LedPatternType));
+  257   1        switch(type)
+  258   1        {
+  259   2          case LED_BRAMPFLASH:
+  260   2            //BLUE
+  261   2            LedCtrlPtr->ledSettings[1].onOff  = LED_ON;
+  262   2            LedCtrlPtr->ledSettings[1].ledFollowMultiplierControl = 0x01;
+  263   2            LedCtrlPtr->ledSettings[1].pwmSetting = 0xF0 | repeat;
+  264   2            LedCtrlPtr->ledSettings[1].t1 = 50; //1s, unit:20ms
+  265   2            LedCtrlPtr->ledSettings[1].t2 = 50; //1s, unit:20ms
+  266   2            LedCtrlPtr->ledSettings[1].t3 = 15;   //0.3s, unit:20ms
+  267   2            LedCtrlPtr->ledSettings[1].rampOnStep = 0x20; //64ms, unit:2ms
+  268   2            LedCtrlPtr->ledSettings[1].rampOffStep = 0x20;  //64ms, unit:2ms
+  269   2            break;
+  270   2      
+  271   2          case LED_BSFLASH:
+  272   2            //BLUE
+  273   2            LedCtrlPtr->ledSettings[1].onOff  = LED_ON;
+  274   2            LedCtrlPtr->ledSettings[1].ledFollowMultiplierControl = 0x01;
+  275   2            LedCtrlPtr->ledSettings[1].pwmSetting = 0xF0 |repeat ;
+  276   2            LedCtrlPtr->ledSettings[1].t1 = 50; //1s, unit:20ms
+  277   2            LedCtrlPtr->ledSettings[1].t2 = 50; //1s, unit:20ms
+  278   2            LedCtrlPtr->ledSettings[1].t3 = 15;   //0.3s, unit:20ms
+  279   2            LedCtrlPtr->ledSettings[1].rampOnStep = 0;  //0ms, unit:2ms
+  280   2            LedCtrlPtr->ledSettings[1].rampOffStep = 0; //0ms, unit:2ms
+  281   2            break;
+  282   2      
+  283   2          case LED_BFFLASH:
+  284   2            //BLUE
+  285   2            LedCtrlPtr->ledSettings[1].onOff  = LED_ON;
+  286   2            LedCtrlPtr->ledSettings[1].ledFollowMultiplierControl = 0x01;
+  287   2            LedCtrlPtr->ledSettings[1].pwmSetting = 0xF0 | repeat;
+  288   2            LedCtrlPtr->ledSettings[1].t1 = 5;  //0.1s, unit:20ms
+  289   2            LedCtrlPtr->ledSettings[1].t2 = 5;  //0.1s, unit:20ms
+  290   2            LedCtrlPtr->ledSettings[1].t3 = 15;   //0.3s, unit:20ms
+  291   2            LedCtrlPtr->ledSettings[1].rampOnStep = 0;  //0ms, unit:2ms
+  292   2            LedCtrlPtr->ledSettings[1].rampOffStep = 0; //0ms, unit:2ms
+  293   2            break;
+  294   2      
+  295   2          case LED_RRAMPFLASH:
+  296   2            //RED
+  297   2            LedCtrlPtr->ledSettings[0].onOff  = LED_ON;
+  298   2            LedCtrlPtr->ledSettings[0].ledFollowMultiplierControl = 0x01;
+  299   2            LedCtrlPtr->ledSettings[0].pwmSetting = 0xF0 | repeat;
+  300   2            LedCtrlPtr->ledSettings[0].t1 = 50; //1s, unit:20ms
+  301   2            LedCtrlPtr->ledSettings[0].t2 = 50; //1s, unit:20ms
+  302   2            LedCtrlPtr->ledSettings[0].t3 = 15;   //0.3s, unit:20ms
+  303   2            LedCtrlPtr->ledSettings[0].rampOnStep = 0x20; //64ms, unit:2ms
+  304   2            LedCtrlPtr->ledSettings[0].rampOffStep = 0x20;  //64ms, unit:2ms
+  305   2            break;
+  306   2        }
+  307   1        
+  308   1        LED_SetPatternToHW(LedCtrlPtr);
+  309   1        
+  310   1        OSMEM_Put((U8 XDATA_PTR)LedCtrlPtr);
+  311   1      }
+  312          
+  313          
+C251 COMPILER V5.57.0,  MMI_TestMode                                                       08/11/20  06:33:52  PAGE 6   
+
+  314          static  U8 CODE TestModeLed[TOTAL_TESTMODE_STATE_NO] = {LED_BRAMPFLASH, LED_BSFLASH, LED_BFFLASH, LED_BFF
+             -LASH, LED_RRAMPFLASH};
+  315          PRIVATE void MMI_TestMode_Execute(void)
+  316          {
+  317   1        MMI_TestModeHandlerSet[gMMI_TestMode_ctl.state].TestModeHandler(TestModeChannelMap[gMMI_TestMode_ctl.cha
+             -nnelIndex[gMMI_TestMode_ctl.state]],
+  318   1                gLC_ctl.rf_ctl.mp_tx_gain_ctl.tx_gfsk_max_gain - TestModePowerDiffMap[gMMI_TestMode_ctl.powerIndex[g
+             -MMI_TestMode_ctl.state]]);
+  319   1        MMI_TestMode_LedHandler(TestModeLed[gMMI_TestMode_ctl.state], gMMI_TestMode_ctl.channelIndex[gMMI_TestMo
+             -de_ctl.state]);
+  320   1      }
+  321          
+  322          PRIVATE void MMI_TestMode_KeyEnterTestMode(U8 linkIndex)
+  323          {
+  324   1        UNUSED(linkIndex);
+  325   1        MMI_AddTopState(MMI_EOF, MMI_TEST_MODE);
+  326   1        MMI_SetEnterDiscoverable(FALSE);
+  327   1        if(MMI_CheckNestState(MMI_EOF, MMI_CONDISCABLE))
+  328   1        {
+  329   2          MMI_RmvState(MMI_EOF, MMI_CONDISCABLE);
+  330   2        }
+  331   1      }
+  332          
+  333          PRIVATE void MMI_TestMode_KeyTestModeChannel(U8 linkIndex)
+  334          {
+  335   1        UNUSED(linkIndex);
+  336   1        gMMI_TestMode_ctl.channelIndex[gMMI_TestMode_ctl.state] =
+  337   1          (gMMI_TestMode_ctl.channelIndex[gMMI_TestMode_ctl.state]+1)% sizeof(TestModeChannelMap);
+  338   1        MMI_TestMode_Execute();
+  339   1      }
+  340          
+  341          PRIVATE void MMI_TestMode_KeyTestModePower(U8 linkIndex)
+  342          {
+  343   1        UNUSED(linkIndex);
+  344   1        gMMI_TestMode_ctl.powerIndex[gMMI_TestMode_ctl.state] =
+  345   1          (gMMI_TestMode_ctl.powerIndex[gMMI_TestMode_ctl.state]+1)% sizeof(TestModePowerDiffMap);
+  346   1        MMI_TestMode_Execute();
+  347   1      }
+  348          PRIVATE void MMI_TestMode_KeyTestModeState(U8 linkIndex)
+  349          {
+  350   1        UNUSED(linkIndex);
+  351   1        //Clear Info
+  352   1        gMMI_TestMode_ctl.channelIndex[gMMI_TestMode_ctl.state] = 0;
+  353   1        gMMI_TestMode_ctl.powerIndex[gMMI_TestMode_ctl.state] = 0;
+  354   1      
+  355   1        gMMI_TestMode_ctl.state =
+  356   1          (gMMI_TestMode_ctl.state+1)%TOTAL_TESTMODE_STATE_NO;
+  357   1        MMI_TestMode_Execute();
+  358   1      }
+  359          PRIVATE void MMI_TestMode_KeyTestModeTxPktType(U8 linkIndex)
+  360          {
+  361   1        UNUSED(linkIndex);
+  362   1        gMMI_TestMode_ctl.packetTypeIndex[gMMI_TestMode_ctl.state] =
+  363   1          (gMMI_TestMode_ctl.packetTypeIndex[gMMI_TestMode_ctl.state]+1)%TOTAL_TESTMODE_PACKET_TYPE_NO;
+  364   1        MMI_TestMode_Execute();
+  365   1      }
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =      1257     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+C251 COMPILER V5.57.0,  MMI_TestMode                                                       08/11/20  06:33:52  PAGE 7   
+
+  edata size           =        16     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =        70     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

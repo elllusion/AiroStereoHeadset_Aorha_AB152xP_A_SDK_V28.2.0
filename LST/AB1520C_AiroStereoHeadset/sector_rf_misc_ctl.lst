@@ -1,0 +1,780 @@
+C251 COMPILER V5.57.0,  sector_rf_misc_ctl                                                 08/11/20  05:51:28  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_rf_misc_ctl
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\sector_rf_misc_ctl.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\Config0\sector_rf_misc_ctl.c XSMALL HPTR FUNCTIONS(REENT
+                    -RANT) ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER
+                    -;.\source\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\sour
+                    -ce\ROM\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.
+                    -\source\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\sou
+                    -rce\SECTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\Tool
+                    -Misc) DEFINE(FLASH_INIT=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520C_A
+                    -iroStereoHeadset\sector_rf_misc_ctl.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\sector_rf_misc_ctl.obj) 
+
+stmt  level    source
+
+    1          /*
+    2           * AIROHA Bluetooth Device Firmware
+    3           * COPYRIGHT (C) 2014 AIROHA TECHNOLOGY CORP. CO., LTD. ALL RIGHTS RESERVED
+    4           *
+    5           * sector_rf_misc.c defines the control options of RF.
+    6           *
+    7           * Programmer : CharlesSu@airoha.com.tw, Ext.2882
+    8           */
+    9          #include "config.h"
+   10          #include "cpu.h"
+   11          #include "sector_rf_misc_ctl.h"
+   12          
+   13          #pragma userclass (HCONST = CONFIG)
+   14          
+   15          
+   16          #define RF_DEPEND_TX_NUM    0x01
+   17          #define RF_DEPEND_
+   18          
+   19          
+   20          
+   21          ////////////////////////////////////////////////////////////////////////////////
+   22          // Global Variables ////////////////////////////////////////////////////////////
+   23          ////////////////////////////////////////////////////////////////////////////////
+   24          #if (defined OPERATION_IN_RF_AB1500F_FPGA)
+               SECTOR_RF_MISC_CTL_STRU CODE gSector_RfMiscCtl =
+               {
+                 {
+                       {
+                           0x00,               //- 4.0 RX GC TABLE
+                           0x00,
+                           0x00,
+                       },
+                     {
+                         //0x01,               //- tx_default_gfsk_gc1
+                         //0x7C,               //- tx_default_gfsk_gc2
+                         0xA4,               //- tx_default_gfsk_bias2_1
+                         0x0C,               //- tx_default_gfsk_bias2_2
+                         //0x01,               //- tx_default_edr_gc1
+                         //0x78,               //- tx_default_edr_gc2
+                         0xA4,               //- tx_default_edr_bias2_1
+                         0x0C,               //- tx_default_edr_bias2_2
+                         0x0D,       //- tx_default_ble_gc1;
+                       0x76,       //- tx_default_ble_gc2
+                       0xBC,       //- tx_default_ble_bias2_1
+                       0xA8,       //- tx_default_ble_bias2_2
+                         //56,                 //- tx_gfsk_max_gain
+                         16,                 //- tx_gfsk_min_gain
+                         //48,                 //- tx_edr_max_gain
+                         16,                 //- tx_edr_min_gain
+                         63,                 //- tx_ble_max_gain;
+                       16,                 //- tx_ble_min_gain;
+                         0x00,               //- tx_2402_gc1_offset
+C251 COMPILER V5.57.0,  sector_rf_misc_ctl                                                 08/11/20  05:51:28  PAGE 2   
+
+                         50,                 //- tx_gfsk_gain_step_threshold_hi
+                           40,                 //- tx_gfsk_gain_step_threshold_lo
+                         0x05,               //- tx_gfsk_gain_step_1
+                         0x0A,               //- tx_gfsk_gain_step_2
+                         0x0C,               //- tx_gfsk_gain_step_3
+                           0x0A,               //- tx_edr_gain_step
+                     },
+               
+                     {
+                         {0},                                                // reserved
+                           //{750, 770, 810, 850, 880, 910, 925},                // tx_mod_temp_step
+                           /* BDR */
+                           {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x06},   // tx_bdr_mod_gain_comp
+                           {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},   // tx_bdr_fil_gain_comp
+                           {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},   // tx_bdr_mod_bias_comp
+                           /* EDR */
+                           {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x06},   // tx_edr_mod_gain_comp
+                           {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},   // tx_edr_fil_gain_comp
+                           {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},   // tx_edr_mod_bias_comp
+                           /* BLE */
+                           {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x06},   // tx_ble_mod_gain_comp
+                           {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},   // tx_ble_fil_gain_comp
+                           {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},   // tx_ble_mod_bias_comp
+               
+                           //{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},   // BDR (signed) delta of txagc_gc b/w B
+             -DR d4 value
+                           //{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},   // EDR (signed) delta of txagc_gc b/w E
+             -DR d4 value
+                           {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},   // BLE (signed) delta of txagc_gc b/w BLE
+             - d4 value
+                           {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},   // keep all zero
+                           {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},    // keep all zero
+                           {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}    // keep all zero
+                     },
+               
+                       102, //rssi_gap
+                       102, //le_rssi_gap
+                       7    //le_tx_power_in_dbm
+                 },
+               
+                 //- CRC
+                   {0x00,0x00}
+               };
+               
+               #elif (defined OPERATION_IN_RF_AB1520)
+   95          #if (defined AB1520C)
+   96          SECTOR_RF_MISC_CTL_STRU CODE gSector_RfMiscCtl =
+   97          {
+   98            {
+   99                  {
+  100                      65,               //- 4.0 RX GC TABLE
+  101                      46,
+  102                      34,
+  103                  },
+  104                {
+  105              #ifdef AB1122
+                         //- tx_gain_ctl
+                       //0x0D,       //- tx_default_gfsk_gc1
+                       //0x75,       //- tx_default_gfsk_gc2
+                       0xBC,       //- tx_default_gfsk_bias2_1
+                       0xA8,       //- tx_default_gfsk_bias2_2
+                       //0x8D,       //- tx_default_edr_gc1
+                       //0x74,       //- tx_default_edr_gc2
+                       0xBC,       //- tx_default_edr_bias2_1
+                       0xA8,       //- tx_default_edr_bias2_2
+                       0x85,       //- tx_default_ble_gc1
+C251 COMPILER V5.57.0,  sector_rf_misc_ctl                                                 08/11/20  05:51:28  PAGE 3   
+
+                       0x78,       //- tx_default_ble_gc2
+                       0xBC,       //- tx_default_ble_bias2_1
+                       0xA8,       //- tx_default_ble_bias2_2
+                       //42,             //- tx_gfsk_max_gain;
+                       18,             //- tx_gfsk_min_gain;
+                       //41,       //- tx_edr_max_gain;
+                       0,        //- tx_edr_min_gain;
+                       49,                             //- tx_ble_max_gain;
+                       18,                             //- tx_ble_min_gain;
+                       0x00,       //- tx_2402_gc1_offset;
+                               56,                 //- tx_gfsk_gain_step_threshold
+                               44,                 //- tx_gfsk_gain_step_threshold_lo
+                               0x0C,               //- tx_gfsk_gain_step_1
+                               0x09,               //- tx_gfsk_gain_step_2
+                               0x09,               //- tx_gfsk_gain_step_3
+                               0x0A,               //- tx_edr_gain_step
+                   #else
+  133                      #ifdef AB1528C_ONLY
+                                 #ifdef BLUETOOTH_SPEAKER
+                         //- tx_gain_ctl
+                             //0x0D,       //- tx_default_gfsk_gc1
+                             //0x75,       //- tx_default_gfsk_gc2
+                             0xBC,       //- tx_default_gfsk_bias2_1
+                             0xA8,       //- tx_default_gfsk_bias2_2
+                             //0x8D,       //- tx_default_edr_gc1
+                             //0x74,       //- tx_default_edr_gc2
+                             0xBC,       //- tx_default_edr_bias2_1
+                             0xA8,       //- tx_default_edr_bias2_2
+                             0x8D,       //- tx_default_ble_gc1
+                             0x79,       //- tx_default_ble_gc2
+                             0xBC,       //- tx_default_ble_bias2_1
+                             0xA8,       //- tx_default_ble_bias2_2
+                             //42,             //- tx_gfsk_max_gain;
+                             18,             //- tx_gfsk_min_gain;
+                             //41,       //- tx_edr_max_gain;
+                             0,        //- tx_edr_min_gain;
+                             51,                             //- tx_ble_max_gain;
+                             18,                             //- tx_ble_min_gain;
+                             0x00,       //- tx_2402_gc1_offset;
+                                     56,                 //- tx_gfsk_gain_step_threshold
+                                     44,                 //- tx_gfsk_gain_step_threshold_lo
+                                     0x0C,               //- tx_gfsk_gain_step_1
+                                     0x09,               //- tx_gfsk_gain_step_2
+                                     0x09,               //- tx_gfsk_gain_step_3
+                                     0x0A,               //- tx_edr_gain_step
+                           #else
+                         //- tx_gain_ctl
+                             //0x0D,       //- tx_default_gfsk_gc1
+                             //0x75,       //- tx_default_gfsk_gc2
+                             0xBC,       //- tx_default_gfsk_bias2_1
+                             0xA8,       //- tx_default_gfsk_bias2_2
+                             //0x8D,       //- tx_default_edr_gc1
+                             //0x74,       //- tx_default_edr_gc2
+                             0xBC,       //- tx_default_edr_bias2_1
+                             0xA8,       //- tx_default_edr_bias2_2
+                             0x0D,       //- tx_default_ble_gc1
+                             0x79,       //- tx_default_ble_gc2
+                             0xBC,       //- tx_default_ble_bias2_1
+                             0xA8,       //- tx_default_ble_bias2_2
+                             //42,             //- tx_gfsk_max_gain;
+                             18,             //- tx_gfsk_min_gain;
+                             //41,       //- tx_edr_max_gain;
+                             0,        //- tx_edr_min_gain;
+                             50,                             //- tx_ble_max_gain;
+                             18,                             //- tx_ble_min_gain;
+                             0x00,       //- tx_2402_gc1_offset;
+C251 COMPILER V5.57.0,  sector_rf_misc_ctl                                                 08/11/20  05:51:28  PAGE 4   
+
+                                     55,                 //- tx_gfsk_gain_step_threshold
+                                     40,                 //- tx_gfsk_gain_step_threshold_lo
+                                     0x0F,               //- tx_gfsk_gain_step_1
+                                     0x0D,               //- tx_gfsk_gain_step_2
+                                     0x0C,               //- tx_gfsk_gain_step_3
+                                     0x0A,               //- tx_edr_gain_step
+                                             #endif
+                           #else
+  190                                        #ifdef BLUETOOTH_SPEAKER
+                         //- tx_gain_ctl
+                                               //0x0D,       //- tx_default_gfsk_gc1
+                                               //0x75,       //- tx_default_gfsk_gc2
+                                               0xBC,       //- tx_default_gfsk_bias2_1
+                                               0xA8,       //- tx_default_gfsk_bias2_2
+                                               //0x8D,       //- tx_default_edr_gc1
+                                               //0x74,       //- tx_default_edr_gc2
+                                               0xBC,       //- tx_default_edr_bias2_1
+                                               0xA8,       //- tx_default_edr_bias2_2
+                                               0x85,       //- tx_default_ble_gc1
+                                               0x78,       //- tx_default_ble_gc2
+                                               0xBC,       //- tx_default_ble_bias2_1
+                                               0xA8,       //- tx_default_ble_bias2_2
+                                               //42,             //- tx_gfsk_max_gain;
+                                               18,             //- tx_gfsk_min_gain;
+                                               //41,       //- tx_edr_max_gain;
+                                               0,        //- tx_edr_min_gain;
+                                               49,                             //- tx_ble_max_gain;
+                                               18,                             //- tx_ble_min_gain;
+                                               0x00,       //- tx_2402_gc1_offset;
+                                                       56,                 //- tx_gfsk_gain_step_threshold
+                                                       44,                 //- tx_gfsk_gain_step_threshold_lo
+                                                       0x0C,               //- tx_gfsk_gain_step_1
+                                                       0x09,               //- tx_gfsk_gain_step_2
+                                                       0x09,               //- tx_gfsk_gain_step_3
+                                                       0x0A,               //- tx_edr_gain_step
+                           #else
+  218                    //- tx_gain_ctl
+  219                        //0x0D,       //- tx_default_gfsk_gc1
+  220                        //0x75,       //- tx_default_gfsk_gc2
+  221                        0xBC,       //- tx_default_gfsk_bias2_1
+  222                        0xA8,       //- tx_default_gfsk_bias2_2
+  223                        //0x8D,       //- tx_default_edr_gc1
+  224                        //0x74,       //- tx_default_edr_gc2
+  225                        0xBC,       //- tx_default_edr_bias2_1
+  226                        0xA8,       //- tx_default_edr_bias2_2
+  227                        0x0D,       //- tx_default_ble_gc1
+  228                        0x79,       //- tx_default_ble_gc2
+  229                        0xBC,       //- tx_default_ble_bias2_1
+  230                        0xA8,       //- tx_default_ble_bias2_2
+  231                        //42,             //- tx_gfsk_max_gain;
+  232                        18,             //- tx_gfsk_min_gain;
+  233                        //41,       //- tx_edr_max_gain;
+  234                        0,        //- tx_edr_min_gain;
+  235                        50,                             //- tx_ble_max_gain;
+  236                        18,                             //- tx_ble_min_gain;
+  237                        0x00,       //- tx_2402_gc1_offset;
+  238                                                  55,                 //- tx_gfsk_gain_step_threshold
+  239                                                  40,                 //- tx_gfsk_gain_step_threshold_lo
+  240                                                  0x0F,               //- tx_gfsk_gain_step_1
+  241                                                  0x0D,               //- tx_gfsk_gain_step_2
+  242                                                  0x0C,               //- tx_gfsk_gain_step_3
+  243                                                  0x0A,               //- tx_edr_gain_step
+  244                                        #endif
+  245                      #endif
+  246          
+  247                   #endif
+C251 COMPILER V5.57.0,  sector_rf_misc_ctl                                                 08/11/20  05:51:28  PAGE 5   
+
+  248                },
+  249          
+  250                {
+  251                    {0},                                                // reserved
+  252                      //{683, 715, 749, 789, 833, 868, 892},  // tx_mod_temp_step
+  253               #ifdef AB1122
+                    /* BDR */
+                   {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_bdr_mod_gain_comp
+                   {0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01}, // tx_bdr_fil_gain_comp
+                   {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02}, // tx_bdr_mod_bias_comp
+                   /* EDR */
+                   {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_edr_mod_gain_comp
+                   {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_edr_fil_gain_comp
+                   {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02}, // tx_edr_mod_bias_comp
+                   /* BLE */
+                   {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_ble_mod_gain_comp
+                   {0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01}, // tx_ble_fil_gain_comp
+                   {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02}, // tx_ble_mod_bias_comp
+               
+                   {0xFF, 0xFE, 0xFE, 0xFE, 0x00, 0x02, 0x04, 0x07}, // BLE (signed) delta of txagc_gc b/w BLE d4 value  
+             -                 {0xF8, 0xFA, 0xFC, 0xFE, 0x00, 0x02, 0x04, 0x06}, // keep all zero
+                   {0xF8, 0xFA, 0xFC, 0xFE, 0x00, 0x02, 0x04, 0x06},  // keep all zero
+                   {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}  // keep all zero
+                       #else
+  271                      #ifdef AB1528C_ONLY
+                       #ifdef BLUETOOTH_SPEAKER
+                       /* BDR */
+                      {0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_bdr_mod_gain_comp
+                      {0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_bdr_fil_gain_comp
+                      {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02}, // tx_bdr_mod_bias_comp
+                      /* EDR */
+                      {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_edr_mod_gain_comp
+                      {0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_edr_fil_gain_comp
+                      {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02}, // tx_edr_mod_bias_comp
+                      /* BLE */
+                      {0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_ble_mod_gain_comp
+                      {0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_ble_fil_gain_comp
+                      {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02}, // tx_ble_mod_bias_comp
+                      {0x04, 0x00, 0x01, 0xFE, 0x00, 0x02, 0x04, 0x05}, // BLE (signed) delta of txagc_gc b/w BLE d4 valu
+             -e
+                      {0xF8, 0xFA, 0xFC, 0xFE, 0x00, 0x02, 0x04, 0x06}, // keep all zero
+                      {0xF8, 0xFA, 0xFC, 0xFE, 0x00, 0x02, 0x04, 0x06},  // keep all zero
+                      {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}  // keep all zero
+                      #else
+                      /* BDR */
+                       /* BDR */
+                      {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_bdr_mod_gain_comp
+                      {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x02}, // tx_bdr_fil_gain_comp
+                      {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02}, // tx_bdr_mod_bias_comp
+                      /* EDR */
+                      {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x02}, // tx_edr_mod_gain_comp
+                      {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x02}, // tx_edr_fil_gain_comp
+                      {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02}, // tx_edr_mod_bias_comp
+                      /* BLE */
+                      {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_ble_mod_gain_comp
+                      {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x02}, // tx_ble_fil_gain_comp
+                      {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02}, // tx_ble_mod_bias_comp
+                      {0x06, 0x03, 0x00, 0xFD, 0x00, 0x03, 0x06, 0x0A}, // BLE (signed) delta of txagc_gc b/w BLE d4 valu
+             -e
+                      {0xF8, 0xFA, 0xFC, 0xFE, 0x00, 0x02, 0x04, 0x06}, // keep all zero
+                      {0xF8, 0xFA, 0xFC, 0xFE, 0x00, 0x02, 0x04, 0x06},  // keep all zero
+                      {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}  // keep all zero
+                           #endif
+                           #else
+  309                      #ifdef BLUETOOTH_SPEAKER
+                     /* BDR */
+C251 COMPILER V5.57.0,  sector_rf_misc_ctl                                                 08/11/20  05:51:28  PAGE 6   
+
+                     {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_bdr_mod_gain_comp
+                     {0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01}, // tx_bdr_fil_gain_comp
+                     {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02}, // tx_bdr_mod_bias_comp
+                     /* EDR */
+                     {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_edr_mod_gain_comp
+                     {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_edr_fil_gain_comp
+                     {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02}, // tx_edr_mod_bias_comp
+                     /* BLE */
+                     {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_ble_mod_gain_comp
+                     {0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01}, // tx_ble_fil_gain_comp
+                     {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02}, // tx_ble_mod_bias_comp
+               
+                     {0xFF, 0xFE, 0xFE, 0xFE, 0x00, 0x02, 0x04, 0x07}, // BLE (signed) delta of txagc_gc b/w BLE d4 value
+             -                   {0xF8, 0xFA, 0xFC, 0xFE, 0x00, 0x02, 0x04, 0x06}, // keep all zero
+                     {0xF8, 0xFA, 0xFC, 0xFE, 0x00, 0x02, 0x04, 0x06},  // keep all zero
+                     {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}  // keep all zero
+                           #else
+  327                      /* BDR */
+  328                {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_bdr_mod_gain_comp
+  329                {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x02}, // tx_bdr_fil_gain_comp
+  330                {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02}, // tx_bdr_mod_bias_comp
+  331                /* EDR */
+  332                {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x02}, // tx_edr_mod_gain_comp
+  333                {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x02}, // tx_edr_fil_gain_comp
+  334                {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02}, // tx_edr_mod_bias_comp
+  335                /* BLE */
+  336                {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_ble_mod_gain_comp
+  337                {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x02}, // tx_ble_fil_gain_comp
+  338                {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02}, // tx_ble_mod_bias_comp
+  339                {0x06, 0x03, 0x00, 0xFD, 0x00, 0x03, 0x06, 0x0A}, // BLE (signed) delta of txagc_gc b/w BLE d4 value
+  340                {0xF8, 0xFA, 0xFC, 0xFE, 0x00, 0x02, 0x04, 0x06}, // keep all zero
+  341                {0xF8, 0xFA, 0xFC, 0xFE, 0x00, 0x02, 0x04, 0x06},  // keep all zero
+  342                {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}  // keep all zero
+  343                                                   #endif
+  344                         #endif
+  345          
+  346                #endif
+  347          
+  348          
+  349          
+  350          
+  351                },
+  352          
+  353                  102, //rssi_gap
+  354                  102, //le_rssi_gap
+  355                  7    //le_tx_power_in_dbm
+  356          
+  357            },
+  358          
+  359            //- CRC
+  360              {0x00,0x00}
+  361          };
+  362          #elif (defined AB1520D)
+               SECTOR_RF_MISC_CTL_STRU CODE gSector_RfMiscCtl =
+               {
+                 {
+                       {
+                           65,               //- 4.0 RX GC TABLE
+                           46,
+                           34,
+                       },
+                     {
+                   #ifdef AB1122
+                         //- tx_gain_ctl
+                       //0x0D,       //- tx_default_gfsk_gc1
+                       //0x75,       //- tx_default_gfsk_gc2
+C251 COMPILER V5.57.0,  sector_rf_misc_ctl                                                 08/11/20  05:51:28  PAGE 7   
+
+                       0xBC,       //- tx_default_gfsk_bias2_1
+                       0xA8,       //- tx_default_gfsk_bias2_2
+                       //0x8D,       //- tx_default_edr_gc1
+                       //0x74,       //- tx_default_edr_gc2
+                       0xBC,       //- tx_default_edr_bias2_1
+                       0xA8,       //- tx_default_edr_bias2_2
+                       0x85,       //- tx_default_ble_gc1
+                       0x78,       //- tx_default_ble_gc2
+                       0xBC,       //- tx_default_ble_bias2_1
+                       0xA8,       //- tx_default_ble_bias2_2
+                       //42,             //- tx_gfsk_max_gain;
+                       18,             //- tx_gfsk_min_gain;
+                       //41,       //- tx_edr_max_gain;
+                       0,        //- tx_edr_min_gain;
+                       49,                             //- tx_ble_max_gain;
+                       18,                             //- tx_ble_min_gain;
+                       0x00,       //- tx_2402_gc1_offset;
+                               56,                 //- tx_gfsk_gain_step_threshold
+                               44,                 //- tx_gfsk_gain_step_threshold_lo
+                               0x0C,               //- tx_gfsk_gain_step_1
+                               0x09,               //- tx_gfsk_gain_step_2
+                               0x09,               //- tx_gfsk_gain_step_3
+                               0x0A,               //- tx_edr_gain_step
+                   #else
+                           #ifdef AB1528C_ONLY
+                                 #ifdef BLUETOOTH_SPEAKER
+                         //- tx_gain_ctl
+                             //0x0D,       //- tx_default_gfsk_gc1
+                             //0x75,       //- tx_default_gfsk_gc2
+                             0xBC,       //- tx_default_gfsk_bias2_1
+                             0xA8,       //- tx_default_gfsk_bias2_2
+                             //0x8D,       //- tx_default_edr_gc1
+                             //0x74,       //- tx_default_edr_gc2
+                             0xBC,       //- tx_default_edr_bias2_1
+                             0xA8,       //- tx_default_edr_bias2_2
+                             0x8D,       //- tx_default_ble_gc1
+                             0x79,       //- tx_default_ble_gc2
+                             0xBC,       //- tx_default_ble_bias2_1
+                             0xA8,       //- tx_default_ble_bias2_2
+                             //42,             //- tx_gfsk_max_gain;
+                             18,             //- tx_gfsk_min_gain;
+                             //41,       //- tx_edr_max_gain;
+                             0,        //- tx_edr_min_gain;
+                             51,                             //- tx_ble_max_gain;
+                             18,                             //- tx_ble_min_gain;
+                             0x00,       //- tx_2402_gc1_offset;
+                                     56,                 //- tx_gfsk_gain_step_threshold
+                                     44,                 //- tx_gfsk_gain_step_threshold_lo
+                                     0x0C,               //- tx_gfsk_gain_step_1
+                                     0x09,               //- tx_gfsk_gain_step_2
+                                     0x09,               //- tx_gfsk_gain_step_3
+                                     0x0A,               //- tx_edr_gain_step
+                           #else
+                         //- tx_gain_ctl
+                             //0x0D,       //- tx_default_gfsk_gc1
+                             //0x75,       //- tx_default_gfsk_gc2
+                             0xBC,       //- tx_default_gfsk_bias2_1
+                             0xA8,       //- tx_default_gfsk_bias2_2
+                             //0x8D,       //- tx_default_edr_gc1
+                             //0x74,       //- tx_default_edr_gc2
+                             0x8B,       //- tx_default_edr_bias2_1
+                             0xA8,       //- tx_default_edr_bias2_2
+                             0x0D,       //- tx_default_ble_gc1
+                             0x99,       //- tx_default_ble_gc2
+                             0xBC,       //- tx_default_ble_bias2_1
+                             0xA8,       //- tx_default_ble_bias2_2
+C251 COMPILER V5.57.0,  sector_rf_misc_ctl                                                 08/11/20  05:51:28  PAGE 8   
+
+                             //42,             //- tx_gfsk_max_gain;
+                             18,             //- tx_gfsk_min_gain;
+                             //41,       //- tx_edr_max_gain;
+                             0,        //- tx_edr_min_gain;
+                             50,                             //- tx_ble_max_gain;
+                             18,                             //- tx_ble_min_gain;
+                             0x00,       //- tx_2402_gc1_offset;
+                                     57,                 //- tx_gfsk_gain_step_threshold
+                                     45,                 //- tx_gfsk_gain_step_threshold_lo
+                                     0x0E,               //- tx_gfsk_gain_step_1
+                                     0x0A,               //- tx_gfsk_gain_step_2
+                                     0x08,               //- tx_gfsk_gain_step_3
+                                     0x0A,               //- tx_edr_gain_step
+                                             #endif
+                           #else
+                                             #ifdef BLUETOOTH_SPEAKER
+                         //- tx_gain_ctl
+                                               //0x0D,       //- tx_default_gfsk_gc1
+                                               //0x75,       //- tx_default_gfsk_gc2
+                                               0xBC,       //- tx_default_gfsk_bias2_1
+                                               0xA8,       //- tx_default_gfsk_bias2_2
+                                               //0x8D,       //- tx_default_edr_gc1
+                                               //0x74,       //- tx_default_edr_gc2
+                                               0xBC,       //- tx_default_edr_bias2_1
+                                               0xA8,       //- tx_default_edr_bias2_2
+                                               0x85,       //- tx_default_ble_gc1
+                                               0x78,       //- tx_default_ble_gc2
+                                               0xBC,       //- tx_default_ble_bias2_1
+                                               0xA8,       //- tx_default_ble_bias2_2
+                                               //42,             //- tx_gfsk_max_gain;
+                                               18,             //- tx_gfsk_min_gain;
+                                               //41,       //- tx_edr_max_gain;
+                                               0,        //- tx_edr_min_gain;
+                                               49,                             //- tx_ble_max_gain;
+                                               18,                             //- tx_ble_min_gain;
+                                               0x00,       //- tx_2402_gc1_offset;
+                                                       56,                 //- tx_gfsk_gain_step_threshold
+                                                       44,                 //- tx_gfsk_gain_step_threshold_lo
+                                                       0x0C,               //- tx_gfsk_gain_step_1
+                                                       0x09,               //- tx_gfsk_gain_step_2
+                                                       0x09,               //- tx_gfsk_gain_step_3
+                                                       0x0A,               //- tx_edr_gain_step
+                           #else
+                         //- tx_gain_ctl
+                             //0x0D,       //- tx_default_gfsk_gc1
+                             //0x75,       //- tx_default_gfsk_gc2
+                             0xBC,       //- tx_default_gfsk_bias2_1
+                             0xA8,       //- tx_default_gfsk_bias2_2
+                             //0x8D,       //- tx_default_edr_gc1
+                             //0x74,       //- tx_default_edr_gc2
+                             0x8B,       //- tx_default_edr_bias2_1
+                             0xA8,       //- tx_default_edr_bias2_2
+                             0x0D,       //- tx_default_ble_gc1
+                             0x99,       //- tx_default_ble_gc2
+                             0xBC,       //- tx_default_ble_bias2_1
+                             0xA8,       //- tx_default_ble_bias2_2
+                             //42,             //- tx_gfsk_max_gain;
+                             18,             //- tx_gfsk_min_gain;
+                             //41,       //- tx_edr_max_gain;
+                             0,        //- tx_edr_min_gain;
+                             50,                             //- tx_ble_max_gain;
+                             18,                             //- tx_ble_min_gain;
+                             0x00,       //- tx_2402_gc1_offset;
+                                     57,                 //- tx_gfsk_gain_step_threshold
+                                     45,                 //- tx_gfsk_gain_step_threshold_lo
+                                     0x0E,               //- tx_gfsk_gain_step_1
+C251 COMPILER V5.57.0,  sector_rf_misc_ctl                                                 08/11/20  05:51:28  PAGE 9   
+
+                                     0x0A,               //- tx_gfsk_gain_step_2
+                                     0x08,               //- tx_gfsk_gain_step_3
+                                     0x0A,               //- tx_edr_gain_step
+                                             #endif
+                           #endif
+               
+                        #endif
+                     },
+               
+                     {
+                         {0},                                                // reserved
+                           //{683, 715, 749, 789, 833, 868, 892},  // tx_mod_temp_step
+                    #ifdef AB1122
+                    /* BDR */
+                   {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_bdr_mod_gain_comp
+                   {0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01}, // tx_bdr_fil_gain_comp
+                   {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02}, // tx_bdr_mod_bias_comp
+                   /* EDR */
+                   {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_edr_mod_gain_comp
+                   {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_edr_fil_gain_comp
+                   {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02}, // tx_edr_mod_bias_comp
+                   /* BLE */
+                   {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_ble_mod_gain_comp
+                   {0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01}, // tx_ble_fil_gain_comp
+                   {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02}, // tx_ble_mod_bias_comp
+               
+                   {0xFF, 0xFE, 0xFE, 0xFE, 0x00, 0x02, 0x04, 0x07}, // BLE (signed) delta of txagc_gc b/w BLE d4 value  
+             -                 {0xF8, 0xFA, 0xFC, 0xFE, 0x00, 0x02, 0x04, 0x06}, // keep all zero
+                   {0xF8, 0xFA, 0xFC, 0xFE, 0x00, 0x02, 0x04, 0x06},  // keep all zero
+                   {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}  // keep all zero
+                       #else
+                           #ifdef AB1528C_ONLY
+                       #ifdef BLUETOOTH_SPEAKER
+                       /* BDR */
+                      {0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_bdr_mod_gain_comp
+                      {0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_bdr_fil_gain_comp
+                      {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02}, // tx_bdr_mod_bias_comp
+                      /* EDR */
+                      {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_edr_mod_gain_comp
+                      {0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_edr_fil_gain_comp
+                      {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02}, // tx_edr_mod_bias_comp
+                      /* BLE */
+                      {0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_ble_mod_gain_comp
+                      {0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_ble_fil_gain_comp
+                      {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02}, // tx_ble_mod_bias_comp
+                      {0x04, 0x00, 0x01, 0xFE, 0x00, 0x02, 0x04, 0x05}, // BLE (signed) delta of txagc_gc b/w BLE d4 valu
+             -e
+                      {0xF8, 0xFA, 0xFC, 0xFE, 0x00, 0x02, 0x04, 0x06}, // keep all zero
+                      {0xF8, 0xFA, 0xFC, 0xFE, 0x00, 0x02, 0x04, 0x06},  // keep all zero
+                      {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}  // keep all zero
+                      #else
+                      /* BDR */
+                      {0x01, 0x01, 0x02, 0x04, 0x04, 0x04, 0x04, 0x04}, // tx_bdr_mod_gain_comp
+                      {0x00, 0x00, 0x01, 0x02, 0x03, 0x02, 0x02, 0x02}, // tx_bdr_fil_gain_comp
+                      {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02}, // tx_bdr_mod_bias_comp
+                      /* EDR */
+                      {0x02, 0x02, 0x02, 0x04, 0x04, 0x04, 0x04, 0x04}, // tx_edr_mod_gain_comp
+                      {0x00, 0x00, 0x01, 0x02, 0x03, 0x02, 0x01, 0x01}, // tx_edr_fil_gain_comp
+                      {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02}, // tx_edr_mod_bias_comp
+                      /* BLE */
+                      {0x01, 0x01, 0x02, 0x04, 0x04, 0x04, 0x04, 0x04},  // tx_ble_mod_gain_comp
+                      {0x00, 0x00, 0x01, 0x02, 0x03, 0x02, 0x02, 0x02},  // tx_ble_fil_gain_comp
+                      {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02},  // tx_ble_mod_bias_comp
+                      {0x07, 0x07, 0x05, 0x01, 0x00, 0x05, 0x08, 0x08},   // BLE (signed) delta of txagc_gc b/w BLE d4 va
+             -lue
+                      {0xF8, 0xFA, 0xFC, 0xFE, 0x00, 0x02, 0x04, 0x06},  // keep all zero
+C251 COMPILER V5.57.0,  sector_rf_misc_ctl                                                 08/11/20  05:51:28  PAGE 10  
+
+                      {0xF8, 0xFA, 0xFC, 0xFE, 0x00, 0x02, 0x04, 0x06},  // keep all zero
+                      {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},   // keep all zero
+                           #endif
+                           #else
+                           #ifdef BLUETOOTH_SPEAKER
+                     /* BDR */
+                     {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_bdr_mod_gain_comp
+                     {0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01}, // tx_bdr_fil_gain_comp
+                     {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02}, // tx_bdr_mod_bias_comp
+                     /* EDR */
+                     {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_edr_mod_gain_comp
+                     {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_edr_fil_gain_comp
+                     {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02}, // tx_edr_mod_bias_comp
+                     /* BLE */
+                     {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_ble_mod_gain_comp
+                     {0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01}, // tx_ble_fil_gain_comp
+                     {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02}, // tx_ble_mod_bias_comp
+               
+                     {0xFF, 0xFE, 0xFE, 0xFE, 0x00, 0x02, 0x04, 0x07}, // BLE (signed) delta of txagc_gc b/w BLE d4 value
+             -                   {0xF8, 0xFA, 0xFC, 0xFE, 0x00, 0x02, 0x04, 0x06}, // keep all zero
+                     {0xF8, 0xFA, 0xFC, 0xFE, 0x00, 0x02, 0x04, 0x06},  // keep all zero
+                     {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}  // keep all zero
+                           #else
+                         /* BDR */
+                      {0x01, 0x01, 0x02, 0x04, 0x04, 0x04, 0x04, 0x04}, // tx_bdr_mod_gain_comp
+                      {0x00, 0x00, 0x01, 0x02, 0x03, 0x02, 0x02, 0x02}, // tx_bdr_fil_gain_comp
+                      {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02}, // tx_bdr_mod_bias_comp
+                      /* EDR */
+                      {0x02, 0x02, 0x02, 0x04, 0x04, 0x04, 0x04, 0x04}, // tx_edr_mod_gain_comp
+                      {0x00, 0x00, 0x01, 0x02, 0x03, 0x02, 0x01, 0x01}, // tx_edr_fil_gain_comp
+                      {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02}, // tx_edr_mod_bias_comp
+                      /* BLE */
+                      {0x01, 0x01, 0x02, 0x04, 0x04, 0x04, 0x04, 0x04},  // tx_ble_mod_gain_comp
+                      {0x00, 0x00, 0x01, 0x02, 0x03, 0x02, 0x02, 0x02},  // tx_ble_fil_gain_comp
+                      {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02},  // tx_ble_mod_bias_comp
+                      {0x07, 0x07, 0x05, 0x01, 0x00, 0x05, 0x08, 0x08},  // BLE (signed) delta of txagc_gc b/w BLE d4 val
+             -ue
+                      {0xF8, 0xFA, 0xFC, 0xFE, 0x00, 0x02, 0x04, 0x06},  // keep all zero
+                      {0xF8, 0xFA, 0xFC, 0xFE, 0x00, 0x02, 0x04, 0x06},  // keep all zero
+                      {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},  // keep all zero
+                                                        #endif
+                              #endif
+               
+                     #endif
+               
+               
+               
+               
+                     },
+               
+                       102, //rssi_gap
+                       102, //le_rssi_gap
+                       7    //le_tx_power_in_dbm
+               
+                 },
+               
+                 //- CRC
+                   {0x00,0x00}
+               };
+               
+               #endif
+  630          
+  631          #elif (defined OPERATION_IN_RF_AB1520S)
+               SECTOR_RF_MISC_CTL_STRU CODE gSector_RfMiscCtl =
+               {
+                 {
+C251 COMPILER V5.57.0,  sector_rf_misc_ctl                                                 08/11/20  05:51:28  PAGE 11  
+
+                       {
+                           65,               //- 4.0 RX GC TABLE
+                           46,
+                           34,
+                       },
+                     {   //- tx_gain_ctl
+                       //0x85,       //- tx_default_gfsk_gc1
+                       //0x78,       //- tx_default_gfsk_gc2
+                       0xBC,       //- tx_default_gfsk_bias2_1
+                       0xA8,       //- tx_default_gfsk_bias2_2
+                       //0x09,       //- tx_default_edr_gc1
+                       //0x73,       //- tx_default_edr_gc2
+                       0xBC,       //- tx_default_edr_bias2_1
+                       0xA8,       //- tx_default_edr_bias2_2
+                       0x85,       //- tx_default_ble_gc1
+                       0x78,       //- tx_default_ble_gc2
+                       0xBC,       //- tx_default_ble_bias2_1
+                       0xA8,       //- tx_default_ble_bias2_2
+                       //49,         //- tx_gfsk_max_gain;
+                       18,         //- tx_gfsk_min_gain;
+                       //38,         //- tx_edr_max_gain;
+                       0,          //- tx_edr_min_gain;
+                       49,                 //- tx_ble_max_gain;
+                       16,                 //- tx_ble_min_gain;
+                       0x00,       //- tx_2402_gc1_offset;
+                           56,                 //- tx_gfsk_gain_step_threshold
+                           44,                 //- tx_gfsk_gain_step_threshold_lo
+                           0x0F,               //- tx_gfsk_gain_step_1
+                           0x0E,               //- tx_gfsk_gain_step_2
+                           0x0C,               //- tx_gfsk_gain_step_3
+                           0x0A,               //- tx_edr_gain_step
+                     },
+               
+                     {
+                         {0},                                                // reserved
+                           //{683, 715, 749, 789, 833, 868, 892},  // tx_mod_temp_step
+                          /* BDR */
+                    {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_bdr_mod_gain_comp
+                    {0x01, 0x01, 0x01, 0x01, 0x01, 0x02, 0x03, 0x03}, // tx_bdr_fil_gain_comp
+                    {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02}, // tx_bdr_mod_bias_comp
+                    /* EDR */
+                           {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_edr_mod_gain_comp
+                    {0x00, 0x00, 0x01, 0x01, 0x02, 0x03, 0x03, 0x03}, // tx_edr_fil_gain_comp
+                    {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02}, // tx_edr_mod_bias_comp
+                    /* BLE */
+                             {0x00, 0x01, 0x02, 0x03, 0x03, 0x03, 0x03, 0x03}, // tx_ble_mod_gain_comp
+                    {0x01, 0x01, 0x01, 0x01, 0x01, 0x02, 0x03, 0x03}, // tx_ble_fil_gain_comp
+                    {0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02}, // tx_ble_mod_bias_comp
+               
+                     //{0x07, 0x04, 0x01, 0xFD, 0x00, 0x03, 0x05, 0x07}, // BDR (signed) delta of txagc_gc b/w BDR d4 val
+             -ue
+                     //{0x07, 0x04, 0x01, 0xFD, 0x00, 0x03, 0x05, 0x07}, // EDR (signed) delta of txagc_gc b/w EDR d4 val
+             -ue
+                           //{0xFF, 0xFE, 0xFE, 0xFE, 0x00, 0x02, 0x04, 0x06}, // BLE (signed) delta of txagc_gc b/w BLE
+             - d4 value
+                           {0xFE, 0xFC, 0xFB, 0xFB, 0x00, 0x00, 0x00, 0x04}, // BLE (signed) delta of txagc_gc b/w BLE d
+             -4 value
+                     {0xF8, 0xFA, 0xFC, 0xFE, 0x00, 0x02, 0x04, 0x06}, // keep all zero
+                     {0xF8, 0xFA, 0xFC, 0xFE, 0x00, 0x02, 0x04, 0x06},  // keep all zero
+                           {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}  // keep all zero
+                     },
+               
+                       102, //rssi_gap
+                       102, //le_rssi_gap
+                       7    //le_tx_power_in_dbm
+                 },
+C251 COMPILER V5.57.0,  sector_rf_misc_ctl                                                 08/11/20  05:51:28  PAGE 12  
+
+               
+                 //- CRC
+                   {0x00,0x00}
+               };
+               
+               #endif
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       132     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,311 @@
+C251 COMPILER V5.57.0,  SPP                                                                08/11/20  06:34:09  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE SPP
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\SPP.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SPP\SPP.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) WARNINGLEV
+                    -EL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\source\HC;.
+                    -\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\source\ROM\LC;
+                    -.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_LE;.\sourc
+                    -e\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspData;.\sourc
+                    -e\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLASH_INIT=1,
+                    -AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoHeadset\SPP.lst) 
+                    -TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\SPP.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #define __SPP_C__
+    4          
+    5          #include "rc.h"
+    6          #include "bt_config_profile.h"
+    7          
+    8          #ifdef SPP_Profile
+    9          
+   10          #include "..\MMI\MMI_Base.h"
+   11          #include "..\MMI\MMI_SCN.h"
+   12          #include "..\SDAP\SDAP_Interface.h"
+   13          #include "..\RFCOMM\RFCOMM_Interface.h"
+   14          #include "SPP_interface.h"
+   15          
+   16          typedef struct
+   17          {
+   18            MMI_PROFILE_INFO mmiProfileInfo;
+   19          } SPP_LINK_INFO;
+   20          
+   21          typedef struct
+   22          {
+   23            SPP_LINK_INFO linkInfo[MAX_MULTI_POINT_NO];
+   24          } SPP_CTL;
+   25          
+   26          static SPP_CTL XDATA gSPP_ctl;
+   27          
+   28          PRIVATE SPP_LINK_INFO XDATA_PTR SPP_GetLinkInfo(U8 linkIndex)
+   29          {
+   30   1        return &gSPP_ctl.linkInfo[linkIndex];
+   31   1      }
+   32          
+   33          PRIVATE void SPP(U8 linkIndex);
+   34          PRIVATE MMI_PROFILE_INFO XDATA_PTR SPP_ConnectRequest(U8 linkIndex, U8 profileId);
+   35          PRIVATE U8 SPP_DisconnectRequest(U8 linkIndex, MMI_PROFILE_INFO XDATA_PTR profileInfo);
+   36          PRIVATE void SPP_LinkEvent(U8 linkIndex, U8 evtCode, LINK_EVENT_PARAMS XDATA_PTR evtParams);
+   37          PRIVATE void SPP_DataEvent(U8 linkIndex, U8 XDATA_PTR dataPtr);
+   38          
+   39          static RFCOMM_PROFILE_DESC CODE gSPP_ProfileDesc = {
+   40            { //MMI_PROFILE_DESC
+   41              PROFILE_SERIAL_PORT,
+   42              SPP,          //ProfileTaskFunc
+   43              SPP_ConnectRequest,   //ProfileConnectRequest
+   44              SPP_DisconnectRequest,  //ProfileDisconnectRequest
+   45              SPP_LinkEvent,      //ProfileLinkEvent
+   46              SPP_DataEvent,      //ProfileDataEvent
+   47            },
+   48            SPP_MAX_FRAME_SIZE,
+   49            NULL,     //GivenCreditsEvent
+   50          };
+   51          
+   52          static MMI_PROFILE_NODE XDATA gSPP_ProfileNode = {
+C251 COMPILER V5.57.0,  SPP                                                                08/11/20  06:34:09  PAGE 2   
+
+   53            &gSPP_ProfileDesc.mmiProfileDesc,
+   54            NULL,
+   55          };
+   56          
+   57          PUBLIC void SPP_MMICommandHandler(U8 linkIndex)
+   58          { 
+   59   1        MMIMsgType XDATA_PTR msgPtr;
+   60   1        U8 XDATA_PTR dataSentPtr;
+   61   1        OSMQ XDATA_PTR mqPtr;
+   62   1      
+   63   1        if(msgPtr = (MMIMsgType XDATA_PTR)OSMQ_Get( mqPtr = OSMQ_SPP_Command_From_MMI_ptr[linkIndex] ))
+   64   1        {
+   65   2          switch(msgPtr->msgOpcode)
+   66   2          {
+   67   3            case SPP_CMD_FROM_MMI_DATA:
+   68   3              dataSentPtr = RFCOMM_AllocProfileData(msgPtr->paraLen, SCN_SERIAL_PORT);
+   69   3          #ifdef SONGPAL_Profile
+                       goto label_check_dataSentPtr;
+                     case SPP_CMD_FROM_MMI_DATA + SONGPAL_ANDROID_SPP_ENCODING_OFFSET:
+                       dataSentPtr = RFCOMM_AllocProfileData(msgPtr->paraLen, SCN_SONGPAL_ANDROID);
+                       goto label_check_dataSentPtr;
+                     case SPP_CMD_FROM_MMI_DATA + SONGPAL_IAP2_SPP_ENCODING_OFFSET:
+                       dataSentPtr = RFCOMM_AllocProfileData(msgPtr->paraLen, SCN_SONGPAL_IAP2);
+                       label_check_dataSentPtr:
+                   #endif
+   78   3              if(dataSentPtr == (U8 XDATA_PTR)NULL)
+   79   3              {
+   80   4                OSMQ_PutFront(mqPtr, (U8 XDATA_PTR)msgPtr);
+   81   4                return;
+   82   4              }
+   83   3              MMI_SniffDisable(linkIndex, MMI_SNIFF_SPP);
+   84   3              OSMEM_memcpy_xdata_xdata ( (dataSentPtr + *dataSentPtr), &msgPtr->msgBodyPtr.hciUARTSppData.dataBegin
+             -, msgPtr->paraLen);
+   85   3              RFCOMM_SendProfileData(linkIndex, dataSentPtr);
+   86   3              MMI_SniffEnable(linkIndex, MMI_SNIFF_SPP);
+   87   3              break;
+   88   3          }
+   89   2          OSMEM_Put((U8 XDATA_PTR)msgPtr);
+   90   2        } 
+   91   1      }
+   92          
+   93          PUBLIC void SPP_FlushMMICommandQueue(U8 linkIndex, U8 opCode)
+   94          {
+   95   1        MMIMsgType XDATA_PTR msgPtr;
+   96   1        U8 entries = OSMQ_Entries(OSMQ_SPP_Command_From_MMI_ptr[linkIndex]);
+   97   1        
+   98   1        while(entries--)
+   99   1        {
+  100   2          msgPtr = (MMIMsgType XDATA_PTR)OSMQ_Get(OSMQ_SPP_Command_From_MMI_ptr[linkIndex]);
+  101   2          if(msgPtr->msgOpcode == opCode)
+  102   2          {
+  103   3            OSMEM_Put((U8 XDATA_PTR)msgPtr);
+  104   3          }
+  105   2          else
+  106   2          {
+  107   3            OSMQ_Put(OSMQ_SPP_Command_From_MMI_ptr[linkIndex], (U8 XDATA_PTR)msgPtr);
+  108   3          }
+  109   2        }
+  110   1      }
+  111          
+  112          PRIVATE void SPP_ClearLinkInfo(U8 linkIndex)
+  113          {
+  114   1        SPP_LINK_INFO XDATA_PTR sppLinkInfo = SPP_GetLinkInfo(linkIndex);
+  115   1        
+  116   1        SPP_FlushMMICommandQueue(linkIndex, SPP_CMD_FROM_MMI_DATA);
+  117   1        sppLinkInfo->mmiProfileInfo.state = PROFILE_DISCONNECTED;
+C251 COMPILER V5.57.0,  SPP                                                                08/11/20  06:34:09  PAGE 3   
+
+  118   1      }
+  119          
+  120          PRIVATE void SPP(U8 linkIndex)
+  121          {
+  122   1        SPP_MMICommandHandler(linkIndex);
+  123   1      }
+  124          
+  125          PRIVATE MMI_PROFILE_INFO XDATA_PTR SPP_ConnectRequest(U8 linkIndex, U8 profileId)
+  126          {
+  127   1        SPP_LINK_INFO XDATA_PTR sppLinkInfo = SPP_GetLinkInfo(linkIndex);
+  128   1        
+  129   1        if (sppLinkInfo->mmiProfileInfo.state == PROFILE_DISCONNECTED)
+  130   1        {
+  131   2          if (RFCOMM_ConnectProfile(linkIndex, profileId) == NO_ERROR)
+  132   2          {
+  133   3            return &sppLinkInfo->mmiProfileInfo;
+  134   3          }
+  135   2        }
+  136   1        return (MMI_PROFILE_INFO XDATA_PTR)NULL;
+  137   1      }
+  138          
+  139          PRIVATE U8 SPP_DisconnectRequest(U8 linkIndex, MMI_PROFILE_INFO XDATA_PTR profileInfo)
+  140          {
+  141   1        SPP_LINK_INFO XDATA_PTR sppLinkInfo = SPP_GetLinkInfo(linkIndex);
+  142   1      
+  143   1        if (&sppLinkInfo->mmiProfileInfo == profileInfo)
+  144   1        {
+  145   2          if (sppLinkInfo->mmiProfileInfo.state != PROFILE_DISCONNECTED)
+  146   2          {
+  147   3            if (CMD_WAITING == RFCOMM_DisconnectProfile(linkIndex, PROFILE_SERIAL_PORT))
+  148   3            {
+  149   4              sppLinkInfo->mmiProfileInfo.state = PROFILE_DISCONNECTING;
+  150   4              return CMD_WAITING;
+  151   4            }
+  152   3            if (sppLinkInfo->mmiProfileInfo.state == PROFILE_CONNECTED)
+  153   3            {
+  154   4              #ifndef TRSPX_App
+  155   4              MMI_HCI_SendSPPEventToUART(linkIndex, SPP_TO_MMI_OPCODE_DISCONNECTED);
+  156   4              #endif
+  157   4            }
+  158   3            MMI_UnloadProfile(linkIndex, &sppLinkInfo->mmiProfileInfo);
+  159   3            SPP_ClearLinkInfo(linkIndex);
+  160   3            MMI_SniffEnable(linkIndex, MMI_SNIFF_SPP);
+  161   3          }
+  162   2        }
+  163   1        return CMD_COMPLETE;
+  164   1      }
+  165          
+  166          PRIVATE void SPP_LinkEvent(U8 linkIndex, U8 evtCode, LINK_EVENT_PARAMS XDATA_PTR evtParams)
+  167          {
+  168   1        SPP_LINK_INFO XDATA_PTR sppLinkInfo = SPP_GetLinkInfo(linkIndex);
+  169   1      
+  170   1        switch (evtCode)
+  171   1        {
+  172   2          case PROFILE_LINK_EVENT_CONN_REQUEST:
+  173   2            evtParams->connRequest.result = PROFILE_LINK_RESULT_CONN_REJECT;
+  174   2            if (sppLinkInfo->mmiProfileInfo.state == PROFILE_DISCONNECTED)
+  175   2            {
+  176   3              if(MMI_IsLinkActiveDisconnecting(linkIndex))
+  177   3              {
+  178   4                evtParams->connRequest.result = PROFILE_LINK_RESULT_CONN_REJECT_ACTIVE_DISC;
+  179   4              }
+  180   3              else
+  181   3              {
+  182   4                evtParams->connRequest.result = PROFILE_LINK_RESULT_CONN_ACCEPT;
+  183   4                evtParams->connRequest.profileInfo = &sppLinkInfo->mmiProfileInfo;
+C251 COMPILER V5.57.0,  SPP                                                                08/11/20  06:34:09  PAGE 4   
+
+  184   4              }
+  185   3            }
+  186   2            break;
+  187   2            
+  188   2          case PROFILE_LINK_EVENT_CONN_COMPLETE:
+  189   2            if (sppLinkInfo->mmiProfileInfo.state == PROFILE_CONNECTING)
+  190   2            {
+  191   3              if (evtParams->connComplete.status == NO_ERROR)
+  192   3              {
+  193   4                sppLinkInfo->mmiProfileInfo.state = PROFILE_CONNECTED;
+  194   4                MMI_ActivateProfile(linkIndex, &sppLinkInfo->mmiProfileInfo);
+  195   4                #ifndef TRSPX_App
+  196   4                MMI_HCI_SendSPPEventToUART(linkIndex, SPP_TO_MMI_OPCODE_CONNECTED);
+  197   4                #endif
+  198   4              }
+  199   3              else
+  200   3              {
+  201   4                if(evtParams->connComplete.status == SECURITY_BLOCK)
+  202   4                {
+  203   5                  MMI_SetReconnectProfile(linkIndex, sppLinkInfo->mmiProfileInfo.profileDesc->profileId, ONE_SEC);
+  204   5                }
+  205   4                evtCode = PROFILE_LINK_EVENT_DISC_COMPLETE;
+  206   4                goto SPP_DISC_CPL;
+  207   4              }
+  208   3            }
+  209   2            break;
+  210   2            
+  211   2          case PROFILE_LINK_EVENT_DISC_COMPLETE:
+  212   2          case PROFILE_LINK_EVENT_DISC_LINKLOSS:
+  213   2            if (sppLinkInfo->mmiProfileInfo.state != PROFILE_DISCONNECTED)
+  214   2            {
+  215   3              SPP_DISC_CPL:
+  216   3              if (sppLinkInfo->mmiProfileInfo.state == PROFILE_CONNECTED)
+  217   3              {
+  218   4                #ifndef TRSPX_App
+  219   4                MMI_HCI_SendSPPEventToUART(linkIndex, SPP_TO_MMI_OPCODE_DISCONNECTED);
+  220   4                #endif
+  221   4              }
+  222   3              MMI_UnloadProfile(linkIndex, &sppLinkInfo->mmiProfileInfo);
+  223   3              MMI_PROTOCOL_L2CAPDisconnected(linkIndex, evtCode, FALSE);
+  224   3              SPP_ClearLinkInfo(linkIndex);
+  225   3              MMI_SniffEnable(linkIndex, MMI_SNIFF_SPP);
+  226   3            }
+  227   2            break;
+  228   2        }
+  229   1      }
+  230          
+  231          PRIVATE void SPP_DataEvent(U8 linkIndex, U8 XDATA_PTR dataPtr)
+  232          {
+  233   1        if (SPP_GetLinkInfo(linkIndex)->mmiProfileInfo.state == PROFILE_CONNECTED)
+  234   1        {
+  235   2          /* // loopBack test
+  236   2          loopBackPtr = RFCOMM_AllocProfileData(((ProfileDataEvent XDATA_PTR)dataPtr)->dataLength, SCN_SERIAL_POR
+             -T);
+  237   2          if(loopBackPtr)
+  238   2          {
+  239   2            OSMEM_memcpy_xdata_xdata ( ( loopBackPtr + *loopBackPtr ),
+  240   2                          &((ProfileDataEvent XDATA_PTR)dataPtr)->dataBody[0], ((ProfileDataEvent XDATA_PTR)dataPtr)->dat
+             -aLength);
+  241   2            RFCOMM_SendProfileData(linkIndex, loopBackPtr);
+  242   2          }
+  243   2          */
+  244   2          MMI_HCI_SendSPPDataToUART(linkIndex, dataPtr, SPP_TO_MMI_OPCODE_DATA);
+  245   2        }
+  246   1        else
+  247   1        {
+C251 COMPILER V5.57.0,  SPP                                                                08/11/20  06:34:09  PAGE 5   
+
+  248   2          OSMEM_Put(dataPtr);
+  249   2        }
+  250   1      }
+  251          
+  252          PUBLIC void SPP_Init(void)
+  253          {
+  254   1        extern SdpServiceNode gSPP_ServiceNode;
+  255   1        
+  256   1        SDAP_RegisterServiceRecord(&gSPP_ServiceNode);
+  257   1        RFCOMM_RegisterProfile(&gSPP_ProfileNode);
+  258   1      }
+  259          
+  260          #endif //SPP_Profile
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =       746     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =        40     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =        37     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

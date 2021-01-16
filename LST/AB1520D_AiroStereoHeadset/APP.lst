@@ -1,0 +1,461 @@
+C251 COMPILER V5.57.0,  APP                                                                08/11/20  06:34:10  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE APP
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\APP.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\APP\APP.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) WARNINGLEV
+                    -EL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\source\HC;.
+                    -\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\source\ROM\LC;
+                    -.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_LE;.\sourc
+                    -e\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspData;.\sourc
+                    -e\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLASH_INIT=1,
+                    -AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoHeadset\APP.lst) 
+                    -TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\APP.obj) 
+
+stmt  level    source
+
+    1          
+    2          #include "rc.h"
+    3          
+    4          
+    5          
+    6          #define __SERVICE_HEADER_INCLUDED_BY_PROFILE__
+    7          /* include service header files here to declare the instance of attribute value */
+    8          #include "..\MMI\MMI_Base.h"
+    9          #include "..\APP\APP_Interface.h"
+   10          #undef __SERVICE_HEADER_INCLUDED_BY_PROFILE__
+   11          
+   12          #include "..\MMI\MMI_ChgBat.h"
+   13          #include "..\ATT\ATT_SDK.h"
+   14          #include "..\MMI\MMI_interface.h"
+   15          #include "..\DRIVER\Peq_HPF.h"
+   16          #include "..\ROM\HC\hc.h"
+   17          #include "..\ATT\ATT_interface.h"
+   18          
+   19          #include "..\SECTOR\sector_mmi_le_nvram.h"
+   20          
+   21          #include "..\MMI_LE\lic_hal.h"
+   22          #include "..\MMI_LE\mmi_le.h"
+   23          
+   24          #include "..\ROM\LL\LL_interface.h"
+   25          #include "..\MMI\MMI_Driver.h"
+   26          #include "..\MMI\MMI_LED.h"
+   27          #include "..\AVRCP\AVRCP_Interface.h"
+   28          #include "..\ATT\ATT_External_Struct.h"
+   29          #ifdef MMI_LE_APP_ENABLE
+   30          
+   31          #ifdef BLE_AIRApp
+   32          #include "..\AirApp\AirApp_Interface.h"
+   33          #include "..\MMI_LE\link_index_ctl.h"
+   34          #endif
+   35          #ifdef LIGHTING_ENABLE
+               #include "..\MMI\MMI_AirModule.h"
+               #include "..\AirApp\AirApp_Interface.h"
+               extern AirAppLedCtl XDATA gAirAppLedCtl;
+               #endif
+   40          #ifdef BLE_APP
+   41          #include "..\ATT\ATT.h"
+   42          #endif
+   43          #ifdef ANCS_CELL_PHONE_APP
+               #include "..\APP_ANCS\APP_ANCS_interface.h"
+               #endif  //#ifdef ANCS_CELL_PHONE_APP
+   46          //extern  PUBLIC void MMI_HCI_UartSendUnSolicitedIndication(U8 opCode, U8 XDATA_PTR dataPtr, U8 linkIndex)
+             -;
+   47          //MMI_LE_EXTERN MMI_LE_ADV_CTL XDATA gMMI_le_adv_ctl;
+   48          
+   49          extern MmiCtlType XDATA gMMI_ctl;
+   50          extern MP_PARAMETER_STRU CODE_PTR XDATA pMpParameter;
+   51          extern HC_CTL_STRU XDATA gHC_ctl;
+C251 COMPILER V5.57.0,  APP                                                                08/11/20  06:34:10  PAGE 2   
+
+   52          extern MMI_LE_NVRAM_TYPE CODE_PTR XDATA gMMI_le_nvram;
+   53          //extern PUBLIC void MMI_AVRCP_PassThroughVolumeHandler(U8 linkIndex);
+   54          #include "..\MMI\MMI_AVRCP.h"
+   55          extern PUBLIC void MMI_AVRCP_UartSetAbsVol(U8 vol);
+   56          extern PUBLIC VOID MMI_LE_SectorSaveData();
+   57          #endif
+   58          
+   59          #ifdef LE_SUPPORTED_HOST_FLASH
+   60          extern BAS_CTRL XDATA gBAS_Ctrl;
+   61          
+   62          U8 APP_ReadBdAddr_CB (U8 CBtype)
+   63          {
+   64   1          if(CBtype == CB_BEFORE_SENDING)
+   65   1          {
+   66   2              OSMEM_memcpy_xdata_xdata(gBAS_Ctrl.BD_ADDR, (U8 XDATA_PTR)&gHC_ctl.BdAddr, sizeof(BD_ADDR_STRU));
+   67   2          }
+   68   1          return 0;
+   69   1      }
+   70          #endif
+   71          
+   72          #ifdef MMI_LE_APP_ENABLE
+   73          U8 Status_CB (U8 CBtype)
+   74          {
+   75   1          //Read
+   76   1          if(CBtype == CB_BEFORE_SENDING)
+   77   1          {
+   78   2              //===Statue(Battery, Vol, PEQ_Mode, VP_Enable/Disable, VP_Lenguage)===
+   79   2      
+   80   2              //Battery
+   81   2          AppCtl.Status.Battery = MMI_BAT_GetLevelInQuater();
+   82   2      
+   83   2              //Vol
+   84   2              //AppCtl.Status.Vol = CURRENT_A2DP_SOUND_LEVEL(gMMI_ctl.audioDevCtl.currentActiveLinkIndex);
+   85   2      
+   86   2          //Absolute volume is 0~127, but APP level is 0~255, we should transfer absolute volume for app
+   87   2          if(CURRENT_A2DP_SOUND_LEVEL(gMMI_ctl.serviceInd) == 0)
+   88   2            AppCtl.Status.Vol = 0;
+   89   2          else if(CURRENT_A2DP_SOUND_LEVEL(gMMI_ctl.serviceInd) == MMI_MAX_MUSIC_SOUND_LEVEL())
+   90   2            AppCtl.Status.Vol = 0xFF;
+   91   2          else
+   92   2            AppCtl.Status.Vol = CURRENT_A2DP_SOUND_LEVEL(gMMI_ctl.serviceInd)*MMI_MAX_MUSIC_SOUND_LEVEL()-8;
+   93   2      
+   94   2          //PEQ_Mode
+   95   2              AppCtl.Status.PEQ_Mode[A2DP] = gMMI_driver_variation_nvram.misc_para.PEQRecord[PEQ_A2DP];
+   96   2              AppCtl.Status.PEQ_Mode[LINE_IN] = gMMI_driver_variation_nvram.misc_para.PEQRecord[PEQ_LINE_IN];
+   97   2              //VP_Enable/Disable
+   98   2              AppCtl.Status.VP_OnOff = MMI_DRV_IsVoicePromptEnabled();
+   99   2              //VP_Lenguage Switch
+  100   2              AppCtl.Status.VP_Lenguage = gMMI_driver_variation_nvram.misc_para.init.vpLangIndex;
+  101   2      
+  102   2      
+  103   2          }
+  104   1          return 0;
+  105   1      }
+  106          
+  107          U8 Read_BDAddr_CB (U8 CBtype)
+  108          {
+  109   1          if(CBtype == CB_BEFORE_SENDING)
+  110   1          {
+  111   2              OSMEM_memcpy_xdata_xdata(AppCtl.BD_ADDR, (U8 XDATA_PTR)&gHC_ctl.BdAddr, sizeof(BD_ADDR_STRU));
+  112   2          }
+  113   1          else//if(CBtype == CB_AFTER_WRITING)
+  114   1          {
+  115   2          }
+  116   1          return 0;
+  117   1      }
+C251 COMPILER V5.57.0,  APP                                                                08/11/20  06:34:10  PAGE 3   
+
+  118          
+  119          U8 Read_FW_Version_CB (U8 CBtype)
+  120          {
+  121   1          if(CBtype == CB_BEFORE_SENDING)
+  122   1          {
+  123   2              AppCtl.FW_Version = 0x2000;
+  124   2          }
+  125   1          return 0;
+  126   1      }
+  127          
+  128          U8 RW_DeviceName_CB (U8 CBtype)
+  129          {
+  130   1          U8 currentIndex;
+  131   1          U8 XDATA_PTR msgPtr;
+  132   1          U8 FlagsLen;
+  133   1          U8 DeviceNameLen;
+  134   1          U8 LocalNameShiftOffset;
+  135   1        U16 AttributCurrentLen;
+  136   1      
+  137   1        if((msgPtr = (U8 XDATA_PTR)OSMEM_Get(OSMEM_ptr1)) != NEAR_NULL)
+  138   1        {
+  139   2              OSMEM_memcpy_xdata_code(msgPtr, (U8 CODE_PTR)&gLL_param.adv_data_param.adv_data, sizeof(LE_ADV_DA
+             -TA_PARAM));
+  140   2          FlagsLen = *(msgPtr+ADV_FLAGS_LEN_OFFSET);
+  141   2          DeviceNameLen = *(msgPtr+ADV_LOCALNAME_LEN_OFFSET+FlagsLen);
+  142   2          LocalNameShiftOffset = FlagsLen+ADV_LOCALNAME_OFFSET;
+  143   2      
+  144   2            if(CBtype == CB_BEFORE_SENDING)
+  145   2            {
+  146   3                //OSMEM_memcpy_xdata_xdata(&AppCtl.DeviceName, (U8 CODE_PTR)&(gMMI_le_adv_ctl.adv_data.adv_data 
+             -+ (LocalNameShiftOffset-1)), DeviceNameLen);
+  147   3                OSMEM_memcpy_xdata_xdata(&AppCtl.DeviceName, (U8 CODE_PTR)&(gLL_param.adv_data_param.adv_data + 
+             -(LocalNameShiftOffset-1)), DeviceNameLen);
+  148   3      
+  149   3                currentIndex = ATT_FindServerIndexByAddr((U8 CODE_PTR)&AppCtl.DeviceName);
+  150   3                ATT_ChangeAttributeValueLength(currentIndex, DeviceNameLen);
+  151   3            }
+  152   2            else//if(CBtype == CB_AFTER_WRITING)
+  153   2            {
+  154   3              currentIndex = ATT_FindServerIndexByAddr((U8 CODE_PTR)&AppCtl.DeviceName);
+  155   3            AttributCurrentLen = ATT_GetAttributeValueCurrentLen(currentIndex);
+  156   3                ATT_ChangeAttributeValueLength(currentIndex, AttributCurrentLen);
+  157   3      
+  158   3                  //gMMI_le_adv_ctl.adv_data.length = msgPtr[0]-DeviceNameLen-1+AttributCurrentLen;
+  159   3            //gMMI_le_adv_ctl.adv_data.adv_data[ADV_FLAGS_LEN_OFFSET+FlagsLen] = AttributCurrentLen;
+  160   3            gLL_param.adv_data_param.adv_data_len = msgPtr[0]-DeviceNameLen-1+AttributCurrentLen;
+  161   3            gLL_param.adv_data_param.adv_data[ADV_FLAGS_LEN_OFFSET+FlagsLen] = AttributCurrentLen;
+  162   3      
+  163   3                //OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&(gMMI_le_adv_ctl.adv_data.adv_data+(LocalNameShiftOffs
+             -et-1)), &AppCtl.DeviceName, AttributCurrentLen);
+  164   3            OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&(gLL_param.adv_data_param.adv_data+(LocalNameShiftOffset-1)), 
+             -&AppCtl.DeviceName, AttributCurrentLen);
+  165   3      
+  166   3            //MMI_Save_BLE_DataToFlash();
+  167   3            MMI_LE_SectorSaveData();
+  168   3            }
+  169   2      
+  170   2              OSMEM_Put(msgPtr);
+  171   2          }
+  172   1      
+  173   1          return 0;
+  174   1      }
+  175          
+  176          U8 ResetPDL_CB (U8 CBtype)
+  177          {
+  178   1          if(CBtype == CB_AFTER_WRITING)
+C251 COMPILER V5.57.0,  APP                                                                08/11/20  06:34:10  PAGE 4   
+
+  179   1          {
+  180   2              MMI_DRV_KeyEventHandler(gMMI_ctl.serviceInd, KEY_RESET_PAIRED_DEVICES);
+  181   2          }
+  182   1          return 0;
+  183   1      }
+  184          
+  185          U8 Vol_Ctl_CB (U8 CBtype)
+  186          {
+  187   1        #ifdef AVRCP_Profile
+  188   1        U8 AbsoluteVolume;
+  189   1      
+  190   1          if(CBtype == CB_AFTER_WRITING)
+  191   1          {
+  192   2            //App volume is 0~255, we should transfer it to absolute volume
+  193   2            if(AppCtl.Vol_Ctl == 0xFF)
+  194   2            AbsoluteVolume = AVRCP_ABSOLUTE_VOLUME_MAX;
+  195   2          else
+  196   2            AbsoluteVolume = AppCtl.Vol_Ctl/2;
+  197   2      
+  198   2          MMI_AVRCP_UartSetAbsVol(AbsoluteVolume);
+  199   2      
+  200   2          }
+  201   1        #else
+                 UNUSED(CBtype);
+                 #endif
+  204   1          return 0;
+  205   1      }
+  206          
+  207          U8 PEQ_Mode_Switch_CB (U8 CBtype)
+  208          {
+  209   1          if(CBtype == CB_AFTER_WRITING)
+  210   1          {
+  211   2              MMI_DRV_KeyEventHandler(gMMI_ctl.serviceInd, KEY_PEQ_MODE_CHANGE);
+  212   2          }
+  213   1          return 0;
+  214   1      }
+  215          
+  216          U8 VoicePromptSwitch_CB (U8 CBtype)
+  217          {
+  218   1          if(CBtype == CB_AFTER_WRITING)
+  219   1          {
+  220   2              MMI_DRV_KeyEventHandler(gMMI_ctl.serviceInd, KEY_VOICE_PROMPT_TOGGLE);
+  221   2          }
+  222   1          return 0;
+  223   1      }
+  224          
+  225          U8 VP_Language_Switch_CB (U8 CBtype)
+  226          {
+  227   1          if(CBtype == CB_AFTER_WRITING)
+  228   1          {
+  229   2              MMI_DRV_KeyEventHandler(gMMI_ctl.serviceInd, KEY_VOICE_PROMPT_LANG_CHANGE);
+  230   2          }
+  231   1          return 0;
+  232   1      }
+  233          
+  234          U8 FindMyAccesory_CB (U8 CBtype)
+  235          {
+  236   1          if(CBtype == CB_AFTER_WRITING)
+  237   1          {
+  238   2              MMI_PushMediaEvent(MEDIA_EVT_KEY_FIND_MY_ACCESSORY);
+  239   2          }
+  240   1          return 0;
+  241   1      }
+  242          
+  243          #ifdef BLE_APP
+  244          U8 Rx_CB (U8 CBtype)
+C251 COMPILER V5.57.0,  APP                                                                08/11/20  06:34:10  PAGE 5   
+
+  245          {
+  246   1          U8 serverIdx;
+  247   1          U16 len;
+  248   1          #ifdef ANCS_CELL_PHONE_APP
+                   APP_CMD_STRU XDATA_PTR cmdPtr;
+                   #endif
+  251   1      
+  252   1          if(CBtype == CB_AFTER_WRITING)
+  253   1          {
+  254   2              serverIdx = ATT_FindServerIndexByAddr((U8 CODE_PTR)&AppCtl.Rx);
+  255   2              len = ATT_GetAttributeValueCurrentLen(serverIdx);
+  256   2              //LightDbgPrint("APP-sIdx:%d,len:%x %x %x", (U8)serverIdx, (U8)(len>>8), (U8)len, (U8)AppCtl.Rx[0
+             -]);
+  257   2      
+  258   2          #ifdef ANCS_CELL_PHONE_APP
+                       cmdPtr = (APP_CMD_STRU XDATA_PTR)AppCtl.Rx;
+                       if ((cmdPtr->hciXportId == APP_HCI_CMD_PACKET) && (cmdPtr->vogf == HCI_VENDOR_OGF_ANCS_CMD))
+                       {
+                           APP_ANCS_CmdRx(cmdPtr, len);
+                       }
+                       else
+                       #endif
+  266   2              {
+  267   3                  #ifdef BLE_AIRApp
+  268   3                AirApp_BleDataEvent(AppCtl.Rx, len);
+  269   3                  #endif
+  270   3            }
+  271   2          }
+  272   1          return 0;
+  273   1      }
+  274          
+  275          BOOL App_BleIsMemEnough(U16 len)
+  276          {
+  277   1          if (len > BLE_MAX_SEND_TX_DATA_LEN)
+  278   1          {
+  279   2              U8 numMem;
+  280   2      
+  281   2              numMem = len / BLE_MAX_SEND_TX_DATA_LEN;
+  282   2              if (BLE_MAX_SEND_TX_DATA_LEN + ATT_RSP_HEADER_LEN <= OSMEM1_BLKSIZE)
+  283   2              {
+  284   3                  numMem = (len % BLE_MAX_SEND_TX_DATA_LEN) ? (numMem + 1) : (numMem);
+  285   3                  if (numMem > gAlignOSMEM.OSMEM1.noFB)
+  286   3                  {
+  287   4                      return FALSE;
+  288   4                  }
+  289   3              }
+  290   2              else if (BLE_MAX_SEND_TX_DATA_LEN + ATT_RSP_HEADER_LEN <= OSMEM2_BLKSIZE)
+  291   2              {
+  292   3                  numMem = (len % BLE_MAX_SEND_TX_DATA_LEN + ATT_RSP_HEADER_LEN > OSMEM1_BLKSIZE) ? (numMem + 1
+             -) : (numMem);
+  293   3                  //LightDbgPrint("app checkMem %x %x %x %x", (U8)len, (U8)(len>>8), (U8)numMem, (U8)gAlignOSME
+             -M.OSMEM2_small_TX.noFB);
+  294   3                  if (numMem > gAlignOSMEM.OSMEM2_small_TX.noFB)
+  295   3                  {
+  296   4                      return FALSE;
+  297   4                  }
+  298   3              }
+  299   2              else
+  300   2              {
+  301   3                  return FALSE;
+  302   3              }
+  303   2      
+  304   2          }
+  305   1          return TRUE;
+  306   1      }
+  307          
+C251 COMPILER V5.57.0,  APP                                                                08/11/20  06:34:10  PAGE 6   
+
+  308          BOOL APP_sendTxData(U8 XDATA_PTR dataPtr, U16 len)
+  309          {
+  310   1          U8 linkIdx;
+  311   1          BOOL rtValue;
+  312   1          ATT_SEND_DATA_STRU XDATA_PTR paraPtr;
+  313   1      
+  314   1          if ((((ATT_GetCCCDByLink(AppCtl.TxCccdIdx, 0)) >> 8) & 0x01) == 0)
+  315   1          {
+  316   2              //LightDbgPrint("CCCD %x %x", (U8)ATT_GetCCCDByLink(AppCtl.TxCccdIdx, 0), (U8)(ATT_GetCCCDByLink(
+             -AppCtl.TxCccdIdx, 0)>>8));
+  317   2              return FALSE;
+  318   2          }
+  319   1      
+  320   1          if(LIC_LE_GetNumOfActiveLink() > 0)
+  321   1          {
+  322   2          linkIdx = LIC_LE_GetActiveLinkIdx(0);
+  323   2      
+  324   2            if (paraPtr = SYS_MemoryGet(sizeof(ATT_SEND_DATA_STRU)))
+  325   2              {
+  326   3                paraPtr->dataPtr = dataPtr;
+  327   3                paraPtr->serverIdx = AppCtl.TxIdx;
+  328   3                paraPtr->len = len;
+  329   3                paraPtr->maxLen = BLE_MAX_SEND_TX_DATA_LEN;
+  330   3                paraPtr->connHdl = LIC_LE_GetConnHdl(linkIdx);
+  331   3                rtValue = ATT_SendTxData(paraPtr);
+  332   3      
+  333   3                OSMEM_Put((U8 XDATA_PTR)paraPtr);
+  334   3                return rtValue;
+  335   3              }
+  336   2          }
+  337   1          return FALSE;
+  338   1      }
+  339          
+  340          #endif//#ifdef BLE_APP
+  341          
+  342          #ifdef LIGHTING_ENABLE
+               U8 OnOffMusicYouCanSee_CB (U8 CBtype)
+               {
+                   if(CBtype == CB_AFTER_WRITING)
+                   {
+                   gAirAppLedCtl.MusicYouCanSeeEnable_ready = AppCtl.OnOff_MusicYouCanSee;
+                   if(!(MMI_AIR_ChangeLightModeNotify(AIRAPP_CMD_ON_OFF_MUSIC_YOU_CAN_SEE, gAirAppLedCtl.MusicYouCanSeeEna
+             -ble_ready ,0 ,0)))
+                   {
+                     MusicYouCanSeeEnable = AppCtl.OnOff_MusicYouCanSee;
+                   }
+                   }
+                   return 0;
+               }
+               U8 RGB_CB (U8 CBtype)
+               {
+                   if(CBtype == CB_AFTER_WRITING)
+                   {
+                     gAirAppLedCtl.LedR_ready = AppCtl.RGB[0];
+                   gAirAppLedCtl.LedG_ready = AppCtl.RGB[1];
+                   gAirAppLedCtl.LedB_ready = AppCtl.RGB[2];
+                   if(!(MMI_AIR_ChangeLightModeNotify(AIRAPP_CMD_GET_COLOR_PICKER_RGB,gAirAppLedCtl.LedR_ready,gAirAppLedC
+             -tl.LedG_ready,gAirAppLedCtl.LedB_ready)))
+                   {
+                     MMI_LED_Set_RGB(AppCtl.RGB[0], AppCtl.RGB[1], AppCtl.RGB[2]);
+                   }
+                   }
+                   return 0;
+               }
+               U8 LightingMode_CB (U8 CBtype)
+               {
+C251 COMPILER V5.57.0,  APP                                                                08/11/20  06:34:10  PAGE 7   
+
+                   if(CBtype == CB_AFTER_WRITING)
+                   {
+                   gAirAppLedCtl.LightingMode_ready = AppCtl.LightingMode;
+                   if(!(MMI_AIR_ChangeLightModeNotify(AIRAPP_CMD_LIGHTING_MODE_SELECT, gAirAppLedCtl.LightingMode_ready, 0
+             -, 0)))
+                   {
+                     MMI_LED_LightingMode(AppCtl.LightingMode);
+                   }
+                   }
+                   return 0;
+               }
+               U8 AlarmClock_CB (U8 CBtype)
+               {
+                   if(CBtype == CB_AFTER_WRITING)
+                   {
+                     gAirAppLedCtl.Alarm_clock_OnOff_ready = AppCtl.Alarm_Clock;
+                   if(!(MMI_AIR_ChangeLightModeNotify(AIRAPP_CMD_ALARM_CLOCK, gAirAppLedCtl.Alarm_clock_OnOff_ready, 0, 0)
+             -))
+                   {
+                     MMI_LED_AlarmClock(AppCtl.Alarm_Clock);
+                   }
+                   }
+                   return 0;
+               }
+               #endif
+  394          
+  395          #endif //#ifdef MMI_LE_APP_ENABLE
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =       816     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =       342     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       346     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,148 @@
+C251 COMPILER V5.57.0,  MMI_ServiceRecord                                                  08/11/20  06:33:40  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE MMI_ServiceRecord
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\MMI_ServiceRecord.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\MMI\MMI_ServiceRecord.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HU
+                    -GE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS
+                    -;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\
+                    -source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\
+                    -MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\D
+                    -spData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE
+                    -(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoHea
+                    -dset\MMI_ServiceRecord.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\MMI_ServiceRecord.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #include "..\SDAP\SDAP_Interface.h"
+    4          #include "..\MMI\MMI_PSM.h"
+    5          #include "..\MMI\MMI_SCN.h"
+    6          
+    7          #define VERSION_MPS   0x0100
+    8          #define VERSION_PNP   0x0103
+    9          
+   10          // ====================== MPS ======================
+   11          
+   12          ATTRDEF_ROM(mps, ServiceRecordHandle) = 
+   13                { ATTRID(ATTRID_ServiceRecordHandle), ATTRLEN(5), SERVICE_HANDLE32(PROFILE_MPS) };
+   14          ATTRDEF_ROM(mps, ServiceClassIdList) = 
+   15                { ATTRID(ATTRID_ServiceClassIdList), ATTRLEN(5), DEDEF_SEQU8(3), SERVICE_UUID16(SERVICE_UUID_MULTI_PRO
+             -FILE_SPEC) };
+   16          ATTRDEF_ROM(mps, ProfileDescriptorList) = 
+   17                { ATTRID(ATTRID_ProfileDescriptorList), ATTRLEN(10), DEDEF_SEQU8(8), DEDEF_SEQU8(6), PROFILE_UUID16(PR
+             -OFILE_UUID_MPS), VERSION_U16(VERSION_MPS) };
+   18          ATTRDEF_ROM(mps, SupportedScenarios_MPSD) = 
+   19                { ATTRID(ATTRID_SupportedScenarios_MPSD), ATTRLEN(9), DELEM_U64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0
+             -x2A, 0xAA };
+   20          ATTRDEF_ROM(mps, SupportedScenarios_MPMD) = 
+   21                { ATTRID(ATTRID_SupportedScenarios_MPMD), ATTRLEN(9), DELEM_U64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0
+             -x02, 0x95 };
+   22          ATTRDEF_ROM(mps, SupportedProfilesProtocols) = 
+   23                { ATTRID(ATTRID_SupportedProfilesProtocols), ATTRLEN(3), DEDEF_U16(0x0006) };
+   24          
+   25          ATTRLISTDEF_ROM(mps) =
+   26          {
+   27            (SdpServiceAttributePtr) ATTRNAME(mps, ServiceRecordHandle),
+   28            (SdpServiceAttributePtr) ATTRNAME(mps, ServiceClassIdList),
+   29            (SdpServiceAttributePtr) ATTRNAME(mps, ProfileDescriptorList),
+   30            (SdpServiceAttributePtr) ATTRNAME(mps, SupportedScenarios_MPSD),
+   31            (SdpServiceAttributePtr) ATTRNAME(mps, SupportedScenarios_MPMD),
+   32            (SdpServiceAttributePtr) ATTRNAME(mps, SupportedProfilesProtocols),
+   33          };
+   34          
+   35          SRECORDDEF_ROM(mps) =
+   36          {
+   37            PROFILE_MPS,
+   38            ATTRCOUNT(mps),
+   39            (SdpServiceAttributeListPtr) ATTRLISTNAME(mps)
+   40          };
+   41          
+   42          SdpServiceNode gMMI_MpsServiceNode = 
+   43          {
+   44            (SdpServiceRecordPtr) SRECORDNAME(&mps),
+   45            NULL
+   46          };
+   47          
+   48          // ====================== PNP ======================
+C251 COMPILER V5.57.0,  MMI_ServiceRecord                                                  08/11/20  06:33:40  PAGE 2   
+
+   49          
+   50          ATTRDEF_ROM(pnp, ServiceRecordHandle) = 
+   51                { ATTRID(ATTRID_ServiceRecordHandle), ATTRLEN(5), SERVICE_HANDLE32(PROFILE_PNP) };
+   52          ATTRDEF_ROM(pnp, ServiceClassIdList) = 
+   53                { ATTRID(ATTRID_ServiceClassIdList), ATTRLEN(5), DEDEF_SEQU8(3), SERVICE_UUID16(SERVICE_UUID_PNP_INFOR
+             -MATION) };
+   54          ATTRDEF_ROM(pnp, SpecifcationID) = 
+   55                { ATTRID(ATTRID_SpecifcationID), ATTRLEN(3), VERSION_U16(VERSION_PNP) };
+   56          ATTRDEF_ROM(pnp, VendorID) = 
+   57                { ATTRID(ATTRID_VendorID), ATTRLEN(3), DEDEF_U16(AIROHA_COMPANY_ID) };
+   58          ATTRDEF_RAM(pnp, ProductID) = 
+   59                { ATTRID(ATTRID_ProductID), ATTRLEN(3), DEDEF_U16(0x0000) };
+   60          ATTRDEF_RAM(pnp, ProductVersion) = 
+   61                { ATTRID(ATTRID_ProductVersion), ATTRLEN(3), DEDEF_U16(0x0000) };
+   62          ATTRDEF_ROM(pnp, PrimaryRecord) = 
+   63                { ATTRID(ATTRID_PrimaryRecord), ATTRLEN(2), DEDEF_BOOL(1/*primary*/) };
+   64          ATTRDEF_ROM(pnp, VendorIDSource) = 
+   65                { ATTRID(ATTRID_VendorIDSource), ATTRLEN(3), DEDEF_U16(VENDOR_ID_SOURCE_BLUETOOTH) };
+   66          #ifdef HID_Profile      
+               ATTRDEF_ROM(pnp, ProtocolDescriptorList) = 
+                     { ATTRID(ATTRID_ProtocolDescriptorList), ATTRLEN(15), DEDEF_SEQU8(13),
+                                                 DEDEF_SEQU8(6), PROTOCOL_UUID16(PROTOCOL_UUID_L2CAP), PSM_U16(PSM_SDP),
+                                                 DEDEF_SEQU8(3), PROTOCOL_UUID16(PSM_SDP) };     
+               #endif                                  
+   72          
+   73          ATTRLISTDEF_ROM(pnp) =
+   74          {
+   75            (SdpServiceAttributePtr) ATTRNAME(pnp, ServiceRecordHandle),
+   76            (SdpServiceAttributePtr) ATTRNAME(pnp, ServiceClassIdList),
+   77            (SdpServiceAttributePtr) ATTRNAME(pnp, SpecifcationID),
+   78            (SdpServiceAttributePtr) ATTRNAME(pnp, VendorID),
+   79            (SdpServiceAttributePtr) ATTRNAME(pnp, ProductID),
+   80            (SdpServiceAttributePtr) ATTRNAME(pnp, ProductVersion),
+   81            (SdpServiceAttributePtr) ATTRNAME(pnp, PrimaryRecord),
+   82            (SdpServiceAttributePtr) ATTRNAME(pnp, VendorIDSource),
+   83            #ifdef HID_Profile
+                 (SdpServiceAttributePtr) ATTRNAME(pnp, ProtocolDescriptorList), 
+                 #endif
+   86          };
+   87          
+   88          SRECORDDEF_ROM(pnp) =
+   89          {
+   90            PROFILE_PNP,
+   91            ATTRCOUNT(pnp),
+   92            (SdpServiceAttributeListPtr) ATTRLISTNAME(pnp)
+   93          };
+   94          
+   95          SdpServiceNode gMMI_PnpServiceNode = 
+   96          {
+   97            (SdpServiceRecordPtr) SRECORDNAME(&pnp),
+   98            NULL
+   99          };
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =        24     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+C251 COMPILER V5.57.0,  MMI_ServiceRecord                                                  08/11/20  06:33:40  PAGE 3   
+
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       206     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

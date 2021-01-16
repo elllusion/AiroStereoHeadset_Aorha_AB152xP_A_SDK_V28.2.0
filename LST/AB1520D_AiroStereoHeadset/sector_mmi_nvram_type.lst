@@ -1,0 +1,85 @@
+C251 COMPILER V5.57.0,  sector_mmi_nvram_type                                              08/11/20  06:32:12  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_mmi_nvram_type
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\sector_mmi_nvram_type.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\sector_mmi_nvram_type.c XSMALL HPTR FUNCTIONS(REENTRANT)
+                    - ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\so
+                    -urce\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\RO
+                    -M\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\sour
+                    -ce\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\S
+                    -ECTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc)
+                    - DEFINE(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroSt
+                    -ereoHeadset\sector_mmi_nvram_type.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\sector_mmi_nvram_type.obj) 
+
+stmt  level    source
+
+    1          //////////////////////////////////////////////////////////
+    2          // Copyright@ 2009 Airoha.  All right reserved.
+    3          // Init: N95
+    4          // Target: T9
+    5          //////////////////////////////////////////////////////////
+    6          
+    7          #include "config.h"
+    8          #include "cpu.h"
+    9          #include "sector_mmi_nvram_type.h"
+   10          #include "sector_driver_ringtone_data.h"
+   11          #include "sector_mmi_driver_variation_nvram.h"
+   12          #include "..\Driver\VoicePrompt.h"
+   13          
+   14          #pragma userclass (HCONST = CONFIG)
+   15          
+   16          
+   17          #ifdef BLUETOOTH_SPEAKER
+                 #ifdef SOUND_BAR
+                   #include "sample_speaker_soundbar.h"
+                 #elif defined SCO_WOOFER
+                   #include "sample_speaker_scowoofer.h"
+                 #elif defined TWS_SETTINGS
+                   #if defined PRODUCT_TYPE_A || defined PRODUCT_TYPE_K
+                     #include "air_stereo_A.h"
+                   #else
+                     #include "sample_speaker_tws.h"
+                   #endif
+                 #elif defined SAME_SW_DIFF_MODULE
+                   #include "sample_speaker_scowoofer.h"
+                 #else
+                   #include "sample_speaker.h"
+                 #endif
+               #else
+   34            #ifdef TWS_SETTINGS
+   35              #if defined PRODUCT_TYPE_A || defined PRODUCT_TYPE_K
+   36                #include "air_stereo_A.h"
+   37              #else
+                     #include "sample_speaker_tws.h"
+                   #endif
+   40            #else
+                   #include "ForceLinkN95.h"
+                 #endif
+   43          #endif
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+C251 COMPILER V5.57.0,  sector_mmi_nvram_type                                              08/11/20  06:32:12  PAGE 2   
+
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =      1552     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

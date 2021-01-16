@@ -1,0 +1,93 @@
+C251 COMPILER V5.57.0,  MMI_Inquiry                                                        08/11/20  05:52:59  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE MMI_Inquiry
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\MMI_Inquiry.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\MMI\MMI_Inquiry.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) WA
+                    -RNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\sou
+                    -rce\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\source
+                    -\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_LE
+                    -;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspData
+                    -;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLASH
+                    -_INIT=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520C_AiroStereoHeadset\M
+                    -MI_Inquiry.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\MMI_Inquiry.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #define _MMI_INQUIRY_C_
+    4          
+    5          #include "rc.h"
+    6          #include "bt_config_profile.h"
+    7          
+    8          #ifdef MMI_INQUIRY_CMD
+               #include "MMI.h"
+               #include "MMI_State.h"
+               #include "MMI_Protocol.h"
+               #include "MMI_HCI.h"
+               #include "MMI_Driver.h"
+               
+               
+               U8 MMI_INQ_StartInquiry(MMIMsgType XDATA_PTR msgPtr)
+               {
+                 U8 inquiry_type = msgPtr->msgBodyPtr.hciVCmd.VPara.inquiryVEvtCmd.inquiryType;
+                 if(MMI_CheckNestState(MMI_EOF, MMI_INQUIRY))
+                 {
+                   return TRUE;//cannot enter inquiry again
+                 }
+                 else
+                 {
+                   MMI_AddTopState(MMI_EOF, MMI_INQUIRY);
+                   MMI_HCI_SendInquiry(inquiry_type);    
+                   return FALSE;
+                 } 
+               }
+               
+               PUBLIC void MMI_INQ_GetInquiryComplete(void)
+               {
+                 if(MMI_CheckNestState(MMI_EOF, MMI_INQUIRY))
+                 {
+                   MMI_RmvState(MMI_EOF, MMI_INQUIRY);
+                 }
+               }
+               
+               PUBLIC void MMI_INQ_GetInquiryResultWithRSSI(U8 XDATA_PTR dataPtr)
+               {
+                 MMI_HCI_UartSendUnSolicitedIndication(MMI_UART_IND_INQUIRY_RESULT_WITH_RSSI, dataPtr, MMI_EOF);
+               }
+               
+               PUBLIC void MMI_INQ_GetExtendedInquiryResult(U8 XDATA_PTR dataPtr)
+               {
+                 MMI_HCI_UartSendUnSolicitedIndication(MMI_UART_IND_EXTENDED_INQUIRY_RESULT, dataPtr, MMI_EOF);
+               }
+               
+               #endif //MMI_INQUIRY
+   50          
+   51          
+
+C251 COMPILER V5.57.0,  MMI_Inquiry                                                        08/11/20  05:52:59  PAGE 2   
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =    ------     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

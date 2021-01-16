@@ -1,0 +1,153 @@
+C251 COMPILER V5.57.0,  Audio_Transparency                                                 08/11/20  06:33:03  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE Audio_Transparency
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\Audio_Transparency.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\DRIVER\Audio_Transparency.c XSMALL HPTR FUNCTIONS(REENTRANT) RO
+                    -M(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\sourc
+                    -e\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\L
+                    -L;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\
+                    -ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECT
+                    -OR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DE
+                    -FINE(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStere
+                    -oHeadset\Audio_Transparency.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\Audio_Transparency.obj) 
+
+stmt  level    source
+
+    1          #define AUDIO_TRANSPARENCY_C
+    2          
+    3          #include "reside_flash.inc"
+    4          
+    5          #include "rc.h"
+    6          #include "bt_config_profile.h"
+    7          
+    8          #include "Audio_Transparency.h"
+    9          #include "AudioControl.h"
+   10          #include "Audio_Mailbox.h"
+   11          #include "..\DSP\DSP_Interface.h"
+   12          
+   13          #include "sector_config1.h"
+   14          
+   15          #include "sector_boundary.h"
+   16          
+   17          enum
+   18          {
+   19            AT_PEQ_DISABLE,
+   20            AT_PEQ_ENABLE,
+   21          };
+   22          
+   23          PUBLIC BOOL AudioTrspr_Start(void)
+   24          {
+   25   1        U8 a2dpPeqNum, lineInPeqNum;
+   26   1        U8 XDATA_PTR peqPtr;
+   27   1        U8 peqExpansionEnable;
+   28   1        U8 peqATEnable;
+   29   1        U8 CODE_PTR peqATPtr;
+   30   1        DriverMsg XDATA_PTR msgPtr;
+   31   1        
+   32   1        if(AUDIO_COMPONENT_IS_ACTIVE(AUDIO_TRANSPARENCY))
+   33   1          return TRUE;
+   34   1      
+   35   1        if(IS_DSP_BUSY)
+   36   1          return FALSE;
+   37   1        
+   38   1        if(msgPtr = (DriverMsg XDATA_PTR)OSMEM_Get(OSMEM_ptr1))
+   39   1        {
+   40   2          OSMEM_memset_xdata((U8 XDATA_PTR)msgPtr, 0, OSMEM1_BLKSIZE);
+   41   2      
+   42   2          AUDIO_SetAudioOn(AUDIO_TRANSPARENCY);
+   43   2          
+   44   2          Mailbox_TaskOgfVPRTAT(msgPtr, OGF_AT, OCF_AT_START);
+   45   2      
+   46   2          AUDIO_SetAudioInOutToMailBoxCmd(AUDIO_TRANSPARENCY, &msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.pa
+             -ra.at_start_para.audio_scenario);
+   47   2          
+   48   2          a2dpPeqNum = ((DSP_PEQ_PARAMETER_STRU CODE_PTR)GET_SECTOR_CFG1_ADDR(SECTOR_DSP_PEQ_PARAMETER))->num_of_
+             -a2dp_peq_config;
+   49   2          lineInPeqNum = ((DSP_PEQ_PARAMETER_STRU CODE_PTR)GET_SECTOR_CFG1_ADDR(SECTOR_DSP_PEQ_PARAMETER))->num_o
+             -f_linein_peq_config;
+C251 COMPILER V5.57.0,  Audio_Transparency                                                 08/11/20  06:33:03  PAGE 2   
+
+   50   2          peqExpansionEnable = *(U8 CODE_PTR)(GET_SECTOR_CFG1_ADDR(SECTOR_DSP_PEQ_PARAMETER) + sizeof(U8) + sizeo
+             -f(U8) + (a2dpPeqNum + lineInPeqNum)*sizeof(PEQ_CONFIG_SECTOR));
+   51   2          peqExpansionEnable = (peqExpansionEnable)?1:0;
+   52   2          peqATPtr = (U8 CODE_PTR)(GET_SECTOR_CFG1_ADDR(SECTOR_DSP_PEQ_PARAMETER) + sizeof(U8) + sizeof(U8) + (a2
+             -dpPeqNum + lineInPeqNum)*sizeof(PEQ_CONFIG_SECTOR)*(1+peqExpansionEnable) + sizeof(U8));
+   53   2          peqATEnable = *peqATPtr;
+   54   2          if(peqATEnable)
+   55   2          {
+   56   3            peqPtr = SYS_MemoryGet(sizeof(PEQ_CONFIG_SECTOR));
+   57   3            if(peqPtr != (U8 XDATA_PTR)NULL)
+   58   3            {
+   59   4              peqATPtr++;
+   60   4              OSMEM_memcpy_xdata_code ((U8 XDATA_PTR) peqPtr, peqATPtr, sizeof(PEQ_CONFIG_SECTOR));
+   61   4              msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.at_start_para.at_PEQ_En = AT_PEQ_ENABLE;
+   62   4              msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.at_start_para.at_PEQ_Ptr = (U16 XDATA_PTR)peqPtr
+             -;
+   63   4              
+   64   4              LightDbgPrint("AT Peq:%d,%x,%x",(U8) peqATEnable,(U8) *(peqPtr),(U8) *(peqPtr+1));
+   65   4            }
+   66   3            else
+   67   3              msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.at_start_para.at_PEQ_En = AT_PEQ_DISABLE;
+   68   3          }
+   69   2          else
+   70   2          {
+   71   3            msgPtr->msgBodyPtr.driverCmd.mailBoxCmd.m2d_ctl.para.at_start_para.at_PEQ_En = AT_PEQ_DISABLE;
+   72   3          }
+   73   2          
+   74   2          LightDbgPrint("AT START:%d,%d,%d",(U8) a2dpPeqNum, (U8) lineInPeqNum, (U8) msgPtr->msgBodyPtr.driverCmd
+             -.mailBoxCmd.m2d_ctl.para.at_start_para.at_PEQ_En);
+   75   2          DRIVER_SendCmdToMailBox(msgPtr);
+   76   2          
+   77   2          return TRUE;
+   78   2        }
+   79   1        return FALSE;
+   80   1      }
+   81          
+   82          PUBLIC BOOL AudioTrspr_Stop(void)
+   83          {
+   84   1        DriverMsg XDATA_PTR msgPtr;
+   85   1        if(!AUDIO_COMPONENT_IS_ACTIVE(AUDIO_TRANSPARENCY))
+   86   1          return TRUE;
+   87   1        
+   88   1        if(IS_DSP_BUSY)
+   89   1          return FALSE;
+   90   1        
+   91   1        if(msgPtr = (DriverMsg XDATA_PTR)OSMEM_Get(OSMEM_ptr1))
+   92   1        {
+   93   2          OSMEM_memset_xdata((U8 XDATA_PTR)msgPtr, 0, OSMEM1_BLKSIZE);
+   94   2          Mailbox_TaskOgfVPRTAT(msgPtr, OGF_AT, OCF_AT_STOP);
+   95   2      
+   96   2          DRIVER_SendCmdToMailBox(msgPtr);
+   97   2          LightDbgPrint("AudioTrans STOP");
+   98   2          return TRUE;
+   99   2        }
+  100   1        
+  101   1        return FALSE;
+  102   1      }
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =       485     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+C251 COMPILER V5.57.0,  Audio_Transparency                                                 08/11/20  06:33:03  PAGE 3   
+
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =        50     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

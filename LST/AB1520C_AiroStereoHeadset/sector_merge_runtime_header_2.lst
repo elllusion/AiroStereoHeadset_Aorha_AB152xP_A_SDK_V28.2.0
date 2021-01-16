@@ -1,0 +1,83 @@
+C251 COMPILER V5.57.0,  sector_merge_runtime_header_2                                      08/11/20  05:51:23  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_merge_runtime_header_2
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\sector_merge_runtime_header_2.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\Runtime\sector_merge_runtime_header_2.c XSMALL HPTR FUNC
+                    -TIONS(REENTRANT) ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\sourc
+                    -e\ABSDRIVER;.\source\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\RO
+                    -M\HC;.\source\ROM\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\sourc
+                    -e\ROM\GAP;.\source\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Co
+                    -nfig1;.\source\SECTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\
+                    -SECTOR\ToolMisc) DEFINE(FLASH_INIT=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LS
+                    -T\AB1520C_AiroStereoHeadset\sector_merge_runtime_header_2.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\sector_
+                    -merge_runtime_header_2.obj) 
+
+stmt  level    source
+
+    1          /*
+    2           * AIROHA Bluetooth Device Firmware
+    3           * COPYRIGHT (C) 2014 AIROHA TECHNOLOGY CORP. CO., LTD. ALL RIGHTS RESERVED
+    4           *
+    5           * sector_merge_runtime_header.c defines the runtime updated parameters.
+    6           *
+    7           * Programmer : DingaCheng@airoha.com.tw, Ext.2828
+    8           */
+    9           // -
+   10          #include "config.h"
+   11          #include "cpu.h"
+   12          #include "sectors.h"
+   13          #include "sector_merge_runtime.h"
+   14          
+   15          #pragma userclass (HCONST = CFGHEAD)
+   16          
+   17          
+   18          #undef SECTORS_ENUM_MACRO
+   19          #define SECTORS_ENUM_MACRO(SECTOR_NAME, SECTOR_INIT, SECTOR_SIZE, ATTR) {(U8 CODE_PTR)SECTOR_INIT, SECTOR
+             -_SIZE, ATTR},
+   20          
+   21          
+   22          
+   23          ////////////////////////////////////////////////////////////////////////////////
+   24          // Global Variables ////////////////////////////////////////////////////////////
+   25          ////////////////////////////////////////////////////////////////////////////////
+   26          SECTOR_MERGE_RUNTIME_HEADER_2_STRU CODE gSectorRuntimeHeader_2 =
+   27          {
+   28              NUM_OF_SECTOR_MERGE_RUNTIME_2,
+   29          
+   30              {
+   31                  #include "sector_merge_runtime_member_2.h"
+   32              },
+   33          
+   34              //- CRC
+   35              {0,0}
+   36          };
+   37          
+   38          
+   39          
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+C251 COMPILER V5.57.0,  sector_merge_runtime_header_2                                      08/11/20  05:51:23  PAGE 2   
+
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =        39     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

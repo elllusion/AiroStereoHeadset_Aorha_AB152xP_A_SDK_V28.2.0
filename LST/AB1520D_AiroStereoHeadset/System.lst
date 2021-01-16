@@ -1,0 +1,74 @@
+C251 COMPILER V5.57.0,  System                                                             08/11/20  06:34:32  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE System
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\System.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SDK\IOSYS\System.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) W
+                    -ARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\so
+                    -urce\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\sourc
+                    -e\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_L
+                    -E;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspDat
+                    -a;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLAS
+                    -H_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoHeadset\
+                    -System.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\System.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #include "rc.h"
+    4          #include "..\SDK_Proxy\SDK_Proxy.h"
+    5          #include "..\MMI\MMI_Base.h"
+    6          
+    7          #define SYSTEM_PWR_OFF_CB 0
+    8          
+    9          /*  SDK_System_IsPowerOn: query if system is powered-on
+   10           *  <output>
+   11           *    BOOL: TRUE-->On; FALSE-->Off
+   12           */
+   13          PUBLIC BOOL SDK_System_IsPowerOn(void)
+   14          {
+   15   1        return MMI_IsPowerOn();
+   16   1      }
+   17          
+   18          #if SYSTEM_PWR_OFF_CB
+               /*  SDK_CB_System_PowerOff: callback function which is called in NDK when power event is triigered
+                */
+               PRIVATE void SDK_CB_System_PowerOff(void)
+               {
+               
+               }
+               #endif
+   26          
+   27          PUBLIC void SDK_System_Init()
+   28          {
+   29   1      #if SYSTEM_PWR_OFF_CB
+                 SDK_Proxy_RegisterAPI(API_GRP_IOSYS_CB_SYS_POWER_OFF, API_GRP_IOSYS, (VFUN)SDK_CB_System_PowerOff);
+               #endif
+   32   1      }
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =         5     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =    ------     ------
+End of Module Information.
+
+C251 COMPILER V5.57.0,  System                                                             08/11/20  06:34:32  PAGE 2   
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

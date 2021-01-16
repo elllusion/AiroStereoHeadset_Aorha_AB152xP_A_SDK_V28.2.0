@@ -1,0 +1,376 @@
+C251 COMPILER V5.57.0,  sector_sfr_init                                                    08/11/20  05:51:28  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_sfr_init
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\sector_sfr_init.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\Config0\sector_sfr_init.c XSMALL HPTR FUNCTIONS(REENTRAN
+                    -T) ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\
+                    -source\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\
+                    -ROM\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\so
+                    -urce\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source
+                    -\SECTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMis
+                    -c) DEFINE(FLASH_INIT=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520C_Airo
+                    -StereoHeadset\sector_sfr_init.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\sector_sfr_init.obj) 
+
+stmt  level    source
+
+    1          /*
+    2           * AIROHA Bluetooth Device Firmware
+    3           * COPYRIGHT (C) 2014 AIROHA TECHNOLOGY CORP. CO., LTD. ALL RIGHTS RESERVED
+    4           *
+    5           * sector_sfr_init.c defines the initialization sequence to setup CSR.
+    6           *
+    7           * Programmer : CharlesSu@airoha.com.tw, Ext.2882
+    8           */
+    9          #include "config.h"
+   10          #include "cpu.h"
+   11          #include "bt_config_profile.h"
+   12          #include "sector_sfr_init.h"
+   13          
+   14          #pragma userclass (HCONST = CONFIG)
+   15          
+   16          
+   17          ////////////////////////////////////////////////////////////////////////////////
+   18          // Global Variables ////////////////////////////////////////////////////////////
+   19          ////////////////////////////////////////////////////////////////////////////////
+   20          SECTOR_SFR_INIT_STRU CODE gSector_SfrInit =
+   21          {
+   22              {
+   23                  #ifdef OPERATION_IN_BB_ASIC_VERSION
+   24                #ifdef AB1520B        
+                     144, //NumOfSfrRegInit
+                     #else
+   27                146,
+   28                #endif
+   29                  #else
+                     #ifdef AB1520B       
+                     142, //NumOfSfrRegInit
+                     #else
+                     144,
+                     #endif
+                     #endif
+   36          
+   37                  {
+   38                      #ifdef OPERATION_IN_BB_ASIC_VERSION
+   39                #if defined SCO_WOOFER || defined SOUND_BAR || defined TWS_SETTINGS
+   40                {0xC2, 201, 0x01}, //setup MUC CLK to 24M
+   41                #else
+                     {0xC2, 201, 0x00}, //setup MUC CLK to 12M
+                     #endif
+   44                #endif
+   45                
+   46                {0xE6, 30, 0},
+   47                #if defined SOUND_BAR
+                     {0xE6, 71, 0},
+                     #else
+   50                {0xE6, 71, 3},
+   51                #endif
+   52                {0xE6, 97, 0xEA},
+C251 COMPILER V5.57.0,  sector_sfr_init                                                    08/11/20  05:51:28  PAGE 2   
+
+   53          
+   54                {0xE6, 30, 1},
+   55                #if defined SOUND_BAR
+                     {0xE6, 71, 0},
+                     #else
+   58                {0xE6, 71, 3},
+   59                #endif      
+   60                {0xE6, 97, 0xEA},
+   61          
+   62                      {0xC2, 121, 100},   //- RF PAON
+   63                      {0xC2, 123, 15},    //- RF PLLON
+   64                      {0xC2, 124, 110},   //- RF RXON
+   65                      {0xC2, 125, 100},   //- RF TXON
+   66          
+   67                      {0xE6, 1, 100},      //- 4.0 RF PAON time
+   68                      {0xE6, 2, 100},      //- 4.0 RF TXON time
+   69                      {0xE6, 3, 15},       //- 4.0 RF PLLON time
+   70                      {0xE6, 4, 100},      //- 4.0 RF RXON time
+   71                      {0xE6, 6, 130},
+   72                      {0xE6, 12, 127},
+   73                      {0xE6, 13, 127},
+   74                      #if (defined OPERATION_IN_RF_AB1520) || (defined OPERATION_IN_RF_AB1520S)
+   75                      {0xFE, 145, 0x35},  //- tx_gc_wire3_address
+   76                      #else
+                           {0xFE, 145, 0x0C},  //- tx_gc_wire3_address
+                           #endif
+   79                      {0xFE, 146, 0x0E},  //- tx_bias_wire3_address
+   80          
+   81                      {0xFE, 62, 0},      //- PLL_XTAL_DIV_H_L_SIDE
+   82          
+   83                      //- RF TRX APPEND
+   84                      #if (defined OPERATION_IN_RF_AB1520) || (defined OPERATION_IN_RF_AB1520S)
+   85                      {0xFE, 70, 0x11},   //- RF_TRX_APPEND_EN, bit0:tx_en, bit1:tx_num, bit4:rx_en, bit5:rx_num
+   86                      #else
+                           {0xFE, 70, 0x00},   //- RF_TRX_APPEND_EN, bit0:tx_en, bit1:tx_num, bit4:rx_en, bit5:rx_num
+                           #endif
+   89                      {0xFE, 71, 0},      //- RF_3WIRE_INDEX:0
+   90                      {0xFE, 72, 0x13},   //- RF_TRX_VALUE_B0
+   91                      {0xFE, 73, 0xAA},   //- RF_TRX_VALUE_B1
+   92                      {0xFE, 74, 0x07},   //- RF_TRX_VALUE_B3
+   93                      {0xFE, 71, 1},      //- RF_3WIRE_INDEX:1
+   94                      {0xFE, 72, 0x00},   //- RF_TRX_VALUE_B0
+   95                      {0xFE, 73, 0x00},   //- RF_TRX_VALUE_B1
+   96                      {0xFE, 74, 0x00},   //- RF_TRX_VALUE_B3
+   97                      {0xFE, 71, 2},      //- RF_3WIRE_INDEX:2
+   98                      {0xFE, 72, 0x17},   //- RF_TRX_VALUE_B0
+   99                      {0xFE, 73, 0xAA},   //- RF_TRX_VALUE_B1
+  100                      {0xFE, 74, 0x07},   //- RF_TRX_VALUE_B3
+  101                      {0xFE, 71, 3},      //- RF_3WIRE_INDEX:3
+  102                      {0xFE, 72, 0x00},   //- RF_TRX_VALUE_B0
+  103                      {0xFE, 73, 0x00},   //- RF_TRX_VALUE_B1
+  104                      {0xFE, 74, 0x00},   //- RF_TRX_VALUE_B3
+  105                      //----------------
+  106          
+  107                #ifdef OPERATION_IN_BB_ASIC_VERSION
+  108                  //{0xC2, 57, 0x01}, // test audio, MXT_CTRL enable
+  109                  //{0xC2, 61, 0x41}, // test audio, 1K TONE
+  110                  #endif
+  111                  {0xE4, 128, 0x00},
+  112                  {0xE4, 129, 0x00},
+  113                  {0xE4, 130, 0x84},
+  114                  {0xE4, 131, 0xC0},
+  115                  {0xE4, 132, 0x54},
+  116                  {0xE4, 133, 0x0D},
+  117                  {0xE4, 134, 0x00},
+  118                  {0xE4, 135, 0x22},
+C251 COMPILER V5.57.0,  sector_sfr_init                                                    08/11/20  05:51:28  PAGE 3   
+
+  119                  {0xE4, 136, 0xA5},
+  120                  {0xE4, 137, 20},
+  121                  {0xE4, 138, 12},
+  122                  {0xE4, 139, 24},
+  123                  {0xE4, 140, 36},
+  124                  {0xE4, 141, 24},
+  125                  {0xE4, 142, 0x4E},
+  126                  {0xE4, 143, 0xA9},
+  127                  {0xE4, 144, 16},
+  128                  {0xE4, 145, 0x02},
+  129                  {0xE4, 146, 0x27},
+  130                  {0xE4, 147, 0x01},
+  131          
+  132                  //- new modem bm matrix, (E4,152)~(E4,154), (E4,158)~(E4,160), (E4,164)~(E4,166)
+  133                  //- number of bm matrix setting setting = 9
+  134                  {0xE4, 152, 0x05},
+  135                  {0xE4, 153, 0x0B},
+  136                  {0xE4, 154, 0x14},
+  137          
+  138                  {0xE4, 158, 0x42},
+  139                  {0xE4, 159, 0x45},
+  140                  {0xE4, 160, 0x42},
+  141          
+  142                  {0xE4, 164, 0x14},
+  143                  {0xE4, 165, 0x0B},
+  144                  {0xE4, 166, 0x05},
+  145          
+  146                  //- BT4.0 AGC, (E4,170)~(E4,190)
+  147                  //- number of 4.0 AGC setting = 21
+  148                  {0xE4, 170, 54},  //- BLE AGC target level
+  149                  {0xE4, 171, 21},  //- BLE AGC uhg1 threshold
+  150                  {0xE4, 172, 7},   //- BLE AGC uhg2 threshold
+  151                  {0xE4, 173, 7},   //- BLE AGC uhg3 threshold
+  152                  {0xE4, 174, 53},  //- BLE AGC hg1 threshold
+  153                  {0xE4, 175, 53},  //- BLE AGC hg2 threshold
+  154                  {0xE4, 176, 53},  //- BLE AGC hg3 threshold
+  155                  {0xE4, 177, 7},   //- BLE AGC hg4 threshold
+  156                  {0xE4, 178, 35},  //- BLE AGC lg1 threshold
+  157                  {0xE4, 179, 35},  //- BLE AGC lg2 threshold
+  158                  {0xE4, 180, 30},  //- BLE AGC lg3 threshold
+  159                  {0xE4, 181, 30},  //- BLE AGC lg4 threshold
+  160                #if defined(OPERATION_IN_RF_AB1500F_FPGA)
+                     {0xE4, 182, 4},  //- BLE AGC ultra high gain
+                       {0xE4, 183, 12},  //- BLE AGC high gain
+                       {0xE4, 184, 12},  //- BLE AGC middle gain
+                       {0xE4, 185, 19},  //- BLE AGC low gain
+                       {0xE4, 186, 19},  //- BLE AGC ultra low gain
+                     #else
+  167                  {0xE4, 182, 59},  //- BLE AGC ultra high gain
+  168                  {0xE4, 183, 60},  //- BLE AGC high gain
+  169                  {0xE4, 184, 60},  //- BLE AGC middle gain
+  170                  {0xE4, 185, 61},  //- BLE AGC low gain
+  171                  {0xE4, 186, 61},  //- BLE AGC ultra low gain
+  172                #endif
+  173                  {0xE4, 187, 0x0A},//- BLE AGC gc settle time and tolerance
+  174                  {0xE4, 188, 0x03},//- BLE AGC fix gain ctrl
+  175                  {0xE4, 189, 0x01},//- BLE AGC state tperiod: Period for state to update
+  176                  {0xE4, 190, 0x00},//- BLE AAGC apply lpf at BT4.0 & BT3.0
+  177          
+  178                  //- BT3.0 AGC, (E4,192)~(E4,197)
+  179                  //- number of 3.0 AGC setting = 6
+  180                  //{0xE4, 192, 0x5E},//{0xE4, 192, 0x80},
+  181                  //{0xE4, 193, 0x03},//{0xE4, 193, 0x07},//{0xE4, 193, 0x06},
+  182                  {0xE4, 192, 0x5C},//{0xE4, 192, 0x7C},//{0xE4, 192, 0x5C},//{0xE4, 192, 0x80},
+  183                  {0xE4, 193, 0x03},//{0xE4, 193, 0x07},//{0xE4, 193, 0x06},
+  184                  {0xE4, 194, 0x6B},
+C251 COMPILER V5.57.0,  sector_sfr_init                                                    08/11/20  05:51:28  PAGE 4   
+
+  185                  {0xE4, 195, 0x05},
+  186                  {0xE4, 196, 0x00},
+  187                  {0xE4, 197, 0xFC},
+  188          
+  189                  //- BT4.0 RX modem, (E4,208)~(E4,218)
+  190                  //- number of bt4.0 rx setting = 11
+  191                  {0xE4, 208, 0xFF},
+  192                  {0xE4, 209, 3},
+  193                  {0xE4, 210, 0x00},
+  194                  {0xE4, 211, 0x00},
+  195                  {0xE4, 212, 0x02},
+  196                  {0xE4, 213, 0x02},
+  197                  {0xE4, 214, 0x02},
+  198                  {0xE4, 215, 0x68},
+  199                  {0xE4, 216, 0x46},
+  200                  {0xE4, 217, 40},
+  201                  {0xE4, 218, 0x00},
+  202          
+  203                  //- TX modem
+  204                  //- number of tx modem setting = 8
+  205                  {0xE4, 224, 41},
+  206                  {0xE4, 225, 64},//{0xE4, 225, 60},
+  207                  {0xE4, 226, 0x29},
+  208                  {0xE4, 227, 0x80},//{0xE4, 227, 0x84},//{0xE4, 227, 0x80}, //TX DAC scale
+  209                  {0xE4, 228, 0x80},
+  210                          {0xE4, 229, 0x0F},//TX DAC Offset
+  211                  #ifdef OPERATION_IN_BB_FPGA_VERSION
+                       {0xE4, 229, 0x78},
+                       {0xE4, 230, 0x42},
+                       #else
+  215                  {0xE4, 230, 0x40},
+  216                  #endif
+  217          
+  218                  {0xE4, 231, 0x00},
+  219          
+  220                  //- btc ctl
+  221                  {0xC2, 130, 23},
+  222                  {0xC2, 132, 0x05},
+  223                  {0xC2, 80, 10},
+  224                  {0xFE, 63, 0x00},
+  225                  #if (defined OPERATION_IN_RF_AB1500D || defined OPERATION_IN_RF_AB1500F || defined OPERATION_IN_RF_
+             -AB1500G || defined OPERATION_IN_RF_AB1500F_FPGA || defined OPERATION_IN_RF_AB1520 || defined OPERATION_IN_RF_AB1520S)
+  226                  {0xC2, 134, 0x04},
+  227                  {0xFE, 64, 0x06},
+  228                  {0xFE, 65, 0x06},
+  229                  #else
+                       {0xC2, 134, 0x07},
+                       {0xFE, 64, 0x02},
+                       {0xFE, 65, 0x03},
+                       #endif
+  234          
+  235                  {0xFE, 130, 0x30}, //- FEOFFS_RW_AFH_RSSI_CTL_PARAM
+  236          
+  237                  //- RF PLL CTL
+  238                  #if ((defined OPERATION_IN_BB_FPGA_VERSION )&& (defined OPERATION_IN_RF_AB1000D))
+                       {0xFE, 79, 0x28},
+                       {0xFE, 80, 0x0A},
+                       {0xFE, 81, 0x4F},
+                       {0xFE, 82, 0xEC},
+                       {0xFE, 83, 0x04},
+                       #else
+  245                  {0xFE, 79, 0x80},
+  246                  {0xFE, 80, 0x0C},
+  247                  {0xFE, 81, 0x00},
+  248                  {0xFE, 82, 0x00},
+  249                  {0xFE, 83, 0x04},
+C251 COMPILER V5.57.0,  sector_sfr_init                                                    08/11/20  05:51:28  PAGE 5   
+
+  250                  #endif
+  251          
+  252                      #ifdef OPERATION_IN_BB_ASIC_VERSION
+  253                      {0xFB, 190, 0x0F},  //MCU clock gating
+  254                      #endif
+  255          
+  256                      //- Clock gating control
+  257                {0xC2,200,0xA6},//0x20, (0x20:slot tick is enabled in MCU frozen)
+  258          
+  259                //-Slow CLK Calibration
+  260                      #ifdef OPERATION_IN_BB_ASIC_VERSION
+  261                          #ifdef BLUETOOTH_SPEAKER
+                       {0xE7, 97, 0x87},
+                       {0xE7, 93, 0x22},  //- min_sleep_duration_enter_in_slot // no sleep
+                               {0xE7, 112, 0x31},  //- slow_clk_cal
+                               {0xE7, 113, 0x01},  //- slow_clk_ctl
+                               {0xE7, 114, 0x20},  //- slow_clk_int
+                               {0xE7, 115, 0x00},  //- slow_clk_dec1
+                               {0xE7, 116, 0x00},  //- slow_clk_dec2
+                           #else
+  270                  {0xE7, 97, 0x87}, //- U8  osc_pll_wakeup_guard;
+  271                  {0xE7, 93, 0x12},  //- min_sleep_duration_enter_in_slot
+  272                      {0xE7, 112, 0x30},  //- slow_clk_cal
+  273                          {0xE7, 113, 0x01},  //- slow_clk_ctl
+  274                          {0xE7, 114, 0x1F},  //- slow_clk_int
+  275                          {0xE7, 115, 0x52},  //- slow_clk_dec1
+  276                          {0xE7, 116, 0x00},  //- slow_clk_dec2
+  277                          #endif
+  278                      #else
+                       #if 1 //- for crystal 32.768K
+                       {0xE7, 97, 0x87},   //- osc_pll_wakeup_guard
+                         {0xE7, 93, 0x12},   //- min_sleep_duration_enter_in_slot
+                             {0xE7, 112, 0x31},  //- slow_clk_cal
+                             {0xE7, 113, 0x01},  //- slow_clk_ctl
+                             {0xE7, 114, 0x1E},  //- slow_clk_int
+                             {0xE7, 115, 0x15},  //- slow_clk_dec1
+                             {0xE7, 116, 0x07},  //- slow_clk_dec2
+                       #else //- for crystal 32K
+                             {0xE7, 97, 0x87},   //- osc_pll_wakeup_guard
+                         {0xE7, 93, 0x12},   //- min_sleep_duration_enter_in_slot
+                             {0xE7, 112, 0x30},  //- slow_clk_cal
+                             {0xE7, 113, 0x01},  //- slow_clk_ctl
+                             {0xE7, 114, 0x1F},  //- slow_clk_int
+                             {0xE7, 115, 0x52},  //- slow_clk_dec1
+                             {0xE7, 116, 0x00},  //- slow_clk_dec2
+                       #endif
+                           #endif
+  297          
+  298                  {0xFE, 147, 1},    //- channel
+  299                  {0xFE, 148, 79},   //- channe2
+  300                  {0xFE, 149, 0},    //- GC offsetl
+  301                  {0xFE, 150, 0},    //- GC offset2
+  302          
+  303                {0xE7, 127, 0xE0},  // reserved slot weight
+  304                {0xE7, 128, 0x08},  // reserved slot weight
+  305                {0xE7, 22,  0x01},  // reserved slot weight
+  306                {0xE7, 12,  0x03},  
+  307                {0xE7, 20,  0x40},
+  308            
+  309                #ifndef AB1520B
+  310                {0xDB, 0, 0x01},  //- BT4.0 rx interrupt priority higher than BT3.0 rx interrupt priority 
+  311                #endif
+  312                
+  313                #ifdef AB1520S
+                     {0xFE, 175, 0},
+                     #else
+C251 COMPILER V5.57.0,  sector_sfr_init                                                    08/11/20  05:51:28  PAGE 6   
+
+  316                  #ifndef AB1520B
+  317                  {0xE7, 232, 0},   // set the Tx band1 offset for GFSK
+  318                  #endif
+  319                #endif
+  320                  }
+  321              },
+  322          
+  323              //- CRC
+  324              {0xDE,0x9C}
+  325          };
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       453     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

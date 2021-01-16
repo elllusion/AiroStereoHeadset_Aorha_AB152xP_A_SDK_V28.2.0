@@ -1,0 +1,567 @@
+C251 COMPILER V5.57.0,  Peq_HPF                                                            08/11/20  06:32:46  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE Peq_HPF
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\Peq_HPF.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\DRIVER\Peq_HPF.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) WAR
+                    -NINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\sour
+                    -ce\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\source\
+                    -ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_LE;
+                    -.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspData;
+                    -.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLASH_
+                    -INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoHeadset\Pe
+                    -q_HPF.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\Peq_HPF.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #define PEQ_C
+    4          
+    5          #include <rc.h>
+    6          #include "bt_config_profile.h"
+    7          
+    8          #ifdef PEQ_ENABLE
+    9          #include "align_flash.h"
+   10          
+   11          #ifdef AB1520B
+               #include "sector_dsp_data.h"
+               #else
+   14          #include "sector_boundary.h"
+   15          #include "sector_config1.h"
+   16          #endif
+   17          
+   18          
+   19          #include "Peq_HPF.h"
+   20          #include "..\MMI\MMI.h"
+   21          
+   22          PUBLIC BOOL PEQ_SetOff(void)
+   23          {
+   24   1        DSP_PEQ_HPF_PTR_STRU XDATA_PTR ptr1;
+   25   1      
+   26   1        if(gAlignDSP.PTR_TO_XDATA_PEQ)
+   27   1          return FALSE;
+   28   1      
+   29   1        ptr1 = (DSP_PEQ_HPF_PTR_STRU XDATA_PTR)OSMEM_Get(OSMEM_ptr2_small_RX);
+   30   1      
+   31   1        if(ptr1 == (DSP_PEQ_HPF_PTR_STRU XDATA_PTR)NULL)
+   32   1          ptr1 = (DSP_PEQ_HPF_PTR_STRU XDATA_PTR)SYS_MemoryGet(sizeof(DSP_PEQ_HPF_PTR_STRU));
+   33   1      
+   34   1        if(ptr1 != (DSP_PEQ_HPF_PTR_STRU XDATA_PTR)NULL)
+   35   1        {
+   36   2          ptr1->peqEnable = 0;
+   37   2          gAlignDSP.PTR_TO_XDATA_PEQ = (U16 XDATA_PTR)ptr1;
+   38   2          return TRUE;
+   39   2        }
+   40   1        return FALSE;
+   41   1      }
+   42          
+   43          PUBLIC BOOL PEQ_SetOn(U8 component)
+   44          {
+   45   1        DSP_PEQ_HPF_PTR_STRU XDATA_PTR ptr1;
+   46   1        U8 offset;
+   47   1      
+   48   1        if(gAlignDSP.PTR_TO_XDATA_PEQ)
+   49   1        {
+   50   2          return FALSE;
+   51   2        }
+   52   1      
+C251 COMPILER V5.57.0,  Peq_HPF                                                            08/11/20  06:32:46  PAGE 2   
+
+   53   1        ptr1 = (DSP_PEQ_HPF_PTR_STRU XDATA_PTR)OSMEM_Get(OSMEM_ptr2_small_RX);
+   54   1      
+   55   1        if(ptr1 == (DSP_PEQ_HPF_PTR_STRU XDATA_PTR)NULL)
+   56   1          ptr1 = (DSP_PEQ_HPF_PTR_STRU XDATA_PTR)SYS_MemoryGet(sizeof(DSP_PEQ_HPF_PTR_STRU));
+   57   1      
+   58   1        if(ptr1 != (DSP_PEQ_HPF_PTR_STRU XDATA_PTR)NULL)
+   59   1        {
+   60   2          offset = 0;
+   61   2          //set gPeq_ctl.numOfPEQ[PEQ_LINE_IN] = 0 means A2DP and Line-In share a block of peq data (i.e. offset 
+             -= 0)
+   62   2          if(component == PEQ_LINE_IN && PEQ_GetModeIndex(PEQ_LINE_IN) != 0)
+   63   2          {
+   64   3            offset = PEQ_GetModeNumber(PEQ_A2DP);
+   65   3          }
+   66   2      
+   67   2          OSMEM_memcpy_xdata_code((U8 XDATA_PTR)&ptr1->peqPara,
+   68   2                      (U8 CODE_PTR)(gPeq_ctl.sectorPEQAddress + sizeof(U8) + sizeof(U8) + sizeof(PEQ_CONFIG_SECTOR)*(PE
+             -Q_GetModeIndex(component) + offset -1)),
+   69   2                       sizeof(PEQ_CONFIG_SECTOR));
+   70   2          ptr1->peqEnable = 1<<0;
+   71   2          gAlignDSP.PTR_TO_XDATA_PEQ = (U16 XDATA_PTR)ptr1;
+   72   2          LightDbgPrint("PEQ_ON:%h-%h-%h", (ptr1->peqPara.peq_sample_rate[0].peq_sample_rate_content[0]),
+   73   2                ptr1->peqPara.peq_sample_rate[1].peq_sample_rate_content[0], 
+   74   2            ptr1->peqPara.peq_sample_rate[2].peq_sample_rate_content[0]
+   75   2            );
+   76   2          return TRUE;
+   77   2        }
+   78   1        return FALSE;
+   79   1      }
+   80          
+   81          PUBLIC BOOL HPF_SetOff(void)
+   82          {
+   83   1        DSP_PEQ_HPF_PTR_STRU XDATA_PTR ptr1;
+   84   1        if(gAlignDSP.PTR_TO_XDATA_PEQ)
+   85   1        {
+   86   2          ptr1 = (DSP_PEQ_HPF_PTR_STRU XDATA_PTR)gAlignDSP.PTR_TO_XDATA_PEQ;
+   87   2          ptr1->hpfEnable = 0;
+   88   2          gAlignDSP.DSP_CHANGE_PEQ = 1;
+   89   2          LightDbgPrint("peq peqenable:%d  hpfenable:%d",(U8)ptr1->peqEnable, (U8)ptr1->hpfEnable);
+   90   2          return TRUE;
+   91   2        }
+   92   1        return FALSE;
+   93   1      }
+   94          
+   95          PUBLIC BOOL HPF_SetOn(U8 component)
+   96          {
+   97   1        DSP_PEQ_HPF_PTR_STRU XDATA_PTR ptr1;
+   98   1        U8 offset;
+   99   1        U8 index;
+  100   1        U8 CODE_PTR PEQaddr;
+  101   1        
+  102   1        if(gAlignDSP.PTR_TO_XDATA_PEQ)
+  103   1        {
+  104   2          ptr1 = (DSP_PEQ_HPF_PTR_STRU XDATA_PTR)gAlignDSP.PTR_TO_XDATA_PEQ;
+  105   2          offset = 0;
+  106   2          if(component == PEQ_LINE_IN && PEQ_GetModeIndex(PEQ_LINE_IN) != 0)
+  107   2          {
+  108   3            offset = PEQ_GetModeNumber(PEQ_A2DP);
+  109   3          }
+  110   2          //if PEQMode = 0 or 1, load 1st HPF setting
+  111   2          if(PEQ_GetSectorMode(component) == PEQ_LOAD_DEFAULT)
+  112   2          {
+  113   3            OSMEM_memcpy_xdata_code((U8 XDATA_PTR)&ptr1->hpfPara,
+  114   3                        (U8 CODE_PTR)(gPeq_ctl.sectorHPFAddress + sizeof(U8) + sizeof(HPF_CONFIG_SECTOR)*((PEQ_GetModeIn
+             -dex(component)?(PEQ_GetModeIndex(component)-1):0)+offset)),
+  115   3                        sizeof(HPF_CONFIG_SECTOR));
+C251 COMPILER V5.57.0,  Peq_HPF                                                            08/11/20  06:32:46  PAGE 3   
+
+  116   3          }
+  117   2          else
+  118   2          { 
+  119   3            // PEQ part
+  120   3            PEQaddr = gPeq_ctl.sectorPEQAddress;
+  121   3            PEQaddr += sizeof(U8) + sizeof(U8) + sizeof(PEQ_CONFIG_SECTOR)*(PEQ_GetModeNumber(PEQ_A2DP) + PEQ_GetM
+             -odeNumber(PEQ_LINE_IN));   
+  122   3            
+  123   3            // PEQ expansion part
+  124   3            #ifdef PEQ_EXPANSION_ENABLE
+  125   3            PEQaddr += *(U8 CODE_PTR)(PEQaddr)?(sizeof(U8) + sizeof(PEQ_CONFIG_SECTOR)*(PEQ_GetModeNumber(PEQ_A2DP
+             -) + PEQ_GetModeNumber(PEQ_LINE_IN))):sizeof(U8);
+  126   3            #else
+                     PEQaddr += sizeof(U8);
+                     #endif
+  129   3            
+  130   3            // Audio Transparency part
+  131   3            PEQaddr += sizeof(U8) + (sizeof(PEQ_CONFIG_SECTOR)*(*(U8 CODE_PTR)(PEQaddr)));
+  132   3            
+  133   3            // PEQ under 100Hz part
+  134   3            for(index = 0; index < (PEQ_GetModeNumber(PEQ_A2DP) + PEQ_GetModeNumber(PEQ_LINE_IN)); index++)
+  135   3            {
+  136   4              PEQaddr += *(U8 CODE_PTR)(PEQaddr)?(sizeof(PEQ_100HZ_SECTOR)+sizeof(U8)):sizeof(U8);
+  137   4            }
+  138   3            
+  139   3            // HPF part
+  140   3            PEQaddr += sizeof(U8);
+  141   3            PEQaddr += sizeof(HPF_CONFIG_SECTOR)*((PEQ_GetModeIndex(component)?(PEQ_GetModeIndex(component) - 1) :
+             - 0) + offset);    
+  142   3            OSMEM_memcpy_xdata_code((U8 XDATA_PTR)&ptr1->hpfPara,
+  143   3                        (U8 CODE_PTR)(PEQaddr),
+  144   3                        sizeof(HPF_CONFIG_SECTOR));
+  145   3          }
+  146   2          ptr1->hpfEnable = 1;
+  147   2          gAlignDSP.DSP_CHANGE_PEQ = 1;
+  148   2          LightDbgPrint("peq peqenable:%d  hpfenable:%d",(U8)ptr1->peqEnable, (U8)ptr1->hpfEnable);
+  149   2          return TRUE;
+  150   2        }
+  151   1        return FALSE;
+  152   1      }
+  153          
+  154          #ifdef PEQ_EXPANSION_ENABLE
+  155          PUBLIC BOOL PEQ_Expansion_Set(U8 component)
+  156          {
+  157   1        DSP_PEQ_HPF_PTR_STRU XDATA_PTR ptr1;
+  158   1        U8 offset;
+  159   1        
+  160   1        if(gAlignDSP.PTR_TO_XDATA_PEQ)
+  161   1        {
+  162   2          ptr1 = (DSP_PEQ_HPF_PTR_STRU XDATA_PTR)gAlignDSP.PTR_TO_XDATA_PEQ;
+  163   2          if(PEQ_IsPEQExpansionEnabledInSector())
+  164   2          {
+  165   3            offset = 0;
+  166   3            //set gPeq_ctl.numOfPEQ[PEQ_LINE_IN] = 0 means A2DP and Line-In share a block of peq data (i.e. offset
+             - = 0)
+  167   3            if(component == PEQ_LINE_IN && PEQ_GetModeIndex(PEQ_LINE_IN) != 0)
+  168   3            {
+  169   4              offset = PEQ_GetModeNumber(PEQ_A2DP);
+  170   4            }
+  171   3      
+  172   3            OSMEM_memcpy_xdata_code((U8 XDATA_PTR)&ptr1->peqExpansionPara,
+  173   3                         (U8 CODE_PTR)(gPeq_ctl.sectorPEQAddress + sizeof(U8) + sizeof(U8) 
+  174   3                         + sizeof(PEQ_CONFIG_SECTOR)*(PEQ_GetModeNumber(PEQ_A2DP) + PEQ_GetModeNumber(PEQ_LINE_IN)) 
+  175   3                         + sizeof(U8) + (sizeof(PEQ_CONFIG_SECTOR)*(PEQ_GetModeIndex(component) + offset -1))),
+  176   3                         sizeof(PEQ_CONFIG_SECTOR));
+  177   3            ptr1->peqEnable |= 1<<1;
+C251 COMPILER V5.57.0,  Peq_HPF                                                            08/11/20  06:32:46  PAGE 4   
+
+  178   3          }
+  179   2          else
+  180   2          {
+  181   3            ptr1->peqEnable &= ~(1<<1);
+  182   3          }
+  183   2          return TRUE;
+  184   2        }
+  185   1        return FALSE;
+  186   1      }
+  187          #endif
+  188          
+  189          #ifdef PEQ_UNDER_100HZ_ENABLE
+  190          PUBLIC BOOL PEQ_Under100Hz_Set(U8 component)
+  191          {
+  192   1        DSP_PEQ_HPF_PTR_STRU XDATA_PTR ptr1;
+  193   1        U8 CODE_PTR PEQaddr;
+  194   1        U8 index;
+  195   1        
+  196   1        if(gAlignDSP.PTR_TO_XDATA_PEQ)
+  197   1        {
+  198   2          ptr1 = (DSP_PEQ_HPF_PTR_STRU XDATA_PTR)gAlignDSP.PTR_TO_XDATA_PEQ;
+  199   2          PEQaddr = gPeq_ctl.sectorPEQAddress;
+  200   2          
+  201   2          //PEQ part
+  202   2          PEQaddr += sizeof(U8) + sizeof(U8) + sizeof(PEQ_CONFIG_SECTOR)*(PEQ_GetModeNumber(PEQ_A2DP) + PEQ_GetMo
+             -deNumber(PEQ_LINE_IN));    
+  203   2          
+  204   2          //PEQ expansion part
+  205   2          #ifdef PEQ_EXPANSION_ENABLE
+  206   2          PEQaddr += *(U8 CODE_PTR)(PEQaddr)?(sizeof(U8) + sizeof(PEQ_CONFIG_SECTOR)*(PEQ_GetModeNumber(PEQ_A2DP)
+             - + PEQ_GetModeNumber(PEQ_LINE_IN))):sizeof(U8);
+  207   2          #else
+                   PEQaddr += sizeof(U8);
+                   #endif
+  210   2          
+  211   2          //Audio Transparency part
+  212   2          PEQaddr += sizeof(U8) + (sizeof(PEQ_CONFIG_SECTOR)*(*(U8 CODE_PTR)(PEQaddr)));
+  213   2          
+  214   2          //PEQ under 100Hz part
+  215   2          if(component == PEQ_LINE_IN && PEQ_GetModeIndex(PEQ_LINE_IN) != 0)
+  216   2          {
+  217   3            for(index = 0; index < PEQ_GetModeNumber(PEQ_A2DP); index++)
+  218   3            {
+  219   4              PEQaddr += *(U8 CODE_PTR)(PEQaddr)?(sizeof(PEQ_100HZ_SECTOR)+sizeof(U8)):sizeof(U8);
+  220   4            }
+  221   3            
+  222   3            for(index = 0; index < (PEQ_GetModeIndex(component) - 1); index++)
+  223   3            {
+  224   4              PEQaddr += *(U8 CODE_PTR)(PEQaddr)?(sizeof(PEQ_100HZ_SECTOR)+sizeof(U8)):sizeof(U8);
+  225   4            }
+  226   3          }
+  227   2          else
+  228   2          {
+  229   3            for(index = 0; index < (PEQ_GetModeIndex(component) - 1); index++)
+  230   3            {
+  231   4              PEQaddr += (*(U8 CODE_PTR)(PEQaddr))?(sizeof(PEQ_100HZ_SECTOR)+sizeof(U8)):sizeof(U8);
+  232   4            }
+  233   3          }
+  234   2          
+  235   2          //check peq 100Hz a2dp/linein set enable and copy parameter
+  236   2          if(*(U8 CODE_PTR)(PEQaddr) == 0)
+  237   2          {
+  238   3            ptr1->peqEnable &= ~(1<<2);
+  239   3          }
+  240   2          else
+  241   2          {
+C251 COMPILER V5.57.0,  Peq_HPF                                                            08/11/20  06:32:46  PAGE 5   
+
+  242   3            PEQaddr += sizeof(U8);      
+  243   3            OSMEM_memcpy_xdata_code((U8 XDATA_PTR)&ptr1->peqUnder100hzPara,
+  244   3                        (U8 CODE_PTR)(PEQaddr),
+  245   3                        sizeof(PEQ_100HZ_SECTOR));
+  246   3            ptr1->peqEnable |= 1<<2;
+  247   3          }
+  248   2          
+  249   2          return TRUE;
+  250   2        }
+  251   1        return FALSE;
+  252   1      }
+  253          #endif
+  254          
+  255          PUBLIC void PEQ_RealTimeSetPeqHpf(void)
+  256          {
+  257   1        DSP_PEQ_HPF_PTR_STRU XDATA_PTR ptr1;
+  258   1        ptr1 = (DSP_PEQ_HPF_PTR_STRU XDATA_PTR)gPeq_ctl.SetRealtimePEQ.sendToDspPtr;
+  259   1        
+  260   1        if(ptr1 != (DSP_PEQ_HPF_PTR_STRU XDATA_PTR)NULL)
+  261   1        {
+  262   2          //peq
+  263   2          if(gPeq_ctl.SetRealtimePEQ.enable_mode & PEQ_ENABLED_MODE)
+  264   2          {
+  265   3            ptr1->peqEnable = 1<<0;
+  266   3            
+  267   3          }
+  268   2          else
+  269   2          {
+  270   3            ptr1->peqEnable = 0;
+  271   3          }
+  272   2      
+  273   2          #ifdef PEQ_EXPANSION_ENABLE
+  274   2          //peq expansion
+  275   2          if(gPeq_ctl.SetRealtimePEQ.enable_mode & PEQ_EXPANSION_ENABLED_MODE)
+  276   2          {
+  277   3            ptr1->peqEnable |= 1<<1;
+  278   3            
+  279   3          }
+  280   2          else
+  281   2          {
+  282   3            ptr1->peqEnable  &= ~(1<<1);
+  283   3          }
+  284   2          #endif
+  285   2      
+  286   2          //hpf
+  287   2          if(gPeq_ctl.SetRealtimePEQ.enable_mode & HPF_ENABLED_MODE)
+  288   2          {
+  289   3            ptr1->hpfEnable = 1;
+  290   3            
+  291   3          }
+  292   2          else
+  293   2          {
+  294   3            ptr1->hpfEnable = 0;
+  295   3          }
+  296   2          
+  297   2          #ifdef PEQ_UNDER_100HZ_ENABLE
+  298   2          //peq under 100Hz
+  299   2          if(gPeq_ctl.SetRealtimePEQ.enable_mode & PEQ_UNDER_100HZ_ENABLED_MODE)
+  300   2          {
+  301   3            ptr1->peqEnable |= 1<<2;
+  302   3            
+  303   3          }
+  304   2          else
+  305   2          {
+  306   3            ptr1->peqEnable  &= ~(1<<2);
+  307   3          }
+C251 COMPILER V5.57.0,  Peq_HPF                                                            08/11/20  06:32:46  PAGE 6   
+
+  308   2          #endif
+  309   2          
+  310   2          gPeq_ctl.SetRealtimePEQ.sendToDspPtr = (U8 XDATA_PTR)NULL;
+  311   2          gPeq_ctl.SetRealtimePEQ.enable_mode = INIT_ENABLED_MODE;
+  312   2          gAlignDSP.PTR_TO_XDATA_PEQ = (U16 XDATA_PTR)ptr1;
+  313   2          gAlignDSP.DSP_CHANGE_PEQ = 1;
+  314   2          LightDbgPrint("peq peqenable3:%d  hpfenable:%d",(U8)ptr1->peqEnable, (U8)ptr1->hpfEnable);
+  315   2        }
+  316   1      }
+  317          
+  318          PUBLIC void PEQ_HPF_UpdateParameters(void)
+  319          {
+  320   1        if(MMI_REMEMBER_PEQ_CHANGE_FEAT || MMI_DEFAULT_PEQ_ASSIGNMENT_FEAT)
+  321   1        {
+  322   2          PEQ_SetModeIndex(PEQ_A2DP, gMMI_driver_variation_nvram.misc_para.PEQRecord[PEQ_A2DP]);
+  323   2          PEQ_SetModeIndex(PEQ_LINE_IN, gMMI_driver_variation_nvram.misc_para.PEQRecord[PEQ_LINE_IN]);
+  324   2        }
+  325   1        
+  326   1        if(MMI_MUSIC_FORCE_USE_PEQ_FEAT)
+  327   1        {
+  328   2          PEQ_SetModeIndex(PEQ_A2DP, PEQ_GetModeIndex(PEQ_A2DP) ? PEQ_GetModeIndex(PEQ_A2DP) : 1);
+  329   2          PEQ_SetModeIndex(PEQ_LINE_IN, PEQ_GetModeIndex(PEQ_LINE_IN) ? PEQ_GetModeIndex(PEQ_LINE_IN) : 1);
+  330   2        }
+  331   1        
+  332   1        PEQ_SetSectorMode(PEQ_A2DP, gMMI_driver_variation_nvram.misc_para.PEQSectorMode[PEQ_A2DP]);
+  333   1        PEQ_SetSectorMode(PEQ_LINE_IN, gMMI_driver_variation_nvram.misc_para.PEQSectorMode[PEQ_LINE_IN]);
+  334   1      }
+  335          
+  336          
+  337          PUBLIC void PEQ_ReleaseResource(void)
+  338          {
+  339   1        if(gAlignDSP.PTR_TO_XDATA_PEQ != (U16 XDATA_PTR)NULL)
+  340   1        {
+  341   2          SYS_MemoryRelease(U8_XDATA_PTR_PTR_CASTING &gAlignDSP.PTR_TO_XDATA_PEQ);
+  342   2          gAlignDSP.DSP_CHANGE_PEQ = 0;
+  343   2        }
+  344   1      }
+  345          
+  346          PUBLIC BOOL PEQ_IsPEQEnabledInSector(U8 component)
+  347          {
+  348   1        return PEQ_GetModeNumber(component) ? TRUE:FALSE;
+  349   1      }
+  350          
+  351          PUBLIC BOOL HPF_IsHPFEnabledInSector(U8 component)
+  352          {
+  353   1        U8 CODE_PTR PEQaddr;
+  354   1        U8 index;
+  355   1        
+  356   1        if(PEQ_GetSectorMode(component) == PEQ_LOAD_CUSTOM)
+  357   1        {
+  358   2          // PEQ part
+  359   2          PEQaddr = gPeq_ctl.sectorPEQAddress + sizeof(U8) + sizeof(U8) + sizeof(PEQ_CONFIG_SECTOR)*(PEQ_GetModeN
+             -umber(PEQ_A2DP) + PEQ_GetModeNumber(PEQ_LINE_IN));
+  360   2          
+  361   2          // PEQ expansion part
+  362   2          #ifdef PEQ_EXPANSION_ENABLE
+  363   2          PEQaddr += *(U8 CODE_PTR)(PEQaddr)?(sizeof(U8) + sizeof(PEQ_CONFIG_SECTOR)*(PEQ_GetModeNumber(PEQ_A2DP)
+             - + PEQ_GetModeNumber(PEQ_LINE_IN))):sizeof(U8);
+  364   2          #else
+                   PEQaddr += sizeof(U8);
+                   #endif
+  367   2          
+  368   2          // Audio Transparency part
+  369   2          PEQaddr += sizeof(U8) + (sizeof(PEQ_CONFIG_SECTOR)*(*(U8 CODE_PTR)(PEQaddr)));
+  370   2          
+  371   2          //PEQ under 100Hz part
+C251 COMPILER V5.57.0,  Peq_HPF                                                            08/11/20  06:32:46  PAGE 7   
+
+  372   2          for(index = 0; index < (PEQ_GetModeNumber(PEQ_A2DP) + PEQ_GetModeNumber(PEQ_LINE_IN)); index++)
+  373   2          {
+  374   3            PEQaddr += *(U8 CODE_PTR)(PEQaddr)?(sizeof(PEQ_100HZ_SECTOR)+sizeof(U8)):sizeof(U8);
+  375   3          }
+  376   2          
+  377   2          return *(U8 CODE_PTR)(PEQaddr) ? TRUE : FALSE;
+  378   2        }
+  379   1        else
+  380   1        {
+  381   2          return ((DSP_HPF_PARAMETER_STRU CODE_PTR)gPeq_ctl.sectorHPFAddress)->hpf_enable ? TRUE:FALSE;
+  382   2        }
+  383   1      }
+  384          
+  385          #ifdef PEQ_EXPANSION_ENABLE
+  386          PUBLIC BOOL PEQ_IsPEQExpansionEnabledInSector(void)
+  387          {
+  388   1        return *(U8 CODE_PTR)(gPeq_ctl.sectorPEQAddress + sizeof(U8) + sizeof(U8) + sizeof(PEQ_CONFIG_SECTOR)*(P
+             -EQ_GetModeNumber(PEQ_A2DP) + PEQ_GetModeNumber(PEQ_LINE_IN))) ? TRUE:FALSE;  
+  389   1      }
+  390          #endif
+  391          
+  392          PUBLIC U8 PEQ_GetModeNumber(U8 component)
+  393          {
+  394   1        return (component == PEQ_A2DP) ? *(U8 CODE_PTR)(gPeq_ctl.sectorPEQAddress) :
+  395   1                         *(U8 CODE_PTR)(gPeq_ctl.sectorPEQAddress + sizeof(U8));  
+  396   1      }
+  397          
+  398          PUBLIC void PEQ_SetModeIndex(U8 component, U8 peqModeIndex)
+  399          {
+  400   1        gPeq_ctl.PEQMode[component] = peqModeIndex;
+  401   1      }
+  402          
+  403          PUBLIC U8 PEQ_GetModeIndex(U8 component)
+  404          {
+  405   1        return gPeq_ctl.PEQMode[component];
+  406   1      }
+  407          
+  408          PUBLIC void PEQ_SetPeqHpfLoadSectorAddress(U8 sector)
+  409          {
+  410   1        #ifdef AB1520B
+                 gPeq_ctl.sectorPEQAddress = (sector == PEQ_LOAD_DEFAULT) ?
+                               (U8 CODE_PTR)(GET_SECTOR_DSP_DATA_ADDR(SECTOR_DSP_PEQ_PARAMETER)):
+                               (U8 CODE_PTR)(GET_SECTOR_DSP_DATA_ADDR(SECTOR_DSP_PEQ_HPF_PARAMETER_CUSTOM));
+                 gPeq_ctl.sectorHPFAddress = (sector == PEQ_LOAD_DEFAULT) ?
+                               (U8 CODE_PTR)(GET_SECTOR_DSP_DATA_ADDR(SECTOR_DSP_HPF_PARAMETER)):
+                               (U8 CODE_PTR) NULL;
+                 #else
+  418   1        gPeq_ctl.sectorPEQAddress = (sector == PEQ_LOAD_DEFAULT) ?
+  419   1                      (U8 CODE_PTR)(GET_SECTOR_CFG1_ADDR(SECTOR_DSP_PEQ_PARAMETER)):
+  420   1                      (U8 CODE_PTR)(GET_SECTOR_BOUNDARY_ADDR(SECTOR_DSP_PEQ_HPF_PARAMETER_CUSTOM));
+  421   1        gPeq_ctl.sectorHPFAddress = (sector == PEQ_LOAD_DEFAULT) ?
+  422   1                      (U8 CODE_PTR)(GET_SECTOR_CFG1_ADDR(SECTOR_DSP_HPF_PARAMETER)):
+  423   1                      (U8 CODE_PTR) NULL;
+  424   1        #endif
+  425   1        if(sector == PEQ_LOAD_DEFAULT)
+  426   1          LightDbgPrint("==PEQ Load Default!!!");
+  427   1        else
+  428   1          LightDbgPrint("==PEQ Load Cust!!!!!!");
+  429   1      }
+  430          
+  431          PUBLIC BOOL PEQ_IsCustomPEQSectorEmpty(U8 component)
+  432          {
+  433   1        return (component == PEQ_A2DP) ? *(U8 CODE_PTR)GET_SECTOR_BOUNDARY_ADDR(SECTOR_DSP_PEQ_HPF_PARAMETER_CUS
+             -TOM) == 0 :
+  434   1                           *(U8 CODE_PTR)(GET_SECTOR_BOUNDARY_ADDR(SECTOR_DSP_PEQ_HPF_PARAMETER_CUSTOM) + sizeof(U8)) =
+             -= 0;
+C251 COMPILER V5.57.0,  Peq_HPF                                                            08/11/20  06:32:46  PAGE 8   
+
+  435   1      }
+  436          
+  437          PUBLIC void PEQ_SetSectorMode(U8 component, U8 sectorMode)
+  438          {
+  439   1        gPeq_ctl.PEQSectorMode[component] = sectorMode;
+  440   1      }
+  441          
+  442          PUBLIC U8 PEQ_GetSectorMode(U8 component)
+  443          {
+  444   1        return gPeq_ctl.PEQSectorMode[component];
+  445   1      }
+  446          
+  447          PUBLIC void PEQ_SetRealtimeEnableMode(U8 value)
+  448          {
+  449   1        if(value == INIT_ENABLED_MODE)
+  450   1          gPeq_ctl.SetRealtimePEQ.enable_mode = value;
+  451   1        else
+  452   1          gPeq_ctl.SetRealtimePEQ.enable_mode |= value;
+  453   1      }
+  454          
+  455          PUBLIC U8 XDATA_PTR PEQ_GetRealtimePEQParameterPtr(U8 parameter)
+  456          {
+  457   1        if(gPeq_ctl.SetRealtimePEQ.sendToDspPtr)
+  458   1        {
+  459   2          switch(parameter)
+  460   2          {
+  461   3            case HPF_PARAMETER:
+  462   3              return &((DSP_PEQ_HPF_PTR_STRU XDATA_PTR)gPeq_ctl.SetRealtimePEQ.sendToDspPtr)->hpfPara;
+  463   3            case PEQ_PARAMETER:
+  464   3              return &((DSP_PEQ_HPF_PTR_STRU XDATA_PTR)gPeq_ctl.SetRealtimePEQ.sendToDspPtr)->peqPara;
+  465   3            #ifdef PEQ_EXPANSION_ENABLE
+  466   3            case PEQ_Expansion_PARAMETER:
+  467   3              return &((DSP_PEQ_HPF_PTR_STRU XDATA_PTR)gPeq_ctl.SetRealtimePEQ.sendToDspPtr)->peqExpansionPara;
+  468   3            #endif
+  469   3            #ifdef PEQ_UNDER_100HZ_ENABLE
+  470   3            case PEQ_Under100Hz_PARAMETER:
+  471   3              return &((DSP_PEQ_HPF_PTR_STRU XDATA_PTR)gPeq_ctl.SetRealtimePEQ.sendToDspPtr)->peqUnder100hzPara;
+  472   3            #endif
+  473   3            default:
+  474   3              ASSERT(FALSE);
+  475   3              break;
+  476   3          }
+  477   2        }
+  478   1        return (U8 XDATA_PTR)NULL;
+  479   1      }
+  480          
+  481          PUBLIC void PEQ_AllocateRealtimePEQParameterPtr(void)
+  482          {
+  483   1        if(gPeq_ctl.SetRealtimePEQ.sendToDspPtr == NULL)
+  484   1          gPeq_ctl.SetRealtimePEQ.sendToDspPtr = OSMEM_Get(OSMEM_ptr2_small_RX);
+  485   1      
+  486   1        if(gPeq_ctl.SetRealtimePEQ.sendToDspPtr == NULL)
+  487   1          gPeq_ctl.SetRealtimePEQ.sendToDspPtr = SYS_MemoryGet(sizeof(DSP_PEQ_HPF_PTR_STRU));
+  488   1        
+  489   1      
+  490   1      }
+  491          
+  492          PUBLIC void PEQ_SetPeqParameter(U8 component, U8 peqModeIndex, U8 sectorMode)
+  493          {
+  494   1        PEQ_SetModeIndex(component, peqModeIndex);
+  495   1        PEQ_SetSectorMode(component, sectorMode);
+  496   1      }
+  497          #endif
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+C251 COMPILER V5.57.0,  Peq_HPF                                                            08/11/20  06:32:46  PAGE 9   
+
+  code size            =    ------     ------
+  ecode size           =      2409     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =        15     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       123     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,62 @@
+#ifndef _STRUCT_DRIVER_RINGTONE_H_
+#define _STRUCT_DRIVER_RINGTONE_H_
+
+#include "cpu.h"
+#include "config.h"
+#include "crc16.h"
+
+#define RINGTONE_LIST					\
+		RTONEDEF(SHORT_1_NOTE_1)		\
+		RTONEDEF(SHORT_1_NOTE_2)		\
+		RTONEDEF(SHORT_1_NOTE_3)		\
+		RTONEDEF(SHORT_1_NOTE_4)		\
+		RTONEDEF(SHORT_2_NOTE)			\
+		RTONEDEF(MEDIAN_1_NOTE)			\
+		RTONEDEF(LONG_1_NOTE_HIGH)		\
+		RTONEDEF(LONG_1_NOTE_LOW)		\
+		RTONEDEF(VERYLONG_1_NOTE_HIGH)	\
+		RTONEDEF(VERYLONG_1_NOTE_LOW)	\
+		RTONEDEF(RISING_2_NOTE)			\
+		RTONEDEF(RISING_4_NOTE)			\
+		RTONEDEF(FALLING_2_NOTE)		\
+		RTONEDEF(FALLING_4_NOTE)		\
+		RTONEDEF(LONG_RING_A)			\
+		RTONEDEF(LONG_RING_B)			\
+		RTONEDEF(LONG_RING_C)			\
+		RTONEDEF(USER_DEFINED_A)		\
+
+#define RTONEDEF(name)	name,
+
+enum 
+{
+	RINGTONE_LIST
+	
+	/*config tool can extend user-defined data here*/
+
+	TOTAL_BEEP_PATTERNS,
+};
+
+#define TOTAL_BUILTIN_RINGTONE_LENGTH 350
+
+typedef struct
+{
+	U16 offset;
+	U16 dataLength;
+}RINGTONE_RECORD_TYPE;
+
+typedef struct driver_ringtone_data_st
+{
+	U16 totalRingtoneNo;	
+	RINGTONE_RECORD_TYPE ringtoneRecord[TOTAL_BEEP_PATTERNS];
+	U8 ringtoneData[TOTAL_BUILTIN_RINGTONE_LENGTH];
+}DRIVER_RINGTONE_DATA_TYPE;
+
+typedef struct
+{
+	DRIVER_RINGTONE_DATA_TYPE	driver_ringtone_data;
+
+	CRC16 CRC;
+	
+} SECTOR_DRIVER_RINGTONE_DATA_STRU;
+
+#endif

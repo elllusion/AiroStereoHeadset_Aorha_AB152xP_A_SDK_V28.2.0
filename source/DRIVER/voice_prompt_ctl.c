@@ -1,0 +1,295 @@
+
+#include "voice_prompt_ctl.h"
+
+#pragma userclass (HCONST = VO_DAT)
+
+
+/*
+Declare forward let linker locate default language control beginning from sector start
+*/
+extern VoiceLangCtl CODE gVoiceLangCtl[];
+
+
+#ifdef SUPPORT_VOICE_PROMPT
+///////////////////////////////////////////////////////////////////////////
+//
+// Voice Prompt Ctl - Chinese
+//
+///////////////////////////////////////////////////////////////////////////
+#if VOICE_LANG_CHI
+
+#undef VP_DAT_DEFINE
+#define VP_DAT_DEFINE(NAME)		VP_DAT_ENUM(_C, NAME),
+enum {
+#include "voice_prompt_data_1.h"
+};
+
+#undef VPD
+#define VPD(NAME)				VP_DAT_ENUM(_C, NAME)
+
+//
+// Voice Prompt Script Define
+//
+#define VP_SCP_DUMMY_C						VPB(0)
+#define VP_SCP_VOICE_PROMPT_LANG_CHANGE_C	VPD(CHINESE), VPD(VOICE_PROMPT)
+#define VP_SCP_VOICE_PROMPT_ON_C			VPD(ON), VPD(VOICE_PROMPT)
+#define VP_SCP_VOICE_PROMPT_OFF_C			VPD(OFF), VPD(VOICE_PROMPT)
+#define VP_SCP_MULTI_POINT_MODE_ON_C		VPD(ON), VPD(MULTI_POINT_MODE)
+#define VP_SCP_MULTI_POINT_MODE_OFF_C		VPD(OFF), VPD(MULTI_POINT_MODE)
+#define VP_SCP_MUTE_ON_C					VPD(ON), VPD(MUTE)
+#define VP_SCP_MUTE_OFF_C					VPD(OFF), VPD(MUTE)
+#define VP_SCP_POWER_ON_C					VPD(POWER_ON)
+#define VP_SCP_POWER_OFF_C					VPD(POWER_OFF)
+#define VP_SCP_PAIRING_C					VPD(PAIRING_MODE)
+#define VP_SCP_PAIRING_SUCCESSFUL_C			VPD(PAIRING), VPD(SUCCESSFUL)
+#define VP_SCP_CONNECTED_C					VPD(CONNECTED)
+#define VP_SCP_SECOND_DEVICE_CONNECTED_C	VPD(SECOND_DEVICE), VPD(CONNECT), VPD(SUCCESSFUL)
+#define VP_SCP_DEVICE_DISCONNECTED_C		VPD(CONNECT), VPD(DISCONNECTED)
+#define VP_SCP_INCOMING_CALL_C				VPD(INCOMING_CALL)
+#define VP_SCP_CALL_REJECTED_C				VPD(CALL_REJECTED)
+#define VP_SCP_CALL_CANCELLED_C				VPD(CALL), VPD(CANCELLED)
+#define VP_SCP_CALL_ENDED_C					VPD(CALL), VPD(ENDED)
+#define VP_SCP_RE_DIALING_C					VPD(RE_DIALING)
+#define VP_SCP_LOW_BATTERY_C				VPD(BATTERY), VPD(LOW), VPD(PLEASE_CHARGE)
+#define VP_SCP_BATTERY_IS_HIGH_C			VPD(BATTERY), VPD(HIGH)
+#define VP_SCP_BATTERY_IS_MEDIAN_C			VPD(BATTERY), VPD(MEDIAN)
+#define VP_SCP_BATTERY_IS_LOW_C				VPD(BATTERY), VPD(LOW)
+#define VP_SCP_VOLUME_MAXIMUM_C				VPD(VOLUME_MAXIMUM)
+#define VP_SCP_PAUSE_C						VPD(PAUSE)
+#define VP_SCP_LINE_IN_MODE_C				VPD(LINE_IN_MODE)
+#define VP_SCP_BLUETOOTH_MODE_C				VPD(BLUETOOTH_MODE)
+#define VP_SCP_FM_MODE_C					VPD(FM), VPD(FM_MODE)
+#define VP_SCP_SEEK_UP_C					VPD(FM), VPD(UP), VPD(SEEK)
+#define VP_SCP_SEEK_DOWN_C					VPD(FM), VPD(DOWN), VPD(SEEK)
+#define VP_SCP_LEFT_CHANNEL_C				VPD(LEFT), VPD(CHANNEL)
+#define VP_SCP_RIGHT_CHANNEL_C				VPD(RIGHT), VPD(CHANNEL)
+#ifdef SUPPORT_VOICE_COMMAND
+#define VP_SCP_WHAT_CAN_I_SAY_C				VPD(WHAT_CAN_I_SAY)
+#define VP_SCP_CONNECTION_STATUS_C			VPD(CONNECTION_STATUS)
+#define VP_SCP_CHECK_BATTERY_C				VPD(CHECK_BATTERY)
+#define VP_SCP_CANCEL_C						VPD(CANCEL)
+#define VP_SCP_VOICE_PROMPT_EXAMPLE_C		VPD(VOICE_PROMPT_EXAMPLE), VPD(PAIRING_FOR_VC), VPD(CANCEL), VPD(CHECK_BATTERY), VPD(CONNECTION_STATUS),VPD(LAST_CALL_OUT), VPD(RING_BACK), VPD(VOICE_DIAL_FOR_VC)
+#define VP_SCP_TAKE_THE_CALL_C				VPD(TAKE_THE_CALL)
+#define VP_SCP_REJECT_C						VPD(REJECT)
+#define VP_SCP_REJECT_PHONE_CALL_C			VPD(REJECT_PHONE_CALL)
+#define VP_SCP_PAIRING_FOR_VC_C				VPD(PAIRING_FOR_VC)
+#define VP_SCP_LAST_CALL_OUT_C				VPD(LAST_CALL_OUT)
+#define VP_SCP_VOICE_DIAL_FOR_VC_C			VPD(VOICE_DIAL_FOR_VC)
+#ifdef VC_MULTI_LAYER
+#define VP_SCP_VOICE_COMMAND_EXAMPE_SET0_C	VPD(VOICE_PROMPT_EXAMPLE),VPD(MAKE_A_CALL), VPD(CHECK_STATUS), VPD(PAIRING_FOR_VC), VPD(CANCEL), VPD(BEEP)
+#else
+#define VP_SCP_VOICE_COMMAND_EXAMPE_SET0_C	VPD(BEEP)
+#endif
+#define VP_SCP_VOICE_COMMAND_EXAMPE_SET1_C	VPD(VOICE_PROMPT_EXAMPLE),VPD(CHECK_BATTERY), VPD(CONNECTION_STATUS), VPD(CANCEL), VPD(BEEP)
+#define VP_SCP_VOICE_COMMAND_EXAMPE_SET2_C	VPD(VOICE_PROMPT_EXAMPLE),VPD(LAST_CALL_OUT), VPD(VOICE_DIAL_FOR_VC), VPD(RING_BACK), VPD(CANCEL), VPD(BEEP)
+#define VP_SCP_MAKE_A_CALL_C				VPD(MAKE_A_CALL)
+#define VP_SCP_CHECK_STATUS_C				VPD(CHECK_STATUS)
+#define VP_SCP_RING_BACK_C					VPD(RING_BACK)
+#define VP_SCP_BEEP_C						VPD(BEEP)
+#endif //SUPPORT_VOICE_COMMAND
+#define VP_SCP_INCOMING_CALL_ENDED_C		VPD(INCOMING_CALL), VPD(ENDED) 
+
+//
+// Script Data
+//
+#undef VP_EVT_DEFINE
+#define VP_EVT_DEFINE(NAME)		VP_SCP_DATA(_C, NAME)
+#include "voice_prompt_define.h"
+
+//
+// Script Offset Table
+//
+SCRIPT_OFFSET_TABLE(_C)
+
+#undef VP_EVT_DEFINE
+#define VP_EVT_DEFINE(NAME)		VP_SCP_OFFSET(_C, NAME),
+U16 CODE VP_TBL_DEF(_C, ScriptOffset)[] = {
+#include "voice_prompt_define.h"
+	VP_SCP_DATA_SIZE(_C)
+};
+
+//
+// Voice Prompt Data Offset Table
+//
+#undef VP_DAT_DEFINE
+#define VP_DAT_DEFINE(NAME)		VP_DAT_DECL(_C, NAME)
+#include "voice_prompt_data_1.h"
+
+#undef VP_DAT_DEFINE
+#define VP_DAT_DEFINE(NAME)		VP_DAT_DEF(_C, NAME),
+U8 CODE_PTR CODE VP_TBL_DEF(_C, DataOffset)[] = {
+#include "voice_prompt_data_1.h"
+};
+
+#endif //VOICE_LANG_CHI
+
+///////////////////////////////////////////////////////////////////////////
+//
+// Voice Prompt Ctl - English
+//
+///////////////////////////////////////////////////////////////////////////
+#if VOICE_LANG_ENG
+
+#undef VP_DAT_DEFINE
+#define VP_DAT_DEFINE(NAME)		VP_DAT_ENUM(_E, NAME),
+enum {
+#include "voice_prompt_data_2.h"
+};
+
+#undef VPD
+#define VPD(NAME)				VP_DAT_ENUM(_E, NAME)
+
+//
+// Voice Prompt Script Define
+//
+#define VP_SCP_DUMMY_E						VPB(0)
+#define VP_SCP_VOICE_PROMPT_LANG_CHANGE_E	VPD(ENGLISH), VPD(VOICE_PROMPT)
+#define VP_SCP_VOICE_PROMPT_ON_E			VPD(VOICE_PROMPT), VPD(ON)
+#define VP_SCP_VOICE_PROMPT_OFF_E			VPD(VOICE_PROMPT), VPD(OFF)
+#define VP_SCP_MULTI_POINT_MODE_ON_E		VPD(MULTI_POINT), VPD(MODE), VPD(ON)
+#define VP_SCP_MULTI_POINT_MODE_OFF_E		VPD(MULTI_POINT), VPD(MODE), VPD(OFF)
+#define VP_SCP_MUTE_ON_E					VPD(MUTE), VPD(ON)
+#define VP_SCP_MUTE_OFF_E					VPD(MUTE), VPD(OFF)
+#define VP_SCP_POWER_ON_E					VPD(POWER), VPD(ON)
+#define VP_SCP_POWER_OFF_E					VPD(POWER), VPD(OFF)
+#define VP_SCP_PAIRING_E					VPD(PAIRING)
+#define VP_SCP_PAIRING_SUCCESSFUL_E			VPD(PAIRING), VPD(SUCCESSFUL)
+#define VP_SCP_CONNECTED_E					VPD(CONNECTED)
+#define VP_SCP_SECOND_DEVICE_CONNECTED_E	VPD(SECOND), VPD(DEVICE), VPD(CONNECTED)
+#define VP_SCP_DEVICE_DISCONNECTED_E		VPD(DISCONNECTED)
+#define VP_SCP_INCOMING_CALL_E				VPD(INCOMING), VPD(CALL)
+#define VP_SCP_CALL_REJECTED_E				VPD(CALL), VPD(REJECTED)
+#define VP_SCP_CALL_CANCELLED_E				VPD(CALL), VPD(CANCELLED)
+#define VP_SCP_CALL_ENDED_E					VPD(CALL), VPD(ENDED)
+#define VP_SCP_RE_DIALING_E					VPD(RE_DIALING)
+#define VP_SCP_LOW_BATTERY_E				VPD(LOW), VPD(BATTERY), VPD(PLEASE_CHARGE)
+#define VP_SCP_BATTERY_IS_HIGH_E			VPD(BATTERY), VPD(LEVEL), VPD(HIGH)
+#define VP_SCP_BATTERY_IS_MEDIAN_E			VPD(BATTERY), VPD(LEVEL), VPD(MEDIAN)
+#define VP_SCP_BATTERY_IS_LOW_E				VPD(BATTERY), VPD(LEVEL), VPD(LOW)
+#define VP_SCP_VOLUME_MAXIMUM_E				VPD(VOLUME), VPD(MAXIMUM)
+#define VP_SCP_PAUSE_E						VPD(PAUSE)
+#define VP_SCP_LINE_IN_MODE_E				VPD(LINE_IN), VPD(MODE)
+#define VP_SCP_BLUETOOTH_MODE_E				VPD(BLUETOOTH), VPD(MODE)
+#define VP_SCP_FM_MODE_E					VPD(FM_RADIO), VPD(MODE)
+#define VP_SCP_SEEK_UP_E					VPD(SEEK), VPD(UP)
+#define VP_SCP_SEEK_DOWN_E					VPD(SEEK), VPD(DOWN)
+#define VP_SCP_LEFT_CHANNEL_E				VPD(LEFT), VPD(CHANNEL)
+#define VP_SCP_RIGHT_CHANNEL_E				VPD(RIGHT), VPD(CHANNEL)
+#ifdef SUPPORT_VOICE_COMMAND
+#define VP_SCP_WHAT_CAN_I_SAY_E				VPD(WHAT_CAN_I_SAY)
+#define VP_SCP_CONNECTION_STATUS_E			VPD(CONNECTION_STATUS)
+#define VP_SCP_CHECK_BATTERY_E				VPD(CHECK_BATTERY)
+#define VP_SCP_CANCEL_E						VPD(CANCEL)
+#define VP_SCP_VOICE_PROMPT_EXAMPLE_E		VPD(VOICE_PROMPT_EXAMPLE), VPD(PAIRING_FOR_VC), VPD(CANCEL), VPD(CHECK_BATTERY), VPD(CONNECTION_STATUS),VPD(LAST_CALL_OUT), VPD(RING_BACK), VPD(VOICE_DIAL_FOR_VC)
+#define VP_SCP_TAKE_THE_CALL_E				VPD(TAKE_THE_CALL)
+#define VP_SCP_REJECT_E						VPD(REJECT)
+#define VP_SCP_REJECT_PHONE_CALL_E			VPD(REJECT_PHONE_CALL)
+#define VP_SCP_PAIRING_FOR_VC_E				VPD(PAIRING_FOR_VC)
+#define VP_SCP_LAST_CALL_OUT_E				VPD(LAST_CALL_OUT)
+#define VP_SCP_VOICE_DIAL_FOR_VC_E			VPD(VOICE_DIAL_FOR_VC)
+#ifdef VC_MULTI_LAYER
+#define VP_SCP_VOICE_COMMAND_EXAMPE_SET0_E	VPD(VOICE_PROMPT_EXAMPLE),VPD(MAKE_A_CALL), VPD(CHECK_STATUS), VPD(PAIRING_FOR_VC), VPD(CANCEL), VPD(BEEP)
+#else
+#define VP_SCP_VOICE_COMMAND_EXAMPE_SET0_E	VPD(BEEP)
+#endif
+#define VP_SCP_VOICE_COMMAND_EXAMPE_SET1_E	VPD(VOICE_PROMPT_EXAMPLE),VPD(CHECK_BATTERY), VPD(CONNECTION_STATUS), VPD(CANCEL)
+#define VP_SCP_VOICE_COMMAND_EXAMPE_SET2_E	VPD(VOICE_PROMPT_EXAMPLE),VPD(LAST_CALL_OUT), VPD(VOICE_DIAL_FOR_VC), VPD(RING_BACK), VPD(CANCEL)
+#define VP_SCP_MAKE_A_CALL_E				VPD(MAKE_A_CALL)
+#define VP_SCP_CHECK_STATUS_E				VPD(CHECK_STATUS)
+#define VP_SCP_RING_BACK_E					VPD(RING_BACK)
+#define VP_SCP_BEEP_E						VPD(BEEP)
+#endif //SUPPORT_VOICE_COMMAND
+#define VP_SCP_INCOMING_CALL_ENDED_E		VPD(INCOMING), VPD(CALL), VPD(ENDED)
+
+//
+// Script Data
+//
+#undef VP_EVT_DEFINE
+#define VP_EVT_DEFINE(NAME)		VP_SCP_DATA(_E, NAME)
+#include "voice_prompt_define.h"
+
+//
+// Script Offset Table
+//
+SCRIPT_OFFSET_TABLE(_E)
+
+#undef VP_EVT_DEFINE
+#define VP_EVT_DEFINE(NAME)		VP_SCP_OFFSET(_E, NAME),
+U16 CODE VP_TBL_DEF(_E, ScriptOffset)[] = {
+#include "voice_prompt_define.h"
+	VP_SCP_DATA_SIZE(_E)
+};
+
+//
+// Voice Prompt Data Offset Table
+//
+#undef VP_DAT_DEFINE
+#define VP_DAT_DEFINE(NAME)		VP_DAT_DECL(_E, NAME)
+#include "voice_prompt_data_2.h"
+
+#undef VP_DAT_DEFINE
+#define VP_DAT_DEFINE(NAME)		VP_DAT_DEF(_E, NAME),
+U8 CODE_PTR CODE VP_TBL_DEF(_E, DataOffset)[] = {
+#include "voice_prompt_data_2.h"
+};
+
+#endif //VOICE_LANG_ENG
+
+#endif //SUPPORT_VOICE_PROMPT
+
+
+///////////////////////////////////////////////////////////////////////////
+//
+// Voice Language Ctl Table
+//
+///////////////////////////////////////////////////////////////////////////
+#if defined(SUPPORT_VOICE_PROMPT) || defined(SUPPORT_VOICE_COMMAND)
+VoiceLangCtl CODE gVoiceLangCtl[LANG_COUNT] =
+{
+#if VOICE_LANG_CHI
+	{
+		#ifdef SUPPORT_VOICE_PROMPT
+		(U8 GENERIC_PTR)VP_TBL_DEF(_C, ScriptOffset),
+		(U8 GENERIC_PTR)VP_SCP_DEF(_C, DUMMY),
+		(U8 GENERIC_PTR)VP_TBL_DEF(_C, DataOffset),
+		sizeof(VP_TBL_DEF(_C, ScriptOffset)) / sizeof(U16),
+		VP_SCP_DATA_SIZE(_C) / sizeof(U8),
+		sizeof(VP_TBL_DEF(_C, DataOffset)) / sizeof(U8 CODE_PTR),
+		#else
+		(U8 GENERIC_PTR) NULL,
+		(U8 GENERIC_PTR) NULL,
+		(U8 GENERIC_PTR) NULL,
+		0,		
+		0,
+		0,
+		#endif
+		{0x43, 0x48, 0x49}, 
+		(U32) NULL,	/*reserve*/
+		(U32) NULL,	/*reserve*/
+	},
+#endif
+#if VOICE_LANG_ENG
+	{
+		#ifdef SUPPORT_VOICE_PROMPT
+		(U8 GENERIC_PTR)VP_TBL_DEF(_E, ScriptOffset),
+		(U8 GENERIC_PTR)VP_SCP_DEF(_E, DUMMY),
+		(U8 GENERIC_PTR)VP_TBL_DEF(_E, DataOffset),
+		sizeof(VP_TBL_DEF(_E, ScriptOffset)) / sizeof(U16),
+		VP_SCP_DATA_SIZE(_E) / sizeof(U8),
+		sizeof(VP_TBL_DEF(_E, DataOffset)) / sizeof(U8 CODE_PTR),
+		#else
+		(U8 GENERIC_PTR) NULL,
+		(U8 GENERIC_PTR) NULL,
+		(U8 GENERIC_PTR) NULL,
+		0,		
+		0,
+		0,
+		#endif
+		{0x45, 0x4E, 0x47}, //lang info
+		(U32) NULL,	/*reserve*/
+		(U32) NULL,	/*reserve*/
+	},
+#endif
+};
+
+#endif //defined(SUPPORT_VOICE_PROMPT) || defined(SUPPORT_VOICE_COMMAND)

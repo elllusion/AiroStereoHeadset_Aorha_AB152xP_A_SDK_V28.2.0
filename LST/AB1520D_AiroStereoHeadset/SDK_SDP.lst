@@ -1,0 +1,205 @@
+C251 COMPILER V5.57.0,  SDK_SDP                                                            08/11/20  06:34:44  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE SDK_SDP
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\SDK_SDP.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SDK\Profile\SDK_SDP.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE
+                    -) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.
+                    -\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\so
+                    -urce\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MM
+                    -I_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\Dsp
+                    -Data;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(F
+                    -LASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoHeads
+                    -et\SDK_SDP.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\SDK_SDP.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #define __SDK_SDP_C__
+    4          
+    5          #include "rc.h"
+    6          #include "..\SDK_Proxy\SDK_Proxy.h"
+    7          #include "..\SDK\include\SDK_Config.h"
+    8          
+    9          #if SDK_SDP_PROFILE
+               #include "..\SDK\include\SDK_SDP.h"
+               #include "..\MMI\MMI_base.h"
+               #include "..\MMI\MMI_SDAP.h"
+               #include "..\MMI\MMI_PSM.h"
+               #include "..\MMI\MMI_Protocol.h"
+               #include "..\SDAP\SDAP_Interface.h" 
+               
+               typedef struct
+               {
+                 U8 profileSCN;
+                 U8 profileID;
+                 U32 XDATA_PTR serviceRecordHandle;
+               }SDK_SDP_CTL;
+               
+               SDK_SDP_CTL XDATA gSDK_sdpCtl[MAX_MULTI_POINT_NO];
+               
+               PUBLIC BOOL SDK_SDP_ProfileConnect(U8 linkIndex)
+               {
+                 return MMI_SDAP_UseStatusRegister(linkIndex, SDP_USE_BY_SDK);
+               }
+               
+               PUBLIC void SDK_SDP_ProfileDisconnect(U8 linkIndex)
+               {
+                 MMI_SDAP_UseStatusDeRegister(linkIndex, SDP_USE_BY_SDK);
+               }
+               
+               PUBLIC void SDK_SDP_ServiceHandler(U8 linkIndex)
+               {
+                 /*==================================Sample Code Start===========================================
+                 SDK_SDP_SendServiceSearchReq(linkIndex, SERVICE_UUID_HANDSFREE_AG);
+               
+                 SDK_SDP_SendAttributeSearchReq(linkIndex, *gSDK_sdpCtl[linkIndex].serviceRecordHandle, ATTRID_ServiceRec
+             -ordHandle, ATTRID_ServiceId);
+               
+                 SDK_SDP_SendServiceSearchAttributeReq(linkIndex, SERVICE_UUID_HANDSFREE_AG, ATTRID_ProtocolDescriptorLis
+             -t);
+               
+                 MMI_ConnectProfile(linkIndex, PROFILE_HANDSFREE);
+               
+                 //SDK_SDP_ProfileDisconnect(linkIndex);
+                 /*==================================Sample Code End=============================================*/
+                 UNUSED(linkIndex);
+               }
+C251 COMPILER V5.57.0,  SDK_SDP                                                            08/11/20  06:34:44  PAGE 2   
+
+               
+               PUBLIC void SDK_SDP_SendServiceSearchReq(U8 linkIndex, U16 uuid16)
+               {
+                 MMI_SDAP_SendServiceSearchReq(linkIndex, uuid16, SDP_USE_BY_SDK);
+               }
+               
+               PUBLIC void SDK_SDP_SendAttributeSearchReq(U8 linkIndex, U32 serviceRecordHandle, U16 attributeId1, U16 a
+             -ttributeId2)
+               {
+                 MMI_SDAP_SendAttributeSearchReq(linkIndex, serviceRecordHandle, attributeId1, attributeId2, SDP_USE_BY_S
+             -DK);
+               }
+               
+               PUBLIC void SDK_SDP_SendServiceSearchAttributeReq(U8 linkIndex, U16 uuid16, U16 attirbuteId)
+               {
+                 MMI_SDAP_SendServiceSearchAttributeReq(linkIndex, uuid16, attirbuteId, SDP_USE_BY_SDK);
+               }
+               
+               PUBLIC void SDK_SDP_ServiceSearchCallback(U8 XDATA_PTR sdpRspPtr)
+               {
+                 U8 linkIndex = ((SdapEvent XDATA_PTR)sdpRspPtr)->eventBody.sssCompleteEvent.linkIndex;
+                 U8 useType = MMI_SDAP_UseStatusFindInUsed(linkIndex);
+               
+                 gSDK_sdpCtl[linkIndex].serviceRecordHandle = MMI_SDAP_ParseServiceRecordHandle(sdpRspPtr);
+               
+                 OSMEM_Put(sdpRspPtr);
+                 
+                 if(useType != SDP_USER_EOF)
+                 {
+                   MMI_SDAP_UseStatusUseFinish(linkIndex, useType);
+                   MMI_SDAP_UseStatusSetWaitCmd(linkIndex, MMI_SDAP_UseStatusFindInUsed(linkIndex));
+                 }
+                 SDK_SDP_ServiceHandler(linkIndex);
+               }
+               
+               PUBLIC void SDK_SDP_AttributeSearchCallback(U8 XDATA_PTR sdpRspPtr)
+               {
+                 U8 linkIndex = ((SdapEvent XDATA_PTR)sdpRspPtr)->eventBody.sssCompleteEvent.linkIndex;
+                 U8 useType = MMI_SDAP_UseStatusFindInUsed(linkIndex);
+               
+                 SDK_SDP_ServiceHandler(linkIndex);
+                 
+                 OSMEM_Put(sdpRspPtr);
+                 
+                 if(useType != SDP_USER_EOF)
+                 {
+                   MMI_SDAP_UseStatusUseFinish(linkIndex, useType);
+                   MMI_SDAP_UseStatusSetWaitCmd(linkIndex, MMI_SDAP_UseStatusFindInUsed(linkIndex));
+                 }
+                 SDK_SDP_ServiceHandler(linkIndex);
+               }
+               
+               PUBLIC void SDK_SDP_ServiceSearchAttributeCallback(U8 XDATA_PTR sdpRspPtr)
+               {
+                 U8 linkIndex = ((SdapEvent XDATA_PTR)sdpRspPtr)->eventBody.sssCompleteEvent.linkIndex;
+                 U8 useType = MMI_SDAP_UseStatusFindInUsed(linkIndex);
+                 
+                 /*=============================Sample Code Start=============================
+                 U8 profileID = PROFILE_HANDSFREE;
+                 U8 scn = MMI_SDAP_ParseRemoteScn(sdpRspPtr, PSM_RFCOMM);
+                 
+                 if(!MMI_SDAP_SetProfileSCN(linkIndex, profileID, scn))
+                 {
+                   gSDK_sdpCtl[linkIndex].profileSCN = scn;
+                   gSDK_sdpCtl[linkIndex].profileID = profileID;
+                 }
+C251 COMPILER V5.57.0,  SDK_SDP                                                            08/11/20  06:34:44  PAGE 3   
+
+                 /*===============================Sample Code End=============================*/
+               
+                 SDK_SDP_ServiceHandler(linkIndex);
+                 
+                 OSMEM_Put(sdpRspPtr);
+                 
+                 if(useType != SDP_USER_EOF)
+                 {
+                   MMI_SDAP_UseStatusUseFinish(linkIndex, useType);
+                   MMI_SDAP_UseStatusSetWaitCmd(linkIndex, MMI_SDAP_UseStatusFindInUsed(linkIndex));
+                 }
+                 SDK_SDP_ServiceHandler(linkIndex);
+               }
+               
+               PUBLIC void SDK_SDP_ClearCtlData(U8 linkIndex)
+               {
+                 OSMEM_memset_xdata((U8 XDATA_PTR)&gSDK_sdpCtl[linkIndex], 0 , sizeof(SDK_SDP_CTL));
+               }
+               
+               PUBLIC U8 SDK_SDP_GetServiceProfileSCN(U8 linkIndex, U8 profileID)
+               {
+                 if(gSDK_sdpCtl[linkIndex].profileID == profileID)
+                   return gSDK_sdpCtl[linkIndex].profileSCN;
+                 else
+                   return 0;
+               }
+               #endif
+  142          
+  143          PUBLIC void SDK_SDP_Init(void)
+  144          {
+  145   1        #if SDK_SDP_PROFILE
+                 SDK_Proxy_RegisterAPI(API_GRP_PF_CB_SDP_SERVICE_HANDLER, API_GRP_PROFILE, (VFUN)SDK_SDP_ServiceHandler);
+                 SDK_Proxy_RegisterAPI(API_GRP_PF_CB_SDP_SERVICE_SEARCH, API_GRP_PROFILE, (VFUN)SDK_SDP_ServiceSearchCall
+             -back);
+                 SDK_Proxy_RegisterAPI(API_GRP_PF_CB_SDP_ATTRIBUTE_SEARCH, API_GRP_PROFILE, (VFUN)SDK_SDP_AttributeSearch
+             -Callback);
+                 SDK_Proxy_RegisterAPI(API_GRP_PF_CB_SDP_SERVICE_SEARCH_ATTRIBUTE, API_GRP_PROFILE, (VFUN)SDK_SDP_Service
+             -SearchAttributeCallback);
+                 SDK_Proxy_RegisterAPI(API_GRP_PF_CB_SDP_CLEAR_CTL_DATA, API_GRP_PROFILE, (VFUN)SDK_SDP_ClearCtlData);
+                 SDK_Proxy_RegisterAPI(API_GRP_PF_CB_SDP_GET_SERVICE_PROFILESCN, API_GRP_PROFILE, (VFUN)SDK_SDP_GetServic
+             -eProfileSCN);
+                 #endif
+  153   1      }
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =         1     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =    ------     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

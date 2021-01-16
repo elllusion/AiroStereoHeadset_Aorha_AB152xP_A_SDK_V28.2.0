@@ -1,0 +1,274 @@
+C251 COMPILER V5.57.0,  voice_command_ctl                                                  08/11/20  05:51:42  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE voice_command_ctl
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\voice_command_ctl.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\DRIVER\voice_command_ctl.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM
+                    -(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source
+                    -\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL
+                    -;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\R
+                    -OM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTO
+                    -R\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEF
+                    -INE(FLASH_INIT=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520C_AiroStereo
+                    -Headset\voice_command_ctl.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\voice_command_ctl.obj) 
+
+stmt  level    source
+
+    1          //////////////////////////////////////////////////////////
+    2          // Copyright@ 2011 Airoha.  All right reserved.
+    3          //////////////////////////////////////////////////////////
+    4          #include <config.h>
+    5          #include <cpu.h>
+    6          
+    7          #include "bt_config_profile.h"
+    8          #include "voice_command_ctl.h"
+    9          #include "..\MMI\MMI_event_opcode.h"
+   10          
+   11          #pragma userclass (HCONST = VO_DAT)
+   12          
+   13          
+   14          #ifdef SUPPORT_VOICE_COMMAND
+   15          
+   16          #if VC_PLAN_MODEL
+   17          #pragma INCDIR(.\source\DRIVER\VC_DATA\PLAN)
+   18          #else
+               #pragma INCDIR(.\source\DRIVER\VC_DATA\AIROHA)
+               #endif
+   21          
+   22          #define VC_EVT_DEFINE(NAME) VC_EVT_##NAME,
+   23          enum
+   24          {
+   25            #include <vc_evt_define.h>
+   26          };
+   27          
+   28          #undef VC_EVT_DEFINE
+   29          #define VC_EVT_DEFINE(NAME)       VC_EVT_##NAME##_EVT_BIT = (0x00000001L << (VC_EVT_##NAME)),
+   30          enum
+   31          {
+   32            #include <vc_evt_define.h>
+   33          };
+   34          #undef VC_EVT_DEFINE
+   35          
+   36          #include "sector_mmi_nvram_type.h"
+   37          #define VC_MMI_OFF                         (U32)1<<MMI_OFF
+   38          #define VC_MMI_CONDISCABLE                 (U32)1<<MMI_CONDISCABLE
+   39          #define VC_MMI_CONNECTABLE                 (U32)1<<MMI_CONNECTABLE
+   40          #define VC_MMI_CONNECTED                   (U32)1<<MMI_CONNECTED
+   41          #define VC_MMI_HFP_INCOMMING               (U32)1<<MMI_HFP_INCOMMING
+   42          #define VC_MMI_HFP_OUTGOING                (U32)1<<MMI_HFP_OUTGOING
+   43          #define VC_MMI_HFP_CALLACTIVE              (U32)1<<MMI_HFP_CALLACTIVE
+   44          #define VC_MMI_HFP_CALLACTIVE_WITHOUT_SCO  (U32)1<<MMI_HFP_CALLACTIVE_WITHOUT_SCO
+   45          #define VC_MMI_HFP_CAIMG                   (U32)1<<MMI_HFP_CAIMG
+   46          #define VC_MMI_HFP_CAOGG                   (U32)1<<MMI_HFP_CAOGG
+   47          #define VC_MMI_HFP_CAMULTY                 (U32)1<<MMI_HFP_CAMULTY
+   48          #define VC_MMI_FAKEON                      (U32)1<<MMI_FAKEON   
+   49          #define VC_MMI_FAKEOFF                     (U32)1<<MMI_FAKEOFF
+   50          #define VC_MMI_DETACHING_LINK              (U32)1<<MMI_DETACHING_LINK
+   51          #define VC_MMI_TEST_MODE                   (U32)1<<MMI_TEST_MODE
+   52          #define VC_MMI_FM                         (U32)1<<MMI_FM
+C251 COMPILER V5.57.0,  voice_command_ctl                                                  08/11/20  05:51:42  PAGE 2   
+
+   53          #define VC_MMI_LINE_IN                      (U32)1<<MMI_LINE_IN
+   54          #define VC_MMI_EEPROM_UPDATING              (U32)1<<MMI_UPDATING
+   55          #define VC_MMI_EEPROM_UPDATED_OK          (U32)1<<MMI_UPDATED_OK
+   56          #define VC_MMI_EEPROM_UPDATED_FAIL          (U32)1<<MMI_UPDATED_FAIL
+   57          #define VC_MMI_VOICE_PROMPT_LANG_SELECT (U32)1<<MMI_VOICE_PROMPT_LANG_SELECT
+   58          #define VC_MMI_TWS_PAIRING          (U32)1<<MMI_TWS_PAIRING
+   59          
+   60          #define VC_MMI_ALL_STATES 0xFFFFFFFF
+   61          
+   62          
+   63          
+   64          #if VOICE_LANG_CHI
+   65          extern U16 CODE dataBase_C[];
+   66          extern DRIVER_VOICE_COMMAND_EVT_DATA_MAP_TYPE CODE gVoiceCommand_CHINESE_EvtDataMap;
+   67          #endif
+   68          
+   69          #if VOICE_LANG_ENG
+   70          extern U16 CODE dataBase_E[];
+   71          extern DRIVER_VOICE_COMMAND_EVT_DATA_MAP_TYPE CODE gVoiceCommand_ENGLISH_EvtDataMap;
+   72          #endif
+   73          
+   74          SECTOR_DRIVER_VOICE_COMMAND_STRU CODE gDriverVoiceCommandData =
+   75          { 
+   76            { 
+   77              {
+   78                {
+   79                #if VOICE_LANG_CHI
+   80                  (U8 GENERIC_PTR) &dataBase_C,
+   81                  (U8 GENERIC_PTR) &gVoiceCommand_CHINESE_EvtDataMap,
+   82                #else
+                       (U8 GENERIC_PTR) NULL,
+                       (U8 GENERIC_PTR) NULL,
+                     #endif
+   86                },
+   87                {
+   88                #if VOICE_LANG_ENG
+   89                  (U8 GENERIC_PTR) &dataBase_E, 
+   90                  (U8 GENERIC_PTR) &gVoiceCommand_ENGLISH_EvtDataMap,
+   91                #else
+                       (U8 GENERIC_PTR) NULL,
+                       (U8 GENERIC_PTR) NULL,
+                     #endif
+   95                },
+   96              },
+   97              TOTAL_VOICE_COMMAND_EVENTS,//eventNo
+   98              VOICE_COMMAND_TRIGGERED_ACTION_PATTERN,     //actionPatternNo
+   99              0,  //reserved
+  100              #if VC_PLAN_MODEL
+  101              {
+  102              NO_SECOND_LAYER_DATABASE_ROOT_INDEX,
+  103              NO_SECOND_LAYER_DATABASE_ROOT_INDEX,
+  104              NO_SECOND_LAYER_DATABASE_ROOT_INDEX
+  105              },
+  106              #else
+                   {
+                   VC_EVT_WHAT_CAN_I_SAY,
+                   VC_EVT_CHECK_STATUS,
+                   VC_EVT_MAKE_A_CALL
+                   },
+                   #endif
+  113              {
+  114                #ifdef TWS_SETTINGS
+  115                {MEDIA_EVT_KEY_VOICE_COMMAND_ENABLE, 0, VC_MMI_CONDISCABLE|VC_MMI_CONNECTABLE|VC_MMI_CONNECTED |VC_MMI
+             -_TWS_PAIRING , 0}, //SET0
+  116                #else
+                     {MEDIA_EVT_KEY_VOICE_COMMAND_ENABLE, 0, VC_MMI_CONDISCABLE|VC_MMI_CONNECTABLE|VC_MMI_CONNECTED, 0}, //
+C251 COMPILER V5.57.0,  voice_command_ctl                                                  08/11/20  05:51:42  PAGE 3   
+
+             -SET0
+                     #endif
+  119                {MEDIA_EVT_ENTER_INCOMING, 1, VC_MMI_HFP_INCOMMING, 1},       //SET1
+  120                {MEDIA_EVT_VOICE_COMMAND_MULTILAYER_TRIGGER, 0, VC_MMI_CONDISCABLE|VC_MMI_CONNECTABLE|VC_MMI_CONNECTED
+             -, 0},  //SET0
+  121              },
+  122              {
+  123              #if VC_PLAN_MODEL
+  124                { //SET0
+  125                  { 
+  126                    VC_EVT_PAIRING_EVT_BIT | VC_EVT_CHECK_BATTERY_EVT_BIT | VC_EVT_AM_I_CONNECTED_EVT_BIT | VC_EVT_LAST_
+             -CALL_OUT_EVT_BIT | VC_EVT_WHAT_CAN_I_SAY_EVT_BIT | VC_EVT_CANCEL_EVT_BIT,
+  127                    VC_EVT_PAIRING_EVT_BIT | VC_EVT_CHECK_BATTERY_EVT_BIT | VC_EVT_AM_I_CONNECTED_EVT_BIT | VC_EVT_LAST_
+             -CALL_OUT_EVT_BIT | VC_EVT_WHAT_CAN_I_SAY_EVT_BIT | VC_EVT_CANCEL_EVT_BIT, 
+  128                    VC_EVT_PAIRING_EVT_BIT | VC_EVT_CHECK_BATTERY_EVT_BIT | VC_EVT_AM_I_CONNECTED_EVT_BIT | VC_EVT_LAST_
+             -CALL_OUT_EVT_BIT | VC_EVT_WHAT_CAN_I_SAY_EVT_BIT | VC_EVT_CANCEL_EVT_BIT
+  129                  },
+  130                  {
+  131                    KEY_DISCOVERABLE,         /*VC_EVT_PAIRING*/
+  132                    KEY_CHECK_BATTERY_STATUS,   /*VC_EVT_CHECK_BATTERY*/
+  133                    KEY_CHECK_STATUS_OF_CONNECTION, /*VC_EVT_AM_I_CONNECTED*/
+  134                    KEY_RDIAL,              /*VC_EVT_LAST_CALL_OUT*/
+  135                    KEY_WHAT_CAN_I_SAY,       /*VC_EVT_WHAT_CAN_I_SAY*/
+  136                    0,                  /*VC_EVT_TAKE_THE_CALL*/
+  137                    0,                  /*VC_EVT_REJECT*/ 
+  138                    KEY_VOICE_COMMAND_CANCEL,   /*VC_EVT_CANCEL*/ 
+  139                    0,                
+  140                    0, 
+  141                    0, 
+  142                  }
+  143                },
+  144                { //SET1
+  145                  { 
+  146                    VC_EVT_TAKE_THE_CALL_EVT_BIT | VC_EVT_REJECT_EVT_BIT, 
+  147                    VC_EVT_TAKE_THE_CALL_EVT_BIT | VC_EVT_REJECT_EVT_BIT, 
+  148                    VC_EVT_TAKE_THE_CALL_EVT_BIT | VC_EVT_REJECT_EVT_BIT
+  149                  },
+  150                  {
+  151                    0,                /*VC_EVT_PAIRING*/
+  152                    0,                /*VC_EVT_CHECK_BATTERY*/
+  153                    0,                /*VC_EVT_AM_I_CONNECTED*/
+  154                    0,                /*VC_EVT_LAST_CALL_OUT*/
+  155                    0,                /*VC_EVT_WHAT_CAN_I_SAY*/
+  156                    KEY_ACPCALL,          /*VC_EVT_TAKE_THE_CALL*/
+  157                    KEY_REJCALL,            /*VC_EVT_REJECT*/ 
+  158                    0,                /*VC_EVT_CANCEL*/ 
+  159                    0,                
+  160                    0, 
+  161                    0,
+  162                  }
+  163                },  
+  164              #else
+                     { //SET0
+                       { 
+                         VC_EVT_CANCEL_EVT_BIT | VC_EVT_PAIRING_EVT_BIT | VC_EVT_CHECK_STATUS_EVT_BIT | VC_EVT_MAKE_A_CALL_EV
+             -T_BIT |  VC_EVT_WHAT_CAN_I_SAY_EVT_BIT | VC_EVT_CONNECTION_STATUS_EVT_BIT | VC_EVT_CHECK_BATTERY_EVT_BIT|  VC_EVT_RING_B
+             -ACK_EVT_BIT | VC_EVT_VOICE_DIAL_EVT_BIT | VC_EVT_LAST_CALL_OUT_EVT_BIT, 
+                         VC_EVT_CANCEL_EVT_BIT | VC_EVT_CONNECTION_STATUS_EVT_BIT | VC_EVT_CHECK_BATTERY_EVT_BIT, 
+                         VC_EVT_CANCEL_EVT_BIT |  VC_EVT_RING_BACK_EVT_BIT | VC_EVT_VOICE_DIAL_EVT_BIT | VC_EVT_LAST_CALL_OUT
+             -_EVT_BIT
+                       },
+                       {
+                         KEY_DISCOVERABLE,         /*VC_EVT_PAIRING*/
+                         KEY_CHECK_STATUS,         /*VC_EVT_CHECK_STATUS*/
+                         KEY_VOICE_MAKE_A_CALL,        /*VC_EVT_MAKE_A_CALL*/
+                         KEY_CHECK_BATTERY_STATUS,     /*VC_EVT_BATTERY_LEVEL*/
+C251 COMPILER V5.57.0,  voice_command_ctl                                                  08/11/20  05:51:42  PAGE 4   
+
+                         KEY_CHECK_BATTERY_STATUS,   /*VC_EVT_CHECK_BATTERY*/
+                         KEY_CHECK_STATUS_OF_CONNECTION, /*VC_EVT_CONNECTION_STATUS*/
+                         KEY_RDIAL,            /*VC_EVT_LAST_CALL_OUT*/ 
+                         KEY_SET_VOICE_RECOGNITION,    /*VC_EVT_VOICE_DIAL*/ 
+                         KEY_DIALNUM,            /*VC_EVT_RING_BACK*/
+                         KEY_WHAT_CAN_I_SAY,       /*VC_EVT_WHAT_CAN_I_SAY*/
+                         0,                /*VC_EVT_TAKE_THE_CALL*/ 
+                         0,                /*VC_EVT_REJECT*/
+                         KEY_VOICE_COMMAND_CANCEL,     /*VC_EVT_CANCEL*/
+                         0, 
+                         0, 
+                       }
+                     },
+                     { //SET1
+                       { VC_EVT_TAKE_THE_CALL_EVT_BIT | VC_EVT_REJECT_EVT_BIT, 
+                         VC_EVT_TAKE_THE_CALL_EVT_BIT | VC_EVT_REJECT_EVT_BIT, 
+                         VC_EVT_TAKE_THE_CALL_EVT_BIT | VC_EVT_REJECT_EVT_BIT
+                       },
+                       {
+                         0,                /*VC_EVT_PAIRING*/
+                         0,                /*VC_EVT_CHECK_STATUS*/
+                         0,                /*VC_EVT_MAKE_A_CALL*/
+                         0,                /*VC_EVT_BATTERY_LEVEL*/
+                         0,                /*VC_EVT_CHECK_BATTERY*/
+                         0,                /*VC_EVT_CONNECTION_STATUS*/
+                         0,                /*VC_EVT_LAST_CALL_OUT*/ 
+                         0,                /*VC_EVT_VOICE_DIAL*/ 
+                         0,                /*VC_EVT_RING_BACK*/
+                         0,                /*VC_EVT_WHAT_CAN_I_SAY*/
+                         KEY_ACPCALL,          /*VC_EVT_TAKE_THE_CALL*/ 
+                         KEY_REJCALL,            /*VC_EVT_REJECT*/
+                         0,                /*VC_EVT_CANCEL*/
+                         0, 
+                         0, 
+                       }
+                     },
+                   #endif
+  213              },
+  214            },
+  215              //- CRC
+  216              {0,0}
+  217          };
+  218          
+  219          #endif //#ifdef SUPPORT_VOICE_COMMAND
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       336     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

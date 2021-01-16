@@ -1,0 +1,36 @@
+#define DIGITAL_GAIN_BOUND 5
+
+#define DIGITAL_GAIN_MAX_VALUE	123
+#define DIGITAL_GAIN_MIN_VALUE	1
+#define DIGITAL_GAIN_MUTE_VALUE	0
+
+
+#define DEMOSOUND_LINKINDEX		0x0A
+
+PUBLIC void DRIVER_SendAppIdleToMailBox(void);
+PUBLIC void DRIVER_ReleaseBackUpAppCmd(void);
+
+PUBLIC U8 DRIVER_SCOCmdHandler1520(DriverMsg XDATA_PTR msgPtr);
+PUBLIC U8 DRIVER_A2DPCmdHandler1520(DriverMsg XDATA_PTR msgPtr);
+PUBLIC U8 DRIVER_LineInCmdHandler1520(DriverMsg XDATA_PTR msgPtr);
+PUBLIC U8 DRIVER_StopDSPCmdHandler1520(DriverMsg XDATA_PTR msgPtr);
+PUBLIC U8 DRIVER_StopLineInCmdHandler1520(DriverMsg XDATA_PTR msgPtr);
+PUBLIC U8 DRIVER_StopDSPPowerOffCmdHandler1520(DriverMsg XDATA_PTR msgPtr);
+PUBLIC U8 DRIVER_SuspendDSPCmdHandler1520(DriverMsg XDATA_PTR msgPtr);
+PUBLIC U8 DRIVER_CloseAllAudioHandler1520(DriverMsg XDATA_PTR msgPtr);
+PUBLIC U8 DRIVER_DSPRefGain1520(DriverMsg XDATA_PTR msgPtr);
+PUBLIC U8 DRIVER_DSPSoundEffect1520(DriverMsg XDATA_PTR msgPtr);
+PUBLIC U8 DRIVER_DSPDBBOnOff1520(DriverMsg XDATA_PTR msgPtr);
+PUBLIC U8 DRIVER_A2DPAddMicHandler1520(DriverMsg XDATA_PTR msgPtr);
+PUBLIC U8 DRIVER_MicTestHandler1520(DriverMsg XDATA_PTR msgPtr);
+PUBLIC U8 DRIVER_SwitchStereoMonoHandler1520();
+PUBLIC U8 DRIVER_SCOModeControlHandler1520(DriverMsg XDATA_PTR msgPtr);
+PUBLIC U8 DRIVER_AsyncSCOCmdHandler1520(DriverMsg XDATA_PTR msgPtr);
+
+PUBLIC void DRIVER_ProcMailboxEvent(U8 XDATA_PTR msgPtr);
+PUBLIC void DRIVER_SetGainAndMute(U8 target);
+
+PUBLIC void DRIVER_MailBoxHandler(void);
+
+PUBLIC BOOL DRIVER_IsDSPOgfAppOn(void);
+

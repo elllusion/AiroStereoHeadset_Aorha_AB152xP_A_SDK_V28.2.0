@@ -1,0 +1,943 @@
+C251 COMPILER V5.57.0,  Driver_Temp                                                        08/11/20  05:51:56  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE Driver_Temp
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\Driver_Temp.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\DRIVER\Driver_Temp.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE)
+                    - WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\
+                    -source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\sou
+                    -rce\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI
+                    -_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspD
+                    -ata;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FL
+                    -ASH_INIT=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520C_AiroStereoHeadse
+                    -t\Driver_Temp.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\Driver_Temp.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #include "rc.h"
+    4          #include "bt_config_profile.h"
+    5          
+    6          #include "drv_sector.h"
+    7          #include "drv_adc1.h"
+    8          #if (defined AB1520S) || (defined AB1520U)
+               #include "..\ABSDRIVER\drv_adc0_flash.h"
+               #endif
+   11          #include "drivers.h"
+   12          #include "..\MMI\MMI_Interface.h"
+   13          #include "..\MMI\MMI_Base.h"
+   14          #include "Driver_Temp.h"
+   15          #include "..\ABSDRIVER\drv_sector_flash.h"
+   16          #include "..\MMI\MMI_ChgBat.h"
+   17          #include "..\MMI\MMI_AirModule.h"
+   18          #include "..\ABSDRIVER\drv_gpio_flash.h"
+   19          
+   20          
+   21          #if (defined AB1520C) || (defined AB1520D)
+   22          #define ADC_SIGNED_BIT        0x1000
+   23          #define COMPLEMENT_2_13_TO_16BIT  0xE000
+   24          #elif (defined AB1520S) || (defined AB1520U)
+               #define ADC_DATA_MASK_10BIT 0x03FF 
+               #endif
+   27          
+   28          #define ADC_3WIRE_CTL_BIT     0xFC00
+   29          #define ADC_3WIRE_DATA_BIT      0x03FF
+   30          #define CURRENT_DISCNT        2 
+   31          #define CHARGING_OFFSET_VALUE 65
+   32          
+   33          enum
+   34          {
+   35            TEMP_DETECT_DISABLED,
+   36            TEMP_DETECT_ENABLED_INIT,
+   37            TEMP_DETECT_ENABLED_WAITING_SIGNAL_STABLE,
+   38            TEMP_DETECT_ENABLED_DETECTING,
+   39            TEMP_DETECT_ENABLED_CHECK_STATUS,
+   40            TEMP_DETECT_ENABLED_SLEEP,    
+   41          };
+   42          
+   43          enum
+   44          {
+   45            TEMP_DETECT_NTC_RATIO_DISABLED,
+   46            TEMP_DETECT_NTC_RATIO_ENABLED_INIT,
+   47            TEMP_DETECT_NTC_RATIO_ENABLED_WAITING_READ_ADC_VALUE1,
+   48            TEMP_DETECT_NTC_RATIO_ENABLED_WAITING_READ_ADC_VALUE2,
+   49            TEMP_DETECT_NTC_RATIO_ENABLED_CHECK_STATUS,
+   50            TEMP_DETECT_NTC_RATIO_ENABLED_SLEEP,    
+   51          };
+   52          
+C251 COMPILER V5.57.0,  Driver_Temp                                                        08/11/20  05:51:56  PAGE 2   
+
+   53          enum
+   54          {
+   55            VOLTAGE_LOW,
+   56            VOLTAGE_HIGH,
+   57          };
+   58          
+   59          enum
+   60          {
+   61            CHARGING_NORMAL_EVENT = 0,
+   62            CHARGING_ABNORMAL_EVENT,
+   63            CHARGING_STOP_EVENT,
+   64            CHARGE_KEEP_PREV_EVENT,
+   65            CHARGING_EVENT_NO,
+   66          };
+   67          
+   68          enum
+   69          {
+   70            AIO_0_NTC,
+   71            AIO_1_NTC,
+   72          };
+   73          
+   74          #ifdef TWO_STEP_CHARGING_FUNCTION
+   75          PRIVATE void DRIVER_TEMP_TwoStepsNormal(void);
+   76          PRIVATE void DRIVER_TEMP_TwoStepsAbnormal(void);
+   77          #endif
+   78          PRIVATE S16 DRIVER_TEMP_ParaTypeTransform(U32 tempValue);
+   79          PRIVATE void DRIVER_TEMP_ExchangeRatioValue(FLOAT XDATA_PTR ptr1, FLOAT XDATA_PTR ptr2);
+   80          PRIVATE void DRIVER_TEMP_ExchangeValue(S16 XDATA_PTR ptr1, S16 XDATA_PTR ptr2);
+   81          PRIVATE S16 DRIVER_TEMP_NTCGetADCValue(U8 aioSource);
+   82          
+   83          NTC_VFUN_TYPE CODE gADCFunctionHandler=
+   84          {
+   85          DRIVER_TEMP_ADC_Init,
+   86          DRIVER_TEMP_ReadADC,
+   87          DRIVER_TEMP_ParaTypeTransform,
+   88          };
+   89          
+   90          DRIVER_TEMP_CTL_TYPE XDATA gDriver_Bat_Temp_ctl;
+   91          
+   92          
+   93          PUBLIC void DRIVER_TEMP_ADC_Init(U8 channel)
+   94          {
+   95   1      #if (defined AB1520C) || (defined AB1520D)
+   96   1        DRV_ADC1_Init(channel);
+   97   1        //UNUSED(channel);
+   98   1        
+   99   1      #elif (defined AB1520S) || (defined AB1520U)
+                 if(channel == AIO_0_NTC)
+                   DRV_ADC0_AIO4_Init();
+                 else
+                   DRV_ADC0_AIO5_Init();
+               #else
+                 UNUSED(channel);
+               #endif
+  107   1      }
+  108          
+  109          PUBLIC U16 DRIVER_TEMP_ReadADC(U8 channel)
+  110          {
+  111   1      #if (defined AB1520C) || (defined AB1520D)
+  112   1        return DRV_ADC1_ChannelRead(channel);
+  113   1      #elif (defined AB1520S) || (defined AB1520U)
+                 if(channel == AIO_0_NTC)
+                   return DRV_ADC0_ReadAIO4();
+                 else if(channel == AIO_1_NTC)
+                   return DRV_ADC0_ReadAIO5();
+                 else      
+C251 COMPILER V5.57.0,  Driver_Temp                                                        08/11/20  05:51:56  PAGE 3   
+
+                   return 0;
+               #else
+                 UNUSED(channel);
+                 return 0;
+               #endif
+  124   1      
+  125   1      }
+  126          
+  127          PRIVATE S16 DRIVER_TEMP_ParaTypeTransform(U32 gTempValue)
+  128          {
+  129   1      #if (defined AB1520C) || (defined AB1520D)
+  130   1        return ((U16)gTempValue& ADC_SIGNED_BIT) ? ((S16)gTempValue | COMPLEMENT_2_13_TO_16BIT) : ((S16)gTempVal
+             -ue);
+  131   1      #elif (defined AB1520S) || (defined AB1520U)
+                 return ((U16)gTempValue & ADC_DATA_MASK_10BIT);
+               #else
+                 UNUSED(gTempValue);
+                 return 0;
+               #endif
+  137   1      }
+  138          
+  139          
+  140          PRIVATE U8 DRIVER_TEMP_ChargerAction (void)
+  141          { 
+  142   1        S16 chargingRiskHighBound, chargingSecureHighBound, chargingRechargeHighBound;
+  143   1        S16 chargingRechargeLowBound, chargingSecureLowBound, chargingRiskLowBound;
+  144   1      
+  145   1        chargingRiskHighBound     = pMpParameter->MP_BatteryPara.chargingInfo.chargingRiskHighBound;
+  146   1        chargingSecureHighBound   = pMpParameter->MP_BatteryPara.chargingInfo.chargingSecureHighBound;
+  147   1        chargingRechargeHighBound   = pMpParameter->MP_BatteryPara.chargingInfo.chargingRechargeHighBound;
+  148   1        chargingRechargeLowBound  = pMpParameter->MP_BatteryPara.chargingInfo.chargingRechargeLowBound;
+  149   1        chargingSecureLowBound  = pMpParameter->MP_BatteryPara.chargingInfo.chargingSecureLowBound;
+  150   1        chargingRiskLowBound    = pMpParameter->MP_BatteryPara.chargingInfo.chargingRiskLowBound;
+  151   1      
+  152   1        if(chargingRiskHighBound < chargingRiskLowBound)
+  153   1        {
+  154   2          DRIVER_TEMP_ExchangeValue((S16 XDATA_PTR)&chargingRiskHighBound, (S16 XDATA_PTR)&chargingRiskLowBound);
+  155   2          DRIVER_TEMP_ExchangeValue((S16 XDATA_PTR)&chargingSecureHighBound, (S16 XDATA_PTR)&chargingSecureLowBou
+             -nd);
+  156   2          DRIVER_TEMP_ExchangeValue((S16 XDATA_PTR)&chargingRechargeHighBound, (S16 XDATA_PTR)&chargingRechargeLo
+             -wBound);
+  157   2        }
+  158   1        
+  159   1        LightDbgPrint("NTC ADC data %X",(U32)gDriver_Bat_Temp_ctl.signTempADCValue);
+  160   1        if(gDriver_Bat_Temp_ctl.signTempADCValue > chargingRiskHighBound || gDriver_Bat_Temp_ctl.signTempADCValu
+             -e < chargingRiskLowBound)
+  161   1        {
+  162   2          LightDbgPrint("NTC stop event");
+  163   2          return (U8)CHARGING_STOP_EVENT;
+  164   2        }     
+  165   1        else if(gDriver_Bat_Temp_ctl.signTempADCValue > chargingSecureHighBound  && gDriver_Bat_Temp_ctl.signTem
+             -pADCValue < chargingRiskHighBound)
+  166   1        {
+  167   2          LightDbgPrint("NTC abnormal event1");
+  168   2          return (U8)CHARGING_ABNORMAL_EVENT;
+  169   2        }
+  170   1        else if(gDriver_Bat_Temp_ctl.signTempADCValue < chargingSecureLowBound && gDriver_Bat_Temp_ctl.signTempA
+             -DCValue > chargingRiskLowBound)
+  171   1        {
+  172   2          
+  173   2          LightDbgPrint("NTC abnormal event2");
+  174   2          return (U8)CHARGING_ABNORMAL_EVENT;
+  175   2        }
+  176   1        else if(gDriver_Bat_Temp_ctl.signTempADCValue < chargingRechargeHighBound && gDriver_Bat_Temp_ctl.signTe
+             -mpADCValue > chargingRechargeLowBound)
+  177   1        {
+C251 COMPILER V5.57.0,  Driver_Temp                                                        08/11/20  05:51:56  PAGE 4   
+
+  178   2          LightDbgPrint("NTC normal event");
+  179   2          return (U8)CHARGING_NORMAL_EVENT;
+  180   2        }
+  181   1        else 
+  182   1        {
+  183   2          LightDbgPrint("NTC keep event");
+  184   2          return (U8)CHARGE_KEEP_PREV_EVENT;
+  185   2        }
+  186   1      }
+  187          
+  188          PRIVATE U16 DRIVER_TEMP_NTCCurrentDiscnt (U16 ADCData)
+  189          {
+  190   1      #if (defined AB1520C) || (defined AB1520D)
+  191   1        U16 DisCntCurrent;
+  192   1        U16 DisADCData;
+  193   1        U32 tempData;
+  194   1      
+  195   1        tempData = (U32)(ADCData & ADC_3WIRE_DATA_BIT)*(U32)(pMpParameterF->discountNumber);
+  196   1        DisCntCurrent=(U16)(tempData/100);
+  197   1        DisADCData=(ADCData & ADC_3WIRE_CTL_BIT) | (DisCntCurrent & ADC_3WIRE_DATA_BIT);
+  198   1      
+  199   1        return DisADCData;
+  200   1      
+  201   1      #elif (defined AB1520S) || (defined AB1520U)
+                 U16 DisCntCurrent;
+                 U16 DisADCData;
+                 U32 tempData;
+               
+                 tempData = (U32)(ADCData & ADC_3WIRE_DATA_BIT)*(U32)(pMpParameterF->discountNumber);
+                 DisCntCurrent=(U16)(tempData/100);
+                 DisADCData=(ADCData & ADC_3WIRE_CTL_BIT) | (DisCntCurrent & ADC_3WIRE_DATA_BIT);
+               
+                 return DisADCData;
+               #else
+                 UNUSED(ADCData);
+                 return 0;
+               #endif
+  215   1      }
+  216          
+  217          #define CHG_HW_RECHARGING 0x0000
+  218          #define CHG_HW_STOPCHARGING 0x0010
+  219          
+  220          PRIVATE void DRIVER_TEMP_HWStopCharging(void)
+  221          {
+  222   1        SYS_3WireWrite( 0x2E, (U8)(CHG_HW_STOPCHARGING>> 8), (U8)CHG_HW_STOPCHARGING);
+  223   1      }
+  224          
+  225          PRIVATE void DRIVER_TEMP_HWReCharging(void)
+  226          {
+  227   1        SYS_3WireWrite( 0x2E, (U8)( CHG_HW_RECHARGING>> 8),   (U8)CHG_HW_RECHARGING);
+  228   1      }
+  229          
+  230          PRIVATE void DRIVER_TEMP_HWDACCurrent(U16 value)
+  231          {
+  232   1        SYS_3WireWrite( 0x24, (U8)(value>> 8), (U8)value);
+  233   1      }
+  234          
+  235          #ifdef TWO_STEP_CHARGING_FUNCTION
+  236          PRIVATE void DRIVER_TEMP_HWCurrentControl(U16 value)
+  237          {
+  238   1        SYS_3WireWrite( 0x2C, 0x00, (U8)value);
+  239   1      }
+  240          #endif
+  241          
+  242          PRIVATE void DRIVER_TEMP_ChargerHWCtl(U8 ctlIdx)
+  243          {
+C251 COMPILER V5.57.0,  Driver_Temp                                                        08/11/20  05:51:56  PAGE 5   
+
+  244   1        U16 ChargerDacCurrent;
+  245   1        MP_ChargerDiscountCtl CODE_PTR discountCtl;
+  246   1      
+  247   1        switch(ctlIdx)
+  248   1        {
+  249   2          case CHARGING_NORMAL_STATE:
+  250   2            DRIVER_TEMP_HWStopCharging();
+  251   2            LightDbgPrint("charging normal state");
+  252   2            #ifdef TWO_STEP_CHARGING_FUNCTION
+  253   2            if (pMpParameterF->twoStepPara.enableTwoStepCharger)
+  254   2            {
+  255   3              DRIVER_TEMP_TwoStepsNormal();
+  256   3            }
+  257   2            else
+  258   2            #endif
+  259   2            {
+  260   3              discountCtl = &pMpParameter->MP_ChargerDiscountCtl[CHARGING_CTL_NORMAL_IND];
+  261   3              SYS_3WireRead(0x24, gDriver_Bat_Temp_ctl.mpValue0x24);
+  262   3              DRIVER_TEMP_HWDACCurrent((discountCtl->chargerDacCurrent & 0x03FF) |(gDriver_Bat_Temp_ctl.mpValue0x24
+             - & 0xFC00));
+  263   3              OS_delay_us(33);
+  264   3            }
+  265   2            DRIVER_TEMP_HWReCharging();
+  266   2            break;
+  267   2          case CHARGING_ABNORMAL_STATE:
+  268   2            DRIVER_TEMP_HWStopCharging();
+  269   2      
+  270   2            #ifdef TWO_STEP_CHARGING_FUNCTION
+  271   2            if (pMpParameterF->twoStepPara.enableTwoStepCharger)
+  272   2            { 
+  273   3              DRIVER_TEMP_TwoStepsAbnormal();
+  274   3            }
+  275   2            else
+  276   2            #endif
+  277   2            {
+  278   3              discountCtl = &pMpParameter->MP_ChargerDiscountCtl[CHARGING_CTL_ABNORMAL_IND];
+  279   3              ChargerDacCurrent = DRIVER_TEMP_NTCCurrentDiscnt (discountCtl->chargerDacCurrent);
+  280   3              SYS_3WireRead(0x24, gDriver_Bat_Temp_ctl.mpValue0x24);
+  281   3              DRIVER_TEMP_HWDACCurrent((ChargerDacCurrent & 0x03FF) |(gDriver_Bat_Temp_ctl.mpValue0x24 & 0xFC00));
+  282   3              OS_delay_us(33);
+  283   3            }
+  284   2            DRIVER_TEMP_HWReCharging();
+  285   2            break;
+  286   2          case CHARGING_STOP_STATE:
+  287   2            LightDbgPrint("charging stop state");
+  288   2            DRIVER_TEMP_HWStopCharging();
+  289   2            break;
+  290   2      
+  291   2          case CHARGING_UNKNOW_STATE:
+  292   2          default:
+  293   2            break;
+  294   2        }
+  295   1      }
+  296          
+  297          PUBLIC void DRIVER_TEMP_SetChargeNormal(void)
+  298          {
+  299   1        if(gDriver_Bat_Temp_ctl.chargingState == CHARGING_NORMAL_STATE)
+  300   1          return;
+  301   1      
+  302   1        DRIVER_TEMP_ChargerHWCtl(CHARGING_NORMAL_STATE);
+  303   1        MMI_PushMediaEvent(MEDIA_EVT_BAT_SECURE_TEMP);
+  304   1        gDriver_Bat_Temp_ctl.chargingState = CHARGING_NORMAL_STATE;
+  305   1      }
+  306          
+  307          PRIVATE void DRIVER_TEMP_SetChargeAbnormal(void)
+  308          {
+C251 COMPILER V5.57.0,  Driver_Temp                                                        08/11/20  05:51:56  PAGE 6   
+
+  309   1        if(gDriver_Bat_Temp_ctl.chargingState == CHARGING_ABNORMAL_STATE || gDriver_Bat_Temp_ctl.chargingState =
+             -= CHARGING_STOP_STATE)
+  310   1          return;
+  311   1      
+  312   1        DRIVER_TEMP_ChargerHWCtl(CHARGING_ABNORMAL_STATE);
+  313   1        MMI_PushMediaEvent(MEDIA_EVT_BAT_DISCOUNT_TEMP);
+  314   1        gDriver_Bat_Temp_ctl.chargingState = CHARGING_ABNORMAL_STATE;
+  315   1      }
+  316          
+  317          PRIVATE void DRIVER_TEMP_SetChargeStop (void)
+  318          {
+  319   1        if(gDriver_Bat_Temp_ctl.chargingState == CHARGING_STOP_STATE)
+  320   1          return;
+  321   1      
+  322   1        DRIVER_TEMP_ChargerHWCtl(CHARGING_STOP_STATE);
+  323   1        MMI_PushMediaEvent(MEDIA_EVT_BAT_RISKY_TEMP);
+  324   1        gDriver_Bat_Temp_ctl.chargingState = CHARGING_STOP_STATE;
+  325   1      }
+  326          
+  327          PUBLIC void DRIVER_TEMP_Check(void)
+  328          {
+  329   1        //No temp detect
+  330   1        if(gMMI_nvram.mcuADCSource != MCU_SOURCE_EXTERNAL)
+  331   1          return;
+  332   1      
+  333   1        if(pMpParameterF->ntcRatioPara.enableNTCRatio)
+  334   1          return;
+  335   1      
+  336   1        switch(gDriver_Bat_Temp_ctl.detectorState)
+  337   1        {
+  338   2          case TEMP_DETECT_DISABLED:
+  339   2            gADCFunctionHandler.fADCInit(gMMI_nvram.batteryPara.tempInfo.tempDetectorSource);
+  340   2            gDriver_Bat_Temp_ctl.detectorState = TEMP_DETECT_ENABLED_INIT;
+  341   2            break;
+  342   2      
+  343   2          case TEMP_DETECT_ENABLED_INIT:
+  344   2            if(pMpParameterF->ntcRatioPara.channelSet.pioVCCChannel != HV_MV_CHANNEL)
+  345   2            {
+  346   3              DRV_GPIO_F_SetIOStatus(OUTPUT_ENABLE, VOLTAGE_HIGH, pMpParameterF->ntcRatioPara.channelSet.pioVCCChan
+             -nel);
+  347   3            }
+  348   2            SYS_SetTimer(&gDriver_Bat_Temp_ctl.detectorTimer, gMMI_nvram.batteryPara.tempInfo.tempDetectorOnWaitSt
+             -ableTime * (ONE_SEC/100));
+  349   2            gDriver_Bat_Temp_ctl.detectorState = TEMP_DETECT_ENABLED_WAITING_SIGNAL_STABLE;
+  350   2            break;
+  351   2      
+  352   2          case TEMP_DETECT_ENABLED_WAITING_SIGNAL_STABLE:
+  353   2            if(SYS_IsTimerExpired(&gDriver_Bat_Temp_ctl.detectorTimer))
+  354   2            {
+  355   3              OS_ENTER_CRITICAL ();
+  356   3              gDriver_Bat_Temp_ctl.tempValue = DRIVER_TEMP_NTCGetADCValue(gMMI_nvram.batteryPara.tempInfo.tempDetec
+             -torSource);
+  357   3              OS_EXIT_CRITICAL ();
+  358   3      
+  359   3              SYS_SetTimer(&gDriver_Bat_Temp_ctl.detectorTimer, gMMI_nvram.batteryPara.tempInfo.tempDetectorDetecti
+             -ngTime* (ONE_SEC/100));
+  360   3              gDriver_Bat_Temp_ctl.detectorState = TEMP_DETECT_ENABLED_DETECTING;
+  361   3            }
+  362   2            break;
+  363   2      
+  364   2          case TEMP_DETECT_ENABLED_DETECTING:
+  365   2            if(SYS_IsTimerExpired(&gDriver_Bat_Temp_ctl.detectorTimer))
+  366   2            {
+  367   3              S16 currentTemp;
+  368   3              
+  369   3              OS_ENTER_CRITICAL ();
+C251 COMPILER V5.57.0,  Driver_Temp                                                        08/11/20  05:51:56  PAGE 7   
+
+  370   3              currentTemp = DRIVER_TEMP_NTCGetADCValue(gMMI_nvram.batteryPara.tempInfo.tempDetectorSource);
+  371   3              OS_EXIT_CRITICAL ();
+  372   3      
+  373   3              gDriver_Bat_Temp_ctl.signTempADCValue=(gDriver_Bat_Temp_ctl.tempValue + currentTemp) /2;        
+  374   3              gDriver_Bat_Temp_ctl.detectorState = TEMP_DETECT_ENABLED_CHECK_STATUS;
+  375   3            }
+  376   2            break;
+  377   2      
+  378   2          case TEMP_DETECT_ENABLED_CHECK_STATUS:
+  379   2            if(MMI_IsChargerIn())
+  380   2            {
+  381   3              switch(DRIVER_TEMP_ChargerAction())
+  382   3              {
+  383   4                case CHARGING_NORMAL_EVENT:
+  384   4                  DRIVER_TEMP_SetChargeNormal();
+  385   4                  break;
+  386   4                case CHARGING_ABNORMAL_EVENT: 
+  387   4                  DRIVER_TEMP_SetChargeAbnormal();
+  388   4                  break;
+  389   4                case CHARGING_STOP_EVENT:
+  390   4                  DRIVER_TEMP_SetChargeStop();
+  391   4                  break;
+  392   4                case CHARGE_KEEP_PREV_EVENT:
+  393   4                  break;
+  394   4              }
+  395   3            }
+  396   2            else
+  397   2            {
+  398   3              S16 dischargingRiskHighBound, dischargingRiskLowBound;
+  399   3              dischargingRiskHighBound = pMpParameter->MP_BatteryPara.chargingInfo.dischargingRiskHighBound;
+  400   3              dischargingRiskLowBound = pMpParameter->MP_BatteryPara.chargingInfo.dischargingRiskLowBound;
+  401   3              
+  402   3              if(dischargingRiskHighBound < dischargingRiskLowBound)
+  403   3              {
+  404   4                DRIVER_TEMP_ExchangeValue((S16 XDATA_PTR)&dischargingRiskHighBound, (S16 XDATA_PTR)&dischargingRiskL
+             -owBound);
+  405   4              }
+  406   3              if( gDriver_Bat_Temp_ctl.signTempADCValue > dischargingRiskHighBound || 
+  407   3                gDriver_Bat_Temp_ctl.signTempADCValue < dischargingRiskLowBound)
+  408   3              {
+  409   4                MMI_PowerOffHandler(POWEROFF_REASOM_TEMP_PROTECT);
+  410   4              }     
+  411   3            }
+  412   2            SYS_SetTimer(&gDriver_Bat_Temp_ctl.detectorTimer, gMMI_nvram.batteryPara.tempInfo.tempDetectorSleepTim
+             -e* HALF_SEC);
+  413   2            gDriver_Bat_Temp_ctl.detectorState= TEMP_DETECT_ENABLED_SLEEP;  
+  414   2            if(pMpParameterF->ntcRatioPara.channelSet.pioVCCChannel != HV_MV_CHANNEL)
+  415   2            {
+  416   3              DRV_GPIO_F_SetIOStatus(OUTPUT_ENABLE, VOLTAGE_LOW, pMpParameterF->ntcRatioPara.channelSet.pioVCCChann
+             -el);
+  417   3            }
+  418   2            break;
+  419   2            
+  420   2          case TEMP_DETECT_ENABLED_SLEEP:
+  421   2            if(SYS_IsTimerExpired(&gDriver_Bat_Temp_ctl.detectorTimer))
+  422   2            {
+  423   3              gDriver_Bat_Temp_ctl.detectorState= TEMP_DETECT_ENABLED_INIT;
+  424   3            }
+  425   2            break;
+  426   2        }
+  427   1      }
+  428          
+  429          PUBLIC S16 DRIVER_TEMP_ADCDataReport(void)
+  430          {
+  431   1        return gDriver_Bat_Temp_ctl.signTempADCValue;
+  432   1      }
+C251 COMPILER V5.57.0,  Driver_Temp                                                        08/11/20  05:51:56  PAGE 8   
+
+  433          
+  434          #ifdef TWO_STEP_CHARGING_FUNCTION
+  435          PRIVATE void DRIVER_TEMP_TwoStepChargerHWCtl(U8 ctlstate)
+  436          {
+  437   1        if (ctlstate == CHARGING_TWO_STEP_FAST_CHARGE_STATE)
+  438   1        {
+  439   2          DRIVER_TEMP_HWStopCharging();
+  440   2          DRIVER_TEMP_HWDACCurrent((pMpParameterF->twoStepPara.valueSet0x24 & 0x03FF) |(gDriver_Bat_Temp_ctl.SFRV
+             -alue0x24 & 0xFC00));
+  441   2          DRIVER_TEMP_HWCurrentControl((pMpParameterF->twoStepPara.valueSet0x2C & 0x03FF) | (gDriver_Bat_Temp_ctl
+             -.SFRValue0x2C & 0xFC00));  
+  442   2          OS_delay_us(33);
+  443   2          DRIVER_TEMP_HWReCharging();
+  444   2        }
+  445   1        else if (ctlstate == CHARGING_TWO_STEP_CHARGE_STATE )
+  446   1        {
+  447   2          DRIVER_TEMP_HWStopCharging();
+  448   2          DRIVER_TEMP_HWDACCurrent(gDriver_Bat_Temp_ctl.SFRValue0x24);
+  449   2          DRIVER_TEMP_HWCurrentControl(gDriver_Bat_Temp_ctl.SFRValue0x2C);
+  450   2          OS_delay_us(33);
+  451   2          DRIVER_TEMP_HWReCharging();
+  452   2        }
+  453   1        else if (ctlstate == CHARGING_TWO_STEP_STOP_STATE)
+  454   1        {
+  455   2          DRIVER_TEMP_HWStopCharging();
+  456   2        }
+  457   1      }
+  458          
+  459          PRIVATE void DRIVER_TEMP_TwoStepSetFastCharge(void)
+  460          {
+  461   1        if (gDriver_Bat_Temp_ctl.chargingState !=CHARGING_ABNORMAL_STATE)
+  462   1          DRIVER_TEMP_TwoStepChargerHWCtl(CHARGING_TWO_STEP_FAST_CHARGE_STATE);
+  463   1      }
+  464          
+  465          PUBLIC void DRIVER_TEMP_TwoStepSetNormalCharge(void)
+  466          {
+  467   1        DRIVER_TEMP_TwoStepChargerHWCtl(CHARGING_TWO_STEP_CHARGE_STATE);
+  468   1      }
+  469          
+  470          PRIVATE void DRIVER_TEMP_TwoStepsNormal(void)
+  471          {
+  472   1        switch(gDriver_Bat_Temp_ctl.twoStepsState)
+  473   1        {
+  474   2          case TWO_STEPS_STATE_IDLE_2C:
+  475   2          case TWO_STEPS_STATE_FAST_2C:
+  476   2            DRIVER_TEMP_HWDACCurrent((pMpParameterF->twoStepPara.valueSet0x24 & 0x03FF) |(gDriver_Bat_Temp_ctl.SFR
+             -Value0x24 & 0xFC00));
+  477   2            DRIVER_TEMP_HWCurrentControl((pMpParameterF->twoStepPara.valueSet0x2C & 0x03FF) | (gDriver_Bat_Temp_ct
+             -l.SFRValue0x2C & 0xFC00));
+  478   2            break;
+  479   2      
+  480   2          case TWO_STEPS_STATE_IDLE_HALF_C:
+  481   2          case TWO_STEPS_STATE_NORMAL_HALF_C:
+  482   2          case TWO_STEPS_STATE_ALWAYS_HALF_C:
+  483   2            DRIVER_TEMP_HWDACCurrent(gDriver_Bat_Temp_ctl.SFRValue0x24);
+  484   2            DRIVER_TEMP_HWCurrentControl(gDriver_Bat_Temp_ctl.SFRValue0x2C);
+  485   2            break;
+  486   2      
+  487   2          default:
+  488   2            break;
+  489   2        }
+  490   1      }
+  491          
+  492          PRIVATE void DRIVER_TEMP_TwoStepsAbnormal(void)
+  493          {
+  494   1        U16 ChargerDacCurrent;
+C251 COMPILER V5.57.0,  Driver_Temp                                                        08/11/20  05:51:56  PAGE 9   
+
+  495   1      
+  496   1        switch(gDriver_Bat_Temp_ctl.twoStepsState)
+  497   1        {
+  498   2          case TWO_STEPS_STATE_IDLE_2C:
+  499   2          case TWO_STEPS_STATE_FAST_2C:
+  500   2            ChargerDacCurrent = DRIVER_TEMP_NTCCurrentDiscnt ((pMpParameterF->twoStepPara.valueSet0x24 & 0x03FF) |
+             -(gDriver_Bat_Temp_ctl.SFRValue0x24 & 0xFC00));
+  501   2            DRIVER_TEMP_HWDACCurrent(ChargerDacCurrent);
+  502   2            DRIVER_TEMP_HWCurrentControl((pMpParameterF->twoStepPara.valueSet0x2C & 0x03FF) | (gDriver_Bat_Temp_ct
+             -l.SFRValue0x2C & 0xFC00));
+  503   2            break;
+  504   2      
+  505   2          case TWO_STEPS_STATE_IDLE_HALF_C:
+  506   2          case TWO_STEPS_STATE_NORMAL_HALF_C:
+  507   2          case TWO_STEPS_STATE_ALWAYS_HALF_C:
+  508   2            DRIVER_TEMP_HWDACCurrent(gDriver_Bat_Temp_ctl.SFRValue0x24);
+  509   2            DRIVER_TEMP_HWCurrentControl(gDriver_Bat_Temp_ctl.SFRValue0x2C);
+  510   2            break;
+  511   2      
+  512   2          default:
+  513   2            break;
+  514   2        }
+  515   1        OS_delay_us(33);
+  516   1      }
+  517          
+  518          
+  519          #define TWO_STEPS_TH_H  (pMpParameterF->twoStepPara.changingThreValueToolADC)
+  520          #define TWO_STEPS_TH_L  (pMpParameterF->twoStepPara.changingThreValueToolADC-CHARGING_OFFSET_VALUE)
+  521          
+  522          
+  523          PUBLIC void DRIVER_TEMP_TwoStepsCharging(void)
+  524          {
+  525   1        switch(gDriver_Bat_Temp_ctl.twoStepsState)
+  526   1        {
+  527   2          case TWO_STEPS_STATE_INIT:
+  528   2            if (MMI_IsChargerIn() & pMpParameterF->twoStepPara.enableTwoStepCharger)
+  529   2            {
+  530   3              SYS_3WireRead(0x24, gDriver_Bat_Temp_ctl.SFRValue0x24);
+  531   3              SYS_3WireRead(0x2C, gDriver_Bat_Temp_ctl.SFRValue0x2C);
+  532   3              gDriver_Bat_Temp_ctl.twoStepsState = TWO_STEPS_STATE_IDLE_2C;
+  533   3            }
+  534   2            break;
+  535   2          case TWO_STEPS_STATE_IDLE_2C:
+  536   2            if (MMI_IsChargerIn() & pMpParameterF->twoStepPara.enableTwoStepCharger)
+  537   2            {
+  538   3              if (gDriver_Bat_Temp_ctl.chargingState != CHARGING_STOP_STATE)
+  539   3              {
+  540   4                if(DRV_ADC0.fVBat() < TWO_STEPS_TH_H)
+  541   4                {
+  542   5                  DRIVER_TEMP_TwoStepSetFastCharge();
+  543   5                  gDriver_Bat_Temp_ctl.twoStepsState = TWO_STEPS_STATE_FAST_2C;
+  544   5                }
+  545   4                else
+  546   4                {
+  547   5                  DRIVER_TEMP_TwoStepSetNormalCharge();
+  548   5                  gDriver_Bat_Temp_ctl.twoStepsState = TWO_STEPS_STATE_NORMAL_HALF_C;
+  549   5                }
+  550   4              }
+  551   3            }
+  552   2            break;
+  553   2          case TWO_STEPS_STATE_IDLE_HALF_C:
+  554   2            if (MMI_IsChargerIn() & pMpParameterF->twoStepPara.enableTwoStepCharger)
+  555   2            {
+  556   3              if (gDriver_Bat_Temp_ctl.chargingState != CHARGING_STOP_STATE)
+  557   3              {
+  558   4                if(DRV_ADC0.fVBat() > TWO_STEPS_TH_H)
+C251 COMPILER V5.57.0,  Driver_Temp                                                        08/11/20  05:51:56  PAGE 10  
+
+  559   4                {
+  560   5                  DRIVER_TEMP_TwoStepSetNormalCharge();
+  561   5                  gDriver_Bat_Temp_ctl.twoStepsState = TWO_STEPS_STATE_NORMAL_HALF_C;
+  562   5      
+  563   5                }
+  564   4                else
+  565   4                {
+  566   5                  DRIVER_TEMP_TwoStepSetFastCharge();
+  567   5                  gDriver_Bat_Temp_ctl.twoStepsState = TWO_STEPS_STATE_FAST_2C;
+  568   5                }
+  569   4              }
+  570   3            }
+  571   2            break;
+  572   2          case TWO_STEPS_STATE_FAST_2C:
+  573   2            if(MMI_IsChargerIn())
+  574   2            {
+  575   3              if (gDriver_Bat_Temp_ctl.chargingState != CHARGING_STOP_STATE)
+  576   3              {
+  577   4                if(DRV_ADC0.fVBat() > TWO_STEPS_TH_H)
+  578   4                {
+  579   5                  DRIVER_TEMP_TwoStepSetNormalCharge();
+  580   5                  gDriver_Bat_Temp_ctl.twoStepsState = TWO_STEPS_STATE_NORMAL_HALF_C;
+  581   5                }
+  582   4              }
+  583   3            }
+  584   2            else
+  585   2            {
+  586   3              gDriver_Bat_Temp_ctl.twoStepsState = TWO_STEPS_STATE_IDLE_2C;
+  587   3            }
+  588   2            break;
+  589   2      
+  590   2          case TWO_STEPS_STATE_NORMAL_HALF_C:
+  591   2            if(MMI_IsChargerIn())
+  592   2            {
+  593   3              if(MMI_CHG_IsComplete())
+  594   3              {
+  595   4                gDriver_Bat_Temp_ctl.twoStepsState = TWO_STEPS_STATE_ALWAYS_HALF_C;
+  596   4              }
+  597   3              else if (gDriver_Bat_Temp_ctl.chargingState != CHARGING_STOP_STATE)
+  598   3              {
+  599   4                if(DRV_ADC0.fVBat() < TWO_STEPS_TH_L)
+  600   4                {
+  601   5                  DRIVER_TEMP_TwoStepSetFastCharge();
+  602   5                  gDriver_Bat_Temp_ctl.twoStepsState = TWO_STEPS_STATE_FAST_2C;
+  603   5                }
+  604   4              }
+  605   3            }
+  606   2            else
+  607   2            {
+  608   3              gDriver_Bat_Temp_ctl.twoStepsState = TWO_STEPS_STATE_IDLE_HALF_C;
+  609   3            }
+  610   2            break;
+  611   2          case TWO_STEPS_STATE_ALWAYS_HALF_C:
+  612   2            if(!MMI_IsChargerIn())
+  613   2            {
+  614   3              gDriver_Bat_Temp_ctl.twoStepsState = TWO_STEPS_STATE_IDLE_HALF_C;
+  615   3            }
+  616   2      
+  617   2            break;
+  618   2          default:
+  619   2      
+  620   2            break;
+  621   2        }
+  622   1      }
+  623          #endif
+  624          
+C251 COMPILER V5.57.0,  Driver_Temp                                                        08/11/20  05:51:56  PAGE 11  
+
+  625          PRIVATE void DRIVER_TEMP_ExchangeValue(S16 XDATA_PTR ptr1, S16 XDATA_PTR ptr2)
+  626          {
+  627   1        S16 tempValue;
+  628   1        tempValue=*ptr2;
+  629   1        *ptr2=*ptr1;
+  630   1        *ptr1=tempValue;
+  631   1      }
+  632          
+  633          #ifdef NTC_RATIO_FUNCTION
+  634          
+  635          #define INTERNAL_GND_PIO  GPIO16
+  636          
+  637          PRIVATE void DRIVER_TEMP_NTCRatioInit(void)
+  638          {
+  639   1        gADCFunctionHandler.fADCInit(pMpParameterF->ntcRatioPara.channelSet.aioChannelSel);
+  640   1        gADCFunctionHandler.fADCInit(INTERNAL_GND_PIO);
+  641   1        if(pMpParameterF->ntcRatioPara.channelSet.pioVCCChannel != HV_MV_CHANNEL)
+  642   1        {
+  643   2          DRV_GPIO_F_SetIOStatus(OUTPUT_ENABLE, VOLTAGE_HIGH, pMpParameterF->ntcRatioPara.channelSet.pioVCCChanne
+             -l);
+  644   2        }
+  645   1        DRV_GPIO_F_SetIOStatus(OUTPUT_ENABLE, VOLTAGE_HIGH, pMpParameterF->ntcRatioPara.channelSet.pioCTRChannel
+             -);
+  646   1      }
+  647          
+  648          PRIVATE S16 DRIVER_TEMP_NTCGetADCValue(U8 aioSource)
+  649          {
+  650   1        S32 sumValue;
+  651   1        U8 index;
+  652   1      
+  653   1        sumValue = 0;
+  654   1        
+  655   1        for (index = 0; index < pMpParameterF->ntcRatioPara.aioAverageCount ; index++)
+  656   1        {
+  657   2          OS_ENTER_CRITICAL ();
+  658   2          sumValue += gADCFunctionHandler.fADCTransform((U32)gADCFunctionHandler.fADCRead(aioSource));
+  659   2          OS_EXIT_CRITICAL ();
+  660   2        }
+  661   1        
+  662   1        return (S16)(sumValue/pMpParameterF->ntcRatioPara.aioAverageCount);
+  663   1      }
+  664          
+  665          PRIVATE FLOAT DRIVER_TEMP_NTCGetRatioValue(void)
+  666          {
+  667   1        FLOAT ratioValue;
+  668   1        S16 maxValue, minValue;
+  669   1      
+  670   1        if(gDriver_Bat_Temp_ctl.signTempADCValue2 > gDriver_Bat_Temp_ctl.signTempADCValue)
+  671   1        {
+  672   2          maxValue = gDriver_Bat_Temp_ctl.signTempADCValue2;
+  673   2          minValue = gDriver_Bat_Temp_ctl.signTempADCValue;
+  674   2        }
+  675   1        else
+  676   1        {
+  677   2          maxValue = gDriver_Bat_Temp_ctl.signTempADCValue;
+  678   2          minValue = gDriver_Bat_Temp_ctl.signTempADCValue2;
+  679   2        }
+  680   1      
+  681   1        #if (defined AB1520C) || (defined AB1520D)
+  682   1        ratioValue =((FLOAT)(minValue - gDriver_Bat_Temp_ctl.signTempADCGroundValue))/
+  683   1        ((FLOAT)(maxValue - gDriver_Bat_Temp_ctl.signTempADCGroundValue));
+  684   1      
+  685   1        #elif (defined AB1520S) || (defined AB1520U)
+                 
+                 ratioValue =((FLOAT)(minValue))/((FLOAT)(maxValue));
+                 #endif
+C251 COMPILER V5.57.0,  Driver_Temp                                                        08/11/20  05:51:56  PAGE 12  
+
+  689   1      
+  690   1        return ratioValue;
+  691   1      }
+  692          
+  693          PRIVATE void DRIVER_TEMP_ExchangeRatioValue(FLOAT XDATA_PTR ptr1, FLOAT XDATA_PTR ptr2)
+  694          {
+  695   1        FLOAT tempValue;
+  696   1        tempValue=*ptr2;
+  697   1        *ptr2=*ptr1;
+  698   1        *ptr1=tempValue;
+  699   1      }
+  700          
+  701          PRIVATE U8 DRIVER_TEMP_NTCRatioChargerAction(void)
+  702          {
+  703   1        FLOAT ratio1, ratio2, ratio3, ratio4, ratio5, ratio6;
+  704   1      
+  705   1        ratio1= pMpParameterF->ntcRatioPara.ratioValue.ratio1;
+  706   1        ratio2= pMpParameterF->ntcRatioPara.ratioValue.ratio2;
+  707   1        ratio3= pMpParameterF->ntcRatioPara.ratioValue.ratio3;
+  708   1        ratio4= pMpParameterF->ntcRatioPara.ratioValue.ratio4;
+  709   1        ratio5= pMpParameterF->ntcRatioPara.ratioValue.ratio5;
+  710   1        ratio6= pMpParameterF->ntcRatioPara.ratioValue.ratio6;
+  711   1        
+  712   1        if(ratio1 < ratio6)
+  713   1        {
+  714   2          DRIVER_TEMP_ExchangeRatioValue((FLOAT XDATA_PTR)&ratio1, (FLOAT XDATA_PTR)&ratio6);
+  715   2          DRIVER_TEMP_ExchangeRatioValue((FLOAT XDATA_PTR)&ratio2, (FLOAT XDATA_PTR)&ratio5);
+  716   2          DRIVER_TEMP_ExchangeRatioValue((FLOAT XDATA_PTR)&ratio3, (FLOAT XDATA_PTR)&ratio4);
+  717   2        }
+  718   1      
+  719   1        if (gDriver_Bat_Temp_ctl.ratioValue> ratio4 && gDriver_Bat_Temp_ctl.ratioValue< ratio3)
+  720   1        {
+  721   2          LightDbgPrint("NTC Ratio normal event");
+  722   2          return (U8)CHARGING_NORMAL_EVENT;
+  723   2        }
+  724   1        else if (gDriver_Bat_Temp_ctl.ratioValue> ratio1 ||gDriver_Bat_Temp_ctl.ratioValue<ratio6)
+  725   1        {
+  726   2          LightDbgPrint("NTC Ratio stop event");
+  727   2          return (U8)CHARGING_STOP_EVENT;
+  728   2        }
+  729   1        else if(gDriver_Bat_Temp_ctl.ratioValue> ratio2 && gDriver_Bat_Temp_ctl.ratioValue< ratio1)
+  730   1        {
+  731   2          LightDbgPrint("NTC Ratio abnormal event1");
+  732   2          return (U8)CHARGING_ABNORMAL_EVENT;
+  733   2        }
+  734   1        else if(gDriver_Bat_Temp_ctl.ratioValue> ratio6 && gDriver_Bat_Temp_ctl.ratioValue< ratio5)
+  735   1        {
+  736   2          LightDbgPrint("NTC Ratio abnormal event2");
+  737   2          return (U8)CHARGING_ABNORMAL_EVENT;
+  738   2        }
+  739   1        else
+  740   1        {
+  741   2          LightDbgPrint("NTC Ratio keep event");
+  742   2          return (U8)CHARGE_KEEP_PREV_EVENT;
+  743   2        }
+  744   1      
+  745   1      }
+  746          
+  747          PUBLIC void DRIVER_TEMP_NTCRatio(void)
+  748          {
+  749   1        if (!pMpParameterF->ntcRatioPara.enableNTCRatio)
+  750   1          return;
+  751   1      
+  752   1        switch(gDriver_Bat_Temp_ctl.detectorState)
+  753   1        {
+  754   2          case TEMP_DETECT_NTC_RATIO_DISABLED:
+C251 COMPILER V5.57.0,  Driver_Temp                                                        08/11/20  05:51:56  PAGE 13  
+
+  755   2            DRIVER_TEMP_NTCRatioInit();
+  756   2            gDriver_Bat_Temp_ctl.detectorState = TEMP_DETECT_NTC_RATIO_ENABLED_INIT;
+  757   2            break;
+  758   2      
+  759   2          case TEMP_DETECT_NTC_RATIO_ENABLED_INIT:
+  760   2            SYS_SetTimer(&gDriver_Bat_Temp_ctl.detectorTimer, gMMI_nvram.batteryPara.tempInfo.tempDetectorOnWaitSt
+             -ableTime*(ONE_SEC/100));
+  761   2            gDriver_Bat_Temp_ctl.detectorState = TEMP_DETECT_NTC_RATIO_ENABLED_WAITING_READ_ADC_VALUE1;
+  762   2            break;
+  763   2            
+  764   2          case TEMP_DETECT_NTC_RATIO_ENABLED_WAITING_READ_ADC_VALUE1:
+  765   2            if(SYS_IsTimerExpired(&gDriver_Bat_Temp_ctl.detectorTimer))
+  766   2            {
+  767   3              gDriver_Bat_Temp_ctl.signTempADCValue2 = DRIVER_TEMP_NTCGetADCValue(pMpParameterF->ntcRatioPara.chann
+             -elSet.aioChannelSel);
+  768   3              DRV_GPIO_F_SetIOStatus(OUTPUT_ENABLE, VOLTAGE_LOW, pMpParameterF->ntcRatioPara.channelSet.pioCTRChann
+             -el);
+  769   3              SYS_SetTimer(&gDriver_Bat_Temp_ctl.detectorTimer, gMMI_nvram.batteryPara.tempInfo.tempDetectorDetecti
+             -ngTime*(ONE_SEC/100));
+  770   3              gDriver_Bat_Temp_ctl.detectorState = TEMP_DETECT_NTC_RATIO_ENABLED_WAITING_READ_ADC_VALUE2;
+  771   3            }
+  772   2            break;
+  773   2      
+  774   2          case TEMP_DETECT_NTC_RATIO_ENABLED_WAITING_READ_ADC_VALUE2:
+  775   2            if(SYS_IsTimerExpired(&gDriver_Bat_Temp_ctl.detectorTimer))
+  776   2            {
+  777   3              U16 ratioValue;
+  778   3      
+  779   3              gDriver_Bat_Temp_ctl.signTempADCValue = DRIVER_TEMP_NTCGetADCValue(pMpParameterF->ntcRatioPara.channe
+             -lSet.aioChannelSel);
+  780   3      
+  781   3              #if (defined AB1520C) || (defined AB1520D)
+  782   3              gDriver_Bat_Temp_ctl.signTempADCGroundValue = DRIVER_TEMP_NTCGetADCValue(INTERNAL_GND_PIO);
+  783   3              #endif
+  784   3      
+  785   3              gDriver_Bat_Temp_ctl.ratioValue = DRIVER_TEMP_NTCGetRatioValue();
+  786   3              ratioValue = gDriver_Bat_Temp_ctl.ratioValue*1000;
+  787   3              LightDbgPrint("NTC ratio value %D", (U32)ratioValue);
+  788   3              gDriver_Bat_Temp_ctl.detectorState = TEMP_DETECT_NTC_RATIO_ENABLED_CHECK_STATUS;
+  789   3            }
+  790   2            break;
+  791   2      
+  792   2          case TEMP_DETECT_NTC_RATIO_ENABLED_CHECK_STATUS:
+  793   2            if(MMI_IsChargerIn())
+  794   2            {
+  795   3              switch(DRIVER_TEMP_NTCRatioChargerAction())
+  796   3              {
+  797   4                case CHARGING_NORMAL_EVENT:
+  798   4                  DRIVER_TEMP_SetChargeNormal();
+  799   4                  break;
+  800   4                case CHARGING_ABNORMAL_EVENT:
+  801   4                  DRIVER_TEMP_SetChargeAbnormal();
+  802   4                  break;
+  803   4                case CHARGING_STOP_EVENT:
+  804   4                  DRIVER_TEMP_SetChargeStop();
+  805   4                  break;
+  806   4                case CHARGE_KEEP_PREV_EVENT:
+  807   4                  break;
+  808   4              }
+  809   3            }
+  810   2            else
+  811   2            {
+  812   3              FLOAT ratio1, ratio6;
+  813   3              ratio1 = pMpParameterF->ntcRatioPara.ratioValue.ratio1;
+  814   3              ratio6 = pMpParameterF->ntcRatioPara.ratioValue.ratio6;
+  815   3      
+C251 COMPILER V5.57.0,  Driver_Temp                                                        08/11/20  05:51:56  PAGE 14  
+
+  816   3              if(ratio1 < ratio6)
+  817   3              {
+  818   4                DRIVER_TEMP_ExchangeRatioValue((FLOAT XDATA_PTR)&ratio1, (FLOAT XDATA_PTR)&ratio6);
+  819   4              }
+  820   3      
+  821   3              if (gDriver_Bat_Temp_ctl.ratioValue> ratio1 ||gDriver_Bat_Temp_ctl.ratioValue< ratio6)
+  822   3              {
+  823   4                MMI_PowerOffHandler(POWEROFF_REASOM_TEMP_PROTECT);
+  824   4              } 
+  825   3            }
+  826   2            SYS_SetTimer(&gDriver_Bat_Temp_ctl.detectorTimer, gMMI_nvram.batteryPara.tempInfo.tempDetectorSleepTim
+             -e* HALF_SEC);
+  827   2            if(pMpParameterF->ntcRatioPara.channelSet.pioVCCChannel != HV_MV_CHANNEL)
+  828   2            {
+  829   3              DRV_GPIO_F_SetIOStatus(OUTPUT_ENABLE, VOLTAGE_LOW, pMpParameterF->ntcRatioPara.channelSet.pioVCCChann
+             -el);
+  830   3            }
+  831   2            DRV_GPIO_F_SetIOStatus(OUTPUT_ENABLE, VOLTAGE_LOW, pMpParameterF->ntcRatioPara.channelSet.pioCTRChanne
+             -l);
+  832   2            gDriver_Bat_Temp_ctl.detectorState= TEMP_DETECT_NTC_RATIO_ENABLED_SLEEP;  
+  833   2            break;
+  834   2      
+  835   2          case TEMP_DETECT_NTC_RATIO_ENABLED_SLEEP:
+  836   2            if(SYS_IsTimerExpired(&gDriver_Bat_Temp_ctl.detectorTimer))
+  837   2            {
+  838   3              gDriver_Bat_Temp_ctl.detectorState= TEMP_DETECT_NTC_RATIO_DISABLED; 
+  839   3            }
+  840   2          default:
+  841   2            break;
+  842   2        }
+  843   1        
+  844   1      }
+  845          #endif
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =      3137     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =        24     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       293     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

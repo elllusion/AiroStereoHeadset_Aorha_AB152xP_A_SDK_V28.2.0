@@ -1,0 +1,1240 @@
+    // - AEC/NR/AVC
+    #ifdef OPERATION_IN_BB_ASIC_VERSION
+        #ifdef DUAL_MIC_ENABLE_CONFIG
+        ENDIAN_RVRS(0x0005), /* AEC_NR_EN;                                  */
+        #else
+        ENDIAN_RVRS(0x0003), /* AEC_NR_EN;                                  */
+        #endif
+    #else
+        ENDIAN_RVRS(0x0000), /* AEC_NR_EN;                                  */
+    #endif
+	ENDIAN_RVRS(0x3333), /* AEC_CNG_GAIN_M;                             */
+	ENDIAN_RVRS(0x0004), /* AEC_ref_pow_min     						*/
+	ENDIAN_RVRS(0x0006), /* AEC_ECHO_TAIL_LENGTH;                       */
+	ENDIAN_RVRS(0x0000), /* AEC_EC_RESIST;                              */
+	ENDIAN_RVRS(0x399A), /* AEC_MU_FAC;                                 */
+	ENDIAN_RVRS(0x1000), /* AEC_MU_MIN;                                 */
+	ENDIAN_RVRS(0x1FD7), /* AEC_NORM_CAP1;                              */
+	ENDIAN_RVRS(0x3000), /* AEC_NORM_CAP2;                              */
+	ENDIAN_RVRS(0x0068), /* AEC_PF_MIN;                                 */
+	ENDIAN_RVRS(0x1000), /* AEC_block_percent;                          */
+	ENDIAN_RVRS(     1), /* AEC_DT_boost;                               */
+	ENDIAN_RVRS(     3), /* AEC_PF_order;                               */
+	ENDIAN_RVRS(0x1518), /* AEC_DT_ratio_thrd;                          */
+	ENDIAN_RVRS(0x0018), /* AEC_RESERVE6;   for HS_SBEC norm_tap		*/
+	ENDIAN_RVRS(    14), /* AEC_DT_length;                              */
+	ENDIAN_RVRS(0x1000), /* MULT_AFTER_EC			(Q11)					*/
+	ENDIAN_RVRS(0x0800), /* VOICE_TX_GAIN;		(Q11)					*/
+	ENDIAN_RVRS(0x00A0), /* CH1_REF_GAIN;                               */
+	ENDIAN_RVRS(0x00A0), /* CH2_REF_GAIN;                               */
+	ENDIAN_RVRS(0x00A0), /* CH3_REF_GAIN;                               */
+	ENDIAN_RVRS(0x00A0), /* CH4_REF_GAIN;                               */
+	ENDIAN_RVRS(0x00A0), /* CH1_REF2_GAIN;                              */
+	ENDIAN_RVRS(0x00A0), /* CH2_REF2_GAIN;                              */
+	ENDIAN_RVRS(0x00A0), /* CH3_REF2_GAIN;                              */
+	ENDIAN_RVRS(0x00A0), /* CH4_REF2_GAIN;                              */
+
+    //WB_NR_TX
+    ENDIAN_RVRS(0x000b), /* WB_NR_TX_POW_MIN_BUF_PERIOD;                   */
+    ENDIAN_RVRS(0x1333), /* WB_NR_TX_NOISE_GAIN_LIMITER;                   */
+    ENDIAN_RVRS(0x0348), /* WB_NR_TX_VAD_THRD1;                            */
+    ENDIAN_RVRS(0x0b0b), /* WB_NR_RX_VAD_THRD_BANDS[0];                 */
+    ENDIAN_RVRS(0x0b08), /* WB_NR_RX_VAD_THRD_BANDS[1];                 */
+    ENDIAN_RVRS(0x0808), /* WB_NR_RX_VAD_THRD_BANDS[2];                 */
+    ENDIAN_RVRS(0x0808), /* WB_NR_RX_VAD_THRD_BANDS[3];                 */
+	ENDIAN_RVRS(0x0a07), /* WB_NR_RX_VAD_THRD_BANDS[4];                 */
+    ENDIAN_RVRS(0x219a), /* WB_NR_TX_OVER_SUPPRESS_FAC;                    */
+    ENDIAN_RVRS(0x599a), /* WB_NR_TX_SPEECH_RETAIN_FAC;                    */
+    ENDIAN_RVRS(0x799a), /* WB_NR_TX_NOISE_LAMDA;                          */
+    ENDIAN_RVRS(0x8400), /* WB_NR_TX_NOISE_FLOOR_MIN;                      */
+    ENDIAN_RVRS(0x747b), /* WB_NR_FAST_ALPHA;                              */
+    ENDIAN_RVRS(0x7c29), /* WB_NR_SLOW_ALPHA;                              */
+    ENDIAN_RVRS(0x6666), /* WB_NR_NOISE_UPDATE_FAST;                       */
+    ENDIAN_RVRS(0x7c29), /* WB_NR_NOISE_UPDATE_SLOW;                       */
+    ENDIAN_RVRS(0x7f7d), /* WB_NR_NOISE_UPDATE_ULTRASLOW;                  */
+    ENDIAN_RVRS(0x3D79), /* WB_NR_TX_EMPH_COEF[0];                 		*/
+	ENDIAN_RVRS(0x15CC), /* WB_NR_TX_EMPH_COEF[1];                 		*/
+    //NR_RX
+    ENDIAN_RVRS(0x000d), /* NR_RX_POW_MIN_BUF_PERIOD;                   */
+    ENDIAN_RVRS(0x1eb8), /* NR_RX_NOISE_GAIN_LIMITER;                   */
+    ENDIAN_RVRS(0x0348), /* NR_RX_VAD_THRD1;                            */
+    ENDIAN_RVRS(0x0b0b), /* NR_RX_VAD_THRD_BANDS[0];                    */
+    ENDIAN_RVRS(0x0b08), /* NR_RX_VAD_THRD_BANDS[1];                    */
+    ENDIAN_RVRS(0x0808), /* NR_RX_VAD_THRD_BANDS[2];                    */
+    ENDIAN_RVRS(0x0807), /* NR_RX_VAD_THRD_BANDS[3];                    */
+    ENDIAN_RVRS(0x2666), /* NR_RX_OVER_SUPPRESS_FAC;                    */
+    ENDIAN_RVRS(0x6000), /* NR_RX_SPEECH_RETAIN_FAC;                    */
+    ENDIAN_RVRS(0x799a), /* NR_RX_NOISE_LAMDA;                          */
+    ENDIAN_RVRS(0xae00), /* NR_RX_NOISE_FLOOR_MIN;                      */
+    ENDIAN_RVRS(0x3740), /* NR_RX_EMPH_COEF[0];                         */
+    ENDIAN_RVRS(0x24AF), /* NR_RX_EMPH_COEF[1];                         */
+	//WB_NR_RX
+	ENDIAN_RVRS(0x000b), /* WB_NR_RX_POW_MIN_BUF_PERIOD;                   */
+    ENDIAN_RVRS(0x1eb8), /* WB_NR_RX_NOISE_GAIN_LIMITER;                   */
+    ENDIAN_RVRS(0x0348), /* WB_NR_RX_VAD_THRD1;                            */
+    ENDIAN_RVRS(0x0b0b), /* WB_NR_RX_VAD_THRD_BANDS[0];                 */
+    ENDIAN_RVRS(0x0b08), /* WB_NR_RX_VAD_THRD_BANDS[1];                 */
+    ENDIAN_RVRS(0x0808), /* WB_NR_RX_VAD_THRD_BANDS[2];                 */
+    ENDIAN_RVRS(0x0808), /* WB_NR_RX_VAD_THRD_BANDS[3];                 */
+	ENDIAN_RVRS(0x0a07), /* WB_NR_RX_VAD_THRD_BANDS[4];                 */
+	ENDIAN_RVRS(0x2800), /* WB_NR_RX_OVER_SUPPRESS_FAC;                    */
+    ENDIAN_RVRS(0x6000), /* WB_NR_RX_SPEECH_RETAIN_FAC;                    */
+    ENDIAN_RVRS(0x799a), /* WB_NR_RX_NOISE_LAMDA;                          */
+    ENDIAN_RVRS(0xae00), /* WB_NR_RX_NOISE_FLOOR_MIN;                      */
+	ENDIAN_RVRS(0x35EA), /* WB_NR_RX_EMPH_COEF[0];                         */
+    ENDIAN_RVRS(0x0B29), /* WB_NR_RX_EMPH_COEF[1];                         */
+
+
+    //PITCH DETECT
+    ENDIAN_RVRS(     0), /* PD_NR_TX_OPT;                               */
+    ENDIAN_RVRS(     0), /* PD_PEAK_BUF_SIZE;                           */
+    ENDIAN_RVRS( 20480), /* PD_PITCH_VAD_THRD;                          */
+    ENDIAN_RVRS( 31949), /* PD_PITCH_FAC;                               */
+    ENDIAN_RVRS( 30032), /* PD_PEAK_RATIO_FAC;                          */
+    ENDIAN_RVRS(0x0020), /* PD_TRANSIENT_THRD;                          */
+    ENDIAN_RVRS(0x0800), /* PD_TRANSIENT_AUG;                           */
+    ENDIAN_RVRS(0x0148), /* PD_PITCH_AUG;                               */
+    ENDIAN_RVRS(0x0016), /* PD_TRANSIENT_THRD2;                         */
+    ENDIAN_RVRS(     0), /* PD_RESERVE2;                                */
+
+    //2 MIC
+#define MIC_DIST 0	/*0:1.5~2 cm, 1:3.5cm 2:4.5cm, 3:LG neckband */
+#if !defined(MIC_DIST) || (MIC_DIST==0)
+	ENDIAN_RVRS(0x0000), /*M2_MICDIST        							*/
+    ENDIAN_RVRS(0x0C00), /*M2_WIND_THRD      							*/
+    ENDIAN_RVRS(0x0640), /*M2_WIND_TRANS      							*/
+    ENDIAN_RVRS(0x0C00), /*M2_WIND_BLOCK      							*/
+    ENDIAN_RVRS(0x0002), /*M2_FILTER_GRD      							*/
+    ENDIAN_RVRS(0x6ED7), /*M2_DISTANCE_FAC								*/
+    ENDIAN_RVRS(0x082E), /*M2_VAD_THRD_1      							*/
+    ENDIAN_RVRS(0x052F), /*M2_VAD_THRD_2      							*/
+    ENDIAN_RVRS(0x00EC), /*M2_VAD_THRD_3      							*/
+    ENDIAN_RVRS(0xFE46), /*M2_VAD_THRD_4      							*/
+    ENDIAN_RVRS(0x005A), /*M2_SEVERE_NOISE_THRD							*/         
+    ENDIAN_RVRS(0x46F6), /*M2_PHASE_COMB								*/
+    ENDIAN_RVRS(0x4000), /*M2_PHASE_GAIN      							*/
+    ENDIAN_RVRS(0x0038), /*M2_NE_DURATION      							*/
+    ENDIAN_RVRS(0x5CCD), /*M2_BEAM1_NORM_LIMIT      					*/
+    ENDIAN_RVRS(0x5A3D), /*M2_DEEMPH_COEF[0]      						*/
+    ENDIAN_RVRS(0x6536), /*M2_DEEMPH_COEF[1]      						*/
+    ENDIAN_RVRS(0xD3A9), /*M2_DEEMPH_COEF[2]      						*/
+    ENDIAN_RVRS(0x5A7F), /*M2_BAND2_GAIN      							*/
+    ENDIAN_RVRS(0x7FFF), /*M2_BAND3_GAIN      							*/
+#elif defined(MIC_DIST) && (MIC_DIST==1)
+	ENDIAN_RVRS(0x0001), /*M2_MICDIST        							*/
+    ENDIAN_RVRS(0x1000), /*M2_WIND_THRD      							*/
+    ENDIAN_RVRS(0x0800), /*M2_WIND_TRANS      							*/
+    ENDIAN_RVRS(0x1000), /*M2_WIND_BLOCK      							*/
+    ENDIAN_RVRS(0x0001), /*M2_FILTER_GRD      							*/
+    ENDIAN_RVRS(0x3666), /*M2_DISTANCE_FAC      						*/
+    ENDIAN_RVRS(0x4000), /*M2_VAD_THRD_1      							*/
+    ENDIAN_RVRS(0x251F), /*M2_VAD_THRD_2      							*/
+    ENDIAN_RVRS(0x170A), /*M2_VAD_THRD_3      							*/
+    ENDIAN_RVRS(0x0333), /*M2_VAD_THRD_4      							*/
+    ENDIAN_RVRS(0x005A), /*M2_SEVERE_NOISE_THRD							*/         
+    ENDIAN_RVRS(0x5896), /*M2_PHASE_COMB								*/
+    ENDIAN_RVRS(0x4000), /*M2_PHASE_GAIN      							*/
+    ENDIAN_RVRS(0x0024), /*M2_NE_DURATION      							*/
+    ENDIAN_RVRS(0x5CCD), /*M2_BEAM1_NORM_LIMIT      					*/
+    ENDIAN_RVRS(0x3666), /*M2_DEEMPH_COEF[0]      						*/
+    ENDIAN_RVRS(0x722D), /*M2_DEEMPH_COEF[1]      						*/
+    ENDIAN_RVRS(0xD8EC), /*M2_DEEMPH_COEF[2]      						*/
+    ENDIAN_RVRS(0x4000), /*M2_BAND2_GAIN      							*/
+    ENDIAN_RVRS(0x2F5C), /*M2_BAND3_GAIN      							*/
+#elif defined(MIC_DIST) && (MIC_DIST==2)
+	ENDIAN_RVRS(0x0002), /*M2_MICDIST        							*/
+    ENDIAN_RVRS(0x1800), /*M2_WIND_THRD      							*/
+    ENDIAN_RVRS(0x0800), /*M2_WIND_TRANS      							*/
+    ENDIAN_RVRS(0x1000), /*M2_WIND_BLOCK      							*/
+    ENDIAN_RVRS(0x0001), /*M2_FILTER_GRD      							*/
+    ENDIAN_RVRS(0x43F4), /*M2_DISTANCE_FAC      						*/
+    ENDIAN_RVRS(0x3C29), /*M2_VAD_THRD_1      							*/
+    ENDIAN_RVRS(0x247B), /*M2_VAD_THRD_2      							*/
+    ENDIAN_RVRS(0x0F5C), /*M2_VAD_THRD_3      							*/
+    ENDIAN_RVRS(0x03D7), /*M2_VAD_THRD_4      							*/
+    ENDIAN_RVRS(0x005A), /*M2_SEVERE_NOISE_THRD							*/         
+    ENDIAN_RVRS(0x5896), /*M2_PHASE_COMB								*/
+    ENDIAN_RVRS(0x4000), /*M2_PHASE_GAIN      							*/
+    ENDIAN_RVRS(0x0024), /*M2_NE_DURATION      							*/
+    ENDIAN_RVRS(0x5CCD), /*M2_BEAM1_NORM_LIMIT      					*/
+    ENDIAN_RVRS(0x3AE1), /*M2_DEEMPH_COEF[0]      						*/
+    ENDIAN_RVRS(0x6BB3), /*M2_DEEMPH_COEF[1]      						*/
+    ENDIAN_RVRS(0xCE59), /*M2_DEEMPH_COEF[2]      						*/
+    ENDIAN_RVRS(0x4000), /*M2_BAND2_GAIN      							*/
+    ENDIAN_RVRS(0x5A7F), /*M2_BAND3_GAIN      							*/
+#elif defined(MIC_DIST) && (MIC_DIST==3)
+	ENDIAN_RVRS(0x0003), /*M2_MICDIST        							*/
+    ENDIAN_RVRS(0x7FFF), /*M2_WIND_THRD      							*/
+    ENDIAN_RVRS(0x0640), /*M2_WIND_TRANS      							*/
+    ENDIAN_RVRS(0x7FFF), /*M2_WIND_BLOCK      							*/
+    ENDIAN_RVRS(0x0002), /*M2_FILTER_GRD      							*/
+    ENDIAN_RVRS(0x6D93), /*M2_DISTANCE_FAC								*/
+    ENDIAN_RVRS(0x0A3D), /*M2_VAD_THRD_1      							*/
+    ENDIAN_RVRS(0x05E3), /*M2_VAD_THRD_2      							*/
+    ENDIAN_RVRS(0x0083), /*M2_VAD_THRD_3      							*/
+    ENDIAN_RVRS(0xFCCD), /*M2_VAD_THRD_4      							*/
+    ENDIAN_RVRS(0x005A), /*M2_SEVERE_NOISE_THRD							*/         
+    ENDIAN_RVRS(0x20C2), /*M2_PHASE_COMB								*/
+    ENDIAN_RVRS(0x4000), /*M2_PHASE_GAIN      							*/
+    ENDIAN_RVRS(0x0038), /*M2_NE_DURATION      							*/
+    ENDIAN_RVRS(0x5CCD), /*M2_BEAM1_NORM_LIMIT      					*/
+    ENDIAN_RVRS(0x5A3D), /*M2_DEEMPH_COEF[0]      						*/
+    ENDIAN_RVRS(0x6536), /*M2_DEEMPH_COEF[1]      						*/
+    ENDIAN_RVRS(0xD3A9), /*M2_DEEMPH_COEF[2]      						*/
+    ENDIAN_RVRS(0x5A7F), /*M2_BAND2_GAIN      							*/
+    ENDIAN_RVRS(0x7FFF), /*M2_BAND3_GAIN      							*/
+#endif
+    ENDIAN_RVRS(0x2000), /*M2_OVER_SUPPRESS_FAC2						*/
+    ENDIAN_RVRS(0x7800), /*M2_BAND1_ALPHA      							*/
+    ENDIAN_RVRS(0x7D71), /*M2_BAND2_ALPHA      							*/
+    ENDIAN_RVRS(0x7F80), /*M2_BAND3_ALPHA      							*/
+    ENDIAN_RVRS(0x7F5C), /*M2_BANDH_ALPHA      							*/
+
+    //RX_EQ
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[0];                                */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[1];                                */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[2];                                */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[3];                                */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[4];                                */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[5];                                */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[6];                                */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[7];                                */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[8];                                */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[9];                                */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[10];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[11];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[12];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[13];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[14];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[15];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[16];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[17];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[18];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[19];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[20];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[21];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[22];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[23];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[24];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[25];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[26];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[27];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[28];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[29];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[30];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[31];                               */
+	ENDIAN_RVRS(0x0000), /* RXEQ_COF[32];                                */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[33];                                */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[34];                                */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[35];                                */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[36];                                */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[37];                                */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[38];                                */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[39];                                */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[40];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[41];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[42];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[43];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[44];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[45];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[46];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[47];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[48];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[49];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[50];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[51];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[52];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[53];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[54];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[55];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[56];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[57];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[58];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[59];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[60];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[61];                               */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[62];                                */
+    ENDIAN_RVRS(0x0000), /* RXEQ_COF[63];                                */
+    ENDIAN_RVRS(0x1000), /* RXEQ_GAIN_LEVEL[0];                         */
+    ENDIAN_RVRS(0x137E), /* RXEQ_GAIN_LEVEL[1];                         */
+    ENDIAN_RVRS(0x17BE), /* RXEQ_GAIN_LEVEL[2];                         */
+    ENDIAN_RVRS(0x1CED), /* RXEQ_GAIN_LEVEL[3];                         */
+    ENDIAN_RVRS(0x233C), /* RXEQ_GAIN_LEVEL[4];                         */
+    ENDIAN_RVRS(0x2AEC), /* RXEQ_GAIN_LEVEL[5];                         */
+    ENDIAN_RVRS(0x344A), /* RXEQ_GAIN_LEVEL[6];                         */
+    ENDIAN_RVRS(0x3FB2), /* RXEQ_GAIN_LEVEL[7];                         */
+    ENDIAN_RVRS(0x02B5), /* RXEQ_GAIN_LEVEL[8];                         */
+    ENDIAN_RVRS(0x0405), /* RXEQ_GAIN_LEVEL[9];                         */
+    ENDIAN_RVRS(0x04E5), /* RXEQ_GAIN_LEVEL[10];                        */
+    ENDIAN_RVRS(0x05F7), /* RXEQ_GAIN_LEVEL[11];                        */
+    ENDIAN_RVRS(0x0744), /* RXEQ_GAIN_LEVEL[12];                        */
+    ENDIAN_RVRS(0x08DA), /* RXEQ_GAIN_LEVEL[13];                        */
+    ENDIAN_RVRS(0x0AC8), /* RXEQ_GAIN_LEVEL[14];                        */
+    ENDIAN_RVRS(0x0D22), /* RXEQ_GAIN_LEVEL[15];                        */
+
+    //TX_EQ
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[0];                                */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[1];                                */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[2];                                */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[3];                                */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[4];                                */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[5];                                */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[6];                                */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[7];                                */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[8];                                */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[9];                                */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[10];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[11];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[12];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[13];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[14];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[15];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[16];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[17];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[18];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[19];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[20];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[21];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[22];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[23];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[24];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[25];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[26];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[27];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[28];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[29];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[30];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[31];                               */
+	ENDIAN_RVRS(0x0000), /* TXEQ_COF[32];                                */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[33];                                */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[34];                                */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[35];                                */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[36];                                */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[37];                                */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[38];                                */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[39];                                */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[40];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[41];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[42];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[43];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[44];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[45];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[46];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[47];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[48];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[49];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[50];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[51];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[52];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[53];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[54];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[55];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[56];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[57];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[58];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[59];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[60];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[61];                               */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[62];                                */
+    ENDIAN_RVRS(0x0000), /* TXEQ_COF[63];                                */
+    ENDIAN_RVRS(0x1000), /* TXEQ_GAIN_LEVEL[0];                         */
+    ENDIAN_RVRS(0x137E), /* TXEQ_GAIN_LEVEL[1];                         */
+    ENDIAN_RVRS(0x17BE), /* TXEQ_GAIN_LEVEL[2];                         */
+    ENDIAN_RVRS(0x1CED), /* TXEQ_GAIN_LEVEL[3];                         */
+    ENDIAN_RVRS(0x233C), /* TXEQ_GAIN_LEVEL[4];                         */
+    ENDIAN_RVRS(0x2AEC), /* TXEQ_GAIN_LEVEL[5];                         */
+    ENDIAN_RVRS(0x344A), /* TXEQ_GAIN_LEVEL[6];                         */
+    ENDIAN_RVRS(0x3FB2), /* TXEQ_GAIN_LEVEL[7];                         */
+    ENDIAN_RVRS(0x02B5), /* TXEQ_GAIN_LEVEL[8];                         */
+    ENDIAN_RVRS(0x0405), /* TXEQ_GAIN_LEVEL[9];                         */
+    ENDIAN_RVRS(0x04E5), /* TXEQ_GAIN_LEVEL[10];                        */
+    ENDIAN_RVRS(0x05F7), /* TXEQ_GAIN_LEVEL[11];                        */
+    ENDIAN_RVRS(0x0744), /* TXEQ_GAIN_LEVEL[12];                        */
+    ENDIAN_RVRS(0x08DA), /* TXEQ_GAIN_LEVEL[13];                        */
+    ENDIAN_RVRS(0x0AC8), /* TXEQ_GAIN_LEVEL[14];                        */
+    ENDIAN_RVRS(0x0D22), /* TXEQ_GAIN_LEVEL[15];                        */
+
+    //AVC
+    ENDIAN_RVRS(0x799A), /* AVC_ALPHA;                                  */
+    ENDIAN_RVRS(0x0037), /* AVC_THRD;                                   */
+    ENDIAN_RVRS(0x7fff), /* AVC_VOL_MAX;                                */
+
+    //PLC
+    ENDIAN_RVRS(0X0008), /*PLC_MUTE_CONSECUTIVE_ERRS_DEFAULT ;           */
+    ENDIAN_RVRS(0X000E), /*PLC_UNITY_GAIN_CONSECUTIVE_GOODFRM_DEFAULT;   */
+    ENDIAN_RVRS(0X000A), /*PLC_MUTE_PE16_TH_DEFAULT;                     */
+    ENDIAN_RVRS(0X000F), /*PLC_GAIN_UPDATE_PE16_TH_DEFAULT;              */
+    ENDIAN_RVRS(0X0000), /*PLC_PE16_ADJ_DEFAULT; 				                 */
+    ENDIAN_RVRS(0x000A), /*PLC_MUTE_GAIN_RATE_FACTOR_ATTACK_DEFAULT;     */
+    ENDIAN_RVRS(0x000A), /*PLC_MUTE_GAIN_RATE_FACTOR_RELEASE_DEFAULT;    */
+    ENDIAN_RVRS(0x0001), /*PLC_WEIGHT_PKTLOSS_EN_DEFAULT;                */
+    ENDIAN_RVRS(0X4000), /*PLC_WEIGHT_PKTLOSS_DEFAULT;                   */
+   	//-smart PLC
+	  ENDIAN_RVRS(   0x1),/* SMART_PLC_SWITCH  */
+	  ENDIAN_RVRS(   0x1),/* PLC_SMART_EN      */
+	  ENDIAN_RVRS(   0x1),/* PLC_BER_GFRAME_EN */
+	  ENDIAN_RVRS(   0x1),/* PLC_CRC_GFRAME_EN */
+	  ENDIAN_RVRS(   0x1),/* PLC_BER_GFRAME_TH */
+	  ENDIAN_RVRS(   0x1),/* PLC_HEC_GFRAME_EN */
+	  ENDIAN_RVRS(   0x1),/* PLC_TONE_SBER_EN  */
+	  ENDIAN_RVRS(  0x20),/* FRAME_AMP_TH      */
+	  ENDIAN_RVRS( 0x2CC),/* FRAME_UNVOICED_TH */
+	  ENDIAN_RVRS(  0x16),/* ZC_IIR_DIFF_TH    */
+	  ENDIAN_RVRS(  0x44),/* ZC_DIFF_TH        */
+	  ENDIAN_RVRS(   0x1),/* ZC_DIFF_NUM_TH    */
+	  ENDIAN_RVRS(0x1999),/* FBER_MIIR_TH      */
+	  ENDIAN_RVRS( 0x51E),/* FBER_SLIIR_TH     */
+	  ENDIAN_RVRS( 0x51E),/* FBER_MLIIR_TH     */
+    //-SUBWOOFER_PLC
+    ENDIAN_RVRS(    0xF),/* WF_PLC_MUTE_PE16_TH_DEFAULT;                  */
+    ENDIAN_RVRS(    0x0),/* WF_PLC_MUTE_PE16_TH_FACTOR_DEFAULT;	         */
+    ENDIAN_RVRS(    0xF),/* WF_PLC_MUTE_CONSECUTIVE_ERRS_DEFAULT;         */
+    ENDIAN_RVRS(    0x0),/* WF_PLC_MUTE_CONSECUTIVE_ERRS_FACTOR_DEFAULT;  */
+    ENDIAN_RVRS(    0xA),/* WF_PLC_UNITY_GAIN_CONSECUTIVE_GOODFRM_DEFAULT;*/
+    ENDIAN_RVRS(    0xA),/* WF_PLC_GAIN_UPDATE_PE16_TH_DEFAULT;           */
+    ENDIAN_RVRS(    0x0),/* WF_PLC_PE16_ADJ_DEFAULT;                      */
+    ENDIAN_RVRS(    0x1),/* WF_PLC_XC_AUTO_SCALE_ENABLE_DEFAULT;	         */
+    ENDIAN_RVRS(    0x6),/* WF_PLC_XC_SCALE_ADJ_DEFAULT;                  */
+    ENDIAN_RVRS(    0xA),/* WF_PLC_MUTE_GAIN_RATE_FACTOR_ATTACK_DEFAULT;  */
+    ENDIAN_RVRS(    0xA),/* WF_PLC_MUTE_GAIN_RATE_FACTOR_RELEASE_DEFAULT; */
+    ENDIAN_RVRS(    0x0),/* WF_PLC_WEIGHT_PKTLOSS_EN_DEFAULT;             */
+    ENDIAN_RVRS( 0x7FFF),/* WF_PLC_WEIGHT_PKTLOSS_DEFAULT;                */
+    ENDIAN_RVRS(    0xA),/* WF_CVSD_PLC_UNVOICED_ZC_THRES;                */
+    ENDIAN_RVRS(    0x2),/* WF_FRAME_SIZE0_DEFAULT;                       */
+    ENDIAN_RVRS(    0x1),/* WF_PLC_EXTRA_IND;	                           */
+
+    //INS
+    ENDIAN_RVRS(0x0880), /* snap_level;                                 */
+    ENDIAN_RVRS(0x0002), /* pulse_period;                               */
+    ENDIAN_RVRS(0x0020), /* block_period;                               */
+    ENDIAN_RVRS(0x0001), /* floor_absx_opt;                             */
+    ENDIAN_RVRS(0x2000), /* INS_fac;                                    */
+    ENDIAN_RVRS(0x7D71), /* gain_alpha;                                 */
+    ENDIAN_RVRS(0x0004), /* INS_upper_thrd;                             */
+    ENDIAN_RVRS(0x0003), /* INS_lower_thrd;                             */
+
+    // -PEQ(AGC)
+    ENDIAN_RVRS(     1), /* AGC_EN;                                     */
+    ENDIAN_RVRS(  0x1f), /* AGC_PRESET_AGC_LEVEL;                       */
+    ENDIAN_RVRS(  0x20), /* AGC_MIN_REDUCE_AMOUNT;                      */
+    ENDIAN_RVRS(  0x80), /* AGC_MAX_INCREASE_AMOUNT;                    */
+    ENDIAN_RVRS(0x6000), /* AGC_ALPHA_UP;                               */
+    ENDIAN_RVRS(0x7000), /* AGC_ALPHA_DOWN;                             */
+    ENDIAN_RVRS(0x2666), /* AGC_ALPHA;                                  */
+    ENDIAN_RVRS(0x0002), /* AGC_FRM_CNT;                                */
+    // - VOICE_RMS
+    ENDIAN_RVRS(0x0001), /* VOICE_RMS_EN;                               */
+    ENDIAN_RVRS(0x7D00), /* VOICE_RMS_ALPHA_UP;                         */
+    ENDIAN_RVRS(0x7EC2), /* VOICE_RMS_ALPHA_DOWN;                       */
+    ENDIAN_RVRS(0x0400), /* VOICE_RMS_VAD_THRD;                         */
+
+    // - AUDIO_RMS
+    ENDIAN_RVRS(     1), /* AUDIO_RMS_EN;                               */
+    ENDIAN_RVRS( 25000), /* AUDIO_RMS_ALPHA_UP;                         */
+    ENDIAN_RVRS( 31785), /* AUDIO_RMS_ALPHA_DOWN;                       */
+    ENDIAN_RVRS(   128), /* AUDIO_RMS_CNT_PERIOD;                       */
+
+    // - NEW COMPANDER
+    #ifdef OPERATION_IN_BB_ASIC_VERSION
+	ENDIAN_RVRS(0x0010), /* CPD2_SWITCH;  //0x0010:Oneband 0x0001:Multiband 0x1xxx:compander off */
+	#else
+	ENDIAN_RVRS(0x0010), /* CPD2_SWITCH;  //0x0010:Oneband 0x0001:Multiband 0x1xxx:compander off */
+	#endif
+	ENDIAN_RVRS(0x0040), /* CPD2_VO_DELAY_SIZE_WB;         				*/
+	ENDIAN_RVRS(0x00C0), /* CPD2_AU_DELAY_SIZE;           				*/
+	ENDIAN_RVRS(0x0880), /* CPD2_PACKET_MAX;	           				*/
+	// - NEW COMPANDER(NB_TX)
+	ENDIAN_RVRS(0x7F1B), /* CPD2_VO_ALPHA_RELEASE_NB_TX;   				*/
+	ENDIAN_RVRS(0x3333), /* CPD2_VO_ALPHA_ATTACK_NB_TX;    				*/
+	ENDIAN_RVRS(0x0533), /* CPD2_VO_THRD_NB_TX;            				*/
+	ENDIAN_RVRS(0x0800), /* CPD2_VO_OUT_MAX_NB_TX;            			*/
+	ENDIAN_RVRS(0x0020), /* CPD2_VO_INS_thrd_NB_TX;            			*/
+	ENDIAN_RVRS(0x2879), /* CPD2_VO_INS_atten_NB_TX;            		*/
+	ENDIAN_RVRS(0x70A4), /* CPD2_VO_INS_alpha_vad_NB_TX;            	*/
+	ENDIAN_RVRS(0x7C29), /* CPD2_VO_INS_alpha_no_vad_NB_TX;            	*/
+	// - NEW COMPANDER(WB_TX)
+	ENDIAN_RVRS(0x7F1B), /* CPD2_VO_ALPHA_RELEASE_WB_TX;   				*/
+	ENDIAN_RVRS(0x3333), /* CPD2_VO_ALPHA_ATTACK_WB_TX;    				*/
+	ENDIAN_RVRS(0x0533), /* CPD2_VO_THRD_WB_TX;            				*/
+	ENDIAN_RVRS(0x0800), /* CPD2_VO_OUT_MAX_WB_TX;            			*/
+	ENDIAN_RVRS(0x000F), /* CPD2_VO_INS_thrd_WB_TX;            			*/
+	ENDIAN_RVRS(0x2879), /* CPD2_VO_INS_atten_WB_TX;            		*/
+	ENDIAN_RVRS(0x70A4), /* CPD2_VO_INS_alpha_vad_WB_TX;            	*/
+	ENDIAN_RVRS(0x7C29), /* CPD2_VO_INS_alpha_no_vad_WB_TX;            	*/
+	// - NEW COMPANDER(NB_RX)
+	ENDIAN_RVRS(0x7F1B), /* CPD2_VO_ALPHA_RELEASE_NB_RX;   				*/
+	ENDIAN_RVRS(0x3333), /* CPD2_VO_ALPHA_ATTACK_NB_RX;    				*/
+	ENDIAN_RVRS(0x0466), /* CPD2_VO_THRD_NB_RX;            				*/
+	ENDIAN_RVRS(0x0800), /* CPD2_VO_OUT_MAX_NB_RX;            			*/
+	ENDIAN_RVRS(0x0003), /* CPD2_VO_INS_thrd_NB_RX;            			*/
+	ENDIAN_RVRS(0x65AC), /* CPD2_VO_INS_atten_NB_RX;            		*/
+	ENDIAN_RVRS(0x7333), /* CPD2_VO_INS_alpha_NB_RX;	            	*/
+	// - NEW COMPANDER(WB_RX)
+	ENDIAN_RVRS(0x7F1B), /* CPD2_VO_ALPHA_RELEASE_WB_RX;   				*/
+	ENDIAN_RVRS(0x3333), /* CPD2_VO_ALPHA_ATTACK_WB_RX;    				*/
+	ENDIAN_RVRS(0x0466), /* CPD2_VO_THRD_WB_RX;            				*/
+	ENDIAN_RVRS(0x0800), /* CPD2_VO_OUT_MAX_WB_RX;            			*/
+	ENDIAN_RVRS(0x0003), /* CPD2_VO_INS_thrd_WB_RX;            			*/
+	ENDIAN_RVRS(0x65AC), /* CPD2_VO_INS_atten_WB_RX;            		*/
+	ENDIAN_RVRS(0x7333), /* CPD2_VO_INS_alpha_WB_RX;	            	*/
+	// - NEW COMPANDER(VP)
+	ENDIAN_RVRS(0x7F1B), /* CPD2_VP_ALPHA_RELEASE;   					*/
+	ENDIAN_RVRS(0x3333), /* CPD2_VP_ALPHA_ATTACK;    					*/
+	ENDIAN_RVRS(0x0466), /* CPD2_VP_THRD;            					*/
+	ENDIAN_RVRS(0x0666), /* CPD2_VP_OUT_MAX;            				*/
+	// - NEW COMPANDER(A2DP)
+	ENDIAN_RVRS(0x7F1B), /* CPD2_AU_ALPHA_RELEASE;   					*/
+	ENDIAN_RVRS(0x3333), /* CPD2_AU_ALPHA_ATTACK;    					*/
+	ENDIAN_RVRS(0x0466), /* CPD2_AU_THRD;            					*/
+	ENDIAN_RVRS(0x0666), /* CPD2_AU_OUT_MAX;            				*/
+	ENDIAN_RVRS(0x7F5C), /* CPD2_AU_alpha_release2;   					*/
+	ENDIAN_RVRS(0x7E14), /* CPD2_AU_alpha_release3;   					*/
+	ENDIAN_RVRS(0x0171), /* CPD2_AU_alpha_level2;   					*/
+	ENDIAN_RVRS(0x007B), /* CPD2_AU_alpha_level3;   					*/
+	// - NEW COMPANDER(Line-In)
+	ENDIAN_RVRS(0x7F1B), /* CPD2_LI_ALPHA_RELEASE;   					*/
+	ENDIAN_RVRS(0x3333), /* CPD2_LI_ALPHA_ATTACK;    					*/
+	ENDIAN_RVRS(0x0466), /* CPD2_LI_THRD;            					*/
+	ENDIAN_RVRS(0x0666), /* CPD2_LI_OUT_MAX;            				*/
+	ENDIAN_RVRS(0x0040), /* CPD2_LI_INS_thrd;            				*/
+	ENDIAN_RVRS(0x7FFF), /* CPD2_LI_INS_atten;            				*/
+	ENDIAN_RVRS(0x7333), /* CPD2_LI_INS_alpha;	                		*/
+	ENDIAN_RVRS(0x7F5C), /* CPD2_LI_alpha_release2;   					*/
+	ENDIAN_RVRS(0x7E14), /* CPD2_LI_alpha_release3;   					*/
+	ENDIAN_RVRS(0x0171), /* CPD2_LI_alpha_level2;   					*/
+	ENDIAN_RVRS(0x007B), /* CPD2_LI_alpha_level3;   					*/
+
+	// - Dynamic Bass Boost
+	ENDIAN_RVRS(0x0800), /* DBB_AU_THRD;   								*/
+	ENDIAN_RVRS(0x0800), /* DBB_AU_MAX_GAIN;   							*/
+	ENDIAN_RVRS(0x0800), /* DBB_LI_THRD;   								*/
+	ENDIAN_RVRS(0x0800), /* DBB_LI_MAX_GAIN;   							*/
+
+	// for VC
+	ENDIAN_RVRS( 15000), /* VC_TH_LEVEL0;                               */
+	ENDIAN_RVRS( 30000), /* VC_TH_LEVEL1;                               */
+	ENDIAN_RVRS(     230), /* VC_MIC_DIFF_FAC;                            */
+	ENDIAN_RVRS(       33), /* VC_DUR_LIMIT; Bit15:Ena 2 Mic; Low THR */
+
+    //Widening for audio
+    ENDIAN_RVRS(0x0000),/* ENHANCE_ENABLE;       [15:8]LieIn mode [7:0]A2DP mode; 0=disable effect, 1=enable                          */
+    ENDIAN_RVRS(0x0101),/* ENHANCE_DECORRELATOR; [15:8]LieIn mode [7:0]A2DP mode; 0=disable, 1=enable,                                */
+    ENDIAN_RVRS(0x0000),/* ENHANCE_HARMONIC;     [15:8]LieIn mode [7:0]A2DP mode; 0=disable, 3=har_en, 5=bass_en, 7=har_en & bass_en  */
+    ENDIAN_RVRS(0x0101),/* ENHANCE_WIDENING;     [15:8]LieIn mode [7:0]A2DP mode; 0=disable, 1=no en_cor_fed , 3=en_cor_fed           */
+    ENDIAN_RVRS(0x0000),/* ENHANCE_REVERBERATION;[15:8]LieIn mode [7:0]A2DP mode; 0=disable,  1=case 1, 2=case 2, 3=case 3            */
+
+	// - DEREVERBER
+	ENDIAN_RVRS(0x0002), /* DRV_Nl_ini                                  */
+	ENDIAN_RVRS(0x0004), /* DRV_Nl                                  	*/
+	ENDIAN_RVRS(0x0001), /* DRV_pre_det_time                            */
+	ENDIAN_RVRS(0x0148), /* DRV_ngain_limiter                           */
+	ENDIAN_RVRS(0x2666), /* DRV_threshold                               */
+	ENDIAN_RVRS(0x2000), /* DRV_rt60_weight                             */
+	ENDIAN_RVRS(0x5999), /* DRV_gain_comps                              */
+	ENDIAN_RVRS(0x7FFF), /* DRV_gain_max                                */
+	ENDIAN_RVRS(0x0666), /* DRV_gain_step                               */
+	ENDIAN_RVRS(0x0831), /* DRV_idle_th                                 */
+
+	// - DSP_RESERVE
+	ENDIAN_RVRS(     0), /* DSP_EC_SW;  	used for EC OFF				*/
+	ENDIAN_RVRS(     0), /* DSP_REF_DLY; used for REF_Delay			*/
+	ENDIAN_RVRS(0x0078), /* DSP_BOOST_THRD;								*/	
+	ENDIAN_RVRS(0x2000), /* DSP_BOOST_MAX; 							    */	
+	ENDIAN_RVRS(0x0106), /* OFF_PITCH_ALPHA;							*/
+	ENDIAN_RVRS(0x2000), /* WIND_ALPHA_BOOST;							*/
+	ENDIAN_RVRS(0x1400), /* WIND_GP_BOOST;								*/
+	ENDIAN_RVRS(     0), /* DSP_RESERVE20;								*/
+
+	// Widening for audio
+    ENDIAN_RVRS(0x2666), /* CORR_GAIN_H                                 */
+    ENDIAN_RVRS(0x6666), /* CORR_GAIN_L           q31                   */
+    ENDIAN_RVRS(0x7fff), /* DIFF_GAIN_H                                 */
+    ENDIAN_RVRS(0xffff), /* DIFF_GAIN_L           q31                   */
+    ENDIAN_RVRS(   200), /* CORRF_DELAY           us                    */
+    ENDIAN_RVRS( 15000), /* DIFFER_DELAY          us                    */
+    ENDIAN_RVRS(  5000), /* DECORR_DELAY          us                    */
+    ENDIAN_RVRS(0x4ccc), /* HARMO_GAIN_H                                */
+    ENDIAN_RVRS(0xcccd), /* HARMO_GAIN_L                                */
+    ENDIAN_RVRS(     1), /* BASS_HARMO_GAIN   left shift 1 bit = 2      */
+
+	//2 MIC
+#if !defined(MIC_DIST) || (MIC_DIST==0)
+    ENDIAN_RVRS(0x0656), /*M2_VAD_THRD_12								*/
+    ENDIAN_RVRS(0x01BA), /*M2_VAD_THRD_22   							*/
+    ENDIAN_RVRS(0xF917), /*M2_VAD_THRD_32	   							*/
+    ENDIAN_RVRS(0xF19A), /*M2_VAD_THRD_42								*/
+    ENDIAN_RVRS(0x1DF4), /*M2_VAD_THRD_13			      							*/
+    ENDIAN_RVRS(0x0F8D), /*M2_VAD_THRD_23      									*/
+    ENDIAN_RVRS(0x0408), /*M2_VAD_THRD_33			      							*/
+    ENDIAN_RVRS(0xFBF8), /*M2_VAD_THRD_43      									*/
+#elif defined(MIC_DIST) && (MIC_DIST==1)
+    ENDIAN_RVRS(0x5333), /*M2_VAD_THRD_12      							*/
+    ENDIAN_RVRS(0x3333), /*M2_VAD_THRD_22								*/
+    ENDIAN_RVRS(0x0333), /*M2_VAD_THRD_32      							*/
+    ENDIAN_RVRS(0xE666), /*M2_VAD_THRD_42								*/
+    ENDIAN_RVRS(0x0000), /*NULL			      							*/
+    ENDIAN_RVRS(0x0000), /*NULL      									*/
+    ENDIAN_RVRS(0x0000), /*NULL			      							*/
+    ENDIAN_RVRS(0x0000), /*NULL      									*/
+#elif defined(MIC_DIST) && (MIC_DIST==2)
+    ENDIAN_RVRS(0x3333), /*M2_VAD_THRD_12      							*/
+    ENDIAN_RVRS(0x1EB8), /*M2_VAD_THRD_22								*/
+    ENDIAN_RVRS(0x128F), /*M2_VAD_THRD_32      							*/
+    ENDIAN_RVRS(0x08F6), /*M2_VAD_THRD_42								*/
+    ENDIAN_RVRS(0x31EC), /*M2_VAD_THRD_13      							*/
+    ENDIAN_RVRS(0x228F), /*M2_VAD_THRD_23								*/
+    ENDIAN_RVRS(0x199A), /*M2_VAD_THRD_33      							*/
+    ENDIAN_RVRS(0x07AE), /*M2_VAD_THRD_43								*/
+#elif defined(MIC_DIST) && (MIC_DIST==3)
+    ENDIAN_RVRS(0x2000), /*M2_VAD_THRD_12      							*/
+    ENDIAN_RVRS(0x17AE), /*M2_VAD_THRD_22								*/
+    ENDIAN_RVRS(0x0CCD), /*M2_VAD_THRD_32      							*/
+    ENDIAN_RVRS(0xF852), /*M2_VAD_THRD_42								*/
+    ENDIAN_RVRS(0x23D7), /*M2_VAD_THRD_13      							*/
+    ENDIAN_RVRS(0x147B), /*M2_VAD_THRD_23								*/
+    ENDIAN_RVRS(0x0B85), /*M2_VAD_THRD_33      							*/
+    ENDIAN_RVRS(0x0000), /*M2_VAD_THRD_43								*/
+#endif
+
+		//2-MIC reserve
+    ENDIAN_RVRS(0x0000), /* M2_RESERVE0                                */
+    ENDIAN_RVRS(0x0000), /* M2_RESERVE1                                */
+    ENDIAN_RVRS(0x0000), /* M2_RESERVE2                                */
+    ENDIAN_RVRS(0x0000), /* M2_RESERVE3                                */
+    ENDIAN_RVRS(0x0000), /* M2_RESERVE4                                */
+    ENDIAN_RVRS(0x0000), /* M2_RESERVE5                                */
+    ENDIAN_RVRS(0x0000), /* M2_RESERVE6                                */
+    ENDIAN_RVRS(0x0000), /* M2_RESERVE7                                */
+    ENDIAN_RVRS(0x0000), /* M2_RESERVE8                                */
+    ENDIAN_RVRS(0x0000), /* M2_RESERVE9                                */
+    ENDIAN_RVRS(0x0000), /* M2_RESERVE10                               */
+    ENDIAN_RVRS(0x0000), /* M2_RESERVE11                               */
+    ENDIAN_RVRS(0x0000), /* M2_RESERVE12                               */
+    ENDIAN_RVRS(0x0000), /* M2_RESERVE13                               */
+    ENDIAN_RVRS(0x0000), /* M2_RESERVE14                               */
+    ENDIAN_RVRS(0x0000), /* M2_RESERVE15                               */
+    ENDIAN_RVRS(0x0000), /* M2_RESERVE16                               */
+    ENDIAN_RVRS(0x0000), /* M2_RESERVE17                               */
+    ENDIAN_RVRS(0x0000), /* M2_RESERVE18                               */
+    ENDIAN_RVRS(0x0000), /* M2_RESERVE19                               */
+    ENDIAN_RVRS(0x0000), /* M2_RESERVE20                               */
+    ENDIAN_RVRS(0x0000), /* M2_RESERVE21                               */
+    ENDIAN_RVRS(0x0000), /* M2_RESERVE22                               */
+    ENDIAN_RVRS(0x0000), /* M2_RESERVE23                               */
+    ENDIAN_RVRS(0x0000), /* M2_RESERVE24                               */
+    ENDIAN_RVRS(0x0000), /* M2_RESERVE25                               */
+    ENDIAN_RVRS(0x0000), /* M2_RESERVE26                               */
+    ENDIAN_RVRS(0x0000), /* M2_RESERVE27                               */
+    ENDIAN_RVRS(0x0000), /* M2_RESERVE28                               */
+    ENDIAN_RVRS(0x0000), /* M2_RESERVE29                               */
+    ENDIAN_RVRS(0x0000), /* M2_RESERVE30                               */
+    ENDIAN_RVRS(0x0000), /* M2_RESERVE31                               */
+
+	//Voice TX HP
+    ENDIAN_RVRS(0x69F8), /* VOICE_TX_HP_COEF 0                                */
+    ENDIAN_RVRS(0xD28D), /* VOICE_TX_HP_COEF 1                                */
+    ENDIAN_RVRS(0x8020), /* VOICE_TX_HP_COEF 2                                */
+    ENDIAN_RVRS(0x4000), /* VOICE_TX_HP_COEF 3                                */
+    ENDIAN_RVRS(0x7B98), /* VOICE_TX_HP_COEF 4                                */
+    ENDIAN_RVRS(0xC2B6), /* VOICE_TX_HP_COEF 5                                */
+    ENDIAN_RVRS(0x3192), /* VOICE_TX_HP_COEF 6                                */
+    ENDIAN_RVRS(0x9D55), /* VOICE_TX_HP_COEF 7                                */
+    ENDIAN_RVRS(0x3192), /* VOICE_TX_HP_COEF 8                                */
+    ENDIAN_RVRS(0x0000), /* VOICE_TX_HP_COEF 9                                */
+
+    //Widening for linein
+    ENDIAN_RVRS(0x2666), /* LI_CORR_GAIN_H                                 */
+    ENDIAN_RVRS(0x6666), /* LI_CORR_GAIN_L           q31                   */
+    ENDIAN_RVRS(0x7fff), /* LI_DIFF_GAIN_H                                 */
+    ENDIAN_RVRS(0xffff), /* LI_DIFF_GAIN_L           q31                   */
+    ENDIAN_RVRS(   200), /* LI_CORRF_DELAY           us                    */
+    ENDIAN_RVRS( 15000), /* LI_DIFFER_DELAY          us                    */
+    ENDIAN_RVRS(  5000), /* LI_DECORR_DELAY          us                    */
+    ENDIAN_RVRS(0x4ccc), /* LI_HARMO_GAIN_H                                */
+    ENDIAN_RVRS(0xcccd), /* LI_HARMO_GAIN_L                                */
+    ENDIAN_RVRS(     1), /* LI_BASS_HARMO_GAIN   left shift 1 bit = 2      */
+
+    // - DSP_Reserve Parameters
+	/* Compander Reserve Start */
+	//Multi-band COMPANDER(A2DP low-band)
+    ENDIAN_RVRS(0x7F1B), /* MBCPD_AU_ALPHA_RELEASE_L;                          */
+    ENDIAN_RVRS(0x3333), /* MBCPD_AU_ALPHA_ATTACK_L;                           */
+    ENDIAN_RVRS(0x0466), /* MBCPD_AU_THRD_L;                                   */
+    ENDIAN_RVRS(0x0666), /* MBCPD_AU_OUT_MAX_L;                                */
+    ENDIAN_RVRS(0x7F5C), /* MBCPD_AU_alpha_release2_L;                         */
+    ENDIAN_RVRS(0x7E14), /* MBCPD_AU_alpha_release3_L;                         */
+    ENDIAN_RVRS(0x0171), /* MBCPD_AU_alpha_level2_L;                           */
+    ENDIAN_RVRS(0x007B), /* MBCPD_AU_alpha_level3_L;                           */
+	//Multi-band COMPANDER(A2DP high-band)
+	ENDIAN_RVRS(0x7F1B), /* MBCPD_AU_ALPHA_RELEASE_H;                          */
+    ENDIAN_RVRS(0x3333), /* MBCPD_AU_ALPHA_ATTACK_H;                           */
+    ENDIAN_RVRS(0x0466), /* MBCPD_AU_THRD_H;                                   */
+    ENDIAN_RVRS(0x0666), /* MBCPD_AU_OUT_MAX_H;                                */
+    ENDIAN_RVRS(0x7F5C), /* MBCPD_AU_alpha_release2_H;                         */
+    ENDIAN_RVRS(0x7E14), /* MBCPD_AU_alpha_release3_H;                         */
+    ENDIAN_RVRS(0x0171), /* MBCPD_AU_alpha_level2_H;                           */
+    ENDIAN_RVRS(0x007B), /* MBCPD_AU_alpha_level3_H;                           */
+	//Multi-band COMPANDER(Line-In low-band)
+    ENDIAN_RVRS(0x7F1B), /* MBCPD_LI_ALPHA_RELEASE_L;                          */
+    ENDIAN_RVRS(0x3333), /* MBCPD_LI_ALPHA_ATTACK_L;                           */
+    ENDIAN_RVRS(0x0466), /* MBCPD_LI_THRD_L;                                   */
+    ENDIAN_RVRS(0x0666), /* MBCPD_LI_OUT_MAX_L;                                */
+    ENDIAN_RVRS(0x7F5C), /* MBCPD_LI_alpha_release2_L;                         */
+    ENDIAN_RVRS(0x7E14), /* MBCPD_LI_alpha_release3_L;                         */
+    ENDIAN_RVRS(0x0171), /* MBCPD_LI_alpha_level2_L;                           */
+    ENDIAN_RVRS(0x007B), /* MBCPD_LI_alpha_level3_L;                           */
+	//Multi-band COMPANDER(Line-In high-band)
+	ENDIAN_RVRS(0x7F1B), /* MBCPD_LI_ALPHA_RELEASE_H;                          */
+    ENDIAN_RVRS(0x3333), /* MBCPD_LI_ALPHA_ATTACK_H;                           */
+    ENDIAN_RVRS(0x0466), /* MBCPD_LI_THRD_H;                                   */
+    ENDIAN_RVRS(0x0666), /* MBCPD_LI_OUT_MAX_H;                                */
+    ENDIAN_RVRS(0x7F5C), /* MBCPD_LI_alpha_release2_H;                         */
+    ENDIAN_RVRS(0x7E14), /* MBCPD_LI_alpha_release3_H;                         */
+    ENDIAN_RVRS(0x0171), /* MBCPD_LI_alpha_level2_H;                           */
+    ENDIAN_RVRS(0x007B), /* MBCPD_LI_alpha_level3_H;                           */
+    ENDIAN_RVRS(0x0000), /* MBCPD_RESERVE  32                                  */
+    ENDIAN_RVRS(0x0000), /* MBCPD_RESERVE  33                                  */
+    ENDIAN_RVRS(0x0000), /* MBCPD_RESERVE  34                                  */
+    ENDIAN_RVRS(0x0000), /* MBCPD_RESERVE  35                                  */
+    ENDIAN_RVRS(0x0000), /* MBCPD_RESERVE  36                                  */
+    ENDIAN_RVRS(0x0000), /* MBCPD_RESERVE  37                                  */
+    ENDIAN_RVRS(0x0005), /* DBB_SILENCE_THRD                                   */
+    ENDIAN_RVRS(0x0006), /* DBB_BAND_SW                                        */
+	/* Compander Reserve End */
+
+	//Multi-band COMPANDER filter coefficient set
+	//DBB_HP_COEF32_48K
+	ENDIAN_RVRS(0x98DC), /*                                                    */
+    ENDIAN_RVRS(0x7DE4), /*                                                    */
+    ENDIAN_RVRS(0x670F), /*                                                    */
+    ENDIAN_RVRS(0x821B), /*                                                    */
+    ENDIAN_RVRS(0x98B9), /*                                                    */
+	ENDIAN_RVRS(0x7DE4), /*                                                    */
+    ENDIAN_RVRS(0x88A9), /*                                                    */
+    ENDIAN_RVRS(0x8234), /*                                                    */
+    ENDIAN_RVRS(0xAFC8), /*                                                    */
+    ENDIAN_RVRS(0x7EE3), /*                                                    */
+	ENDIAN_RVRS(0x9897), /*                                                    */
+    ENDIAN_RVRS(0x7DE4), /*                                                    */
+    ENDIAN_RVRS(0x677F), /*                                                    */
+    ENDIAN_RVRS(0x821B), /*                                                    */
+    ENDIAN_RVRS(0x98B9), /*                                                    */
+	ENDIAN_RVRS(0x7DE4), /*                                                    */
+    ENDIAN_RVRS(0x9605), /*                                                    */
+    ENDIAN_RVRS(0x8060), /*                                                    */
+    ENDIAN_RVRS(0xDC99), /*                                                    */
+    ENDIAN_RVRS(0x7FCE), /*                                                    */
+	//DBB_LP_COEF32_48K
+	ENDIAN_RVRS(0x2964), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x2964), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x2964), /*                                                    */
+	ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x14D2), /*                                                    */
+    ENDIAN_RVRS(0x80B5), /*                                                    */
+    ENDIAN_RVRS(0x4002), /*                                                    */
+    ENDIAN_RVRS(0x7FA5), /*                                                    */
+	ENDIAN_RVRS(0xD69C), /*                                                    */
+    ENDIAN_RVRS(0xFFFF), /*                                                    */
+    ENDIAN_RVRS(0xD69C), /*                                                    */
+    ENDIAN_RVRS(0xFFFF), /*                                                    */
+    ENDIAN_RVRS(0xD69C), /*                                                    */
+	ENDIAN_RVRS(0xFFFF), /*                                                    */
+    ENDIAN_RVRS(0x20AE), /*                                                    */
+    ENDIAN_RVRS(0x804B), /*                                                    */
+    ENDIAN_RVRS(0xECC8), /*                                                    */
+    ENDIAN_RVRS(0x7FD9), /*                                                    */
+	//DBB_HP_COEF32_44.1K
+	ENDIAN_RVRS(0x41F9), /*                                                    */
+    ENDIAN_RVRS(0x7D8F), /*                                                    */
+    ENDIAN_RVRS(0xBDDC), /*                                                    */
+    ENDIAN_RVRS(0x8270), /*                                                    */
+    ENDIAN_RVRS(0x41E6), /*                                                    */
+	ENDIAN_RVRS(0x7D8F), /*                                                    */
+    ENDIAN_RVRS(0xC464), /*                                                    */
+    ENDIAN_RVRS(0x8356), /*                                                    */
+    ENDIAN_RVRS(0xE756), /*                                                    */
+    ENDIAN_RVRS(0x7E4F), /*                                                    */
+	ENDIAN_RVRS(0x41D4), /*                                                    */
+    ENDIAN_RVRS(0x7D8F), /*                                                    */
+    ENDIAN_RVRS(0xBE58), /*                                                    */
+    ENDIAN_RVRS(0x8270), /*                                                    */
+    ENDIAN_RVRS(0x41E6), /*                                                    */
+	ENDIAN_RVRS(0x7D8F), /*                                                    */
+    ENDIAN_RVRS(0xCA01), /*                                                    */
+    ENDIAN_RVRS(0x8092), /*                                                    */
+    ENDIAN_RVRS(0xA6CE), /*                                                    */
+    ENDIAN_RVRS(0x7FB4), /*                                                    */
+	//DBB_LP_COEF32_44.1K
+	ENDIAN_RVRS(0x5E4E), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x5E4E), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x5E4E), /*                                                    */
+	ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x1353), /*                                                    */
+    ENDIAN_RVRS(0x8111), /*                                                    */
+    ENDIAN_RVRS(0xFC4F), /*                                                    */
+    ENDIAN_RVRS(0x7F76), /*                                                    */
+	ENDIAN_RVRS(0xA1B2), /*                                                    */
+    ENDIAN_RVRS(0xFFFF), /*                                                    */
+    ENDIAN_RVRS(0xA1B2), /*                                                    */
+    ENDIAN_RVRS(0xFFFF), /*                                                    */
+    ENDIAN_RVRS(0xA1B2), /*                                                    */
+	ENDIAN_RVRS(0xFFFF), /*                                                    */
+    ENDIAN_RVRS(0x6318), /*                                                    */
+    ENDIAN_RVRS(0x8071), /*                                                    */
+    ENDIAN_RVRS(0x2428), /*                                                    */
+    ENDIAN_RVRS(0x7FC6), /*                                                    */
+	//Multi-band COMPANDER(A2DP low + high)
+	ENDIAN_RVRS(0x028F), /* MBCPD_AU_ALPHA_RELEASE_F;                          */
+    ENDIAN_RVRS(0x399A), /* MBCPD_AU_ALPHA_ATTACK_F;                           */
+    ENDIAN_RVRS(0x06CD), /* MBCPD_AU_THRD_F;                                   */
+    ENDIAN_RVRS(0x07C3), /* MBCPD_AU_OUT_MAX_F;                                */
+    ENDIAN_RVRS(0x03D7), /* MBCPD_AU_alpha_release2_F;                         */
+    ENDIAN_RVRS(0x0666), /* MBCPD_AU_alpha_release3_F;                         */
+    ENDIAN_RVRS(0x0200), /* MBCPD_AU_alpha_level2_F;                           */
+    ENDIAN_RVRS(0x0085), /* MBCPD_AU_alpha_level3_F;                           */
+	//Multi-band COMPANDER(Line-in low + high)
+	ENDIAN_RVRS(0x028F), /* MBCPD_LI_ALPHA_RELEASE_F;                          */
+    ENDIAN_RVRS(0x399A), /* MBCPD_LI_ALPHA_ATTACK_F;                           */
+    ENDIAN_RVRS(0x06CD), /* MBCPD_LI_THRD_F;                                   */
+    ENDIAN_RVRS(0x07C3), /* MBCPD_LI_OUT_MAX_F;                                */
+    ENDIAN_RVRS(0x03D7), /* MBCPD_LI_alpha_release2_F;                         */
+    ENDIAN_RVRS(0x0666), /* MBCPD_LI_alpha_release3_F;                         */
+    ENDIAN_RVRS(0x0200), /* MBCPD_LI_alpha_level2_F;                           */
+    ENDIAN_RVRS(0x0085), /* MBCPD_LI_alpha_level3_F;                           */
+	// - Dolby Digital Certification
+	ENDIAN_RVRS(0x0003), /* Karaoke_Capable;                                   */
+    ENDIAN_RVRS(0x0002), /* Compression_Mode;                                  */
+    ENDIAN_RVRS(0x0001), /* LFE;                                               */
+    ENDIAN_RVRS(0x0002), /* Output_Mode;                                       */
+    ENDIAN_RVRS(0x0000), /* Stereo_Output_Mode;                                */
+    ENDIAN_RVRS(0X0000), /* Dual_Mono_Reproduction_Mode;                       */
+    ENDIAN_RVRS(0X7FFF), /* DRC_High_Cut;                                      */
+    ENDIAN_RVRS(0X7FFF), /* DRC_Low_Boost;                                     */
+	//Voice RX HP
+    ENDIAN_RVRS(0x7254), /* VOICE_RX_HP_COEF 0                                */
+    ENDIAN_RVRS(0xCC40), /* VOICE_RX_HP_COEF 1                                */
+    ENDIAN_RVRS(0x800C), /* VOICE_RX_HP_COEF 2                                */
+    ENDIAN_RVRS(0x4000), /* VOICE_RX_HP_COEF 3                                */
+    ENDIAN_RVRS(0x7DA6), /* VOICE_RX_HP_COEF 4                                */
+    ENDIAN_RVRS(0xC1B2), /* VOICE_RX_HP_COEF 5                                */
+    ENDIAN_RVRS(0x3581), /* VOICE_RX_HP_COEF 6                                */
+    ENDIAN_RVRS(0x9531), /* VOICE_RX_HP_COEF 7                                */
+    ENDIAN_RVRS(0x3581), /* VOICE_RX_HP_COEF 8                                */
+    ENDIAN_RVRS(0x0000), /* VOICE_RX_HP_COEF 9                                */
+    ENDIAN_RVRS(0x64CC), /* VOICE_RX_HP_COEF 10                               */
+    ENDIAN_RVRS(0xD613), /* VOICE_RX_HP_COEF 11                               */
+    ENDIAN_RVRS(0x8031), /* VOICE_RX_HP_COEF 12                               */
+    ENDIAN_RVRS(0x4000), /* VOICE_RX_HP_COEF 13                               */
+    ENDIAN_RVRS(0x7A16), /* VOICE_RX_HP_COEF 14                               */
+    ENDIAN_RVRS(0xC355), /* VOICE_RX_HP_COEF 15                               */
+    ENDIAN_RVRS(0x2F3C), /* VOICE_RX_HP_COEF 16                               */
+    ENDIAN_RVRS(0xA239), /* VOICE_RX_HP_COEF 17                               */
+    ENDIAN_RVRS(0x2F3C), /* VOICE_RX_HP_COEF 18                               */
+    ENDIAN_RVRS(0x0000), /* VOICE_RX_HP_COEF 19                               */
+
+    //Celt
+    ENDIAN_RVRS(    50), /* CELT_CRC_LENGTH                                   */
+    ENDIAN_RVRS(0x0000), /* CELT_RESERVE0                                     */
+
+	// - NEW INS
+	ENDIAN_RVRS(0x0002), /* INS_enable;					   				*/
+	ENDIAN_RVRS(0x0400), /* snap_level;				    				*/
+	ENDIAN_RVRS(0x0005), /* INS_thrd;					   				*/
+	ENDIAN_RVRS(0x4000), /* gain_alpha_up;					   			*/
+	ENDIAN_RVRS(0x0CCD), /* gain_alpha_down;					   		*/
+
+	//Multi-band COMPANDER 3-biquad filter coefficient set
+	//DBB_HP_COEF32_DF1_3B_48K
+    ENDIAN_RVRS(0xACD7), /*                                                    */
+    ENDIAN_RVRS(0x7D9D), /*                                                    */
+    ENDIAN_RVRS(0x2E87), /*                                                    */
+    ENDIAN_RVRS(0x8138), /*                                                    */
+    ENDIAN_RVRS(0xFFFF), /*                                                    */
+    ENDIAN_RVRS(0x7FFF), /*                                                    */
+    ENDIAN_RVRS(0xD179), /*                                                    */
+    ENDIAN_RVRS(0x7EC7), /*                                                    */
+    ENDIAN_RVRS(0x5329), /*                                                    */
+    ENDIAN_RVRS(0x8262), /*                                                    */
+    ENDIAN_RVRS(0x5F36), /*                                                    */
+    ENDIAN_RVRS(0x839B), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x4000), /*                                                    */
+    ENDIAN_RVRS(0x5065), /*                                                    */
+    ENDIAN_RVRS(0x3E32), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+	//DBB_LP_COEF32_DF1_3B_48K
+    ENDIAN_RVRS(0xE8F6), /*                                                    */
+    ENDIAN_RVRS(0x7AEC), /*                                                    */
+    ENDIAN_RVRS(0xDB05), /*                                                    */
+    ENDIAN_RVRS(0x8293), /*                                                    */
+    ENDIAN_RVRS(0xFFFF), /*                                                    */
+    ENDIAN_RVRS(0x7FFF), /*                                                    */
+    ENDIAN_RVRS(0x24FB), /*                                                    */
+    ENDIAN_RVRS(0x7D6C), /*                                                    */
+    ENDIAN_RVRS(0x170A), /*                                                    */
+    ENDIAN_RVRS(0x8513), /*                                                    */
+    ENDIAN_RVRS(0xE0A2), /*                                                    */
+    ENDIAN_RVRS(0x7F53), /*                                                    */
+    ENDIAN_RVRS(0xA365), /*                                                    */
+    ENDIAN_RVRS(0x805B), /*                                                    */
+    ENDIAN_RVRS(0xFFFF), /*                                                    */
+    ENDIAN_RVRS(0x7FFF), /*                                                    */
+    ENDIAN_RVRS(0x5C9B), /*                                                    */
+    ENDIAN_RVRS(0x7FA4), /*                                                    */
+    ENDIAN_RVRS(0x1F5E), /*                                                    */
+    ENDIAN_RVRS(0x80AC), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */	
+	//DBB_HP_COEF32_DF1_3B_44.1K
+    ENDIAN_RVRS(0x654F), /*                                                    */
+    ENDIAN_RVRS(0x7D9C), /*                                                    */
+    ENDIAN_RVRS(0xD8BA), /*                                                    */
+    ENDIAN_RVRS(0x8138), /*                                                    */
+    ENDIAN_RVRS(0xFFFF), /*                                                    */
+    ENDIAN_RVRS(0x7FFF), /*                                                    */
+    ENDIAN_RVRS(0x2746), /*                                                    */
+    ENDIAN_RVRS(0x7EC7), /*                                                    */
+    ENDIAN_RVRS(0x9AB1), /*                                                    */
+    ENDIAN_RVRS(0x8263), /*                                                    */
+    ENDIAN_RVRS(0xEB08), /*                                                    */
+    ENDIAN_RVRS(0x839C), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x4000), /*                                                    */
+    ENDIAN_RVRS(0x8A7C), /*                                                    */
+    ENDIAN_RVRS(0x3E31), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */	
+	//DBB_LP_COEF32_DF1_3B_44.1K
+    ENDIAN_RVRS(0xBB1B), /*                                                    */
+    ENDIAN_RVRS(0x7AEA), /*                                                    */
+    ENDIAN_RVRS(0xFAB0), /*                                                    */
+    ENDIAN_RVRS(0x8294), /*                                                    */
+    ENDIAN_RVRS(0xFFFF), /*                                                    */
+    ENDIAN_RVRS(0x7FFF), /*                                                    */
+    ENDIAN_RVRS(0x0550), /*                                                    */
+    ENDIAN_RVRS(0x7D6B), /*                                                    */
+    ENDIAN_RVRS(0x44E5), /*                                                    */
+    ENDIAN_RVRS(0x8515), /*                                                    */
+    ENDIAN_RVRS(0x5857), /*                                                    */
+    ENDIAN_RVRS(0x7F53), /*                                                    */
+    ENDIAN_RVRS(0xED0B), /*                                                    */
+    ENDIAN_RVRS(0x805B), /*                                                    */
+    ENDIAN_RVRS(0xFFFF), /*                                                    */
+    ENDIAN_RVRS(0x7FFF), /*                                                    */
+    ENDIAN_RVRS(0x12F5), /*                                                    */
+    ENDIAN_RVRS(0x7FA4), /*                                                    */
+    ENDIAN_RVRS(0xA7A9), /*                                                    */
+    ENDIAN_RVRS(0x80AC), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+    ENDIAN_RVRS(0x0000), /*                                                    */
+
+    // for VC
+    ENDIAN_RVRS(96*256+21), /* VC_PHASE_COUNT          */
+    ENDIAN_RVRS(105*256+35), /* VC_FRM_LIMIT                  */
+
+    //NB_RX_EQ
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[0];                                */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[1];                                */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[2];                                */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[3];                                */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[4];                                */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[5];                                */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[6];                                */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[7];                                */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[8];                                */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[9];                                */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[10];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[11];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[12];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[13];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[14];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[15];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[16];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[17];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[18];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[19];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[20];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[21];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[22];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[23];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[24];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[25];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[26];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[27];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[28];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[29];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[30];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[31];                               */
+	ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[32];                                */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[33];                                */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[34];                                */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[35];                                */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[36];                                */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[37];                                */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[38];                                */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[39];                                */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[40];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[41];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[42];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[43];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[44];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[45];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[46];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[47];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[48];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[49];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[50];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[51];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[52];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[53];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[54];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[55];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[56];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[57];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[58];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[59];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[60];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[61];                               */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[62];                                */
+    ENDIAN_RVRS(0x0000), /* NB_RXEQ_COF[63];                                */
+    ENDIAN_RVRS(0x1000), /* NB_RXEQ_GAIN_LEVEL[0];                         */
+    ENDIAN_RVRS(0x137E), /* NB_RXEQ_GAIN_LEVEL[1];                         */
+    ENDIAN_RVRS(0x17BE), /* NB_RXEQ_GAIN_LEVEL[2];                         */
+    ENDIAN_RVRS(0x1CED), /* NB_RXEQ_GAIN_LEVEL[3];                         */
+    ENDIAN_RVRS(0x233C), /* NB_RXEQ_GAIN_LEVEL[4];                         */
+    ENDIAN_RVRS(0x2AEC), /* NB_RXEQ_GAIN_LEVEL[5];                         */
+    ENDIAN_RVRS(0x344A), /* NB_RXEQ_GAIN_LEVEL[6];                         */
+    ENDIAN_RVRS(0x3FB2), /* NB_RXEQ_GAIN_LEVEL[7];                         */
+    ENDIAN_RVRS(0x02B5), /* NB_RXEQ_GAIN_LEVEL[8];                         */
+    ENDIAN_RVRS(0x0405), /* NB_RXEQ_GAIN_LEVEL[9];                         */
+    ENDIAN_RVRS(0x04E5), /* NB_RXEQ_GAIN_LEVEL[10];                        */
+    ENDIAN_RVRS(0x05F7), /* NB_RXEQ_GAIN_LEVEL[11];                        */
+    ENDIAN_RVRS(0x0744), /* NB_RXEQ_GAIN_LEVEL[12];                        */
+    ENDIAN_RVRS(0x08DA), /* NB_RXEQ_GAIN_LEVEL[13];                        */
+    ENDIAN_RVRS(0x0AC8), /* NB_RXEQ_GAIN_LEVEL[14];                        */
+    ENDIAN_RVRS(0x0D22), /* NB_RXEQ_GAIN_LEVEL[15];                        */
+
+    //NB_TX_EQ
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[0];                                */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[1];                                */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[2];                                */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[3];                                */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[4];                                */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[5];                                */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[6];                                */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[7];                                */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[8];                                */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[9];                                */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[10];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[11];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[12];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[13];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[14];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[15];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[16];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[17];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[18];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[19];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[20];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[21];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[22];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[23];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[24];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[25];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[26];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[27];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[28];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[29];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[30];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[31];                               */
+	ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[32];                                */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[33];                                */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[34];                                */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[35];                                */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[36];                                */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[37];                                */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[38];                                */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[39];                                */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[40];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[41];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[42];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[43];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[44];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[45];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[46];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[47];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[48];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[49];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[50];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[51];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[52];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[53];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[54];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[55];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[56];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[57];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[58];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[59];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[60];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[61];                               */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[62];                                */
+    ENDIAN_RVRS(0x0000), /* NB_TXEQ_COF[63];                                */
+    ENDIAN_RVRS(0x1000), /* NB_TXEQ_GAIN_LEVEL[0];                         */
+    ENDIAN_RVRS(0x137E), /* NB_TXEQ_GAIN_LEVEL[1];                         */
+    ENDIAN_RVRS(0x17BE), /* NB_TXEQ_GAIN_LEVEL[2];                         */
+    ENDIAN_RVRS(0x1CED), /* NB_TXEQ_GAIN_LEVEL[3];                         */
+    ENDIAN_RVRS(0x233C), /* NB_TXEQ_GAIN_LEVEL[4];                         */
+    ENDIAN_RVRS(0x2AEC), /* NB_TXEQ_GAIN_LEVEL[5];                         */
+    ENDIAN_RVRS(0x344A), /* NB_TXEQ_GAIN_LEVEL[6];                         */
+    ENDIAN_RVRS(0x3FB2), /* NB_TXEQ_GAIN_LEVEL[7];                         */
+    ENDIAN_RVRS(0x02B5), /* NB_TXEQ_GAIN_LEVEL[8];                         */
+    ENDIAN_RVRS(0x0405), /* NB_TXEQ_GAIN_LEVEL[9];                         */
+    ENDIAN_RVRS(0x04E5), /* NB_TXEQ_GAIN_LEVEL[10];                        */
+    ENDIAN_RVRS(0x05F7), /* NB_TXEQ_GAIN_LEVEL[11];                        */
+    ENDIAN_RVRS(0x0744), /* NB_TXEQ_GAIN_LEVEL[12];                        */
+    ENDIAN_RVRS(0x08DA), /* NB_TXEQ_GAIN_LEVEL[13];                        */
+    ENDIAN_RVRS(0x0AC8), /* NB_TXEQ_GAIN_LEVEL[14];                        */
+    ENDIAN_RVRS(0x0D22), /* NB_TXEQ_GAIN_LEVEL[15];                        */
+    // for VC
+    ENDIAN_RVRS(127         ), /* VC_PHASE_RANGE                            */
+    ENDIAN_RVRS(220       ), /* VC_MIC_DIFF_FACB                          */
+    ENDIAN_RVRS(14745       ), /* VC_CORR_TH    0.45*32768                     */
+    ENDIAN_RVRS(2621       ), /* VC_PITCH_TH     0.08*32768                     */
+
+    // for AT compander
+    ENDIAN_RVRS(0x7F1B), /* CPD2_AT_ALPHA_RELEASE;   					*/
+	ENDIAN_RVRS(0x3333), /* CPD2_AT_ALPHA_ATTACK;    					*/
+	ENDIAN_RVRS(0x0466), /* CPD2_AT_THRD;            					*/
+	ENDIAN_RVRS(0x0666), /* CPD2_AT_OUT_MAX;            			             */
+
+
+    // - DSP_Reserve Parameters
+    ENDIAN_RVRS(0x0000), /* ReserveParameters   0                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters   1                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters   2                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters   3                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters   4                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters   5                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters   6                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters   7                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters   8                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters   9                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  10                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  11                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  12                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  13                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  14                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  15                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  16                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  17                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  18                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  19                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  20                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  21                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  22                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  23                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  24                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  25                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  26                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  27                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  28                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  29                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  30                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  31                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  32                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  33                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  34                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  35                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  36                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  37                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  38                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  39                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  40                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  41                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  42                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  43                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  44                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  45                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  46                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  47                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  48                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  49                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  50                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  51                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  52                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  53                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  54                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  55                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  56                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  57                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  58                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  59                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  60                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  61                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  62                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  63                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  64                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  65                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  66                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  67                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  68                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  69                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  70                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  71                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  72                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  73                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  74                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  75                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  76                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  77                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  78                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  79                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  80                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  81                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  82                              */
+    ENDIAN_RVRS(0x0000), /* ReserveParameters  83                              */

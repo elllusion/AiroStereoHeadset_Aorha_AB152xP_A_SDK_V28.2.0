@@ -1,0 +1,88 @@
+C251 COMPILER V5.57.0,  sector_tool_misc_header                                            08/11/20  05:51:22  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_tool_misc_header
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\sector_tool_misc_header.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\ToolMisc\sector_tool_misc_header.c XSMALL HPTR FUNCTIONS
+                    -(REENTRANT) ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABS
+                    -DRIVER;.\source\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;
+                    -.\source\ROM\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM
+                    -\GAP;.\source\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1
+                    -;.\source\SECTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTO
+                    -R\ToolMisc) DEFINE(FLASH_INIT=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1
+                    -520C_AiroStereoHeadset\sector_tool_misc_header.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\sector_tool_misc_h
+                    -eader.obj) 
+
+stmt  level    source
+
+    1          /*
+    2           * AIROHA Bluetooth Device Firmware
+    3           * COPYRIGHT (C) 2014 AIROHA TECHNOLOGY CORP. CO., LTD. ALL RIGHTS RESERVED
+    4           *
+    5           * sector_config1_header.c defines the rest parameters.
+    6           *
+    7           * Programmer : DingaCheng@airoha.com.tw, Ext.2828
+    8           */
+    9           // -
+   10          #include "config.h"
+   11          #include "cpu.h"
+   12          #include "sectors.h"
+   13          #include "sector_tool_misc.h"
+   14          
+   15          #pragma userclass (HCONST = CFGHEAD)
+   16          
+   17          
+   18          EXTERN SECTOR_AE_INFO_STRU CODE gSector_AE_Info;
+   19          EXTERN SECTOR_TOOL_INFO_STRU CODE gSector_Tool_Info;
+   20          
+   21          
+   22          #undef SECTORS_ENUM_MACRO
+   23          #define SECTORS_ENUM_MACRO(SECTOR_NAME, SECTOR_INIT, SECTOR_SIZE, ATTR) {(U8 CODE_PTR)SECTOR_INIT, SECTOR
+             -_SIZE, ATTR},
+   24          
+   25          
+   26          
+   27          ////////////////////////////////////////////////////////////////////////////////
+   28          // Global Variables ////////////////////////////////////////////////////////////
+   29          ////////////////////////////////////////////////////////////////////////////////
+   30          SECTOR_TOOL_MISC_HEADER_STRU CODE gSectorToolMiscHeader =
+   31          {
+   32              NUM_OF_SECTOR_TOOL_MISC,
+   33          
+   34              {
+   35                #include "sector_tool_misc_member.h"
+   36            },
+   37          
+   38            //- CRC
+   39            {0,0}
+   40          };
+   41          
+   42          
+   43          
+   44          
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+C251 COMPILER V5.57.0,  sector_tool_misc_header                                            08/11/20  05:51:22  PAGE 2   
+
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =        21     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

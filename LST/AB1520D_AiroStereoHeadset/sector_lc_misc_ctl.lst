@@ -1,0 +1,245 @@
+C251 COMPILER V5.57.0,  sector_lc_misc_ctl                                                 08/11/20  06:32:11  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_lc_misc_ctl
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\sector_lc_misc_ctl.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\sector_lc_misc_ctl.c XSMALL HPTR FUNCTIONS(REENTRANT) RO
+                    -M(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\sourc
+                    -e\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\L
+                    -L;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\
+                    -ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECT
+                    -OR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DE
+                    -FINE(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStere
+                    -oHeadset\sector_lc_misc_ctl.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\sector_lc_misc_ctl.obj) 
+
+stmt  level    source
+
+    1          /*
+    2           * AIROHA Bluetooth Device Firmware
+    3           * COPYRIGHT (C) 2014 AIROHA TECHNOLOGY CORP. CO., LTD. ALL RIGHTS RESERVED
+    4           *
+    5           * sector_lc_misc_ctl.c defines the LC parameters.
+    6           *
+    7           * Programmer : CharlesSu@airoha.com.tw, Ext.2882
+    8           */
+    9          #include "config.h"
+   10          #include "cpu.h"
+   11          #include "bt_config_profile.h"
+   12          #include "sector_lc_misc_ctl.h"
+   13          #include "ctlr_config.h"
+   14          #pragma userclass (HCONST = CONFIG)
+   15          
+   16          
+   17          ////////////////////////////////////////////////////////////////////////////////
+   18          // Global Variables ////////////////////////////////////////////////////////////
+   19          ////////////////////////////////////////////////////////////////////////////////
+   20          SECTOR_LC_MISC_CONTROL_STRU CODE gMISC_ctl_init =
+   21          {
+   22              {
+   23                  //- U8  lc_misc_supp_fea0;
+   24              #if defined SOUND_BAR || defined SCO_WOOFER
+                     //  LC_MISC_SUPP_FEA0_SUPPORT_STANDBY_SLEEP     |
+                   #else
+   27                LC_MISC_SUPP_FEA0_SUPPORT_STANDBY_SLEEP     |
+   28              #endif
+   29              #ifdef HID_SOC
+                   #else
+   31              #if defined SOUND_BAR || defined SCO_WOOFER || defined KB_App
+                     //  LC_MISC_SUPP_FEA0_SUPPORT_SLEEP             |
+                     //  LC_MISC_SUPP_FEA0_MCU_PAUSE                 |
+                   #else
+   35                LC_MISC_SUPP_FEA0_SUPPORT_SLEEP             |
+   36                LC_MISC_SUPP_FEA0_MCU_PAUSE                 |
+   37              #endif
+   38              //  LC_MISC_SUPP_FEA0_MCU_PAUSE                 |
+   39              #endif
+   40                  LC_MISC_SUPP_FEA0_SUPPORT_EIR               |
+   41          //-     LC_MISC_SUPP_FEA0_CLKE_CONTROL_POWER_SAVING |
+   42                  LC_MISC_SUPP_FEA0_MASTER_TRACKING,
+   43          
+   44                  //- U8  lc_misc_supp_fea1;
+   45          //            LC_MISC_SUPP_FEA1_PAGE_POWER_DECREASE |
+   46                      LC_MISC_SUPP_FEA1_FORCE_RSSI_SCAN  |
+   47                  #ifdef HID_SOC
+                           #ifdef HID_IIM_SOC
+                           LC_MISC_SUPP_FEA1_HID_SNIFF_WINDOW |
+                           #else
+                   //-     LC_MISC_SUPP_FEA1_SLAVE_SNIFF_ANT0_WAIT_LMP_ACKED_EXTEND_TIMEOUT |
+                           LC_MISC_SUPP_FEA1_SLAVE_SNIFF_A1T0_WAIT_LMP_ACKED_EXTEND_TIMEOUT |
+C251 COMPILER V5.57.0,  sector_lc_misc_ctl                                                 08/11/20  06:32:11  PAGE 2   
+
+                           LC_MISC_SUPP_FEA1_HID_CLK3_SPEEDUP_POWER_SAVING |
+                           LC_MISC_SUPP_FEA1_HID_SNIFF_WINDOW,
+                           #endif
+                       #elif defined(HEADSET_SOC)
+   57              //-     LC_MISC_SUPP_FEA1_SLAVE_SNIFF_ANT0_WAIT_LMP_ACKED_EXTEND_TIMEOUT |
+   58              //-     LC_MISC_SUPP_FEA1_INTERNAL_32K_POWER_ON_K                        |
+   59              //-     LC_MISC_SUPP_FEA1_AVOID_CONSECUTIVE_INQUIRY_SCAN                 |
+   60                      LC_MISC_SUPP_FEA1_SLAVE_SNIFF_A1T0_WAIT_LMP_ACKED_EXTEND_TIMEOUT,
+   61                  #else
+                   //-     LC_MISC_SUPP_FEA1_SLAVE_SNIFF_ANT0_WAIT_LMP_ACKED_EXTEND_TIMEOUT |
+                           LC_MISC_SUPP_FEA1_SLAVE_SNIFF_A1T0_WAIT_LMP_ACKED_EXTEND_TIMEOUT |
+                           LC_MISC_SUPP_FEA1_INTERNAL_32K_POWER_ON_K                        |
+                       #endif
+   66          
+   67                  //- U8  lc_misc_supp_fea2;
+   68                  LC_MISC_SUPP_FEA2_RSSI_SCAN                 |
+   69                  #ifdef OPERATION_IN_BB_ASIC_VERSION
+   70                  LC_MISC_SUPP_FEA2_ENABLE_TEMP_SENSOR        |
+   71              #ifndef AB1520SA
+   72                  LC_MISC_SUPP_FEA2_MOD_GAIN_COMPESATION      |
+   73              #endif
+   74                  LC_MISC_SUPP_FEA2_32K_HOLD                  |
+   75                  #ifdef BLUETOOTH_SPEAKER
+                           #ifdef CELT_MODULE
+                           LC_MISC_SUPP_FEA2_SCO_ESCO_POWER_SAVING     |
+                           #else
+                           //- LC_MISC_SUPP_FEA2_SCO_ESCO_POWER_SAVING     |
+                           #endif
+                       #else
+   82                  LC_MISC_SUPP_FEA2_SCO_ESCO_POWER_SAVING     |
+   83                  #endif
+   84                  0x00,
+   85                  #else
+                       0x00,
+                       #endif
+   88          
+   89                  //- U8  lc_misc_supp_fea3;
+   90                  LC_MISC_SUPP_FEA3_FIXED_PAGE_INQ_SEGMENTATION_TIME      |
+   91                  LC_MISC_SUPP_FEA3_NORMAL_SEARCH_LM_CMD                  |
+   92                  LC_MISC_SUPP_FEA3_NORMAL_SEARCH_EXIT_HOLD               |
+   93                  #if (defined (SOUND_BAR) || defined(SCO_WOOFER))
+                       //LC_MISC_SUPP_FEA3_BARGE_IN_ESCO_WESCO                   |
+                       #else
+   96                  LC_MISC_SUPP_FEA3_BARGE_IN_ESCO_WESCO                   |
+   97                  #endif
+   98          
+   99                  #if defined BLUETOOTH_SPEAKER
+                       LC_MISC_SUPP_FEA3_ONE_LINK_RX_FULL                      |
+                        #else
+  102                  //LC_MISC_SUPP_FEA3_ONE_LINK_RX_FULL                      |
+  103                  #endif
+  104          
+  105                  0x00,
+  106          
+  107                  //- U8  lc_misc_supp_fea4;
+  108                  LC_MISC_SUPP_FEA4_SUPPORT_EIR_INQUIRY               |
+  109          //      LC_MISC_SUPP_FEA4_LC_SELF_UNSNIFF_PROC              |
+  110                  LC_MISC_SUPP_FEA4_RANDOM_SCAN_WINDOW                |
+  111                  LC_MISC_SUPP_FEA4_PKT_BLOCKED_CONTROL               |
+  112          //      LC_MISC_SUPP_FEA4_SUPPORT_FLOW_STOP_IGNORANCE       |
+  113                  #if defined BLUETOOTH_SPEAKER
+                           //LC_MISC_SUPP_FEA4_A2DP_POWER_SAVING_MECHANISM   |
+                       #else
+  116                      LC_MISC_SUPP_FEA4_A2DP_POWER_SAVING_MECHANISM   |
+  117                  #endif
+  118          //      LC_MISC_SUPP_FEA4_AFH_POWER_SAVING_DELAY            |
+C251 COMPILER V5.57.0,  sector_lc_misc_ctl                                                 08/11/20  06:32:11  PAGE 3   
+
+  119                  LC_MISC_SUPP_FEA4_SLOTTICK_DELAY_IN_SNIFF_MODE      |
+  120                  0x00,
+  121          
+  122                  //- U8  lc_misc_supp_fea5;
+  123                  0x00,
+  124          
+  125                  150,    //- U8  hopping_duration_in_us;
+  126                  100,    //- U8  manual_rx_window_in_us;
+  127                  #ifdef HID_SOC
+                       16,     //- U8  master_response_timeout_in_2slot
+                       16,     //- U8  slave_response_timeout_in_2slot
+                       16,     //- U8  newconnection_timeout_in_2slot
+                       #else
+  132                  4,      //- U8  master_response_timeout_in_2slot
+  133                  4,      //- U8  slave_response_timeout_in_2slot
+  134                  16,     //- U8  newconnection_timeout_in_2slot
+  135                  #endif
+  136          
+  137                  #ifdef CELT_MODULE
+                       12,      //- U8  lc_sco_esco_power_saving_active_timer;
+                       96,      //- U8  lc_sco_esco_power_saving_frozen_timer;
+                       #else
+  141                  96,      //- U8  lc_sco_esco_power_saving_active_timer;
+  142                  96,      //- U8  lc_sco_esco_power_saving_frozen_timer;
+  143                  #endif
+  144          
+  145                  2,      //- U8  master_adjusted_tick_rate;
+  146                  2,      //- U8  slave_adjusted_tick_rate;
+  147                  1,      //- U8  ble_tick_rate
+  148          
+  149          
+  150                  0x03,   //- U8  master_service_poll_prefer_mask;                //- bit 0: M0, bit 6 : M6
+  151                  0x03,   //- U8  slave_service_rx_null_notx_null_prefer_mask;    //- bit 0: S0, bit 1 : S1
+  152          
+  153                  16,     //- U8  next_min_sniff_instant;
+  154                  0x15,   //- U8  slave_extra_high_priority_interval_and_size
+  155                  0x00,   //- U8  service_high_priority_control
+  156                  0x11,   //- U8  sniff_loss_count
+  157                  //0x33,   //- U8  sniff_high_prior_advance_reserved
+  158                  0x00,   //- U8  sniff_high_prior_advance_reserved
+  159          
+  160                  #ifdef HID_SOC
+                       2,      //- U8  standby_sleep_delay
+                       #else
+  163                  10,     //- U8  standby_sleep_delay
+  164                  #endif
+  165          
+  166                  LC_PMU_SLEEP_EN,                    //- U8  sleep_type;
+  167                  LC_PMU_MCU_FROZEN,                  //- U8  mcu_frozen_type;
+  168          
+  169                  #ifdef HID_SOC
+                       0x00,                                                                                   //- U8  m
+             -mi2_interval;
+                       LC_NON_DELAY_POWER_SAVING_RX_LMP_L2CAP,                                                 //- U8  l
+             -c_delay_power_saving
+                       #elif defined(HEADSET_SOC)
+  173                  0,                                                                              //- U8  mmi2_inte
+             -rval;
+  174                  LC_DELAY_POWER_SAVING_RX_LMP | 4,   //- 12 : 12 * 252ms = 3.024 s, 4: 1.008 s                    
+             -               //- U8  lc_delay_power_saving
+  175                  #else
+                       0,                                                                          //- U8  mmi2_interval
+             -;
+                       LC_DELAY_POWER_SAVING_RX_LMP | 12,  //- 12 : 12 * 252ms = 3.024 s                                
+             -   //- U8  lc_delay_power_saving
+                       #endif
+C251 COMPILER V5.57.0,  sector_lc_misc_ctl                                                 08/11/20  06:32:11  PAGE 4   
+
+  179          
+  180                  2480,   //- master_tracking_offset, Unit: 0.5usec
+  181                  200,    //- allowed_pkt_blocked_time Unit: slot
+  182          
+  183                  {0, 0}, //backup vcmd entry point
+  184                  0,     //- sfr_pmu_settings
+  185          #if LE_SUPPORTED_CONTROLLER
+  186          
+  187          #endif
+  188              0
+  189              },
+  190          
+  191              //- CRC
+  192              {0,0}
+  193          };
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =        43     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

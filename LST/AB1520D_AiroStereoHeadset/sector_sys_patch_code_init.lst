@@ -1,0 +1,303 @@
+C251 COMPILER V5.57.0,  sector_sys_patch_code_init                                         08/11/20  06:32:20  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_sys_patch_code_init
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\sector_sys_patch_code_init.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\sector_sys_patch_code_init.c XSMALL HPTR FUNCTIONS(REENT
+                    -RANT) ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER
+                    -;.\source\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\sour
+                    -ce\ROM\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.
+                    -\source\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\sou
+                    -rce\SECTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\Tool
+                    -Misc) DEFINE(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_A
+                    -iroStereoHeadset\sector_sys_patch_code_init.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\sector_sys_patch_code
+                    -_init.obj) 
+
+stmt  level    source
+
+    1          /*
+    2           * AIROHA Bluetooth Device Firmware
+    3           * COPYRIGHT (C) 2014 AIROHA TECHNOLOGY CORP. CO., LTD. ALL RIGHTS RESERVED
+    4           *
+    5           * sector_sys_patch_code_init.c defines the patch code initialization.
+    6           *
+    7           * Programmer : DingaCheng@airoha.com.tw, Ext.2828
+    8           */
+    9          #include "config.h"
+   10          #include "cpu.h"
+   11          #include "bt_config_profile.h"
+   12          //#include <srom.h>
+   13          #include "sector_sys_patch_code_init.h"
+   14          
+   15          #ifdef AB1520B
+               #pragma userclass (HCONST = PATCH_INIT)
+               #else
+   18          #pragma userclass (HCONST = CONFIG)
+   19          #endif
+   20          
+   21          //SROM_MC(ECODE_E_PATCH)
+   22          
+   23          #ifdef AB1520B
+               #include "..\..\Patch\AB1520_PatchDefine.h"
+               
+                 #ifdef ENABLE_PATCH_011
+                 extern void P011_f1_0xFFB116_1(void);
+                 extern void P011_f1_0xFFB116_2(void);
+                 #endif
+               
+                 #ifdef ENABLE_PATCH_017
+                 extern void P017_f1_0xFFBE69_1(void);
+                 extern void P017_f1_0xFFBE69_2(void);
+                 #endif
+               
+                 #ifdef ENABLE_PATCH_018
+                 extern void P018_f1_0xFEFCD0(void);
+                 #endif
+               
+                 #ifdef ENABLE_PATCH_019
+                 extern void P019_f1_0xFEFE78(void);
+                 #endif
+               #endif
+   44          
+   45          #if (defined AB1520C) || (defined AB1520D)
+   46          #include "..\..\Patch\AB1520C_PatchDefine.h"
+   47          
+   48            #ifdef ENABLE_PATCH_001
+   49            extern void P001_f1_0xFE79F8(void);
+   50            #endif
+   51          
+C251 COMPILER V5.57.0,  sector_sys_patch_code_init                                         08/11/20  06:32:20  PAGE 2   
+
+   52            #ifdef ENABLE_PATCH_002
+   53            extern void P002_f1_0xFF78E4(void);
+   54            #endif
+   55          
+   56            #ifdef ENABLE_PATCH_003
+   57            extern void P003_f1_0xFF78C0(void);
+   58            #endif
+   59          
+   60            #ifdef ENABLE_PATCH_004
+   61            extern void P004_f1_0xFF7A74(void);
+   62            #endif
+   63          
+   64            #ifdef ENABLE_PATCH_005
+   65              extern void P005_f1_0xFEB5B8(void);
+   66            #endif
+   67          
+   68            #ifdef ENABLE_PATCH_006
+   69              extern void P006_f1_0xFE75C8(void);
+   70            #endif
+   71          
+   72            #ifdef ENABLE_PATCH_007
+   73              extern void P007_f1_0xFEB55C(void);
+   74            #endif
+   75          
+   76            #ifdef ENABLE_PATCH_008
+   77              extern void P008_f1_0xFEBED0(void);
+   78            #endif
+   79          
+   80            #ifdef ENABLE_PATCH_009
+   81              extern void P009_f1_0xFF799C_1(void);
+   82            #endif
+   83          
+   84            #ifdef ENABLE_PATCH_009
+   85              extern void P009_f1_0xFF799C_2(void);
+   86            #endif
+   87          
+   88            #ifdef ENABLE_PATCH_010
+   89              extern void P010_f1_0xFEB824(void);
+   90            #endif
+   91          
+   92            #ifdef ENABLE_PATCH_011
+   93              extern void P011_f1_0xFEB4C0(void);
+   94            #endif
+   95          
+   96            #ifdef ENABLE_PATCH_012
+   97              extern void P012_f1_0xFF795C(void);
+   98            #endif
+   99          
+  100            #ifdef ENABLE_PATCH_013
+  101              extern void P013_f1_0xFEB59C_1(void);
+  102          
+  103            #endif
+  104          
+  105            #ifdef ENABLE_PATCH_013
+  106              extern void P013_f1_0xFEB59C_2(void);
+  107            #endif
+  108          
+  109            #ifdef ENABLE_PATCH_014
+  110              extern void P014_f1_0xFE7F58(void);
+  111            #endif
+  112          
+  113            #ifdef ENABLE_PATCH_015
+  114              extern void P015_f1_0xFF7B00(void);
+  115            #endif
+  116          
+  117          #endif
+C251 COMPILER V5.57.0,  sector_sys_patch_code_init                                         08/11/20  06:32:20  PAGE 3   
+
+  118          
+  119          #ifdef AB1520D
+  120          /* Must be included in AB1520D */
+  121          #include "..\..\Patch\AB1520C_PatchDefine.h"
+  122          #ifdef OPERATION_IN_BB_ASIC_VERSION
+  123          extern void P100_f1_0xFFAF78_1(void);
+  124          extern void P100_f1_0xFFAF78_2(void);
+  125          #else
+               extern void P100_f1_0xFFAFA4_1(void);
+               extern void P100_f1_0xFFAFA4_2(void);
+               #endif
+  129          #endif
+  130          
+  131          ////////////////////////////////////////////////////////////////////////////////
+  132          // Global Variables ////////////////////////////////////////////////////////////
+  133          ////////////////////////////////////////////////////////////////////////////////
+  134          SECTOR_PATCH_CODE_INIT_STRU CODE gSector_SysPatchCodeInit =
+  135          {
+  136              {
+  137              {
+  138              #ifdef OPERATION_IN_BB_ASIC_VERSION
+  139                #if defined(AB1520B)
+                       #ifdef ENABLE_PATCH_011
+                       (U8 CODE_PTR)P011_f1_0xFFB116_1,
+                       (U8 CODE_PTR)P011_f1_0xFFB116_2,
+                       #endif
+               
+                       #ifdef ENABLE_PATCH_017
+                       (U8 CODE_PTR)P017_f1_0xFFBE69_1,
+                       (U8 CODE_PTR)P017_f1_0xFFBE69_2,
+                       #endif
+               
+                       #ifdef ENABLE_PATCH_018
+                       (U8 CODE_PTR)P018_f1_0xFEFCD0,
+                       #endif
+               
+                       #ifdef ENABLE_PATCH_019
+                       (U8 CODE_PTR)P019_f1_0xFEFE78,
+                       #endif
+               
+                     #elif (defined AB1520C) || (defined AB1520D)
+  159                  #ifdef AB1520D
+  160                  /* Must use index 0 and 1 and must be included in AB1520D */
+  161                  (U8 CODE_PTR)P100_f1_0xFFAF78_1,
+  162                  (U8 CODE_PTR)P100_f1_0xFFAF78_2,
+  163                  #endif
+  164                
+  165                  #ifdef ENABLE_PATCH_001
+  166                  (U8 CODE_PTR)P001_f1_0xFE79F8,
+  167                  #endif
+  168          
+  169                  #ifdef ENABLE_PATCH_002
+  170                  (U8 CODE_PTR)P002_f1_0xFF78E4,
+  171                  #endif
+  172          
+  173                  #ifdef ENABLE_PATCH_003
+  174                  (U8 CODE_PTR)P003_f1_0xFF78C0,
+  175                  #endif
+  176          
+  177                  #ifdef ENABLE_PATCH_004
+  178                  (U8 CODE_PTR)P004_f1_0xFF7A74,
+  179                  #endif
+  180          
+  181                  #ifdef ENABLE_PATCH_005
+  182                  (U8 CODE_PTR)P005_f1_0xFEB5B8,
+  183                  #endif
+C251 COMPILER V5.57.0,  sector_sys_patch_code_init                                         08/11/20  06:32:20  PAGE 4   
+
+  184          
+  185                  #ifdef ENABLE_PATCH_006
+  186                  (U8 CODE_PTR)P006_f1_0xFE75C8,
+  187                  #endif
+  188          
+  189                  #ifdef ENABLE_PATCH_007
+  190                  (U8 CODE_PTR)P007_f1_0xFEB55C,
+  191                  #endif
+  192          
+  193                  #ifdef ENABLE_PATCH_008
+  194                  (U8 CODE_PTR)P008_f1_0xFEBED0,
+  195                  #endif
+  196          
+  197                  #ifdef ENABLE_PATCH_009
+  198                  (U8 CODE_PTR)P009_f1_0xFF799C_1,
+  199                  #endif
+  200          
+  201                  #ifdef ENABLE_PATCH_009
+  202                  (U8 CODE_PTR)P009_f1_0xFF799C_2,
+  203                  #endif
+  204          
+  205                  #ifdef ENABLE_PATCH_010
+  206                  (U8 CODE_PTR)P010_f1_0xFEB824,
+  207                  #endif
+  208          
+  209                  #ifdef ENABLE_PATCH_011
+  210                  (U8 CODE_PTR)P011_f1_0xFEB4C0,
+  211                  #endif
+  212          
+  213                  #ifdef ENABLE_PATCH_012
+  214                  (U8 CODE_PTR)P012_f1_0xFF795C,
+  215                  #endif
+  216          
+  217                  #ifdef ENABLE_PATCH_013
+  218                  (U8 CODE_PTR)P013_f1_0xFEB59C_1,
+  219                  #endif
+  220          
+  221                  #ifdef ENABLE_PATCH_013
+  222                  (U8 CODE_PTR)P013_f1_0xFEB59C_2,
+  223                  #endif
+  224          
+  225                  #ifdef ENABLE_PATCH_014
+  226                  (U8 CODE_PTR)P014_f1_0xFE7F58,
+  227                  #endif
+  228                        
+  229                  #ifdef ENABLE_PATCH_015
+  230                          (U8 CODE_PTR)P015_f1_0xFF7B00,
+  231                        #endif
+  232                #else
+                       NULL,
+                     #endif
+  235              #else
+                     #ifdef AB1520D
+                     /* Must use index 0 and 1 and must be included in AB1520D */
+                     (U8 CODE_PTR)P100_f1_0xFFAFA4_1,
+                     (U8 CODE_PTR)P100_f1_0xFFAFA4_2,
+                     #endif
+                     NULL,
+                   #endif
+  243              },
+  244          
+  245              {
+  246                0x0000, //PatchBankSize,  SROM_MC_LEN(ECODE_E_PATCH)
+  247                0x0000, //EdataAddr,      SROM_MC_TRG(EDATA_E_PATCH)
+  248              },
+  249              },
+C251 COMPILER V5.57.0,  sector_sys_patch_code_init                                         08/11/20  06:32:20  PAGE 5   
+
+  250          
+  251              //- CRC
+  252              {0,0}
+  253          };
+  254          
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       135     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

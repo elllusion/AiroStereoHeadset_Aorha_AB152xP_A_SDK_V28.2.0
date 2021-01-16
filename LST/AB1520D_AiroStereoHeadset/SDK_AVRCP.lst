@@ -1,0 +1,283 @@
+C251 COMPILER V5.57.0,  SDK_AVRCP                                                          08/11/20  06:34:40  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE SDK_AVRCP
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\SDK_AVRCP.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SDK\Profile\SDK_AVRCP.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HU
+                    -GE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS
+                    -;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\
+                    -source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\
+                    -MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\D
+                    -spData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE
+                    -(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoHea
+                    -dset\SDK_AVRCP.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\SDK_AVRCP.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #include "rc.h"
+    4          #include "..\SDK_Proxy\SDK_Proxy.h"
+    5          #include "..\SDK\include\SDK_Config.h"
+    6          
+    7          #include "..\MMI\MMI_Base.h"
+    8          #include "..\AVRCP\AVRCP_Interface.h"
+    9          #include "..\MMI\MMI_AVRCP.h"
+   10          #include "..\SDK\include\SDK_AVRCP.h"
+   11          
+   12          #if SDK_AVRCP_PALY_APPLICATION
+               PUBLIC void SDK_AVRCP_CB_PlayApplication(U8 linkIndex, U8 attributeID, U8 attributeValue)
+               {
+                 #if SDK_AVRCP_REPEAT
+                 if(attributeID == AVRCP_REPEAT_MODE_STATUS)
+                 {
+                   LightDbgPrint("SDK AVRCP Repeat mode[%d]:%x",(U8)linkIndex, (U8)attributeValue);
+                   SDK_AVRCP_SendSetRepeatStatus(linkIndex, (U8)((attributeValue+1)%AVRCP_REPEAT_MODE_NO));
+                 }
+                 #endif
+                 #if SDK_AVRCP_SHUFFLE
+                 if(attributeID == AVRCP_SHUFFLE_ON_OFF_STATUS)
+                 {
+                   LightDbgPrint("SDK AVRCP Shuffle[%d]:%x",(U8)linkIndex, (U8)attributeValue);
+                   SDK_AVRCP_SendSetShuffleStatus(linkIndex, (U8)((attributeValue+1)%AVRCP_SHUFFLE_MODE_NO));
+                 }
+                 #endif
+               }
+               #endif
+   31          
+   32          #if SDK_AVRCP_SHUFFLE
+               PUBLIC void SDK_AVRCP_SendGetShuffleStatus(U8 linkIndex)
+               {
+                 if(MMI_AVRCP_IsGetAppSettingsIdle(linkIndex))
+                 {
+                   MMI_AVRCP_SDK_SetGetAppSettingsOwner(linkIndex);
+                   MMI_AVRCP_CmdGenerator(linkIndex, AVRCP_SEND_OPERATION, AVC_OPERATION_GET_SHUFFLE_MODE);
+                 }
+               }
+               
+               PUBLIC void SDK_AVRCP_SendSetShuffleStatus(U8 linkIndex, U8 status)
+               {
+                 if(status >= AVRCP_SHUFFLE_MODE_NO)
+                 {
+                   ASSERT(FALSE);
+                 }
+                 MMI_AVRCP_SetPlayAppSettings(linkIndex, AVC_OPERATION_SET_SHUFFLE_MODE, status);
+               }
+               
+               PUBLIC void SDK_AVRCP_KeyShuffleChange(U8 linkIndex)
+               {
+C251 COMPILER V5.57.0,  SDK_AVRCP                                                          08/11/20  06:34:40  PAGE 2   
+
+                 MMI_AVRCP_KeyShuffleModeChange(linkIndex);
+               }
+               #endif
+   56          
+   57          #if SDK_AVRCP_REPEAT
+               PUBLIC void SDK_AVRCP_SendGetRepeatStatus(U8 linkIndex)
+               {
+                 if(MMI_AVRCP_IsGetAppSettingsIdle(linkIndex))
+                 {
+                   MMI_AVRCP_SDK_SetGetAppSettingsOwner(linkIndex);
+                   MMI_AVRCP_CmdGenerator(linkIndex, AVRCP_SEND_OPERATION, AVC_OPERATION_GET_REPEAT_MODE);
+                 }
+               }
+               
+               PUBLIC void SDK_AVRCP_SendSetRepeatStatus(U8 linkIndex, U8 status)
+               {
+                 if(status >= AVRCP_REPEAT_MODE_NO)
+                 {
+                   ASSERT(FALSE);
+                 }
+                 MMI_AVRCP_SetPlayAppSettings(linkIndex, AVC_OPERATION_SET_REPEAT_MODE, status);
+               }
+               
+               PUBLIC void SDK_AVRCP_KeyRepeatChange(U8 linkIndex)
+               {
+                 MMI_AVRCP_KeyRepeatModeChange(linkIndex);
+               }
+               #endif
+   81          
+   82          #if SDK_AVRCP_KEYS
+               PUBLIC void SDK_AVRCP_KeyPlay(U8 linkIndex)
+               {
+                 MMI_AVRCP_KeyPlay(linkIndex);
+               }
+               
+               PUBLIC void SDK_AVRCP_KeyStop(U8 linkIndex)
+               {
+                 MMI_AVRCP_KeyStop(linkIndex);
+               }
+               
+               PUBLIC void SDK_AVRCP_KeyPause(U8 linkIndex)
+               {
+                 MMI_AVRCP_KeyPause(linkIndex);
+               }
+               
+               PUBLIC void SDK_AVRCP_KeyRewindPush(U8 linkIndex)
+               {
+                 MMI_AVRCP_KeyRewindPush(linkIndex);
+               }
+               
+               PUBLIC void SDK_AVRCP_KeyFastForwardPush(U8 linkIndex)
+               {
+                 MMI_AVRCP_KeyFastForwardPush(linkIndex);
+               }
+               
+               PUBLIC void SDK_AVRCP_KeyForward(U8 linkIndex)
+               {
+                 MMI_AVRCP_KeyForward(linkIndex);
+               }
+               
+               PUBLIC void SDK_AVRCP_KeyBackward(U8 linkIndex)
+               {
+                 MMI_AVRCP_KeyBackward(linkIndex);
+               }
+               
+               PUBLIC void SDK_AVRCP_KeyRewindRelease(U8 linkIndex)
+C251 COMPILER V5.57.0,  SDK_AVRCP                                                          08/11/20  06:34:40  PAGE 3   
+
+               {
+                 MMI_AVRCP_KeyRewindRelease(linkIndex);
+               }
+               
+               PUBLIC void SDK_AVRCP_KeyFastForwardRelease(U8 linkIndex)
+               {
+                 MMI_AVRCP_KeyFastForwardRelease(linkIndex);
+               }
+               #endif
+  128          
+  129          #if SDK_AVRCP_PLAY_STATUS
+               PUBLIC void SDK_AVRCP_CB_PlayStatus(U8 linkIndex, U8 playStatus)
+               {
+                 switch(playStatus)
+                 {
+                   case AVRCP_PLAYBACK_STATUS_STOPPED:
+                     LightDbgPrint("SDK AVRCP[%d] playStatus: stopped",(U8)linkIndex);
+                     break;
+                   case AVRCP_PLAYBACK_STATUS_PLAYING:
+                     LightDbgPrint("SDK AVRCP[%d] playStatus: palying",(U8)linkIndex);
+                     break;
+                   case AVRCP_PLAYBACK_STATUS_PAUSED:
+                     LightDbgPrint("SDK AVRCP[%d] playStatus: paused",(U8)linkIndex);
+                     break;
+                   case AVRCP_PLAYBACK_STATUS_FWD_SEEK:
+                     LightDbgPrint("SDK AVRCP[%d] playStatus: FWD seek",(U8)linkIndex);
+                     break;
+                   case AVRCP_PLAYBACK_STATUS_REV_SEEK:
+                     LightDbgPrint("SDK AVRCP[%d] playStatus: REV seek",(U8)linkIndex);
+                     break;
+                   default:
+                     LightDbgPrint("SDK AVRCP[%d] playStatus: %x",(U8)linkIndex, (U8)playStatus);
+                     break;
+                 }
+               }
+               
+               PUBLIC U8 SDK_AVRCP_CurrentPlayStatus(U8 linkIndex)
+               {
+                 return MMI_AVRCP_GET_PLAY_STATUS(linkIndex);
+               }
+               #endif
+  160          
+  161          #if SDK_AVRCP_MEDIA_ATTRIBUTE
+               typedef struct
+               {
+                 U8 NumAttributes;
+                 AVRCP_ELEMENT_ATTRIBUTE Attribute[1];
+               }SDK_AVRCP_MEDIA_ATTRIBUTE_TYPE;
+               
+               PUBLIC void SDK_AVRCP_CB_MediaAttribute(U8 linkIndex, U8 XDATA_PTR mediaPtr)
+               {
+                 /* U8 XDATA_PTR mediaPtr will be put back to system in NDK. Do not use mediaPtr directly. */
+                 U8 i;
+                 SDK_AVRCP_MEDIA_ATTRIBUTE_TYPE XDATA_PTR attributePtr = (SDK_AVRCP_MEDIA_ATTRIBUTE_TYPE XDATA_PTR)mediaP
+             -tr;
+                 
+                 LightDbgPrint("SDK AVRCP media Attribute Num:%d",(U8)attributePtr->NumAttributes);
+                 for(i = 0; i < attributePtr->NumAttributes; i++)
+                 {
+                   switch((U8)(attributePtr->Attribute[i].AttributeID))
+                   {
+                     case AVRCP_MEDIA_TITLE:
+                       LightDbgPrint("SDK AVRCP_MEDIA_TITLE");
+                       break;
+                     case AVRCP_MEDIA_ARTIST_NAME:
+                       LightDbgPrint("SDK AVRCP_MEDIA_ARTIST_NAME");
+C251 COMPILER V5.57.0,  SDK_AVRCP                                                          08/11/20  06:34:40  PAGE 4   
+
+                       break;
+                     case AVRCP_MEDIA_ALBUM_NAME:
+                       LightDbgPrint("SDK AVRCP_MEDIA_ALBUM_NAME");
+                       break;
+                     case AVRCP_MEDIA_TRACK_NUMBER:
+                       LightDbgPrint("SDK AVRCP_MEDIA_TRACK_NUMBER");
+                       break;
+                     case AVRCP_MEDIA_TOTAL_TRACKS:
+                       LightDbgPrint("SDK AVRCP_MEDIA_TOTAL_TRACKS");
+                       break;
+                     case AVRCP_MEDIA_GENRE:
+                       LightDbgPrint("SDK AVRCP_MEDIA_GENRE");
+                       break;
+                     case AVRCP_MEDIA_PLAYING_TIME:
+                       LightDbgPrint("SDK AVRCP_MEDIA_PLAYING_TIME");
+                       break;    
+                   }
+                   mediaPtr += (attributePtr->Attribute[i].AttributeValueLength + 8);
+                   attributePtr = (SDK_AVRCP_MEDIA_ATTRIBUTE_TYPE XDATA_PTR)mediaPtr;
+                 }
+                 UNUSED(linkIndex);
+               }
+               #endif
+  207          
+  208          
+  209          PUBLIC void SDK_AVRCP_Init(void)
+  210          {
+  211   1        #if SDK_AVRCP_PALY_APPLICATION
+                 SDK_Proxy_RegisterAPI( API_GRP_PF_CB_AVRCP_PLAY_APP_CHANGED, API_GRP_PROFILE, (VFUN)SDK_AVRCP_CB_PlayApp
+             -lication);
+                 #endif
+  214   1        #if SDK_AVRCP_PLAY_STATUS
+                 /* gMMI_nvram.mmiAvrcpSettings.notifyEventMask bit6 should be 1. */
+                 SDK_Proxy_RegisterAPI( API_GRP_PF_CB_AVRCP_PLAY_STATUS, API_GRP_PROFILE, (VFUN)SDK_AVRCP_CB_PlayStatus);
+                 #endif
+  218   1        #if SDK_AVRCP_MEDIA_ATTRIBUTE
+                 /* gMMI_nvram.mmiAvrcpSettings.notifyEventMask bit1 should be 1. */
+                 /* gMMI_nvram.mmiAvrcpSettings.mediaEventMask should be set for media attributes. 
+                   #define MMI_AVRCP_MEDIA_TITLE       0x01
+                   #define MMI_AVRCP_MEDIA_ARTIST_NAME     0x02
+                   #define MMI_AVRCP_MEDIA_ALBUM_NAME      0x04
+                   #define MMI_AVRCP_MEDIA_TRACK_NUMBER    0x08
+                   #define MMI_AVRCP_MEDIA_TOTAL_TRACKS    0x10
+                   #define MMI_AVRCP_MEDIA_GENRE       0x20
+                   #define MMI_AVRCP_MEDIA_PLAYING_TIME    0x40
+                 */
+                 SDK_Proxy_RegisterAPI( API_GRP_PF_CB_AVRCP_MEDIA_ATTRIBUTE, API_GRP_PROFILE, (VFUN)SDK_AVRCP_CB_MediaAtt
+             -ribute);
+                 #endif
+  231   1      }
+  232          
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =         1     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+C251 COMPILER V5.57.0,  SDK_AVRCP                                                          08/11/20  06:34:40  PAGE 5   
+
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =    ------     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

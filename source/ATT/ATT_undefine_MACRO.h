@@ -1,0 +1,15 @@
+#ifdef LE_SUPPORTED_HOST_FLASH
+
+#undef SERVICE_016_M
+#undef SERVICE_128_M
+#undef INCLUDE_016_M
+#undef INCLUDE_128_M
+#undef CHARACT_016_M
+#undef CHARACT_128_M
+#undef DESCRIPTORS_M
+#undef VL_CHAR_016_M
+#undef VL_CHAR_128_M
+#undef VL_DESCRIPT_M
+
+#endif /* LE_SUPPORTED_HOST_FLASH */
+

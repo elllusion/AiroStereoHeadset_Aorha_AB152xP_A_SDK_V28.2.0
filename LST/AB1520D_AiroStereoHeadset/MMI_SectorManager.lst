@@ -1,0 +1,756 @@
+C251 COMPILER V5.57.0,  MMI_SectorManager                                                  08/11/20  06:33:37  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE MMI_SectorManager
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\MMI_SectorManager.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\MMI\MMI_SectorManager.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HU
+                    -GE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS
+                    -;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\
+                    -source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\
+                    -MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\D
+                    -spData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE
+                    -(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoHea
+                    -dset\MMI_SectorManager.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\MMI_SectorManager.obj) 
+
+stmt  level    source
+
+    1          //////////////////////////////////////////////////////////
+    2          // Copyright@ 2009 Airoha.  All right reserved.
+    3          //////////////////////////////////////////////////////////
+    4          #include "reside_flash.inc"
+    5          
+    6          #define _MMI_SECTOR_MANAGER_
+    7          
+    8          #include "MMI.h"
+    9          #include "MMI_Protocol.h"
+   10          #include "MMI_Driver.h"
+   11          #include "MMI_SectorManager.h"
+   12          #include "MMI_HCI.h"
+   13          #include "MMI_AirModule.h"
+   14          
+   15          #include "..\LM\LM_Interface.h"
+   16          #include "LC.h"
+   17          #include "LC_Interface.h"
+   18          
+   19          #include "..\DRIVER\Peq_HPF.h"
+   20          
+   21          #include "sector_merge_runtime.h"
+   22          #include "drv_flash.h"
+   23          #include "drv_program_flash.h"
+   24          
+   25          #include "sector_config1.h"
+   26          #include "drv_program_flash_flash.h"
+   27          #ifdef MMI_LE_ENABLE
+   28          #include "..\MMI_LE\MMI_LE_interface.h"
+   29          #endif
+   30          
+   31          #include "..\SDK_Proxy\SDK_Proxy.h"
+   32          
+   33          PRIVATE U16 MMI_GetMmiDriverNvramSectorSize(void);
+   34          PRIVATE void MMI_SECTOR_ResetAirLinkInfo(void);
+   35          PRIVATE void MMI_SECTOR_ResetFastLinkInfo(void);
+   36          PRIVATE void MMI_SECTOR_ResetLinkInfo(void);
+   37          PRIVATE void MMI_ResetMmiDriverNvramValue(void);
+   38          PRIVATE U8 SaveMmiNvramTo4kbFlash(void);
+   39          
+   40          #ifdef DUAL_MIC_ENABLE
+   41          extern PUBLIC void AUDIO_SaveDataToFlash(U8 CODE_PTR pValidSector, U8 XDATA_PTR dataPtr);
+   42          #endif
+   43          
+   44          #ifdef LE_SUPPORTED_HOST_FLASH
+   45          extern PUBLIC void LIC_ImmSaveToFlash(U8 CODE_PTR pValidSector, U8 XDATA_PTR pLeNvram);
+   46          extern PUBLIC void LIC_UpdateFlashAddr(void);
+   47          #endif
+   48          
+   49          extern VFUN XDATA api_iosys_evt_func[API_GRP_IOSYS_CB_CNT];
+   50          
+   51          PUBLIC void MMI_SECTOR_MmiNvramInit(void)
+   52          {
+C251 COMPILER V5.57.0,  MMI_SectorManager                                                  08/11/20  06:33:37  PAGE 2   
+
+   53   1        #if USING_DIRECT_MMI_NVARM
+   54   1        pMMI_nvram = (MMI_NVRAM_TYPE CODE_PTR) GET_SECTOR_CFG1_ADDR(SECTOR_MMI_NVRAM_INIT);
+   55   1        #else
+                 OSMEM_memcpy_xdata_code ((U8 XDATA_PTR) &gMMI_nvram, GET_SECTOR_CFG1_ADDR(SECTOR_MMI_NVRAM_INIT), sizeof
+             - (MMI_NVRAM_TYPE));
+                 #endif
+   58   1        
+   59   1        #if USING_DIRECT_MMI_NVARM_KEYMAP
+   60   1        pMMI_nvram_keymap = (MMI_NVRAM_KEYMAP CODE_PTR) GET_SECTOR_CFG1_ADDR(SECTOR_MMI_NVRAM_KEYMAP_INIT);
+   61   1        #else
+                 OSMEM_memcpy_xdata_code ((U8 XDATA_PTR) &gMMI_nvram_keymap, GET_SECTOR_CFG1_ADDR(SECTOR_MMI_NVRAM_KEYMAP
+             -_INIT), sizeof (MMI_NVRAM_KEYMAP));
+                 #endif
+   64   1        
+   65   1        #if USING_DIRECT_NVRAM_SPKGAINSET
+                 #else
+   67   1        MMI_ReadNvramDataChunk(gMMI_mem_spkGainSet, gMMI_nvram.spkGainSet, sizeof(SpkGainSet) * SOUND_LEVEL_NO);
+   68   1        MMI_ReadNvramDataChunk(gMMI_mem_spkGainSetSCOWB, gMMI_nvram.spkGainSetSCOWB, sizeof(SpkGainSetSCOWB) * S
+             -OUND_LEVEL_NO);
+   69   1        #endif
+   70   1        
+   71   1        #if USING_DIRECT_NVRAM_MICGAINSET
+   72   1        #else
+                 MMI_ReadNvramDataChunk(gMMI_mem_micGainSet, gMMI_nvram.micGainSet, sizeof(MicGainSet) * SOUND_LEVEL_NO);
+                 MMI_ReadNvramDataChunk(gMMI_mem_micGainSetSCOWB, gMMI_nvram.micGainSetSCOWB, sizeof(MicGainSetSCOWB) * S
+             -OUND_LEVEL_NO);
+                 #endif
+   76   1      
+   77   1        #if USING_DIRECT_NVRAM_MICGAINSET_UNDER_A2DP_MODE
+   78   1        #else
+                 MMI_ReadNvramDataChunk(gMMI_mem_micGainSet_under_a2dp_mode, gMMI_nvram.micGainSetA2DP, sizeof(MicGainSet
+             -A2DP) * SOUND_LEVEL_NO);
+                 #endif
+   81   1      
+   82   1        #if USING_DIRECT_NVRAM_MISC_TYPE
+                 #else
+   84   1        MMI_ReadNvramDataChunk((U8 XDATA_PTR)&gMMI_discoverableIfPdlLessThan, &gMMI_nvram.discoverableIfPdlLessT
+             -han, sizeof(U8));
+   85   1        MMI_ReadNvramDataChunk((U8 XDATA_PTR)&gMMI_maxPageDevice, &gMMI_nvram.maxPageDevice, sizeof(U8));
+   86   1        MMI_ReadNvramDataChunk((U8 XDATA_PTR)&gMMI_connection, &gMMI_nvram.mmiFeatureCtl.Connection, sizeof(U16)
+             -);
+   87   1        MMI_ReadNvramDataChunk((U8 XDATA_PTR)&gMMI_pnp_product_id, &gMMI_nvram.productType.pnpProductID, sizeof(
+             -U16));
+   88   1        MMI_ReadNvramDataChunk((U8 XDATA_PTR)&gMMI_pnp_product_ver, &gMMI_nvram.productType.pnpProductVersion, s
+             -izeof(U16));
+   89   1        MMI_ReadNvramDataChunk((U8 XDATA_PTR)&gMMI_audio_priority, &gMMI_nvram.audioPriority.priority, sizeof(U8
+             -)*AUDIO_DEVICE_NUM);
+   90   1        MMI_ReadNvramDataChunk((U8 XDATA_PTR)&gMMI_feature_ctl_audio3, &gMMI_nvram.mmiFeatureCtl.Audio3, sizeof(
+             -U16));
+   91   1        MMI_ReadNvramDataChunk((U8 XDATA_PTR)&gMMI_aux_fs_sel, &gMMI_nvram.airPara.AUX_FS_SEL, sizeof(U8));
+   92   1        MMI_ReadNvramDataChunk((U8 XDATA_PTR)&gMMI_feature_ctl_a2dp, &gMMI_nvram.mmiFeatureCtl.A2DP, sizeof(U16)
+             -);
+   93   1        MMI_ReadNvramDataChunk((U8 XDATA_PTR)&gMMI_simple_pairing_para, &gMMI_nvram.simplePairingPara, sizeof(Si
+             -mplePairingPara)*1);
+   94   1        #endif
+   95   1      
+   96   1      }
+   97          
+   98          PUBLIC void MMI_SECTOR_MmiDriverNvramInit(void)
+   99          {
+  100   1        U16 sectorSize = MMI_GetMmiDriverNvramSectorSize();
+  101   1        MMI_DRIVER_VARIATION_HEAD_STRU CODE_PTR ptr1 = (MMI_DRIVER_VARIATION_HEAD_STRU CODE_PTR)GET_SECTOR_MERGE
+             -_RUNTIME_1_ADDR(SECTOR_MMI_DRIVER_V_NVRAM_INIT);
+  102   1        MMI_DRIVER_VARIATION_HEAD_STRU CODE_PTR ptr2 = (MMI_DRIVER_VARIATION_HEAD_STRU CODE_PTR)GET_SECTOR_MERGE
+             -_RUNTIME_2_ADDR(SECTOR_MMI_DRIVER_V_NVRAM_INIT2);
+  103   1      
+C251 COMPILER V5.57.0,  MMI_SectorManager                                                  08/11/20  06:33:37  PAGE 3   
+
+  104   1        if(ptr1->CheckValid == MMI_SECTOR_DATA_VALID)
+  105   1        {
+  106   2          OSMEM_memcpy_xdata_code ((U8 XDATA_PTR) &gMMI_driver_variation_nvram.misc_para,(U8 CODE_PTR) ptr1->Para
+             -,sectorSize);
+  107   2        }
+  108   1        else if(ptr2->CheckValid == MMI_SECTOR_DATA_VALID)
+  109   1        {
+  110   2          OSMEM_memcpy_xdata_code ((U8 XDATA_PTR) &gMMI_driver_variation_nvram.misc_para,(U8 CODE_PTR) ptr2->Para
+             -,sectorSize);
+  111   2        }
+  112   1        else
+  113   1        {
+  114   2          MMI_ResetMmiDriverNvramValue();
+  115   2          SaveMmiNvramTo4kbFlash();
+  116   2        }
+  117   1      
+  118   1        LM_SetLocalNamePtr( &gMMI_driver_variation_nvram.misc_para.init.local_name );
+  119   1        SYS_WriteEIRResponseName(&gMMI_driver_variation_nvram.misc_para.init.local_name.name[0], gMMI_driver_var
+             -iation_nvram.misc_para.init.local_name.len);
+  120   1      }
+  121          
+  122          PUBLIC U8 CODE_PTR MMI_SECTOR_GetValidCustormerSectorAddr(void)
+  123          {
+  124   1        U8 CODE_PTR ptr;
+  125   1        if(((MMI_DRIVER_VARIATION_HEAD_STRU CODE_PTR)GET_SECTOR_MERGE_RUNTIME_1_ADDR(SECTOR_MMI_DRIVER_V_NVRAM_I
+             -NIT))->CheckValid == MMI_SECTOR_DATA_VALID)
+  126   1        {
+  127   2          ptr = (U8 CODE_PTR)&((MMI_CUSTOMIZE_DATA_STRU CODE_PTR)GET_SECTOR_MERGE_RUNTIME_1_ADDR(SECTOR_CUSTOMIZE
+             -_V_NVRAM_INIT))->mmi_customize_data;
+  128   2        }
+  129   1        else if(((MMI_DRIVER_VARIATION_HEAD_STRU CODE_PTR)GET_SECTOR_MERGE_RUNTIME_2_ADDR(SECTOR_MMI_DRIVER_V_NV
+             -RAM_INIT2))->CheckValid == MMI_SECTOR_DATA_VALID)
+  130   1        {
+  131   2          ptr = (U8 CODE_PTR)&((MMI_CUSTOMIZE_DATA_STRU CODE_PTR)GET_SECTOR_MERGE_RUNTIME_2_ADDR(SECTOR_CUSTOMIZE
+             -_V_NVRAM_INIT))->mmi_customize_data;
+  132   2        }
+  133   1        else
+  134   1        {
+  135   2          ptr = (U8 CODE_PTR)NULL;
+  136   2        }
+  137   1        return ptr;
+  138   1      }
+  139          
+  140          
+  141          PUBLIC void MMI_SECTOR_SaveData(U8 writeType)
+  142          {
+  143   1        if(!gSYS_allow_updating || gSYS_update_by_uart_flash_command)
+  144   1          return;
+  145   1      
+  146   1        if(!MMI_NEEDS_TO_UPDATE_NVRAM())
+  147   1          goto MMI_CHECK_RESET;
+  148   1      
+  149   1        #ifdef MMI_LE_ENABLE
+  150   1        if (!MMI_LE_AllowUpdateFlash())
+  151   1              return;
+  152   1          #endif
+  153   1      
+  154   1        switch(writeType)
+  155   1        {
+  156   2          case SAVE_DATA_TYPE_RUNTIME:
+  157   2            if(rs_is_ongoing || MMI_HCI_IsInquiryOnGoing() || gMMI_ctl.page_ongoing)
+  158   2              return;
+  159   2            break;
+  160   2          case SAVE_DATA_TYPE_DSP_OFF:
+  161   2            if (MMI_HCI_IsInquiryOnGoing() || gMMI_ctl.page_ongoing)
+  162   2              return;
+C251 COMPILER V5.57.0,  MMI_SectorManager                                                  08/11/20  06:33:37  PAGE 4   
+
+  163   2            while(rs_is_ongoing);//Please check this flag before programming flash. about 10ms at most
+  164   2              goto MMI_WRITE_FLASH;
+  165   2            break;
+  166   2          case SAVE_DATA_TYPE_POWER_OFF:
+  167   2            goto MMI_WRITE_FLASH;
+  168   2      
+  169   2          case SAVE_DATA_TYPE_SDK:
+  170   2            if(rs_is_ongoing || MMI_HCI_IsInquiryOnGoing() || gMMI_ctl.page_ongoing)
+  171   2              return;
+  172   2            else
+  173   2              goto MMI_WRITE_FLASH;
+  174   2            break;
+  175   2      
+  176   2          default:
+  177   2            ASSERT(FALSE);
+  178   2            break;
+  179   2        }
+  180   1      
+  181   1        if(gMMI_ctl.mmiTimerInfo.sysTimer.writeFlashTimer == (OST XDATA_PTR)NULL)
+  182   1        {
+  183   2          #if AB1520B_UPDATE_LINK_HISTORY_PERIODICALLY
+                   SYS_SetTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.writeFlashTimer, 20*ONE_SEC);
+                   #else
+  186   2          SYS_SetTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.writeFlashTimer, /*HALF_SEC*/ ONE_SEC);
+  187   2          #endif
+  188   2        }
+  189   1        else if(SYS_IsTimerExpired(&gMMI_ctl.mmiTimerInfo.sysTimer.writeFlashTimer) || MMI_DRV_IsReset())
+  190   1        {
+  191   2          MMI_WRITE_FLASH:
+  192   2          if (!SaveMmiNvramTo4kbFlash())
+  193   2              return;
+  194   2          #ifdef AIR_MODULE
+  195   2          MMI_AIR_SaveData();
+  196   2          #endif
+  197   2          MMI_PushMediaEvent(MEDIA_EVT_RESET_COMPLETE);
+  198   2      
+  199   2          MMI_SECTOR_SetUpdateFlag(FALSE);
+  200   2      
+  201   2          MMI_CHECK_RESET:
+  202   2          if(MMI_DRV_IsReset())
+  203   2          {
+  204   3            MMI_DRV_SetReset(FALSE);
+  205   3            if(MMI_UKEY_SWITCH_ONOFF_TYPE_FEAT  && MMI_KEY_STATE_POWER_OFF == MMI_GetKeyState())
+  206   3            {
+  207   4              return;
+  208   4            }
+  209   3      
+  210   3            MMI_Reset();
+  211   3          }
+  212   2        }
+  213   1      }
+  214          
+  215          PRIVATE U8 MMI_SECTOR_LinkDataSum(U8 XDATA_PTR linkDataPtr)
+  216          {
+  217   1        U8 i;
+  218   1        U8 Sum = 0;
+  219   1      
+  220   1        if(linkDataPtr == NULL)
+  221   1          return 0xFF;
+  222   1      
+  223   1        for(i = 0; i < sizeof(HciLinkKeyNtf); i++)
+  224   1          Sum += *(linkDataPtr + i);
+  225   1      
+  226   1        return Sum;
+  227   1      }
+  228          
+C251 COMPILER V5.57.0,  MMI_SectorManager                                                  08/11/20  06:33:37  PAGE 5   
+
+  229          PRIVATE U8 MMI_SECTOR_LinkInfoSum()
+  230          {
+  231   1        U8 i;
+  232   1        U8 airInfo, fcdInfo, agInfo;
+  233   1      
+  234   1        airInfo = fcdInfo = agInfo = 0;
+  235   1      
+  236   1        for(i = 0; i < NVRAM_AIR_LINK_KEY_NO; i++)
+  237   1          airInfo += MMI_SECTOR_LinkDataSum((U8 XDATA_PTR)&gMMI_driver_variation_nvram.air_link_history_info[i].l
+             -inkData);
+  238   1      
+  239   1        fcdInfo += MMI_SECTOR_LinkDataSum((U8 XDATA_PTR)&gMMI_driver_variation_nvram.fast_dongle_link_history_in
+             -fo.linkData);
+  240   1      
+  241   1        for(i = 0; i < NVRAM_LINK_KEY_ITEMS; i++)
+  242   1          agInfo += MMI_SECTOR_LinkDataSum((U8 XDATA_PTR)&gMMI_driver_variation_nvram.link_history_info[i].linkDa
+             -ta);
+  243   1      
+  244   1        return (airInfo + fcdInfo + agInfo);
+  245   1      }
+  246          
+  247          PRIVATE U8 MMI_SECTOR_LinkA2dpSoundLevelSum()
+  248          {
+  249   1        U8 i;
+  250   1        U8 airInfo, fcdInfo, agInfo;
+  251   1      
+  252   1        airInfo = fcdInfo = agInfo = 0;
+  253   1      
+  254   1        for(i = 0; i < NVRAM_AIR_LINK_KEY_NO; i++)
+  255   1          airInfo += gMMI_driver_variation_nvram.air_link_history_info[i].a2dpSoundLevel;
+  256   1      
+  257   1        fcdInfo += gMMI_driver_variation_nvram.fast_dongle_link_history_info.a2dpSoundLevel;
+  258   1      
+  259   1        for(i = 0; i < NVRAM_LINK_KEY_ITEMS; i++)
+  260   1          agInfo += gMMI_driver_variation_nvram.link_history_info[i].a2dpSoundLevel;
+  261   1      
+  262   1        return (airInfo + fcdInfo + agInfo);
+  263   1      }
+  264          
+  265          PUBLIC void MMI_SECTOR_ResetPairedDevices(void)
+  266          {
+  267   1        if(gMMI_ctl.driverCtl.resetLinkType == 0xFF)
+  268   1        {
+  269   2          MMI_ResetMmiDriverNvramValue();
+  270   2        }
+  271   1        else
+  272   1        {
+  273   2          if(gMMI_ctl.driverCtl.resetLinkType & MMI_RESET_FAST_DONGLE_LINK_INFO)
+  274   2          {
+  275   3            MMI_SECTOR_ResetFastLinkInfo();
+  276   3          }
+  277   2          if(gMMI_ctl.driverCtl.resetLinkType & MMI_RESET_AIR_LINK_INFO)
+  278   2          {
+  279   3            MMI_SECTOR_ResetAirLinkInfo();
+  280   3          }
+  281   2          if(gMMI_ctl.driverCtl.resetLinkType & MMI_RESET_LINK_INFO)
+  282   2          {
+  283   3            MMI_SECTOR_ResetLinkInfo();
+  284   3          }
+  285   2        }
+  286   1      
+  287   1        gMMI_ctl.driverCtl.resetLinkType = 0;
+  288   1      
+  289   1        LightDbgPrint("LinkInfo:%x Vol:%d Lang:%d", (U8)MMI_SECTOR_LinkInfoSum(),
+  290   1                              (U8)MMI_SECTOR_LinkA2dpSoundLevelSum(),
+  291   1                              (U8)gMMI_driver_variation_nvram.misc_para.init.vpLangIndex);
+C251 COMPILER V5.57.0,  MMI_SectorManager                                                  08/11/20  06:33:37  PAGE 6   
+
+  292   1        LightDbgPrint("PEQ Mode: A2DP[%d] LineIn[%d]", (U8)gMMI_driver_variation_nvram.misc_para.PEQRecord[PEQ_A
+             -2DP],
+  293   1                                (U8)gMMI_driver_variation_nvram.misc_para.PEQRecord[PEQ_LINE_IN]);
+  294   1      
+  295   1        MMI_SECTOR_SetUpdateFlag(TRUE);
+  296   1        if (MMI_REBOOT_ON_RESET_LINK_HISTORY_FEAT)
+  297   1          MMI_DRV_SetReset(TRUE);
+  298   1      }
+  299          
+  300          PUBLIC void MMI_SECTOR_SetUpdateFlag(BOOL isUpdate)
+  301          {
+  302   1        if(isUpdate)
+  303   1        {
+  304   2          MMI_UPDATE_NVRAM(TRUE);
+  305   2        }
+  306   1        else
+  307   1        {
+  308   2          MMI_UPDATE_NVRAM(FALSE);
+  309   2          SYS_ReleaseTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.writeFlashTimer);
+  310   2        }
+  311   1      }
+  312          
+  313          PUBLIC BOOL MMI_SECTOR_WriteDeviceName(U8 XDATA_PTR namePtr, U8 len)
+  314          {
+  315   1        if(len > RC_LOCAL_NAME_LENGTH)
+  316   1          return FALSE;
+  317   1        else
+  318   1        {
+  319   2          MMI_SECTOR_SetUpdateFlag(TRUE);
+  320   2          OSMEM_memset_xdata((U8 XDATA_PTR)gMMI_driver_variation_nvram.misc_para.init.local_name.name, 0, gMMI_dr
+             -iver_variation_nvram.misc_para.init.local_name.len);
+  321   2          OSMEM_memcpy_xdata_xdata(gMMI_driver_variation_nvram.misc_para.init.local_name.name, namePtr,
+  322   2                        (gMMI_driver_variation_nvram.misc_para.init.local_name.len = len));
+  323   2          SYS_WriteEIRResponseName(namePtr, len);
+  324   2          return TRUE;
+  325   2        }
+  326   1      }
+  327          
+  328          
+  329          PUBLIC void MMI_DisableLcHwInt(void)
+  330          {
+  331   1          U8 i;
+  332   1      
+  333   1        LC_ENABLE_SAC_SCAN(0);
+  334   1      
+  335   1          for (i=0;i<MAX_NUM_ACL_LINK;i++)
+  336   1          {
+  337   2              U8 sac_idx;
+  338   2              U16 temp_interr;
+  339   2      
+  340   2              sac_idx = gLC_ctl.conn_idx_2_sac_idx[i];
+  341   2              LC_SAC_GET_INTERRUPT_ENABLE(sac_idx,gLC_ctl.LinkIntrRecover[i]);
+  342   2              temp_interr = gLC_ctl.LinkIntrRecover[i] &
+  343   2                  (~(LC_SAC_INTERRUPT_ENABLE_ESCO|LC_SAC_INTERRUPT_ENABLE_SNIFF|LC_SAC_INTERRUPT_ENABLE_SERVICE
+  344   2                  |LC_SAC_INTERRUPT_ENABLE_LARGE_RX_FIFO_EMPTY
+  345   2                  |LC_SAC_INTERRUPT_ENABLE_AFH_MEASURMENT|LC_SAC_INTERRUPT_ENABLE_HOLD));
+  346   2              LC_SAC_SET_INTERRUPT_ENABLE(sac_idx,temp_interr);
+  347   2          }
+  348   1        gLC_ctl.LinkIntrRecover3 = LC_SFR_READ_BY_E7 (E7OFFS_RW_SAC_INTERRUPT_ENABLE3);
+  349   1          LC_SFR_WRITE_BY_E7(E7OFFS_RW_SAC_INTERRUPT_ENABLE3, 0);
+  350   1      }
+  351          
+  352          PUBLIC void MMI_EnableLcHwInt(void)
+  353          {
+  354   1          U8 i;
+  355   1          for (i=0;i<MAX_NUM_ACL_LINK;i++)
+C251 COMPILER V5.57.0,  MMI_SectorManager                                                  08/11/20  06:33:37  PAGE 7   
+
+  356   1          {
+  357   2              U8 sac_idx;
+  358   2      
+  359   2              sac_idx = gLC_ctl.conn_idx_2_sac_idx[i];
+  360   2              LC_SAC_SET_INTERRUPT_ENABLE(sac_idx,gLC_ctl.LinkIntrRecover[i]);
+  361   2          }
+  362   1      
+  363   1        LC_SFR_WRITE_BY_E7(E7OFFS_RW_SAC_INTERRUPT_ENABLE3, gLC_ctl.LinkIntrRecover3);
+  364   1        LC_ENABLE_SAC_SCAN(4);
+  365   1      }
+  366          
+  367          #if (defined AB1520S) || (defined AB1520U)
+               TWO_BYTE_UNION_TYPE Wire3_0x1E;
+               U8 Wire3_0x1E_18 = 0x03;
+               #endif
+  371          
+  372          PUBLIC U8 MMI_EnterFlashProgramWorkaround(void)
+  373          {
+  374   1          U8 rf_rxon_time;
+  375   1      
+  376   1          while(1)
+  377   1          {
+  378   2              U8 rx_status;
+  379   2      
+  380   2            OS_ENTER_CRITICAL();
+  381   2              rx_status = LC_SFR_READ_BY_E7(E7OFFS_RO_ACTIVE_VECTOR) & 0x40;
+  382   2              if(gLC_ctl.SW_Mode_Going && rx_status)
+  383   2              {
+  384   3                  if(gLCS_swc_current_state==(VFUN CODE_PTR)gLCS_Standby)
+  385   3                  {
+  386   4                      break;
+  387   4                  }
+  388   3                  else
+  389   3                  {
+  390   4                    OS_EXIT_CRITICAL();
+  391   4                    continue;
+  392   4                  }
+  393   3              }
+  394   2              else
+  395   2              {
+  396   3                  break;
+  397   3              }
+  398   2          }
+  399   1        BANK_SFR_READ(C2,C2OFFS_RW_RF_RXON_TIME,rf_rxon_time);
+  400   1        BANK_SFR_WRITE(C2,C2OFFS_RW_RF_RXON_TIME,250);
+  401   1          MMI_DisableLcHwInt();
+  402   1      
+  403   1      #if (defined AB1520S) || (defined AB1520U)
+                 //Block vlotage = 1.8V
+                 SYS_3WireRead(0x1E, Wire3_0x1E.value);
+                 SYS_3WireWrite(0x1E,Wire3_0x1E.in_byte.B1,(Wire3_0x1E.in_byte.B0 & 0xF8 | Wire3_0x1E_18));
+                 OS_delay_us(66);  
+               #endif  
+  409   1          return rf_rxon_time;
+  410   1      }
+  411          
+  412          PUBLIC void MMI_ExitFlashProgramWorkaround(U8 rf_rxon_time)
+  413          {
+  414   1          MMI_EnableLcHwInt();
+  415   1        OS_EXIT_CRITICAL();
+  416   1        while(LC_CURR_USED_RX_BUFF_NUM());
+  417   1        BANK_SFR_WRITE(C2,C2OFFS_RW_RF_RXON_TIME,rf_rxon_time);
+  418   1      
+  419   1      #if (defined AB1520S) || (defined AB1520U)  
+                 //Block vlotage = 1.5V
+                 SYS_3WireWrite(0x1E,Wire3_0x1E.in_byte.B1,Wire3_0x1E.in_byte.B0);
+C251 COMPILER V5.57.0,  MMI_SectorManager                                                  08/11/20  06:33:37  PAGE 8   
+
+                 OS_delay_us(66);
+               #endif  
+  424   1      }
+  425          
+  426          PUBLIC void MMI_SaveMmiDriverNvramToFlash(U8 CODE_PTR flashAddr)
+  427          {
+  428   1        U8 count = 5;
+  429   1        U16 length = MMI_GetMmiDriverNvramSectorSize();
+  430   1      
+  431   1        gMMI_driver_variation_nvram.CheckValid = 0xFF;
+  432   1      
+  433   1        do
+  434   1        {
+  435   2          if(!FLASH_PROGRAM_WriteXDataToFlash(flashAddr, (U8 XDATA_PTR)&gMMI_driver_variation_nvram, length))
+  436   2          {
+  437   3            continue;
+  438   3          }
+  439   2          break;
+  440   2        }while (--count);
+  441   1      
+  442   1        LightDbgPrint("MMI-SaveToFlashRetry %d", (U8)(5 - count));
+  443   1      }
+  444          
+  445          VOID UpdateValidSector(U32 ValidSectorAddr, U32 InvalidSectorAddr)
+  446          {
+  447   1          U8 LDATA check_valid;
+  448   1        U8 count = 5;
+  449   1      
+  450   1        do
+  451   1          {
+  452   2            //verify ok, then update check_byte to valid
+  453   2            check_valid = MMI_SECTOR_DATA_VALID;
+  454   2            if(fFlashDrv->ByteProgram(ValidSectorAddr, &check_valid, 1 ))
+  455   2            {
+  456   3              continue;
+  457   3            }
+  458   2      
+  459   2            //verify ok, then update another check_byte to invalid
+  460   2            check_valid = MMI_SECTOR_DATA_INVALID;
+  461   2            FLASH_PROGRAM_UnlockSector(InvalidSectorAddr);
+  462   2      
+  463   2            if(fFlashDrv->ByteProgram(InvalidSectorAddr, &check_valid, 1))
+  464   2            {
+  465   3              continue;
+  466   3            }
+  467   2          break;
+  468   2        } while (--count);
+  469   1      
+  470   1        LightDbgPrint("MMI-UpdateValidSectorRetry %d", (U8)(5 - count));
+  471   1      
+  472   1        HC_SFR_WRITE_BY_FB(FBOFFS_WO_MCU_CACHE_FLUSH, 1);
+  473   1      }
+  474          
+  475          PRIVATE U8 SaveMmiNvramTo4kbFlash(void)
+  476          {
+  477   1        U8 CODE_PTR ptr1;
+  478   1        U8 CODE_PTR ptr2;
+  479   1        U32 Addr_FlashSectorCanWr;
+  480   1        U32 Addr_FlashSectorOri;
+  481   1        U8 gMMI_rf_rxon_time;
+  482   1        #ifdef LE_SUPPORTED_HOST_FLASH
+  483   1          U8 XDATA_PTR pLeNvram;
+  484   1        U8 XDATA_PTR pLeNvram_4bAlign;
+  485   1        #endif
+  486   1          #ifdef DUAL_MIC_ENABLE
+  487   1        U8 XDATA_PTR pDualMic;
+C251 COMPILER V5.57.0,  MMI_SectorManager                                                  08/11/20  06:33:37  PAGE 9   
+
+  488   1        U8 XDATA_PTR pDualMic_4bAlign;
+  489   1        #endif
+  490   1      
+  491   1          //- If there are enough memory
+  492   1        #ifdef LE_SUPPORTED_HOST_FLASH
+  493   1          if ((pLeNvram = OSMEM_Get(&gAlignOSMEM.OSMEM2_small_TX)) == NULL)
+  494   1          {
+  495   2            return FALSE;
+  496   2        }
+  497   1        pLeNvram_4bAlign = OS_AlignToNext4ByteAddr(pLeNvram);
+  498   1        #endif
+  499   1      
+  500   1          #ifdef DUAL_MIC_ENABLE
+  501   1        if ((pDualMic = OSMEM_Get(&gAlignOSMEM.OSMEM2_small_TX)) == NULL)
+  502   1        {
+  503   2            #ifdef LE_SUPPORTED_HOST_FLASH
+  504   2            OSMEM_Put(pLeNvram);
+  505   2            #endif
+  506   2            return FALSE;
+  507   2        }
+  508   1        pDualMic_4bAlign = OS_AlignToNext4ByteAddr(pDualMic);
+  509   1        #endif
+  510   1      
+  511   1        if(api_iosys_evt_func[API_GRP_IOSYS_CB_NVRAM_ALLOC_PROG_MEM])
+  512   1        {
+  513   2          if(!((API_IOSYS_NVRAM_ALLOC_PROG_CB_FUNC)api_iosys_evt_func[API_GRP_IOSYS_CB_NVRAM_ALLOC_PROG_MEM])())
+  514   2          {
+  515   3            #ifdef LE_SUPPORTED_HOST_FLASH
+  516   3              OSMEM_Put(pLeNvram);
+  517   3              #endif
+  518   3            #ifdef DUAL_MIC_ENABLE
+  519   3            OSMEM_Put(pDualMic);
+  520   3            #endif
+  521   3            return FALSE;
+  522   3          }
+  523   2        }
+  524   1      
+  525   1          //- HW workaround: Let RF can't receive packet
+  526   1          gMMI_rf_rxon_time = MMI_EnterFlashProgramWorkaround();
+  527   1      
+  528   1        ptr1 = GET_SECTOR_MERGE_RUNTIME_1_ADDR(SECTOR_MMI_DRIVER_V_NVRAM_INIT);
+  529   1        ptr2 = GET_SECTOR_MERGE_RUNTIME_2_ADDR(SECTOR_MMI_DRIVER_V_NVRAM_INIT2);
+  530   1      
+  531   1          //- Check valid
+  532   1        if(*ptr1 == MMI_SECTOR_DATA_VALID)
+  533   1        {
+  534   2            Addr_FlashSectorCanWr = FLASH_MEMORY_MAP(ptr2);
+  535   2            Addr_FlashSectorOri = FLASH_MEMORY_MAP(ptr1);
+  536   2      
+  537   2          #ifdef LE_SUPPORTED_HOST_FLASH
+  538   2            FLASH_PROGRAM_PageReadConti(
+  539   2                  FLASH_MEMORY_MAP(GET_SECTOR_MERGE_RUNTIME_1_ADDR(SECTOR_MMI_LE_V_NVRAM_INIT)),
+  540   2                  pLeNvram_4bAlign,
+  541   2                  (U16)GET_SECTOR_MERGE_RUNTIME_1_LEN(SECTOR_MMI_LE_V_NVRAM_INIT));
+  542   2          #endif
+  543   2      
+  544   2            #ifdef DUAL_MIC_ENABLE
+  545   2            FLASH_PROGRAM_PageReadConti(
+  546   2                  FLASH_MEMORY_MAP(GET_SECTOR_MERGE_RUNTIME_1_ADDR(SECTOR_DUAL_MIC_DATA)),
+  547   2                  pDualMic_4bAlign,
+  548   2                  (U16)GET_SECTOR_MERGE_RUNTIME_1_LEN(SECTOR_DUAL_MIC_DATA));
+  549   2              #endif
+  550   2      
+  551   2            FLASH_PROGRAM_UnlockSector(Addr_FlashSectorCanWr);
+  552   2      
+  553   2            fFlashDrv->SectorErase(Addr_FlashSectorCanWr);
+C251 COMPILER V5.57.0,  MMI_SectorManager                                                  08/11/20  06:33:37  PAGE 10  
+
+  554   2      
+  555   2          #ifdef DUAL_MIC_ENABLE
+  556   2            AUDIO_SaveDataToFlash(
+  557   2                GET_SECTOR_MERGE_RUNTIME_2_ADDR(SECTOR_DUAL_MIC_DATA2),
+  558   2                pDualMic_4bAlign);
+  559   2          #endif
+  560   2      
+  561   2              #ifdef LE_SUPPORTED_HOST_FLASH
+  562   2          LIC_ImmSaveToFlash(
+  563   2                GET_SECTOR_MERGE_RUNTIME_2_ADDR(SECTOR_MMI_LE_V_NVRAM_INIT2),
+  564   2                pLeNvram_4bAlign);
+  565   2              #endif
+  566   2      
+  567   2          if(api_iosys_evt_func[API_GRP_IOSYS_CB_NVRAM_UPDATE])
+  568   2          {
+  569   3            ((API_IOSYS_NVRAM_UPDATE_CB)api_iosys_evt_func[API_GRP_IOSYS_CB_NVRAM_UPDATE])(GET_SECTOR_MERGE_RUNTIM
+             -E_2_ADDR(SECTOR_CUSTOMIZE_V_NVRAM_INIT2));
+  570   3          }
+  571   2          MMI_SaveMmiDriverNvramToFlash(ptr2);
+  572   2        }
+  573   1        else
+  574   1        {
+  575   2            Addr_FlashSectorCanWr = FLASH_MEMORY_MAP(ptr1);
+  576   2            Addr_FlashSectorOri = FLASH_MEMORY_MAP(ptr2);
+  577   2      
+  578   2          #ifdef LE_SUPPORTED_HOST_FLASH
+  579   2            FLASH_PROGRAM_PageReadConti(
+  580   2                  FLASH_MEMORY_MAP(GET_SECTOR_MERGE_RUNTIME_2_ADDR(SECTOR_MMI_LE_V_NVRAM_INIT2)),
+  581   2                  pLeNvram_4bAlign,
+  582   2                  (U16)GET_SECTOR_MERGE_RUNTIME_2_LEN(SECTOR_MMI_LE_V_NVRAM_INIT2));
+  583   2          #endif
+  584   2      
+  585   2            #ifdef DUAL_MIC_ENABLE
+  586   2            FLASH_PROGRAM_PageReadConti(
+  587   2                  FLASH_MEMORY_MAP(GET_SECTOR_MERGE_RUNTIME_2_ADDR(SECTOR_DUAL_MIC_DATA2)),
+  588   2                  pDualMic_4bAlign,
+  589   2                  (U16)GET_SECTOR_MERGE_RUNTIME_2_LEN(SECTOR_DUAL_MIC_DATA2));
+  590   2            #endif
+  591   2      
+  592   2            FLASH_PROGRAM_UnlockSector(Addr_FlashSectorCanWr);
+  593   2      
+  594   2            fFlashDrv->SectorErase(Addr_FlashSectorCanWr);
+  595   2      
+  596   2          #ifdef DUAL_MIC_ENABLE
+  597   2            AUDIO_SaveDataToFlash(
+  598   2                GET_SECTOR_MERGE_RUNTIME_1_ADDR(SECTOR_DUAL_MIC_DATA),
+  599   2                pDualMic_4bAlign);
+  600   2          #endif
+  601   2      
+  602   2              #ifdef LE_SUPPORTED_HOST_FLASH
+  603   2          LIC_ImmSaveToFlash(
+  604   2                GET_SECTOR_MERGE_RUNTIME_1_ADDR(SECTOR_MMI_LE_V_NVRAM_INIT),
+  605   2                pLeNvram_4bAlign);
+  606   2              #endif
+  607   2      
+  608   2          if(api_iosys_evt_func[API_GRP_IOSYS_CB_NVRAM_UPDATE])
+  609   2          {
+  610   3            ((API_IOSYS_NVRAM_UPDATE_CB)api_iosys_evt_func[API_GRP_IOSYS_CB_NVRAM_UPDATE])(GET_SECTOR_MERGE_RUNTIM
+             -E_1_ADDR(SECTOR_CUSTOMIZE_V_NVRAM_INIT));
+  611   3          }
+  612   2          MMI_SaveMmiDriverNvramToFlash(ptr1);
+  613   2        }
+  614   1      
+  615   1        UpdateValidSector(Addr_FlashSectorCanWr, Addr_FlashSectorOri);
+  616   1      
+  617   1        MMI_ExitFlashProgramWorkaround(gMMI_rf_rxon_time);
+C251 COMPILER V5.57.0,  MMI_SectorManager                                                  08/11/20  06:33:37  PAGE 11  
+
+  618   1      
+  619   1        FLASH_PROGRAM_LockAll();
+  620   1      
+  621   1        #ifdef LE_SUPPORTED_HOST_FLASH
+  622   1          LIC_UpdateFlashAddr();
+  623   1          OSMEM_Put(pLeNvram);
+  624   1        #endif
+  625   1        
+  626   1        #ifdef DUAL_MIC_ENABLE
+  627   1        OSMEM_Put(pDualMic);
+  628   1        #endif
+  629   1      
+  630   1        return TRUE;
+  631   1      }
+  632          
+  633          PRIVATE void MMI_ResetMmiDriverNvramValue(void)
+  634          {
+  635   1        OSMEM_memset_xdata((U8 XDATA_PTR)&gMMI_driver_variation_nvram, 0, sizeof(MMI_DRIVER_VARIATION_NVRAM_TYPE
+             -));
+  636   1        OSMEM_memcpy_xdata_code ((U8 XDATA_PTR) &gMMI_driver_variation_nvram.misc_para.init, (U8 CODE_PTR)&((MMI
+             -_DRIVER_NVRAM_BACKUP_TYPE CODE_PTR)GET_SECTOR_CFG1_ADDR(SECTOR_MMI_DRIVER_V_NVRAM_BACKUP))->init, sizeof (DRIVER_BACKUP_
+             -NVRAM_TYPE));
+  637   1      }
+  638          
+  639          PRIVATE void MMI_SECTOR_ResetAirLinkInfo(void)
+  640          {
+  641   1        OSMEM_memset_xdata((U8 XDATA_PTR)&gMMI_driver_variation_nvram.air_link_history_info, 0, NVRAM_AIR_LINK_K
+             -EY_NO * sizeof(LinkHistoryType));
+  642   1      }
+  643          
+  644          PRIVATE void MMI_SECTOR_ResetFastLinkInfo(void)
+  645          {
+  646   1        OSMEM_memset_xdata((U8 XDATA_PTR)&gMMI_driver_variation_nvram.fast_dongle_link_history_info, 0, sizeof(L
+             -inkHistoryType));
+  647   1      }
+  648          
+  649          PRIVATE void MMI_SECTOR_ResetLinkInfo(void)
+  650          {
+  651   1        OSMEM_memset_xdata((U8 XDATA_PTR)&gMMI_driver_variation_nvram.link_history_info, 0, gMMI_nvram.storedLin
+             -kKeyCnt * sizeof(LinkHistoryType));
+  652   1      }
+  653          
+  654          PRIVATE U16 MMI_GetMmiDriverNvramSectorSize(void)
+  655          {
+  656   1        return (U16)(sizeof(MISC_PARA_TYPE) + (gMMI_nvram.storedLinkKeyCnt + NVRAM_AIR_LINK_KEY_NO + 1) *sizeof(
+             -LinkHistoryType));
+  657   1      }
+  658          
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =      2512     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+C251 COMPILER V5.57.0,  MMI_SectorManager                                                  08/11/20  06:33:37  PAGE 12  
+
+  hconst size          =       111     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

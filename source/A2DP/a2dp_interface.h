@@ -1,0 +1,174 @@
+//////////////////////////////////////////////////////////
+// Copyright@ 2009 Airoha.  All right reserved.
+//////////////////////////////////////////////////////////
+
+#ifndef _A2DP_INTERFACE_H_
+#define _A2DP_INTERFACE_H_
+
+#include "os.h"
+#include "bt_config_profile.h"
+
+#include "..\MMI\MMI_interface.h"
+
+#ifdef _A2DP_C_
+  #define A2DP_EXTERN
+#else
+  #define A2DP_EXTERN extern
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
+//////A2DP_NVRAM_CTL_TYPE////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+#include "sector_a2dp_nvram_ctl.h"
+
+enum
+{		
+	A2DP_CONFIGURED = PROFILE_STATE_START,
+	A2DP_OPEN,
+	A2DP_STREAMING, //L2CAP channel for signaling is already open.
+	A2DP_CLOSING,
+	A2DP_ABORTING,
+};
+
+enum
+{
+	A2DP_CHANNEL_DISCONNECTION_FAIL_EVENT = 0x03,
+	A2DP_CHANNEL_OPEN_COMPLETE_EVENT,
+	A2DP_CHANNEL_START_REQ,
+	A2DP_CHANNEL_SUSPEND_REQ,
+	A2DP_CHANNEL_SUSPEND_EVT,
+	A2DP_CHANNEL_SUSPEND_FAIL_EVT,
+	A2DP_CHANNEL_CLOSE_REQ,
+	A2DP_CHANNEL_CLOSED_EVT,
+	A2DP_CHANNEL_MEDIA_CHANNEL_CLOSED_EVT,
+	A2DP_CHANNEL_START_RESP,
+	A2DP_CHANNEL_START_RESP_FOR_INT,
+	A2DP_CHANNEL_FOLLOWER_AUX,
+	A2DP_CHANNEL_FOLLOWER_MUSIC,
+	A2DP_CHANNEL_SOURCE_START_EVT,
+	A2DP_CHANNEL_SOURCE_SUSPEND_EVT,
+	A2DP_CHANNEL_RECONNECT_AFTER_ABORT_EVT,
+};
+
+enum
+{
+	RELAY_STATUS_OK,
+	RELAY_STATUS_BAD,
+	RELAY_STATUS_FOLLOWER,
+};
+
+enum
+{
+  A2DP_INVALID,
+  A2DP_CONNECT_MEDIA_CMD_SOURCE,
+  A2DP_PAUSE_CMD,
+  A2DP_PLAY_CMD,
+  A2DP_MUSIC_DATA_MEMORY_PUT_CMD,
+  A2DP_MUSIC_DATA_PLAY_CMD,
+  A2DP_DSP_CLOSED_CLEAN_MEMORY_CMD,
+  A2DP_ACCEPT_START_RESP,
+  A2DP_SET_AFTER_START_RESP,
+  A2DP_REJECT_START_RESP,
+  A2DP_MEMPUT_START_RESP,
+  A2DP_ACCEPT_SUSPEND_RESP,
+  A2DP_CLOSE_COMPLETE_RESP,
+  A2DP_AIR_ROLE_NONE,
+  A2DP_AIR_PACKET_ROLE_RELAYER,
+  A2DP_AIR_PACKET_ROLE_FOLLOWER,
+  A2DP_AIR_AUDIO_CHANNEL_STEREO,
+  A2DP_AIR_AUDIO_CHANNEL_MONO_L,
+  A2DP_AIR_AUDIO_CHANNEL_MONO_R,
+  A2DP_AIR_SET_CHANNEL_SEL_CMD,
+  A2DP_HW_AUDIO_CHANNEL_STEREO,
+  A2DP_HW_AUDIO_CHANNEL_MONO_L,
+  A2DP_HW_AUDIO_CHANNEL_MONO_R,
+  A2DP_MUSIC_PAUSED_BY_AVRCP_PLAY_STATUS,
+};
+
+enum
+{
+	SAMPLE_RATE_32K,
+	SAMPLE_RATE_44K,
+	SAMPLE_RATE_48K,
+	SAMPLE_RATE_NOT_SUPPORT,
+};
+
+enum
+{
+	A2DP_TWS_AUDIO_SETTING_LEFT_AND_RIGHT_CHANNELS,
+	A2DP_TWS_AUDIO_SETTING_LEFT_CHANNEL,
+	A2DP_TWS_AUDIO_SETTING_RIGHT_CHANNEL,
+};
+enum
+{
+	A2DP_TWS_AUDIO_SETTING_LEFT_AND_RIGHT_CHANNELS_DISABLE = 0,
+	A2DP_TWS_AUDIO_SETTING_LEFT_AND_RIGHT_CHANNELS_RELAY_ONLY = 3,
+	A2DP_TWS_AUDIO_SETTING_LEFT_AND_RIGHT_CHANNELS_FOLLOWER = 4,
+};
+
+enum
+{
+	A2DP_TWS_MODE_NONE = 0,
+	A2DP_TWS_MODE_RELAYER = 3,
+	A2DP_TWS_MODE_FOLLOWER = 4,
+};
+
+enum
+{
+	SBC_MONO_CHANNEL,
+	SBC_DUAL_CHANNEL,
+	SBC_STEREO_CHANNEL,
+	SBC_JOINT_STEREO_CHANNEL
+};
+
+typedef enum
+{
+	AIR_ROLE_NONE,
+}AirRoleType;
+
+enum
+{
+	PACKET_ROLE_NONE,
+	PACKET_ROLE_RELAYER,
+	PACKET_ROLE_FOLLOWER,
+};
+
+enum
+{
+	AUDIO_CHANNEL_STEREO,
+	AUDIO_CHANNEL_MONO_L,
+	AUDIO_CHANNEL_MONO_R,
+};
+
+PUBLIC void A2DP_SetResume(U8 linkIndex, BOOL isResume);
+PUBLIC BOOL A2DP_IsResume(U8 linkIndex);
+PUBLIC U8 A2DP_GetCodec(U8 linkIndex);
+PUBLIC BOOL A2DP_IsMusicSuspending(U8 linkIndex);
+
+// Functions
+PUBLIC void A2DP_Init(void);
+PUBLIC BOOL A2DP_CheckSeidInUse(U8 linkIndex, U8 seid);
+PUBLIC U8 A2DP_GetState(U8 linkIndex);
+PUBLIC void A2DP_MMICommandHandler(U8 linkIndex, U8 cmdCode);
+PUBLIC U8 A2DP_SearchRelayerLink(void);
+PUBLIC U8 A2DP_SearchFollowerLink(void);
+PUBLIC BOOL A2DP_IsLinkFollower(U8 linkIndex);
+PUBLIC BOOL A2DP_IsLinkRelayer(U8 linkIndex);
+PUBLIC BOOL A2DP_SendEncodedMediaPacket (U8 linkIndex, U8 XDATA_PTR ptr1);
+PUBLIC BOOL A2DP_IsMediaDataPlay(U8 linkIndex);
+PUBLIC void A2DP_MediaStart(void);
+PUBLIC void A2DP_SBCDemoSoundMediaPacket(U8 XDATA_PTR ptr1);
+PUBLIC void A2DP_SetChannelOpenTimer(U8 linkIndex, U32 setTime);
+
+#define USING_DIRECT_A2DP_NVARM		1
+
+#if USING_DIRECT_A2DP_NVARM
+	A2DP_EXTERN A2DP_NVRAM_CTL_TYPE CODE_PTR XDATA pA2DP_nvram;
+	#define gA2DP_nvram		(*pA2DP_nvram)
+	#define A2DP_ReadNvramDataChunk(dst, src, len)	OSMEM_memcpy_xdata_code(dst, src, len)
+#else
+	A2DP_EXTERN A2DP_NVRAM_CTL_TYPE XDATA gA2DP_nvram;
+	#define A2DP_ReadNvramDataChunk(dst, src, len)	OSMEM_memcpy_xdata_xdata(dst, (U8 XDATA_PTR)src, len)
+#endif
+
+#endif

@@ -1,0 +1,122 @@
+C251 COMPILER V5.57.0,  SDK_Proxy                                                          08/11/20  06:34:37  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE SDK_Proxy
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\SDK_Proxy.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SDK_Proxy\SDK_Proxy.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE
+                    -) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.
+                    -\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\so
+                    -urce\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MM
+                    -I_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\Dsp
+                    -Data;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(F
+                    -LASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoHeads
+                    -et\SDK_Proxy.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\SDK_Proxy.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #include "rc.h"
+    4          #include "bt_config_profile.h"
+    5          #include "drivers.h"
+    6          #include "SDK_Proxy.h"
+    7          
+    8          #if SDK_ENABLE
+                 extern void SDK_Init(void);
+                 extern void SDK_Polling(void);
+                 VFUN XDATA sdk_init_func = SDK_Init;
+                 VFUN XDATA sdk_polling_func = SDK_Polling;
+               #else
+   14            VFUN XDATA sdk_init_func;
+   15            VFUN XDATA sdk_polling_func;
+   16          #endif
+   17          
+   18            VFUN XDATA sdk_pcb_func;
+   19          
+   20          VFUN XDATA api_iosys_evt_func[API_GRP_IOSYS_CB_CNT];
+   21          VFUN XDATA api_iodrv_evt_func[API_GRP_IODRV_CB_CNT];
+   22          VFUN XDATA api_profile_func[API_GRP_PF_CB_CNT];
+   23          
+   24          
+   25          void SDK_Proxy_RegisterAPI(U8 apiId, U8 apiGrp, VFUN func)
+   26          {
+   27   1        switch(apiGrp)
+   28   1        {
+   29   2          case API_GRP_IOSYS:
+   30   2            api_iosys_evt_func[apiId] = func;
+   31   2            break;
+   32   2          case API_GRP_IODRV:
+   33   2            api_iodrv_evt_func[apiId] = func;
+   34   2            break;
+   35   2          case API_GRP_PROFILE:
+   36   2            api_profile_func[apiId] = func;
+   37   2            break;
+   38   2        }
+   39   1      }
+   40          
+   41          
+   42          API_PERIODIC_FUNC XDATA api_iosys_periodic_func[PERIODIC_CALLBACK_FUNC_CNT];
+   43          
+   44          void SDK_Proxy_PollingPeriodicCB(void)
+   45          {
+   46   1        U8 apiId;
+   47   1        
+   48   1      
+   49   1        
+   50   1        for(apiId = 0; apiId < PERIODIC_CALLBACK_FUNC_CNT; apiId++)
+   51   1        {
+   52   2          if(api_iosys_periodic_func[apiId].isTimerSet)
+C251 COMPILER V5.57.0,  SDK_Proxy                                                          08/11/20  06:34:37  PAGE 2   
+
+   53   2          {
+   54   3            if(OST_TimerExpired(&api_iosys_periodic_func[apiId].timer))
+   55   3            {
+   56   4              if(api_iosys_periodic_func[apiId].cbFunc)
+   57   4                api_iosys_periodic_func[apiId].cbFunc();
+   58   4              
+   59   4              if(api_iosys_periodic_func[apiId].oneTimeOnly)
+   60   4              { 
+   61   5                api_iosys_periodic_func[apiId].isTimerSet = FALSE;
+   62   5              }
+   63   4              else
+   64   4                OST_SetTimer(&api_iosys_periodic_func[apiId].timer, api_iosys_periodic_func[apiId].duration);
+   65   4            }
+   66   3          }
+   67   2        }
+   68   1      }
+   69          
+   70          void SDK_Proxy_RegisterPeriodicAPI(U8 apiId, VFUN func, U32 time, BOOL oneTime)
+   71          {
+   72   1        api_iosys_periodic_func[apiId].cbFunc = func;
+   73   1        api_iosys_periodic_func[apiId].duration = time;   
+   74   1        OST_SetTimer(&api_iosys_periodic_func[apiId].timer, time);
+   75   1        api_iosys_periodic_func[apiId].isTimerSet = TRUE;
+   76   1        api_iosys_periodic_func[apiId].oneTimeOnly = oneTime;
+   77   1        
+   78   1        if(!sdk_pcb_func)
+   79   1          sdk_pcb_func = (VFUN)SDK_Proxy_PollingPeriodicCB;
+   80   1      }
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =       278     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =       402     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =    ------     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

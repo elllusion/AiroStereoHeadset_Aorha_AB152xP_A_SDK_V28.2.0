@@ -1,0 +1,84 @@
+C251 COMPILER V5.57.0,  AirApp_ServiceRecord                                               08/11/20  06:34:14  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE AirApp_ServiceRecord
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\AirApp_ServiceRecord.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\AirApp\AirApp_ServiceRecord.c XSMALL HPTR FUNCTIONS(REENTRANT) 
+                    -ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\sou
+                    -rce\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM
+                    -\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\sourc
+                    -e\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SE
+                    -CTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) 
+                    -DEFINE(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroSte
+                    -reoHeadset\AirApp_ServiceRecord.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\AirApp_ServiceRecord.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #include "..\SDAP\SDAP_Interface.h"
+    4          #include "..\MMI\MMI_PSM.h"
+    5          #include "..\MMI\MMI_SCN.h"
+    6          
+    7          #ifdef AIRAPP_Profile
+    8          ATTRDEF_ROM(airapp, ServiceRecordHandle) = 
+    9                { ATTRID(ATTRID_ServiceRecordHandle), ATTRLEN(5), SERVICE_HANDLE32(PROFILE_AIR_APP) };
+   10          ATTRDEF_ROM(airapp, ServiceClassIdList) = 
+   11                { ATTRID(ATTRID_ServiceClassIdList), ATTRLEN(19), DEDEF_SEQU8(17),
+   12                                DELEM_UUID128, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x99, 0xAA, 0xBB, 0xCC, 0
+             -xDD, 0xEE, 0xFF };
+   13          ATTRDEF_ROM(airapp, ProtocolDescriptorList) = 
+   14                { ATTRID(ATTRID_ProtocolDescriptorList), ATTRLEN(14), DEDEF_SEQU8(12),
+   15                                            DEDEF_SEQU8(3), PROTOCOL_UUID16(PROTOCOL_UUID_L2CAP),
+   16                                            DEDEF_SEQU8(5), PROTOCOL_UUID16(PROTOCOL_UUID_RFCOMM), DEDEF_U8(SCN_AIR_APP) };
+   17          ATTRDEF_ROM(airapp, ServiceName) = 
+   18                { ATTRID(ATTRID_ServiceName), ATTRLEN(12), DEDEF_TEXT8(10), 'A', 'i', 'r', 'o', 'h', 'a', ' ', 'A', 'p
+             -', 'p' };
+   19          
+   20          ATTRLISTDEF_ROM(airapp) =
+   21          {
+   22            (SdpServiceAttributePtr) ATTRNAME(airapp, ServiceRecordHandle),
+   23            (SdpServiceAttributePtr) ATTRNAME(airapp, ServiceClassIdList),
+   24            (SdpServiceAttributePtr) ATTRNAME(airapp, ProtocolDescriptorList),
+   25            (SdpServiceAttributePtr) ATTRNAME(airapp, ServiceName),
+   26          };
+   27          
+   28          SRECORDDEF_ROM(airapp) =
+   29          {
+   30            PROFILE_AIR_APP,
+   31            ATTRCOUNT(airapp),
+   32            (SdpServiceAttributeListPtr) ATTRLISTNAME(airapp)
+   33          };
+   34          
+   35          SdpServiceNode gAirApp_ServiceNode = 
+   36          {
+   37            (SdpServiceRecordPtr) SRECORDNAME(&airapp),
+   38            NULL
+   39          };
+   40          #endif //AIRAPP_Profile
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+C251 COMPILER V5.57.0,  AirApp_ServiceRecord                                               08/11/20  06:34:14  PAGE 2   
+
+  edata size           =         6     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =        94     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

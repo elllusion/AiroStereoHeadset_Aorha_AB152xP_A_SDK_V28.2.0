@@ -1,0 +1,353 @@
+C251 COMPILER V5.57.0,  voice_prompt_ctl                                                   08/11/20  06:32:38  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE voice_prompt_ctl
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\voice_prompt_ctl.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\DRIVER\voice_prompt_ctl.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(
+                    -HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\
+                    -OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;
+                    -.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\RO
+                    -M\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR
+                    -\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFI
+                    -NE(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoH
+                    -eadset\voice_prompt_ctl.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\voice_prompt_ctl.obj) 
+
+stmt  level    source
+
+    1          
+    2          #include "voice_prompt_ctl.h"
+    3          
+    4          #pragma userclass (HCONST = VO_DAT)
+    5          
+    6          
+    7          /*
+    8          Declare forward let linker locate default language control beginning from sector start
+    9          */
+   10          extern VoiceLangCtl CODE gVoiceLangCtl[];
+   11          
+   12          
+   13          #ifdef SUPPORT_VOICE_PROMPT
+   14          ///////////////////////////////////////////////////////////////////////////
+   15          //
+   16          // Voice Prompt Ctl - Chinese
+   17          //
+   18          ///////////////////////////////////////////////////////////////////////////
+   19          #if VOICE_LANG_CHI
+   20          
+   21          #undef VP_DAT_DEFINE
+   22          #define VP_DAT_DEFINE(NAME)   VP_DAT_ENUM(_C, NAME),
+   23          enum {
+   24          #include "voice_prompt_data_1.h"
+   25          };
+   26          
+   27          #undef VPD
+   28          #define VPD(NAME)       VP_DAT_ENUM(_C, NAME)
+   29          
+   30          //
+   31          // Voice Prompt Script Define
+   32          //
+   33          #define VP_SCP_DUMMY_C            VPB(0)
+   34          #define VP_SCP_VOICE_PROMPT_LANG_CHANGE_C VPD(CHINESE), VPD(VOICE_PROMPT)
+   35          #define VP_SCP_VOICE_PROMPT_ON_C      VPD(ON), VPD(VOICE_PROMPT)
+   36          #define VP_SCP_VOICE_PROMPT_OFF_C     VPD(OFF), VPD(VOICE_PROMPT)
+   37          #define VP_SCP_MULTI_POINT_MODE_ON_C    VPD(ON), VPD(MULTI_POINT_MODE)
+   38          #define VP_SCP_MULTI_POINT_MODE_OFF_C   VPD(OFF), VPD(MULTI_POINT_MODE)
+   39          #define VP_SCP_MUTE_ON_C          VPD(ON), VPD(MUTE)
+   40          #define VP_SCP_MUTE_OFF_C         VPD(OFF), VPD(MUTE)
+   41          #define VP_SCP_POWER_ON_C         VPD(POWER_ON)
+   42          #define VP_SCP_POWER_OFF_C          VPD(POWER_OFF)
+   43          #define VP_SCP_PAIRING_C          VPD(PAIRING_MODE)
+   44          #define VP_SCP_PAIRING_SUCCESSFUL_C     VPD(PAIRING), VPD(SUCCESSFUL)
+   45          #define VP_SCP_CONNECTED_C          VPD(CONNECTED)
+   46          #define VP_SCP_SECOND_DEVICE_CONNECTED_C  VPD(SECOND_DEVICE), VPD(CONNECT), VPD(SUCCESSFUL)
+   47          #define VP_SCP_DEVICE_DISCONNECTED_C    VPD(CONNECT), VPD(DISCONNECTED)
+   48          #define VP_SCP_INCOMING_CALL_C        VPD(INCOMING_CALL)
+   49          #define VP_SCP_CALL_REJECTED_C        VPD(CALL_REJECTED)
+   50          #define VP_SCP_CALL_CANCELLED_C       VPD(CALL), VPD(CANCELLED)
+   51          #define VP_SCP_CALL_ENDED_C         VPD(CALL), VPD(ENDED)
+   52          #define VP_SCP_RE_DIALING_C         VPD(RE_DIALING)
+C251 COMPILER V5.57.0,  voice_prompt_ctl                                                   08/11/20  06:32:38  PAGE 2   
+
+   53          #define VP_SCP_LOW_BATTERY_C        VPD(BATTERY), VPD(LOW), VPD(PLEASE_CHARGE)
+   54          #define VP_SCP_BATTERY_IS_HIGH_C      VPD(BATTERY), VPD(HIGH)
+   55          #define VP_SCP_BATTERY_IS_MEDIAN_C      VPD(BATTERY), VPD(MEDIAN)
+   56          #define VP_SCP_BATTERY_IS_LOW_C       VPD(BATTERY), VPD(LOW)
+   57          #define VP_SCP_VOLUME_MAXIMUM_C       VPD(VOLUME_MAXIMUM)
+   58          #define VP_SCP_PAUSE_C            VPD(PAUSE)
+   59          #define VP_SCP_LINE_IN_MODE_C       VPD(LINE_IN_MODE)
+   60          #define VP_SCP_BLUETOOTH_MODE_C       VPD(BLUETOOTH_MODE)
+   61          #define VP_SCP_FM_MODE_C          VPD(FM), VPD(FM_MODE)
+   62          #define VP_SCP_SEEK_UP_C          VPD(FM), VPD(UP), VPD(SEEK)
+   63          #define VP_SCP_SEEK_DOWN_C          VPD(FM), VPD(DOWN), VPD(SEEK)
+   64          #define VP_SCP_LEFT_CHANNEL_C       VPD(LEFT), VPD(CHANNEL)
+   65          #define VP_SCP_RIGHT_CHANNEL_C        VPD(RIGHT), VPD(CHANNEL)
+   66          #ifdef SUPPORT_VOICE_COMMAND
+   67          #define VP_SCP_WHAT_CAN_I_SAY_C       VPD(WHAT_CAN_I_SAY)
+   68          #define VP_SCP_CONNECTION_STATUS_C      VPD(CONNECTION_STATUS)
+   69          #define VP_SCP_CHECK_BATTERY_C        VPD(CHECK_BATTERY)
+   70          #define VP_SCP_CANCEL_C           VPD(CANCEL)
+   71          #define VP_SCP_VOICE_PROMPT_EXAMPLE_C   VPD(VOICE_PROMPT_EXAMPLE), VPD(PAIRING_FOR_VC), VPD(CANCEL), VPD(C
+             -HECK_BATTERY), VPD(CONNECTION_STATUS),VPD(LAST_CALL_OUT), VPD(RING_BACK), VPD(VOICE_DIAL_FOR_VC)
+   72          #define VP_SCP_TAKE_THE_CALL_C        VPD(TAKE_THE_CALL)
+   73          #define VP_SCP_REJECT_C           VPD(REJECT)
+   74          #define VP_SCP_REJECT_PHONE_CALL_C      VPD(REJECT_PHONE_CALL)
+   75          #define VP_SCP_PAIRING_FOR_VC_C       VPD(PAIRING_FOR_VC)
+   76          #define VP_SCP_LAST_CALL_OUT_C        VPD(LAST_CALL_OUT)
+   77          #define VP_SCP_VOICE_DIAL_FOR_VC_C      VPD(VOICE_DIAL_FOR_VC)
+   78          #ifdef VC_MULTI_LAYER
+               #define VP_SCP_VOICE_COMMAND_EXAMPE_SET0_C  VPD(VOICE_PROMPT_EXAMPLE),VPD(MAKE_A_CALL), VPD(CHECK_STATUS),
+             - VPD(PAIRING_FOR_VC), VPD(CANCEL), VPD(BEEP)
+               #else
+   81          #define VP_SCP_VOICE_COMMAND_EXAMPE_SET0_C  VPD(BEEP)
+   82          #endif
+   83          #define VP_SCP_VOICE_COMMAND_EXAMPE_SET1_C  VPD(VOICE_PROMPT_EXAMPLE),VPD(CHECK_BATTERY), VPD(CONNECTION_S
+             -TATUS), VPD(CANCEL), VPD(BEEP)
+   84          #define VP_SCP_VOICE_COMMAND_EXAMPE_SET2_C  VPD(VOICE_PROMPT_EXAMPLE),VPD(LAST_CALL_OUT), VPD(VOICE_DIAL_F
+             -OR_VC), VPD(RING_BACK), VPD(CANCEL), VPD(BEEP)
+   85          #define VP_SCP_MAKE_A_CALL_C        VPD(MAKE_A_CALL)
+   86          #define VP_SCP_CHECK_STATUS_C       VPD(CHECK_STATUS)
+   87          #define VP_SCP_RING_BACK_C          VPD(RING_BACK)
+   88          #define VP_SCP_BEEP_C           VPD(BEEP)
+   89          #endif //SUPPORT_VOICE_COMMAND
+   90          #define VP_SCP_INCOMING_CALL_ENDED_C    VPD(INCOMING_CALL), VPD(ENDED) 
+   91          
+   92          //
+   93          // Script Data
+   94          //
+   95          #undef VP_EVT_DEFINE
+   96          #define VP_EVT_DEFINE(NAME)   VP_SCP_DATA(_C, NAME)
+   97          #include "voice_prompt_define.h"
+   98          
+   99          //
+  100          // Script Offset Table
+  101          //
+  102          SCRIPT_OFFSET_TABLE(_C)
+  103          
+  104          #undef VP_EVT_DEFINE
+  105          #define VP_EVT_DEFINE(NAME)   VP_SCP_OFFSET(_C, NAME),
+  106          U16 CODE VP_TBL_DEF(_C, ScriptOffset)[] = {
+  107          #include "voice_prompt_define.h"
+  108            VP_SCP_DATA_SIZE(_C)
+  109          };
+  110          
+  111          //
+  112          // Voice Prompt Data Offset Table
+  113          //
+  114          #undef VP_DAT_DEFINE
+C251 COMPILER V5.57.0,  voice_prompt_ctl                                                   08/11/20  06:32:38  PAGE 3   
+
+  115          #define VP_DAT_DEFINE(NAME)   VP_DAT_DECL(_C, NAME)
+  116          #include "voice_prompt_data_1.h"
+  117          
+  118          #undef VP_DAT_DEFINE
+  119          #define VP_DAT_DEFINE(NAME)   VP_DAT_DEF(_C, NAME),
+  120          U8 CODE_PTR CODE VP_TBL_DEF(_C, DataOffset)[] = {
+  121          #include "voice_prompt_data_1.h"
+  122          };
+  123          
+  124          #endif //VOICE_LANG_CHI
+  125          
+  126          ///////////////////////////////////////////////////////////////////////////
+  127          //
+  128          // Voice Prompt Ctl - English
+  129          //
+  130          ///////////////////////////////////////////////////////////////////////////
+  131          #if VOICE_LANG_ENG
+  132          
+  133          #undef VP_DAT_DEFINE
+  134          #define VP_DAT_DEFINE(NAME)   VP_DAT_ENUM(_E, NAME),
+  135          enum {
+  136          #include "voice_prompt_data_2.h"
+  137          };
+  138          
+  139          #undef VPD
+  140          #define VPD(NAME)       VP_DAT_ENUM(_E, NAME)
+  141          
+  142          //
+  143          // Voice Prompt Script Define
+  144          //
+  145          #define VP_SCP_DUMMY_E            VPB(0)
+  146          #define VP_SCP_VOICE_PROMPT_LANG_CHANGE_E VPD(ENGLISH), VPD(VOICE_PROMPT)
+  147          #define VP_SCP_VOICE_PROMPT_ON_E      VPD(VOICE_PROMPT), VPD(ON)
+  148          #define VP_SCP_VOICE_PROMPT_OFF_E     VPD(VOICE_PROMPT), VPD(OFF)
+  149          #define VP_SCP_MULTI_POINT_MODE_ON_E    VPD(MULTI_POINT), VPD(MODE), VPD(ON)
+  150          #define VP_SCP_MULTI_POINT_MODE_OFF_E   VPD(MULTI_POINT), VPD(MODE), VPD(OFF)
+  151          #define VP_SCP_MUTE_ON_E          VPD(MUTE), VPD(ON)
+  152          #define VP_SCP_MUTE_OFF_E         VPD(MUTE), VPD(OFF)
+  153          #define VP_SCP_POWER_ON_E         VPD(POWER), VPD(ON)
+  154          #define VP_SCP_POWER_OFF_E          VPD(POWER), VPD(OFF)
+  155          #define VP_SCP_PAIRING_E          VPD(PAIRING)
+  156          #define VP_SCP_PAIRING_SUCCESSFUL_E     VPD(PAIRING), VPD(SUCCESSFUL)
+  157          #define VP_SCP_CONNECTED_E          VPD(CONNECTED)
+  158          #define VP_SCP_SECOND_DEVICE_CONNECTED_E  VPD(SECOND), VPD(DEVICE), VPD(CONNECTED)
+  159          #define VP_SCP_DEVICE_DISCONNECTED_E    VPD(DISCONNECTED)
+  160          #define VP_SCP_INCOMING_CALL_E        VPD(INCOMING), VPD(CALL)
+  161          #define VP_SCP_CALL_REJECTED_E        VPD(CALL), VPD(REJECTED)
+  162          #define VP_SCP_CALL_CANCELLED_E       VPD(CALL), VPD(CANCELLED)
+  163          #define VP_SCP_CALL_ENDED_E         VPD(CALL), VPD(ENDED)
+  164          #define VP_SCP_RE_DIALING_E         VPD(RE_DIALING)
+  165          #define VP_SCP_LOW_BATTERY_E        VPD(LOW), VPD(BATTERY), VPD(PLEASE_CHARGE)
+  166          #define VP_SCP_BATTERY_IS_HIGH_E      VPD(BATTERY), VPD(LEVEL), VPD(HIGH)
+  167          #define VP_SCP_BATTERY_IS_MEDIAN_E      VPD(BATTERY), VPD(LEVEL), VPD(MEDIAN)
+  168          #define VP_SCP_BATTERY_IS_LOW_E       VPD(BATTERY), VPD(LEVEL), VPD(LOW)
+  169          #define VP_SCP_VOLUME_MAXIMUM_E       VPD(VOLUME), VPD(MAXIMUM)
+  170          #define VP_SCP_PAUSE_E            VPD(PAUSE)
+  171          #define VP_SCP_LINE_IN_MODE_E       VPD(LINE_IN), VPD(MODE)
+  172          #define VP_SCP_BLUETOOTH_MODE_E       VPD(BLUETOOTH), VPD(MODE)
+  173          #define VP_SCP_FM_MODE_E          VPD(FM_RADIO), VPD(MODE)
+  174          #define VP_SCP_SEEK_UP_E          VPD(SEEK), VPD(UP)
+  175          #define VP_SCP_SEEK_DOWN_E          VPD(SEEK), VPD(DOWN)
+  176          #define VP_SCP_LEFT_CHANNEL_E       VPD(LEFT), VPD(CHANNEL)
+  177          #define VP_SCP_RIGHT_CHANNEL_E        VPD(RIGHT), VPD(CHANNEL)
+  178          #ifdef SUPPORT_VOICE_COMMAND
+  179          #define VP_SCP_WHAT_CAN_I_SAY_E       VPD(WHAT_CAN_I_SAY)
+  180          #define VP_SCP_CONNECTION_STATUS_E      VPD(CONNECTION_STATUS)
+C251 COMPILER V5.57.0,  voice_prompt_ctl                                                   08/11/20  06:32:38  PAGE 4   
+
+  181          #define VP_SCP_CHECK_BATTERY_E        VPD(CHECK_BATTERY)
+  182          #define VP_SCP_CANCEL_E           VPD(CANCEL)
+  183          #define VP_SCP_VOICE_PROMPT_EXAMPLE_E   VPD(VOICE_PROMPT_EXAMPLE), VPD(PAIRING_FOR_VC), VPD(CANCEL), VPD(C
+             -HECK_BATTERY), VPD(CONNECTION_STATUS),VPD(LAST_CALL_OUT), VPD(RING_BACK), VPD(VOICE_DIAL_FOR_VC)
+  184          #define VP_SCP_TAKE_THE_CALL_E        VPD(TAKE_THE_CALL)
+  185          #define VP_SCP_REJECT_E           VPD(REJECT)
+  186          #define VP_SCP_REJECT_PHONE_CALL_E      VPD(REJECT_PHONE_CALL)
+  187          #define VP_SCP_PAIRING_FOR_VC_E       VPD(PAIRING_FOR_VC)
+  188          #define VP_SCP_LAST_CALL_OUT_E        VPD(LAST_CALL_OUT)
+  189          #define VP_SCP_VOICE_DIAL_FOR_VC_E      VPD(VOICE_DIAL_FOR_VC)
+  190          #ifdef VC_MULTI_LAYER
+               #define VP_SCP_VOICE_COMMAND_EXAMPE_SET0_E  VPD(VOICE_PROMPT_EXAMPLE),VPD(MAKE_A_CALL), VPD(CHECK_STATUS),
+             - VPD(PAIRING_FOR_VC), VPD(CANCEL), VPD(BEEP)
+               #else
+  193          #define VP_SCP_VOICE_COMMAND_EXAMPE_SET0_E  VPD(BEEP)
+  194          #endif
+  195          #define VP_SCP_VOICE_COMMAND_EXAMPE_SET1_E  VPD(VOICE_PROMPT_EXAMPLE),VPD(CHECK_BATTERY), VPD(CONNECTION_S
+             -TATUS), VPD(CANCEL)
+  196          #define VP_SCP_VOICE_COMMAND_EXAMPE_SET2_E  VPD(VOICE_PROMPT_EXAMPLE),VPD(LAST_CALL_OUT), VPD(VOICE_DIAL_F
+             -OR_VC), VPD(RING_BACK), VPD(CANCEL)
+  197          #define VP_SCP_MAKE_A_CALL_E        VPD(MAKE_A_CALL)
+  198          #define VP_SCP_CHECK_STATUS_E       VPD(CHECK_STATUS)
+  199          #define VP_SCP_RING_BACK_E          VPD(RING_BACK)
+  200          #define VP_SCP_BEEP_E           VPD(BEEP)
+  201          #endif //SUPPORT_VOICE_COMMAND
+  202          #define VP_SCP_INCOMING_CALL_ENDED_E    VPD(INCOMING), VPD(CALL), VPD(ENDED)
+  203          
+  204          //
+  205          // Script Data
+  206          //
+  207          #undef VP_EVT_DEFINE
+  208          #define VP_EVT_DEFINE(NAME)   VP_SCP_DATA(_E, NAME)
+  209          #include "voice_prompt_define.h"
+  210          
+  211          //
+  212          // Script Offset Table
+  213          //
+  214          SCRIPT_OFFSET_TABLE(_E)
+  215          
+  216          #undef VP_EVT_DEFINE
+  217          #define VP_EVT_DEFINE(NAME)   VP_SCP_OFFSET(_E, NAME),
+  218          U16 CODE VP_TBL_DEF(_E, ScriptOffset)[] = {
+  219          #include "voice_prompt_define.h"
+  220            VP_SCP_DATA_SIZE(_E)
+  221          };
+  222          
+  223          //
+  224          // Voice Prompt Data Offset Table
+  225          //
+  226          #undef VP_DAT_DEFINE
+  227          #define VP_DAT_DEFINE(NAME)   VP_DAT_DECL(_E, NAME)
+  228          #include "voice_prompt_data_2.h"
+  229          
+  230          #undef VP_DAT_DEFINE
+  231          #define VP_DAT_DEFINE(NAME)   VP_DAT_DEF(_E, NAME),
+  232          U8 CODE_PTR CODE VP_TBL_DEF(_E, DataOffset)[] = {
+  233          #include "voice_prompt_data_2.h"
+  234          };
+  235          
+  236          #endif //VOICE_LANG_ENG
+  237          
+  238          #endif //SUPPORT_VOICE_PROMPT
+  239          
+  240          
+  241          ///////////////////////////////////////////////////////////////////////////
+  242          //
+C251 COMPILER V5.57.0,  voice_prompt_ctl                                                   08/11/20  06:32:38  PAGE 5   
+
+  243          // Voice Language Ctl Table
+  244          //
+  245          ///////////////////////////////////////////////////////////////////////////
+  246          #if defined(SUPPORT_VOICE_PROMPT) || defined(SUPPORT_VOICE_COMMAND)
+  247          VoiceLangCtl CODE gVoiceLangCtl[LANG_COUNT] =
+  248          {
+  249          #if VOICE_LANG_CHI
+  250            {
+  251              #ifdef SUPPORT_VOICE_PROMPT
+  252              (U8 GENERIC_PTR)VP_TBL_DEF(_C, ScriptOffset),
+  253              (U8 GENERIC_PTR)VP_SCP_DEF(_C, DUMMY),
+  254              (U8 GENERIC_PTR)VP_TBL_DEF(_C, DataOffset),
+  255              sizeof(VP_TBL_DEF(_C, ScriptOffset)) / sizeof(U16),
+  256              VP_SCP_DATA_SIZE(_C) / sizeof(U8),
+  257              sizeof(VP_TBL_DEF(_C, DataOffset)) / sizeof(U8 CODE_PTR),
+  258              #else
+                   (U8 GENERIC_PTR) NULL,
+                   (U8 GENERIC_PTR) NULL,
+                   (U8 GENERIC_PTR) NULL,
+                   0,    
+                   0,
+                   0,
+                   #endif
+  266              {0x43, 0x48, 0x49}, 
+  267              (U32) NULL, /*reserve*/
+  268              (U32) NULL, /*reserve*/
+  269            },
+  270          #endif
+  271          #if VOICE_LANG_ENG
+  272            {
+  273              #ifdef SUPPORT_VOICE_PROMPT
+  274              (U8 GENERIC_PTR)VP_TBL_DEF(_E, ScriptOffset),
+  275              (U8 GENERIC_PTR)VP_SCP_DEF(_E, DUMMY),
+  276              (U8 GENERIC_PTR)VP_TBL_DEF(_E, DataOffset),
+  277              sizeof(VP_TBL_DEF(_E, ScriptOffset)) / sizeof(U16),
+  278              VP_SCP_DATA_SIZE(_E) / sizeof(U8),
+  279              sizeof(VP_TBL_DEF(_E, DataOffset)) / sizeof(U8 CODE_PTR),
+  280              #else
+                   (U8 GENERIC_PTR) NULL,
+                   (U8 GENERIC_PTR) NULL,
+                   (U8 GENERIC_PTR) NULL,
+                   0,    
+                   0,
+                   0,
+                   #endif
+  288              {0x45, 0x4E, 0x47}, //lang info
+  289              (U32) NULL, /*reserve*/
+  290              (U32) NULL, /*reserve*/
+  291            },
+  292          #endif
+  293          };
+  294          
+  295          #endif //defined(SUPPORT_VOICE_PROMPT) || defined(SUPPORT_VOICE_COMMAND)
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+C251 COMPILER V5.57.0,  voice_prompt_ctl                                                   08/11/20  06:32:38  PAGE 6   
+
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =      1014     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,1639 @@
+C251 COMPILER V5.57.0,  MMI_State                                                          08/11/20  06:33:24  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE MMI_State
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\MMI_State.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\MMI\MMI_State.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) WARN
+                    -INGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\sourc
+                    -e\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\source\R
+                    -OM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_LE;.
+                    -\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspData;.
+                    -\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLASH_I
+                    -NIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoHeadset\MMI
+                    -_State.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\MMI_State.obj) 
+
+stmt  level    source
+
+    1          
+    2          #include "reside_flash.inc"
+    3          
+    4          #define _MMI_STATE_C_
+    5          
+    6          
+    7          #include "rc.h"
+    8          #include "bt_config_profile.h"
+    9          
+   10          #include "os_flash.h"
+   11          #include "MMI.h"
+   12          #include "MMI_State.h"
+   13          #include "MMI_Timer.h"
+   14          #include "MMI_Driver.h"
+   15          #include "MMI_Protocol.h"
+   16          #include "MMI_HFP.h"
+   17          #include "MMI_HCI.h"
+   18          #include "MMI_A2DP.h"
+   19          #include "MMI_AirModule.h"
+   20          #include "MMI_LED.h"
+   21          #include "MMI_Reconnect.h"
+   22          #include "MMI_ChgBat.h"
+   23          #ifdef OLED_ENABLE
+               #include "..\Driver\OLED.h"
+               #endif
+   26          #ifdef MMI_LE_ENABLE
+   27          #include "..\MMI_LE\MMI_LE_interface.h"
+   28          #endif
+   29          #include "..\HC\HC_Interface.h"
+   30          #include "..\GAP\GAP_interface.h"
+   31          #include "..\A2DP\A2DP_Interface.h"
+   32          
+   33          
+   34          //===================Function for internal use=============================
+   35          PRIVATE void MMI_SendMMIReadyCmd(void);
+   36          PRIVATE void MMI_SendUpdateDriverParameterCmd(void);
+   37          PRIVATE void MMI_ConnectDiscoverableEntry(U8 linkIndex);
+   38          PRIVATE void MMI_ConnectDiscoverableHandler(U8 linkIndex, MMIMsgType XDATA_PTR msgPtr);
+   39          PRIVATE void MMI_ConnectDiscoverableExit(U8 linkIndex);
+   40          PRIVATE void MMI_ConnectableEntry(U8 linkIndex);
+   41          PRIVATE void MMI_ConnectableHandler(U8 linkIndex, MMIMsgType XDATA_PTR msgPtr);
+   42          
+   43          PRIVATE void MMI_OffEntry(U8 linkIndex);
+   44          PRIVATE void MMI_OffHandler(U8 linkIndex, MMIMsgType XDATA_PTR msgPtr);
+   45          PRIVATE void MMI_FakeonEntry(U8 linkIndex);
+   46          PRIVATE void MMI_FakeonHandler(U8 linkIndex, MMIMsgType XDATA_PTR msgPtr);
+   47          PRIVATE void MMI_DetachEntry(U8 linkIndex);
+   48          PRIVATE void MMI_DetachHandler(U8 linkIndex, MMIMsgType XDATA_PTR msgPtr);
+   49          PRIVATE void MMI_DetachExit(U8 linkIndex);
+   50          PRIVATE void MMI_FakeoffEntry(U8 linkIndex);
+   51          PRIVATE void MMI_FakeoffHandler(U8 linkIndex, MMIMsgType XDATA_PTR msgPtr);
+   52          
+C251 COMPILER V5.57.0,  MMI_State                                                          08/11/20  06:33:24  PAGE 2   
+
+   53          PRIVATE BOOL MMI_AddTopState_ByLink(U8 linkIndex, U8 state);
+   54          PRIVATE BOOL MMI_InsertStateByLink(U8 linkIndex, U8 state, U8 beforeState);
+   55          PRIVATE BOOL MMI_ReplaceStateByLink(U8 i, U8 newState, U8 oldState);
+   56          PRIVATE void MMI_CleanNestStateByLink(U8 linkIndex, U8 isPowerOff);
+   57          
+   58          
+   59          PRIVATE MmiHandlerSetType CODE  MMI_StateOffHandler =
+   60          {
+   61            MMI_OffEntry, MMI_OffHandler, NULL, //MMI_OFF
+   62          };
+   63          
+   64          PRIVATE MmiHandlerSetType CODE  MMI_StateConnectDiscoverableHandler =
+   65          {
+   66            MMI_ConnectDiscoverableEntry, MMI_ConnectDiscoverableHandler, MMI_ConnectDiscoverableExit, //MMI_CONDISC
+             -ABLE
+   67          };
+   68          
+   69          PRIVATE MmiHandlerSetType CODE  MMI_StateConnectableHandler =
+   70          {
+   71            MMI_ConnectableEntry, MMI_ConnectableHandler, NULL, //MMI_CONNECTABLE
+   72          };
+   73          
+   74          PRIVATE MmiHandlerSetType CODE  MMI_StateConnectedHandler =
+   75          {
+   76            MMI_ConnectedEntry, NULL, MMI_ConnectedExit, //MMI_CONNECTED
+   77          };
+   78          
+   79          PRIVATE MmiHandlerSetType CODE  MMI_StateFakeonHandler =
+   80          {
+   81            MMI_FakeonEntry, MMI_FakeonHandler, NULL, //MMI_FAKEON
+   82          };
+   83          
+   84          PRIVATE MmiHandlerSetType CODE  MMI_StateFakeoffHandler =
+   85          {
+   86            MMI_FakeoffEntry, MMI_FakeoffHandler, NULL, //MMI_FAKEOFF
+   87          };
+   88          
+   89          PRIVATE MmiHandlerSetType CODE  MMI_StateDetachHandler =
+   90          {
+   91            MMI_DetachEntry, MMI_DetachHandler, MMI_DetachExit, //MMI_DETACHING_LINK
+   92          };
+   93          
+   94          #ifdef SUPPORT_VOICE_PROMPT
+   95          PRIVATE void MMI_VoicePromptLangSelectEntry(U8 linkIndex)
+   96          {
+   97   1        UNUSED(linkIndex);
+   98   1        MMI_ConnectabilityHandle(CMD_SET_NON_CONNECTABLE_ANYWAY);
+   99   1        MMI_DiscoverabilityHandle(CMD_SET_NON_DISCOVERABLE_ANYWAY);
+  100   1      
+  101   1        gMMI_ctl.vpRuntime.vpLangStatus &= ~VP_STATUS_LANG_CONFIRM;
+  102   1      
+  103   1        gMMI_ctl.vpRuntime.vpSelectIndex = 0;
+  104   1        gMMI_ctl.vpRuntime.vpSelectRound = 0;
+  105   1      
+  106   1        MMI_DRV_ChangeVoicePromptLangCandidate();
+  107   1      }
+  108          
+  109          PRIVATE void MMI_VoicePromptLangSelectExit(U8 linkIndex)
+  110          {
+  111   1        UNUSED(linkIndex);
+  112   1        SYS_ReleaseTimer(&gMMI_ctl.vpRuntime.vpSelectTimerPtr);
+  113   1      
+  114   1        if (gMMI_ctl.vpRuntime.vpLangStatus & VP_STATUS_LANG_CONFIRM)
+  115   1        {
+  116   2          gMMI_driver_variation_nvram.misc_para.init.vpLangIndex = gMMI_ctl.vpRuntime.vpSelectIndex;
+  117   2          MMI_SECTOR_SetUpdateFlag(TRUE);
+C251 COMPILER V5.57.0,  MMI_State                                                          08/11/20  06:33:24  PAGE 3   
+
+  118   2        }
+  119   1      
+  120   1        MMI_DRV_LoadVoiceLangCtl(gMMI_driver_variation_nvram.misc_para.init.vpLangIndex);
+  121   1      
+  122   1        if (gMMI_ctl.vpRuntime.vpLangStatus & VP_STATUS_LANG_CONFIRM)
+  123   1        {
+  124   2          gMMI_ctl.vpRuntime.vpLangStatus &= ~VP_STATUS_LANG_CONFIRM;
+  125   2          MMI_PushMediaEvent(MEDIA_EVT_VOICE_PROMPT_LANG_CONFIRM);
+  126   2        }
+  127   1      
+  128   1        MMI_ConnectabilityHandle(CMD_SET_CONNECTABLE);
+  129   1      }
+  130          
+  131          PRIVATE MmiHandlerSetType CODE  MMI_StateVoicePromptLangSelectHandler =
+  132          {
+  133            MMI_VoicePromptLangSelectEntry, NULL, MMI_VoicePromptLangSelectExit, //MMI_VOICE_PROMPT_LANG_SELECT
+  134          };
+  135          #endif
+  136          
+  137          PUBLIC MmiHandlerSetType CODE_PTR XDATA MMI_StateHandlerSet[MMI_TOTAL_STATE_NO] =
+  138          {
+  139            &MMI_StateOffHandler, //MMI_OFF
+  140            &MMI_StateConnectDiscoverableHandler, //MMI_CONDISCABLE
+  141            &MMI_StateConnectableHandler, //MMI_CONNECTABLE
+  142            &MMI_StateConnectedHandler, //MMI_CONNECTED
+  143            NULL, //MMI_HFP_INCOMMING
+  144            NULL, //MMI_HFP_OUTGOING
+  145            NULL, //MMI_HFP_CALLACTIVE
+  146            NULL, //MMI_HFP_CALLACTIVE_WITHOUT_SCO
+  147            NULL, //MMI_HFP_CAIMG,
+  148            NULL, //MMI_HFP_CAOGG,
+  149            NULL, //MMI_HFP_CAMULTY,
+  150            &MMI_StateFakeonHandler, //MMI_FAKEON
+  151            &MMI_StateFakeoffHandler, //MMI_FAKEOFF
+  152            &MMI_StateDetachHandler, //MMI_DETACHING_LINK
+  153            NULL, //MMI_TEST_MODE
+  154            NULL, //MMI_FM
+  155            NULL, //MMI_LINE_IN
+  156            NULL, //MMI_UPDATING
+  157            NULL, //MMI_UPDATED_OK
+  158            NULL, //MMI_UPDATED_FAIL
+  159          #ifdef SUPPORT_VOICE_PROMPT
+  160            &MMI_StateVoicePromptLangSelectHandler, //MMI_VOICE_PROMPT_LANG_SELECT
+  161          #else
+                 NULL, //MMI_VOICE_PROMPT_LANG_SELECT
+               #endif
+  164            NULL, //MMI_TWS_PAIRING
+  165            NULL, //MMI_INQUIRY
+  166          };
+  167          
+  168          //declaration of state info table relatives
+  169          #define MAX_STATE_NESTING_LEVEL (MAX_MULTI_POINT_NO*7)
+  170          MmiStateType XDATA mmiSitPool[MAX_STATE_NESTING_LEVEL];
+  171          MmiStateType XDATA_PTR XDATA freeMmiLlSitPtr; //free link list of sit
+  172          
+  173          PRIVATE void MMI_UnloadState(U8 linkIndex, U8 state)
+  174          {
+  175   1        if (MMI_StateHandlerSet[state] && MMI_StateHandlerSet[state]->ExitAction != (void*)NULL)
+  176   1          MMI_StateHandlerSet[state]->ExitAction(linkIndex);
+  177   1      }
+  178          
+  179          PRIVATE void MMI_LoadState(U8 linkIndex, U8 state)
+  180          {
+  181   1        if (MMI_StateHandlerSet[state] && MMI_StateHandlerSet[state]->InitAction != (void*)NULL)
+  182   1          MMI_StateHandlerSet[state]->InitAction(linkIndex);
+  183   1      
+C251 COMPILER V5.57.0,  MMI_State                                                          08/11/20  06:33:24  PAGE 4   
+
+  184   1        #ifdef AIR_MODULE
+  185   1        if(MMI_AIR_LoadState(linkIndex, state))
+  186   1          return;
+  187   1        #endif
+  188   1      
+  189   1        if (state == MMI_GetTopStateByLink(linkIndex))
+  190   1        {
+  191   2          if( (state == MMI_CONNECTED) && (CURRENT_ACTIVE_LINK_CNT == gMMI_ctl.currentSupportDeviceNo) )
+  192   2          {
+  193   3            #ifdef TWS_SETTINGS
+  194   3            if(CURRENT_ACTIVE_LINK_CNT==2)
+  195   3            {
+  196   4              if(MMI_EOF == MMI_GetNextNormalLink(linkIndex) || !MMI_CheckLinkInCallRelatedState(MMI_GetNextNormalL
+             -ink(linkIndex)))
+  197   4                MMI_LED_SendBGLedCmd(gMMI_nvram.maxLinkLedSetting.entryLedDisplayIndex);
+  198   4              else
+  199   4                MMI_LED_SendBGLedCmd(gMMI_nvram.defaultLedSetting[MMI_GetTopStateByLink(MMI_GetNextNormalLink(linkIn
+             -dex))].entryLedDisplayIndex);
+  200   4            }
+  201   3            else
+  202   3            {
+  203   4              MMI_LED_SendBGLedCmd(gMMI_nvram.defaultLedSetting[state].entryLedDisplayIndex);
+  204   4            }
+  205   3            #else
+                     if(MMI_EOF == MMI_GetNextNormalLink(linkIndex) || !MMI_CheckLinkInCallRelatedState(MMI_GetNextNormalLi
+             -nk(linkIndex)))
+                       MMI_LED_SendBGLedCmd(gMMI_nvram.maxLinkLedSetting.entryLedDisplayIndex);
+                     else
+                       MMI_LED_SendBGLedCmd(gMMI_nvram.defaultLedSetting[MMI_GetTopStateByLink(MMI_GetNextNormalLink(linkInd
+             -ex))].entryLedDisplayIndex);
+                     #endif
+  211   3          }
+  212   2          else if( MMI_CheckProfileOnAllLinks() && (state == MMI_CONDISCABLE || state == MMI_CONNECTABLE))
+  213   2          {
+  214   3            return;
+  215   3          }
+  216   2          else
+  217   2          {
+  218   3            #ifdef TWS_SETTINGS
+  219   3            if(( state == MMI_CONNECTED ) && (gMMI_ctl.currentSupportDeviceNo > 1))
+  220   3            {
+  221   4              MMI_LED_SendBGLedCmd(5);
+  222   4            }
+  223   3            else
+  224   3            {
+  225   4              MMI_LED_SendBGLedCmd(gMMI_nvram.defaultLedSetting[state].entryLedDisplayIndex);
+  226   4            }
+  227   3            #else
+                     #if (defined AB1520S) || (defined AB1520U) || (defined AB1525S)
+                     if( ! ( ( ( state == MMI_FAKEON ) || ( state == MMI_FAKEOFF ) ) && MMI_IsChargerIn() ) )
+                     #endif
+                     {
+                       MMI_LED_SendBGLedCmd(gMMI_nvram.defaultLedSetting[state].entryLedDisplayIndex);
+                     }
+                     #endif
+  235   3          }
+  236   2        }
+  237   1        else //insert state or replace state
+  238   1        {
+  239   2          if(MMI_SHOW_CONDISCABLE_LED_ONLY_ONE_CONNECTED_DEVICE_FEAT)
+  240   2          {
+  241   3            if( (state == MMI_CONDISCABLE) && (CURRENT_ACTIVE_LINK_CNT == 1) )
+  242   3            {
+  243   4              MMI_LED_SendBGLedCmd(gMMI_nvram.defaultLedSetting[state].entryLedDisplayIndex);
+  244   4            }
+  245   3          }
+C251 COMPILER V5.57.0,  MMI_State                                                          08/11/20  06:33:24  PAGE 5   
+
+  246   2        }
+  247   1      }
+  248          
+  249          PUBLIC void MMI_STATE_PassThruMsg(U8 linkIndex, MMIMsgType XDATA_PTR msgPtr)
+  250          {
+  251   1        MmiStateType XDATA_PTR  currentStatePtr = gMMI_ctl.mmiInfo[linkIndex].nestStatePtr;
+  252   1      
+  253   1        while(currentStatePtr != (MmiStateType XDATA_PTR)NULL)
+  254   1        {
+  255   2          if(MMI_StateHandlerSet[currentStatePtr->nestState] && MMI_StateHandlerSet[currentStatePtr->nestState]->
+             -MsgHandler)
+  256   2          {
+  257   3            MMI_StateHandlerSet[currentStatePtr->nestState]->MsgHandler(linkIndex, msgPtr);
+  258   3          }
+  259   2      
+  260   2          if (gMMI_ctl.msgHandled != NOTPROCD)
+  261   2            break;
+  262   2      
+  263   2          currentStatePtr = currentStatePtr->nextStatePtr;
+  264   2        }
+  265   1      }
+  266          
+  267          PUBLIC void MMI_STATE_Init(void)
+  268          {
+  269   1        U8 idx;
+  270   1        //To initialize the free Mmi state memory block and add basic state : FAKE ON
+  271   1        for (idx=1; idx<MAX_STATE_NESTING_LEVEL; idx++)
+  272   1        {
+  273   2          mmiSitPool[idx].nextStatePtr = (MmiStateType XDATA_PTR)(&mmiSitPool[idx-1]);
+  274   2        }
+  275   1        freeMmiLlSitPtr = &mmiSitPool[MAX_STATE_NESTING_LEVEL-1];
+  276   1        MMI_AddTopState(MMI_EOF, MMI_FAKEON);
+  277   1      
+  278   1        MMI_ConnectabilityHandle(CMD_SYSTEM_INIT);
+  279   1      }
+  280          
+  281          PUBLIC U8 MMI_GetTopStateByLink(U8 linkIndex)
+  282          {
+  283   1        U8 topState = MMI_TOTAL_STATE_NO;
+  284   1      
+  285   1        if (gMMI_ctl.mmiInfo[linkIndex].nestStatePtr != (MmiStateType XDATA_PTR)NULL)
+  286   1        {
+  287   2          topState = gMMI_ctl.mmiInfo[linkIndex].nestStatePtr->nestState;
+  288   2        }
+  289   1      
+  290   1        ASSERT(topState != MMI_TOTAL_STATE_NO);
+  291   1      
+  292   1        return topState;
+  293   1      }
+  294          
+  295          PRIVATE MmiStateType XDATA_PTR MMI_AllocMmiState(void)
+  296          {
+  297   1        MmiStateType XDATA_PTR mmiStatePtr;
+  298   1      
+  299   1        ASSERT(freeMmiLlSitPtr != (MmiStateType XDATA_PTR)NULL);
+  300   1      
+  301   1        mmiStatePtr = freeMmiLlSitPtr;
+  302   1        freeMmiLlSitPtr = mmiStatePtr->nextStatePtr;
+  303   1        return mmiStatePtr;
+  304   1      }
+  305          
+  306          PRIVATE U8 MMI_ReadStateType(U8 state)
+  307          {
+  308   1        switch(state)
+  309   1        {
+  310   2          case MMI_DETACHING_LINK:
+C251 COMPILER V5.57.0,  MMI_State                                                          08/11/20  06:33:24  PAGE 6   
+
+  311   2          case MMI_CONNECTABLE:
+  312   2          case MMI_CONDISCABLE:
+  313   2          case MMI_FAKEON:
+  314   2          case MMI_FAKEOFF:
+  315   2          case MMI_FM:
+  316   2          case MMI_LINE_IN:
+  317   2          case MMI_OFF:
+  318   2          case MMI_VOICE_PROMPT_LANG_SELECT:
+  319   2          case MMI_TWS_PAIRING:
+  320   2          case MMI_TEST_MODE:
+  321   2          case MMI_INQUIRY:
+  322   2          case MMI_MP_STATE:
+  323   2          case MMI_UPDATING:
+  324   2          case MMI_UPDATED_FAIL:
+  325   2            return TYPE_ALL_LINK;
+  326   2          default:
+  327   2            return TYPE_ONE_LINK;
+  328   2        }
+  329   1      }
+  330          
+  331          PRIVATE BOOL MMI_AddTopState_ByLink(U8 linkIndex, U8 state)
+  332          {
+  333   1        MmiStateType XDATA_PTR newStatePtr;
+  334   1      
+  335   1        //Get memory from pool
+  336   1        newStatePtr = MMI_AllocMmiState();
+  337   1      
+  338   1        newStatePtr->nextStatePtr = gMMI_ctl.mmiInfo[linkIndex].nestStatePtr;
+  339   1        newStatePtr->nestState = state;
+  340   1      
+  341   1        gMMI_ctl.mmiInfo[linkIndex].nestStatePtr = newStatePtr;
+  342   1        return TRUE;
+  343   1      }
+  344          
+  345          PUBLIC void MMI_AddTopState(U8 linkIndex, U8 state)
+  346          {
+  347   1        U8 i;
+  348   1      
+  349   1        ASSERT(state < MMI_TOTAL_STATE_NO);
+  350   1      
+  351   1        if (MMI_CheckNestState(linkIndex, state))
+  352   1        {
+  353   2          return;
+  354   2        }
+  355   1        else
+  356   1        {
+  357   2          switch(MMI_ReadStateType(state))
+  358   2          {
+  359   3            case TYPE_ONE_LINK:
+  360   3              if(MMI_AddTopState_ByLink(linkIndex, state))
+  361   3              {
+  362   4                MMI_HCI_UartSendUnSolicitedIndication(MMI_UART_IND_STATE_CHANGE, (U8 XDATA_PTR)NULL, linkIndex);
+  363   4                MMI_LoadState(linkIndex, state);
+  364   4              }
+  365   3              break;
+  366   3            case TYPE_ALL_LINK:
+  367   3              for (i = 0;i < MAX_MULTI_POINT_NO;i++)
+  368   3              {
+  369   4                if(!MMI_AddTopState_ByLink(i, state))
+  370   4                  return;
+  371   4              }
+  372   3              MMI_HCI_UartSendUnSolicitedIndication(MMI_UART_IND_STATE_CHANGE, (U8 XDATA_PTR)NULL, MMI_EOF);
+  373   3              MMI_LoadState(DEFAULT_LINK_IND, state);
+  374   3              break;
+  375   3          }
+  376   2        }
+C251 COMPILER V5.57.0,  MMI_State                                                          08/11/20  06:33:24  PAGE 7   
+
+  377   1      }
+  378          
+  379          PRIVATE BOOL MMI_InsertStateByLink(U8 linkIndex, U8 state, U8 beforeState)
+  380          {
+  381   1        U8 LDATA statePara[2];
+  382   1        MmiStateType XDATA_PTR currStatePtr, XDATA_PTR prevStatePtr;
+  383   1        MmiStateType XDATA_PTR newStatePtr;
+  384   1      
+  385   1        prevStatePtr = currStatePtr = gMMI_ctl.mmiInfo[linkIndex].nestStatePtr;
+  386   1        while (currStatePtr != (MmiStateType XDATA_PTR)NULL)
+  387   1        {
+  388   2          if (currStatePtr->nestState == beforeState)
+  389   2            break;
+  390   2          prevStatePtr = currStatePtr;
+  391   2          currStatePtr = currStatePtr->nextStatePtr;
+  392   2        }
+  393   1      
+  394   1        //before state not found
+  395   1        if (currStatePtr == (MmiStateType XDATA_PTR)NULL)
+  396   1          return FALSE;
+  397   1      
+  398   1        //Get memory from pool
+  399   1        newStatePtr = MMI_AllocMmiState();
+  400   1      
+  401   1        newStatePtr->nextStatePtr = currStatePtr;
+  402   1        newStatePtr->nestState = state;
+  403   1      
+  404   1        if (prevStatePtr == currStatePtr) //the before state is the top state
+  405   1        {
+  406   2          gMMI_ctl.mmiInfo[linkIndex].nestStatePtr = newStatePtr;
+  407   2          if (MMI_ReadStateType(state) == TYPE_ONE_LINK)
+  408   2          {
+  409   3            MMI_HCI_UartSendUnSolicitedIndication(MMI_UART_IND_STATE_CHANGE, (U8 XDATA_PTR)NULL, linkIndex);
+  410   3          }
+  411   2          else
+  412   2          {
+  413   3            MMI_HCI_UartSendUnSolicitedIndication(MMI_UART_IND_STATE_CHANGE, (U8 XDATA_PTR)NULL, MMI_EOF);
+  414   3          }
+  415   2        }
+  416   1        else
+  417   1        {
+  418   2          prevStatePtr->nextStatePtr = newStatePtr;
+  419   2      
+  420   2          statePara[0] = state;
+  421   2          statePara[1] = beforeState;
+  422   2          MMI_HCI_UartSendUnSolicitedIndication(MMI_UART_IND_INSERT_STATE, (U8 XDATA_PTR)statePara, linkIndex);
+  423   2        }
+  424   1        return TRUE;
+  425   1      }
+  426          
+  427          PRIVATE void MMI_CallStateSwitchVP(U8 linkIndex)
+  428          {
+  429   1        if(gMMI_ctl.mmiInfo[linkIndex].stateEntryExit & MMI_EXIT_OUTGOING_STATE)
+  430   1        {
+  431   2          if(gMMI_ctl.mmiInfo[linkIndex].isCallRejectedByKey)
+  432   2            MMI_PushMediaEvent(MEDIA_EVT_KEY_CNLOUTGOING);
+  433   2          else
+  434   2            MMI_PushMediaEvent(MEDIA_EVT_AG_CNLOUTGOING);
+  435   2        }
+  436   1      }
+  437          
+  438          PUBLIC void MMI_InsertState(U8 linkIndex, U8 state, U8 beforeState)
+  439          {
+  440   1        U8 i;
+  441   1      
+  442   1        ASSERT(state < MMI_TOTAL_STATE_NO);
+C251 COMPILER V5.57.0,  MMI_State                                                          08/11/20  06:33:24  PAGE 8   
+
+  443   1      
+  444   1        if (MMI_CheckNestState(linkIndex, state))
+  445   1        {
+  446   2          if(state == MMI_CONDISCABLE  && CURRENT_ACTIVE_LINK_CNT < gMMI_ctl.currentSupportDeviceNo && MMI_CONDIS
+             -CABLE != MMI_GetTopStateByLink(DEFAULT_LINK_IND))
+  447   2          {
+  448   3            MMI_LoadState(DEFAULT_LINK_IND, state);
+  449   3          }
+  450   2          return;
+  451   2        }
+  452   1        else
+  453   1        {
+  454   2          switch(MMI_ReadStateType(state))
+  455   2          {
+  456   3            case TYPE_ONE_LINK:
+  457   3              if (MMI_InsertStateByLink(linkIndex, state, beforeState))
+  458   3              {
+  459   4                MMI_LoadState(linkIndex, state);
+  460   4              }
+  461   3              break;
+  462   3            case TYPE_ALL_LINK:
+  463   3              ASSERT(MMI_ReadStateType(beforeState) == TYPE_ALL_LINK);
+  464   3              for (i = 0;i < MAX_MULTI_POINT_NO;i++)
+  465   3              {
+  466   4                if (!MMI_InsertStateByLink(i, state, beforeState))
+  467   4                  return;
+  468   4              }
+  469   3              MMI_LoadState(DEFAULT_LINK_IND, state);
+  470   3              break;
+  471   3          }
+  472   2        }
+  473   1      
+  474   1      
+  475   1      }
+  476          
+  477          PRIVATE void MMI_FreeMmiState(MmiStateType XDATA_PTR mmiStatePtr)
+  478          {
+  479   1        mmiStatePtr->nextStatePtr = freeMmiLlSitPtr;
+  480   1        freeMmiLlSitPtr = mmiStatePtr;
+  481   1      }
+  482          
+  483          PRIVATE BOOL MMI_RmvStateByLink(U8 linkIndex, U8 state)
+  484          {
+  485   1        MmiStateType XDATA_PTR currStatePtr, XDATA_PTR prevStatePtr;
+  486   1      
+  487   1        prevStatePtr = currStatePtr = gMMI_ctl.mmiInfo[linkIndex].nestStatePtr;
+  488   1        while (currStatePtr != (MmiStateType XDATA_PTR)NULL)
+  489   1        {
+  490   2          if (currStatePtr->nestState == state)
+  491   2            break;
+  492   2          prevStatePtr = currStatePtr;
+  493   2          currStatePtr = currStatePtr->nextStatePtr;
+  494   2        }
+  495   1      
+  496   1        if (currStatePtr != (MmiStateType XDATA_PTR)NULL)
+  497   1        {
+  498   2          if (prevStatePtr == currStatePtr) //the removed state is the top state
+  499   2            gMMI_ctl.mmiInfo[linkIndex].nestStatePtr = currStatePtr->nextStatePtr;
+  500   2          else
+  501   2            prevStatePtr->nextStatePtr = currStatePtr->nextStatePtr;
+  502   2      
+  503   2            MMI_FreeMmiState(currStatePtr);
+  504   2          return TRUE;
+  505   2        }
+  506   1        return FALSE;
+  507   1      }
+C251 COMPILER V5.57.0,  MMI_State                                                          08/11/20  06:33:24  PAGE 9   
+
+  508          
+  509          PUBLIC void MMI_RmvState(U8 linkIndex, U8 state)
+  510          {
+  511   1        U8 i;
+  512   1        U8 LDATA statePara[2];
+  513   1      
+  514   1        switch(MMI_ReadStateType(state))
+  515   1        {
+  516   2          case TYPE_ONE_LINK:
+  517   2            if(!MMI_RmvStateByLink(linkIndex, state))
+  518   2              return;
+  519   2            statePara[1] = 0;
+  520   2            break;
+  521   2          case TYPE_ALL_LINK:
+  522   2            for (i = 0;i < MAX_MULTI_POINT_NO;i++)
+  523   2            {
+  524   3              if (!MMI_RmvStateByLink(i, state))
+  525   3                return;
+  526   3            }
+  527   2            statePara[1] = MMI_EOF;
+  528   2            linkIndex = DEFAULT_LINK_IND;
+  529   2            break;
+  530   2        }
+  531   1      
+  532   1        statePara[0] = state;
+  533   1        MMI_HCI_UartSendUnSolicitedIndication(MMI_UART_IND_REMOVE_STATE, (U8 XDATA_PTR)statePara, linkIndex);
+  534   1      
+  535   1        MMI_UnloadState(linkIndex, state);
+  536   1      
+  537   1        if( state== MMI_DETACHING_LINK)
+  538   1          return;
+  539   1      
+  540   1        state = MMI_GetTopStateByLink(linkIndex);
+  541   1      
+  542   1        if (state != MMI_FAKEON && state != MMI_LINE_IN && state != MMI_FM)
+  543   1        {
+  544   2          MMI_LoadState(linkIndex, state);
+  545   2        }
+  546   1        else
+  547   1        {
+  548   2          MMI_LED_SendBGLedCmd(gMMI_nvram.defaultLedSetting[state].entryLedDisplayIndex);
+  549   2        }
+  550   1      }
+  551          
+  552          PRIVATE BOOL MMI_ReplaceStateByLink(U8 i, U8 newState, U8 oldState)
+  553          {
+  554   1        U8 LDATA statePara[2];
+  555   1        MmiStateType XDATA_PTR currentMmiLlSit = gMMI_ctl.mmiInfo[i].nestStatePtr;
+  556   1      
+  557   1        //Traversal the state list to find out specific state.
+  558   1        while(currentMmiLlSit != (MmiStateType XDATA_PTR)NULL)
+  559   1        {
+  560   2          if (currentMmiLlSit->nestState == oldState)
+  561   2          {
+  562   3            currentMmiLlSit->nestState = newState;
+  563   3      
+  564   3            statePara[0] = newState;
+  565   3            statePara[1] = oldState;
+  566   3            MMI_HCI_UartSendUnSolicitedIndication(MMI_UART_IND_REPLACE_STATE, (U8 XDATA_PTR)statePara, i);
+  567   3      
+  568   3            return TRUE;
+  569   3          }
+  570   2          else
+  571   2          {
+  572   3            currentMmiLlSit = currentMmiLlSit->nextStatePtr;
+  573   3          }
+C251 COMPILER V5.57.0,  MMI_State                                                          08/11/20  06:33:24  PAGE 10  
+
+  574   2        }
+  575   1        return FALSE;
+  576   1      }
+  577          
+  578          PUBLIC void MMI_ReplaceState(U8 linkIndex, U8 newState, U8 oldState)
+  579          {
+  580   1        MMI_ReplaceStateWithEntry(linkIndex, newState, oldState, TRUE);
+  581   1      }
+  582          
+  583          PUBLIC void MMI_ReplaceStateWithEntry(U8 linkIndex, U8 newState, U8 oldState, BOOL withEntry)
+  584          {
+  585   1        U8 i;
+  586   1      
+  587   1        switch (MMI_ReadStateType(newState))
+  588   1        {
+  589   2          case TYPE_ONE_LINK:
+  590   2            if (!MMI_ReplaceStateByLink(linkIndex, newState, oldState))
+  591   2              return;
+  592   2            break;
+  593   2          case TYPE_ALL_LINK:
+  594   2            for (i = 0;i < MAX_MULTI_POINT_NO;i++)
+  595   2            {
+  596   3              if (!MMI_ReplaceStateByLink(i, newState, oldState))
+  597   3                return;
+  598   3            }
+  599   2            linkIndex = DEFAULT_LINK_IND;
+  600   2            break;
+  601   2        }
+  602   1      
+  603   1      
+  604   1        MMI_UnloadState(linkIndex, oldState);
+  605   1      
+  606   1        if(withEntry)
+  607   1          MMI_LoadState(linkIndex, newState);
+  608   1      }
+  609          
+  610          
+  611          PRIVATE void MMI_CleanNestStateByLink(U8 linkIndex, U8 isPowerOff)
+  612          {
+  613   1        MmiStateType XDATA_PTR nsPtr;
+  614   1      
+  615   1        nsPtr = gMMI_ctl.mmiInfo[linkIndex].nestStatePtr;
+  616   1      
+  617   1        while(nsPtr->nestState != MMI_FAKEON)
+  618   1        {
+  619   2          switch (MMI_ReadStateType(nsPtr->nestState))
+  620   2          {
+  621   3            case TYPE_ONE_LINK:
+  622   3              MMI_RmvState(linkIndex, nsPtr->nestState);
+  623   3              nsPtr = gMMI_ctl.mmiInfo[linkIndex].nestStatePtr;
+  624   3              break;
+  625   3            case TYPE_ALL_LINK:
+  626   3              if (isPowerOff)
+  627   3              {
+  628   4                MMI_RmvState(linkIndex, nsPtr->nestState);
+  629   4                nsPtr = gMMI_ctl.mmiInfo[linkIndex].nestStatePtr;
+  630   4              }
+  631   3              else
+  632   3              {
+  633   4                nsPtr = nsPtr->nextStatePtr;
+  634   4              }
+  635   3              break;
+  636   3          }
+  637   2        }
+  638   1      }
+  639          
+C251 COMPILER V5.57.0,  MMI_State                                                          08/11/20  06:33:24  PAGE 11  
+
+  640          PRIVATE void _CleanNestStateByLink(void)//Mantis 8599 - avoid Warning C183 : Dead Assignment Eliminated
+  641          {
+  642   1        U8 i;
+  643   1        for(i = 0; i < MAX_MULTI_POINT_NO; i++)
+  644   1        {
+  645   2          MMI_CleanNestStateByLink(i, TRUE);
+  646   2        }
+  647   1      }
+  648          
+  649          PUBLIC void MMI_CleanNestState(U8 linkIndex)
+  650          {
+  651   1        if (linkIndex == MMI_EOF)
+  652   1        {
+  653   2          _CleanNestStateByLink();
+  654   2        }
+  655   1        else
+  656   1        {
+  657   2          MMI_CleanNestStateByLink(linkIndex, FALSE);
+  658   2        }
+  659   1      }
+  660          
+  661          PUBLIC BOOL MMI_CheckNestStateByLink(U8 linkIndex, U8 state)
+  662          {
+  663   1        MmiStateType XDATA_PTR nsPtr = gMMI_ctl.mmiInfo[linkIndex].nestStatePtr;
+  664   1      
+  665   1        while(nsPtr != (MmiStateType XDATA_PTR)NULL && nsPtr->nestState != MMI_FAKEON)
+  666   1        {
+  667   2          if (nsPtr->nestState == state)
+  668   2          {
+  669   3            return TRUE;
+  670   3          }
+  671   2          else
+  672   2          {
+  673   3            nsPtr = nsPtr->nextStatePtr;
+  674   3          }
+  675   2        }
+  676   1      
+  677   1        return FALSE;
+  678   1      }
+  679          
+  680          PUBLIC BOOL MMI_CheckNestState(U8 linkIndex, U8 state)
+  681          {
+  682   1        if(linkIndex == MMI_EOF)
+  683   1          return  MMI_CheckNestStateByLink(DEFAULT_LINK_IND, state);
+  684   1        else
+  685   1          return  MMI_CheckNestStateByLink(linkIndex, state);
+  686   1      }
+  687          
+  688          
+  689          PUBLIC BOOL MMI_CheckLinkInCallRelatedState(U8 link)
+  690          {
+  691   1        if (gMMI_ctl.mmiInfo[link].nestStatePtr->nestState >= MMI_HFP_INCOMMING &&
+  692   1            gMMI_ctl.mmiInfo[link].nestStatePtr->nestState <= MMI_HFP_CAMULTY)
+  693   1        {
+  694   2          return TRUE;
+  695   2        }
+  696   1        else
+  697   1          return FALSE;
+  698   1      }
+  699          
+  700          PUBLIC BOOL MMI_AllLinksInCallRelatedState(void)
+  701          {
+  702   1        U8 i;
+  703   1      
+  704   1        for(i = 0; i < MAX_MULTI_POINT_NO; i++)
+  705   1        {
+C251 COMPILER V5.57.0,  MMI_State                                                          08/11/20  06:33:24  PAGE 12  
+
+  706   2          if(MMI_CheckLinkInCallRelatedState(i))
+  707   2            return TRUE;
+  708   2        }
+  709   1        return FALSE;
+  710   1      }
+  711          
+  712          PUBLIC BOOL MMI_CheckLinkInCallActiveState(U8 link)
+  713          {
+  714   1        if (link < MAX_MULTI_POINT_NO && gMMI_ctl.mmiInfo[link].nestStatePtr->nestState >= MMI_HFP_CALLACTIVE&&
+  715   1          gMMI_ctl.mmiInfo[link].nestStatePtr->nestState <= MMI_HFP_CAMULTY)
+  716   1        {
+  717   2          return TRUE;
+  718   2        }
+  719   1        else
+  720   1          return FALSE;
+  721   1      }
+  722          
+  723          PUBLIC BOOL MMI_AllLinksInCallActiveState(void)
+  724          {
+  725   1        U8 i;
+  726   1      
+  727   1        for(i = 0; i < MAX_MULTI_POINT_NO; i++)
+  728   1        {
+  729   2          if(MMI_CheckLinkInCallActiveState(i))
+  730   2            return TRUE;
+  731   2        }
+  732   1        return FALSE;
+  733   1      }
+  734          
+  735          PUBLIC BOOL MMI_CheckLinkInCallNotifyState(U8 link)
+  736          {
+  737   1        if (link < MAX_MULTI_POINT_NO && gMMI_ctl.mmiInfo[link].nestStatePtr->nestState >= MMI_HFP_INCOMMING&&
+  738   1          gMMI_ctl.mmiInfo[link].nestStatePtr->nestState <= MMI_HFP_OUTGOING)
+  739   1        {
+  740   2          return TRUE;
+  741   2        }
+  742   1        else
+  743   1          return FALSE;
+  744   1      }
+  745          
+  746          PUBLIC BOOL MMI_CheckLinkInOutGoingState(U8 link)
+  747          {
+  748   1        if ( gMMI_ctl.mmiInfo[link].nestStatePtr->nestState == MMI_HFP_OUTGOING)
+  749   1        {
+  750   2          return TRUE;
+  751   2        }
+  752   1        else
+  753   1          return FALSE;
+  754   1      }
+  755          
+  756          PUBLIC BOOL MMI_CheckLinkInIncomingState(U8 link)
+  757          {
+  758   1        if ( gMMI_ctl.mmiInfo[link].nestStatePtr->nestState == MMI_HFP_INCOMMING)
+  759   1        {
+  760   2          return TRUE;
+  761   2        }
+  762   1        else
+  763   1          return FALSE;
+  764   1      }
+  765          
+  766          PUBLIC BOOL MMI_CheckInFMState(void)
+  767          {
+  768   1        U8 i;
+  769   1        for(i = 0;  i < MAX_MULTI_POINT_NO; i++)
+  770   1        {
+  771   2          if(gMMI_ctl.mmiInfo[i].nestStatePtr->nestState == MMI_FM)
+C251 COMPILER V5.57.0,  MMI_State                                                          08/11/20  06:33:24  PAGE 13  
+
+  772   2            return TRUE;
+  773   2        }
+  774   1        return FALSE;
+  775   1      }
+  776          
+  777          PUBLIC BOOL MMI_CheckInLineInState(void)
+  778          {
+  779   1        U8 i;
+  780   1        for(i = 0;  i < MAX_MULTI_POINT_NO; i++)
+  781   1        {
+  782   2          if(gMMI_ctl.mmiInfo[i].nestStatePtr->nestState == MMI_LINE_IN)
+  783   2            return TRUE;
+  784   2        }
+  785   1        return FALSE;
+  786   1      }
+  787          
+  788          PUBLIC void MMI_MMI1Handle(BOOL isOn)
+  789          {
+  790   1        if(isOn)
+  791   1        {
+  792   2          if(CURRENT_ACTIVE_LINK_CNT < 2)
+  793   2            OS_MMI1Enable ((U16)gMMI_nvram.mmi1IntInterval.interval_1To1);
+  794   2          else
+  795   2            OS_MMI1Enable ((U16)gMMI_nvram.mmi1IntInterval.interval_1To2);
+  796   2      
+  797   2          SYS_ReleaseTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.delayDisableMMI1Timer);
+  798   2        }
+  799   1        else
+  800   1        {
+  801   2          SYS_SetTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.delayDisableMMI1Timer,
+  802   2            (U32)(gHC_parameter.page_scan_interval * 2 * 2));//interval(slots) * 2 = half_slots
+  803   2            //wait for 2 intervals to avoid scan missing;
+  804   2        }
+  805   1      }
+  806          
+  807          PUBLIC void MMI_ConnectabilityHandle(U8 action)
+  808          {
+  809   1        // MMI1 interrupt should be set when page scan is off. Otherwise system will fall asleep.
+  810   1        // init(MMI1) --> connectable (scan) --> connected(MMI1)
+  811   1        switch(action)
+  812   1        {
+  813   2          case CMD_SYSTEM_INIT:
+  814   2            MMI_MMI1Handle(TRUE);
+  815   2            break;
+  816   2      
+  817   2          case CMD_SECURITY_MODE_COMPLETE:
+  818   2            MMI_GAP_WriteConnectabilityMode(SAC_CONNECTABLE_MODE | CONNECTABLE_MODE);
+  819   2            #ifdef AIR_MODULE
+  820   2            MMI_AIR_WriteSecurityModeComplete();
+  821   2            #endif
+  822   2            break;
+  823   2      
+  824   2          case CMD_SET_CONNECTABLE:
+  825   2            if(MMI_KEY_STATE_POWER_OFF == MMI_GetKeyState())
+  826   2              return;
+  827   2            if (CURRENT_ACTIVE_LINK_CNT < gMMI_ctl.currentSupportDeviceNo)
+  828   2            {
+  829   3              MMI_GAP_WriteConnectabilityMode(SAC_CONNECTABLE_MODE | CONNECTABLE_MODE);
+  830   3              if (gMMI_nvram.timerCtl.ConnectableTimeout)
+  831   3              {
+  832   4                SYS_SetTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.connectableTimeoutTimer, (U32)(gMMI_nvram.timerCtl.Conn
+             -ectableTimeout) * ONE_SEC);
+  833   4              }
+  834   3            }
+  835   2            break;
+  836   2      
+C251 COMPILER V5.57.0,  MMI_State                                                          08/11/20  06:33:24  PAGE 14  
+
+  837   2          case CMD_SET_RESUME_CONNECTABLE:
+  838   2            if(MMI_KEY_STATE_POWER_OFF == MMI_GetKeyState())
+  839   2              return;
+  840   2            if((IS_ALWAYS_CONNECTEBLE_UNTIL_LINK_FULL && CURRENT_ACTIVE_LINK_CNT < gMMI_ctl.currentSupportDeviceNo
+             -) ||
+  841   2              (!IS_ALWAYS_CONNECTEBLE_UNTIL_LINK_FULL && gMMI_ctl.mmiTimerInfo.sysTimer.connectableTimeoutTimer))
+  842   2            {
+  843   3              MMI_GAP_WriteConnectabilityMode(SAC_CONNECTABLE_MODE | CONNECTABLE_MODE);
+  844   3            }
+  845   2            break;
+  846   2      
+  847   2          case CMD_SET_NON_CONNECTABLE:
+  848   2            if(IS_ALWAYS_CONNECTEBLE_UNTIL_LINK_FULL)
+  849   2            {
+  850   3              return;
+  851   3            }
+  852   2            /* fallthrough */
+  853   2          case CMD_SET_NON_CONNECTABLE_ANYWAY:
+  854   2            if(MMI_KEY_STATE_POWER_OFF == MMI_GetKeyState())
+  855   2            {
+  856   3              SYS_ReleaseTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.connectableTimeoutTimer);
+  857   3              return;
+  858   3            }
+  859   2            /* fallthrough */
+  860   2          case CMD_SYSTEM_OFF:
+  861   2            MMI_GAP_WriteConnectabilityMode(SAC_NON_CONNECTABLE_MODE | NON_CONNECTABLE_MODE);
+  862   2            SYS_ReleaseTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.connectableTimeoutTimer);
+  863   2            break;
+  864   2      
+  865   2        }
+  866   1      }
+  867          
+  868          PUBLIC void MMI_DiscoverabilityHandle(U8 action)
+  869          {
+  870   1        switch(action)
+  871   1        {
+  872   2          case CMD_SPECIAL_LIMITED_DISCOVERABLE:
+  873   2            if(MMI_KEY_STATE_POWER_OFF == MMI_GetKeyState())
+  874   2              return;
+  875   2            MMI_GAP_WriteDiscoverabilityMode(SPECIAL_LIMITED_DISCOVERABLE_MODE |LIMITED_DISCOVERABLE_MODE | SAC_LI
+             -MITED_DISCOVERABLE_MODE);
+  876   2            break;
+  877   2          case CMD_LIMITED_DISCOVERABLE:
+  878   2            if(MMI_KEY_STATE_POWER_OFF == MMI_GetKeyState())
+  879   2              return;
+  880   2            MMI_GAP_WriteDiscoverabilityMode(LIMITED_DISCOVERABLE_MODE | SAC_LIMITED_DISCOVERABLE_MODE);
+  881   2            break;
+  882   2      
+  883   2          case CMD_SET_NORMAL_DISCOVERABLE:
+  884   2            if(MMI_KEY_STATE_POWER_OFF == MMI_GetKeyState())
+  885   2              return;
+  886   2            MMI_GAP_WriteDiscoverabilityMode(SAC_GENERAL_DISCOVERABLE_MODE | GENERAL_DISCOVERABLE_MODE);
+  887   2            if(!MMI_ALWAYS_ENA_DISCOVER_MODE_FEAT)
+  888   2            {
+  889   3              if (MMI_LinkKey_GetPDLNumber() == 0)
+  890   3              {
+  891   4                if(gMMI_nvram.timerCtl.PairModeTimeoutIfPDLIsEmpty)
+  892   4                  SYS_SetTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.pairModeTimer, (U32)(gMMI_nvram.timerCtl.PairModeTimeo
+             -utIfPDLIsEmpty) * ONE_SEC);
+  893   4              }
+  894   3              else
+  895   3              {
+  896   4                if(gMMI_nvram.timerCtl.PairModeTimeout)
+  897   4                  SYS_SetTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.pairModeTimer, (U32)(gMMI_nvram.timerCtl.PairModeTimeo
+             -ut) * ONE_SEC);
+  898   4              }
+C251 COMPILER V5.57.0,  MMI_State                                                          08/11/20  06:33:24  PAGE 15  
+
+  899   3            }
+  900   2            break;
+  901   2      
+  902   2          case CMD_SET_NON_DISCOVERABLE:
+  903   2            if(MMI_ALWAYS_ENA_DISCOVER_MODE_FEAT)
+  904   2              return;
+  905   2          case CMD_SET_NON_DISCOVERABLE_ANYWAY:
+  906   2            if(MMI_KEY_STATE_POWER_OFF == MMI_GetKeyState())
+  907   2            {
+  908   3              SYS_ReleaseTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.pairModeTimer);
+  909   3              return;
+  910   3            }
+  911   2          case CMD_SYSTEM_OFF:
+  912   2            MMI_GAP_WriteDiscoverabilityMode(NON_DISCOVERABLE_MODE | SAC_NON_DISCOVERABLE_MODE);
+  913   2            SYS_ReleaseTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.pairModeTimer);
+  914   2            break;
+  915   2      
+  916   2          case CMD_SET_RESUME_DISCOVERABLE:
+  917   2            if((MMI_ALWAYS_ENA_DISCOVER_MODE_FEAT && gMMI_ctl.currentSupportDeviceNo > CURRENT_ACTIVE_LINK_CNT)  |
+             -|
+  918   2              (!MMI_ALWAYS_ENA_DISCOVER_MODE_FEAT && gMMI_ctl.mmiTimerInfo.sysTimer.pairModeTimer) )
+  919   2              MMI_GAP_WriteDiscoverabilityMode(SAC_GENERAL_DISCOVERABLE_MODE | GENERAL_DISCOVERABLE_MODE);
+  920   2            break;
+  921   2      
+  922   2      
+  923   2        }
+  924   1      }
+  925          
+  926          PRIVATE void _UpdateReconnectLinkInfo(U8 i)//Mantis 8599 - avoid Warning C183 : Dead Assignment Eliminate
+             -d
+  927          {
+  928   1        U8 j;
+  929   1        for(j = 0; j < MAX_MULTI_POINT_NO; j++)
+  930   1        {
+  931   2          if(SYS_IsBDAddrIsTheSame(&(gMMI_ctl.mmiInfo[i].bdAddr[0]), &gMMI_driver_variation_nvram.misc_para.agInd
+             -[j].member[0]))
+  932   2          {
+  933   3            if (MMI_IsActiveLink(i))
+  934   3              gMMI_ctl.miscMask4|= (MMI_MASK4_RECONNECT_LINK0 << j);
+  935   3            else
+  936   3              gMMI_ctl.miscMask4 &= ~(MMI_MASK4_RECONNECT_LINK0 << j);
+  937   3          }
+  938   2        }
+  939   1      }
+  940          
+  941          //This function is used to update agInd[0] and agInd[1] with current active links
+  942          PUBLIC void MMI_UpdateReconnectLinkInfo(void)
+  943          {
+  944   1        U8 i;
+  945   1      
+  946   1        for(i = 0; i < MAX_MULTI_POINT_NO; i++)
+  947   1        {
+  948   2          _UpdateReconnectLinkInfo(i);
+  949   2        }
+  950   1      }
+  951          
+  952          PUBLIC U8 MMI_CountConnectedDev(void)
+  953          {
+  954   1        U8 link, count = 0;
+  955   1      
+  956   1        for(link = 0;link < MAX_MULTI_POINT_NO;link++)
+  957   1        {
+  958   2          if(MMI_CheckNestState(link,MMI_CONNECTED))
+  959   2            count++;
+  960   2        }
+  961   1        return count;
+C251 COMPILER V5.57.0,  MMI_State                                                          08/11/20  06:33:24  PAGE 16  
+
+  962   1      }
+  963          
+  964          ///////////////////////////////////////////////////////////////////////////
+  965          PRIVATE void MMI_SendMMIReadyCmd(void)
+  966          {
+  967   1      
+  968   1        MMIMsgType XDATA_PTR msgPtr = MMI_GetMMIMsgTypeCmdMemory(DRIVER_MMI_READY_CMD);
+  969   1      
+  970   1        if(msgPtr != (MMIMsgType XDATA_PTR)NULL)
+  971   1        {
+  972   2          OSMQ_Put(OSMQ_DRIVER_Command_ptr, (U8 XDATA_PTR)msgPtr);
+  973   2        }
+  974   1      }
+  975          
+  976          PRIVATE void MMI_SendUpdateDriverParameterCmd(void)
+  977          {
+  978   1        MMIMsgType XDATA_PTR msgPtr;
+  979   1      
+  980   1        //Send update msg for driver paramenters to DRIVER task
+  981   1        if ((msgPtr = MMI_GetCommandMessageMem(DRIVER_UPDATE_GENERAL_PARA_CMD)) != (MMIMsgType XDATA_PTR)NULL)
+  982   1        {
+  983   2          OSMQ_Put (OSMQ_DRIVER_Command_ptr, (U8 XDATA_PTR)msgPtr);
+  984   2        }
+  985   1      }
+  986          
+  987          
+  988          //========================================================================
+  989          //========================================================================
+  990          //=============================State Functions=================================
+  991          //========================================================================
+  992          //========================================================================
+  993          
+  994          
+  995          PRIVATE void MMI_ConnectDiscoverableEntry(U8 linkIndex)
+  996          {
+  997   1        UNUSED(linkIndex);
+  998   1        if (!gMMI_ctl.mmiTimerInfo.sysTimer.watchDogRebootNoMediaTimer)
+  999   1        {
+ 1000   2          if( !gMMI_ctl.activeLinkRecord && !MMI_DRV_IsAudioDeviceRegistered(MMI_EOF, AUDIO_DEVICE_FM)
+ 1001   2            && !MMI_DRV_IsAudioDeviceRegistered(MMI_EOF, AUDIO_DEVICE_LINE_IN)
+ 1002   2            #ifdef DEMOSOUND
+                     && !MMI_DRV_IsAudioDeviceRegistered(MMI_EOF, AUDIO_DEVICE_DEMO_SOUND)
+                     #endif
+ 1005   2            )
+ 1006   2          {
+ 1007   3            MMI_PushMediaEvent(MEDIA_EVT_ENTER_DISCOVERABLE);
+ 1008   3          }
+ 1009   2        }
+ 1010   1      
+ 1011   1      
+ 1012   1        MMI_DiscoverabilityHandle(CMD_SET_NORMAL_DISCOVERABLE);
+ 1013   1      
+ 1014   1        if(MMI_CheckNestState(MMI_EOF, MMI_CONNECTABLE))
+ 1015   1          MMI_ConnectabilityHandle(CMD_SET_CONNECTABLE);
+ 1016   1      
+ 1017   1        //Connectable state to ConDiscoverable state
+ 1018   1        SYS_ReleaseTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.autoSwitchOffTimer);
+ 1019   1      }
+ 1020          
+ 1021          PRIVATE void MMI_ConnectDiscoverableHandler(U8 linkIndex, MMIMsgType XDATA_PTR msgPtr)
+ 1022          {
+ 1023   1        UNUSED(linkIndex);
+ 1024   1        gMMI_ctl.msgHandled = PROCD_RELEASE;
+ 1025   1      
+ 1026   1        switch (msgPtr->eventCode)
+ 1027   1        {
+C251 COMPILER V5.57.0,  MMI_State                                                          08/11/20  06:33:24  PAGE 17  
+
+ 1028   2          case MMI_CHECK_POWERON_TIMER:
+ 1029   2            break;
+ 1030   2      
+ 1031   2          default:
+ 1032   2            gMMI_ctl.msgHandled = NOTPROCD;
+ 1033   2            break;
+ 1034   2        }
+ 1035   1      }
+ 1036          
+ 1037          
+ 1038          PRIVATE void MMI_ConnectDiscoverableExit(U8 linkIndex)
+ 1039          {
+ 1040   1        UNUSED(linkIndex);
+ 1041   1        SYS_ReleaseTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.pairModeTimer);
+ 1042   1      
+ 1043   1        MMI_DiscoverabilityHandle(CMD_SET_NON_DISCOVERABLE);
+ 1044   1        MMI_PushMediaEvent(MEDIA_EVT_EXIT_DISCOVERABLE);
+ 1045   1        gMMI_ctl.miscMask2 |= MMI_EXIT_DISCOVERABLE_STATE;
+ 1046   1      }
+ 1047          
+ 1048          
+ 1049          PRIVATE void MMI_ConnectableEntry(U8 linkIndex)
+ 1050          {
+ 1051   1        UNUSED(linkIndex);
+ 1052   1        if(!(gMMI_ctl.miscMask2 & MMI_EXIT_DISCOVERABLE_STATE))
+ 1053   1        {
+ 1054   2          if(MMI_ALWAYS_ENA_DISCOVER_MODE_FEAT||(MMI_DIS_PDL_LESS_THAN > MMI_LinkKey_GetPDLNumber()))
+ 1055   2          {
+ 1056   3            MMI_SetEnterDiscoverable(TRUE);
+ 1057   3          }
+ 1058   2        }
+ 1059   1        gMMI_ctl.miscMask2 &= ~MMI_EXIT_DISCOVERABLE_STATE;
+ 1060   1      }
+ 1061          
+ 1062          PRIVATE void MMI_ConnectableHandler(U8 linkIndex, MMIMsgType XDATA_PTR msgPtr)
+ 1063          {
+ 1064   1        UNUSED(linkIndex);
+ 1065   1        gMMI_ctl.msgHandled = PROCD_RELEASE;
+ 1066   1      
+ 1067   1        switch (msgPtr->eventCode)
+ 1068   1        {
+ 1069   2          case MMI_CHECK_POWERON_TIMER:
+ 1070   2            break;
+ 1071   2      
+ 1072   2          default:
+ 1073   2            gMMI_ctl.msgHandled = NOTPROCD;
+ 1074   2            break;
+ 1075   2        }
+ 1076   1      }
+ 1077          
+ 1078          
+ 1079          PUBLIC void MMI_ConnectedEntry(U8 linkIndex)
+ 1080          {
+ 1081   1        if(gMMI_ctl.mmiInfo[linkIndex].stateEntryExit & MMI_EXIT_CALLACTIVE_STATE)
+ 1082   1        {
+ 1083   2          if(gMMI_ctl.mmiInfo[linkIndex].stateEntryExit & MMI_EXIT_IMGCALL_STATE)
+ 1084   2            gMMI_ctl.mmiInfo[linkIndex].stateEntryExit |= ~MMI_EXIT_IMGCALL_STATE;
+ 1085   2        }
+ 1086   1        #ifdef HFP_Profile
+ 1087   1        MMI_DRV_ScoModeControl(linkIndex, TRUE, FALSE);
+ 1088   1        if((gMMI_ctl.mmiInfo[linkIndex].stateEntryExit &(MMI_EXIT_OUTGOING_STATE|MMI_EXIT_CALLACTIVE_STATE)))
+ 1089   1        {
+ 1090   2          if(gMMI_ctl.mmiInfo[linkIndex].linkPara.scoIsActiveEstablished)
+ 1091   2          {
+ 1092   3            if(SCO_EXISTS(linkIndex))
+ 1093   3            {
+C251 COMPILER V5.57.0,  MMI_State                                                          08/11/20  06:33:24  PAGE 18  
+
+ 1094   4              MMI_HCI_SendRelSco(linkIndex);
+ 1095   4            }
+ 1096   3            else
+ 1097   3            {
+ 1098   4              gMMI_HFP_ctl.HfpCtl[linkIndex].relSCOCozExitOggState = TRUE;
+ 1099   4            }
+ 1100   3          }
+ 1101   2        }
+ 1102   1        #ifndef HFP_AG_Profile
+ 1103   1        if((gMMI_ctl.mmiInfo[linkIndex].stateEntryExit &(MMI_EXIT_OUTGOING_STATE | MMI_EXIT_CALLACTIVE_STATE | M
+             -MI_EXIT_IMGCALL_STATE)))
+ 1104   1        {
+ 1105   2          if(MMI_SUPPORT_MULTI_HFP_FEAT)
+ 1106   2          {
+ 1107   3            U8 nextLink;
+ 1108   3            nextLink = MMI_HFP_GetNextHFPLink(linkIndex);
+ 1109   3            if(nextLink != MMI_EOF && MMI_CheckLinkInCallRelatedState(nextLink) && SCO_EXISTS(nextLink))
+ 1110   3            {
+ 1111   4              MMI_DRV_SetSpkMuteByLink(SET_MUTE_OFF, nextLink);
+ 1112   4            }
+ 1113   3          }
+ 1114   2        }
+ 1115   1        #endif
+ 1116   1        #endif
+ 1117   1      
+ 1118   1        MMI_CallStateSwitchVP(linkIndex);
+ 1119   1      
+ 1120   1        if(gMMI_ctl.mmiInfo[linkIndex].stateEntryExit & (MMI_EXIT_IMGCALL_STATE|MMI_EXIT_OUTGOING_STATE|MMI_EXIT
+             -_CALLACTIVE_STATE))
+ 1121   1        {
+ 1122   2          gMMI_ctl.mmiInfo[linkIndex].stateEntryExit &= ~(MMI_EXIT_IMGCALL_STATE|MMI_EXIT_OUTGOING_STATE|MMI_EXIT
+             -_CALLACTIVE_STATE);
+ 1123   2          #ifdef HFP_Profile
+ 1124   2          if(MMI_HFP_IsHSPConnected(linkIndex))
+ 1125   2          {
+ 1126   3            MMI_DRV_AudioDeviceDeRegister(linkIndex, AUDIO_DEVICE_SCO_HSP);
+ 1127   3            MMI_DRV_ResumeOtherAudioDevice(linkIndex, AUDIO_DEVICE_SCO_HSP);
+ 1128   3          }
+ 1129   2          else
+ 1130   2          #endif
+ 1131   2          {
+ 1132   3            MMI_DRV_AudioDeviceDeRegister(linkIndex, AUDIO_DEVICE_SCO);
+ 1133   3            MMI_DRV_AudioDeviceDeRegister(linkIndex, AUDIO_DEVICE_MUSIC_CALL_NOTIFY);
+ 1134   3            MMI_DRV_ResumeOtherAudioDevice(linkIndex, AUDIO_DEVICE_SCO);
+ 1135   3            MMI_DRV_ResumeOtherAudioDevice(linkIndex, AUDIO_DEVICE_MUSIC_CALL_NOTIFY);
+ 1136   3          }
+ 1137   2        }
+ 1138   1        SYS_ReleaseTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.autoSwitchOffTimer);
+ 1139   1      
+ 1140   1        #ifdef MMI_BATCHG_ENABLE
+ 1141   1        MMI_CHG_ResetTimeOutDectionTimer();
+ 1142   1        #endif
+ 1143   1        if(gMMI_ctl.mmiInfo[linkIndex].subState < MMI_VDIAL_CONNECTING_HFP || gMMI_ctl.mmiInfo[linkIndex].subSta
+             -te > MMI_RDIAL_STARTING)
+ 1144   1        {
+ 1145   2          gMMI_ctl.mmiInfo[linkIndex].subState = MMI_SBY_NONE_SUBSTATE;
+ 1146   2        }
+ 1147   1      
+ 1148   1        /// Set Volume as history
+ 1149   1        if(gMMI_ctl.serviceInd == linkIndex && !MMI_CheckInLineInState() && !MMI_CheckInFMState())
+ 1150   1        {
+ 1151   2          MMI_DRV_SendDriverVolCmd(linkIndex, CURRENT_SCO_SOUND_LEVEL(linkIndex), CURRENT_SCO_SMALL_STEP(linkInde
+             -x), VOLUME_MIC_FOLLOW_SPK);
+ 1152   2        }
+ 1153   1        gMMI_ctl.mmiInfo[linkIndex].isCallRejectedByKey = FALSE;
+ 1154   1        MMI_DRV_AudioDeviceDeRegister(linkIndex, AUDIO_DEVICE_CALL_STATE);
+C251 COMPILER V5.57.0,  MMI_State                                                          08/11/20  06:33:24  PAGE 19  
+
+ 1155   1        MMI_DRV_ResumeOtherAudioDevice(linkIndex, AUDIO_DEVICE_CALL_STATE);
+ 1156   1      }
+ 1157          
+ 1158          PUBLIC void MMI_ConnectedExit(U8 linkIndex)
+ 1159          {
+ 1160   1        U8 keyState;
+ 1161   1      
+ 1162   1        MMI_DRV_AudioDeviceDeRegister(linkIndex, AUDIO_DEVICE_CALL_STATE);
+ 1163   1      
+ 1164   1        keyState = MMI_GetKeyState();
+ 1165   1        // Not detach after audio transfer
+ 1166   1        if (MMI_KEY_STATE_POWER_OFF != keyState
+ 1167   1          #ifdef AIR_MODULE
+ 1168   1          && MMI_KEY_STATE_POWER_OFF_SYNC != keyState
+ 1169   1          #endif
+ 1170   1          )
+ 1171   1        {
+ 1172   2          #ifdef HFP_Profile
+ 1173   2          if(!gMMI_HFP_ctl.HfpCtl[linkIndex].audioTransferDetachTimer)
+ 1174   2          #endif
+ 1175   2          {
+ 1176   3            if(gMMI_ctl.mmiInfo[linkIndex].linkPara.miscMask & MMI_LINK_LOSS)
+ 1177   3              MMI_PushMediaEvent(MEDIA_EVT_LINK_LOSS);
+ 1178   3            else
+ 1179   3            {
+ 1180   4                MMI_DRV_SetOTAVoicepromptsExist(TRUE);
+ 1181   4              MMI_PushMediaEvent(MEDIA_EVT_SLC_DISCONNECTED);
+ 1182   4            }
+ 1183   3          }
+ 1184   2          MMI_DRV_ResumeOtherAudioDevice(linkIndex, AUDIO_DEVICE_CALL_STATE);
+ 1185   2        }
+ 1186   1        MMI_SetEnterDiscoverable(FALSE);
+ 1187   1      
+ 1188   1        if(MMI_EXIT_LINE_IN_WHEN_BT_CONNECED_FEAT && MMI_DRV_IsActiveAudioDevInAUX())
+ 1189   1        {
+ 1190   2          SYS_SetTimer(&gMMI_ctl.audioDevCtl.resumeTimer, 2*ONE_SEC);
+ 1191   2        }
+ 1192   1      
+ 1193   1        #ifdef AIR_MODULE
+ 1194   1        MMI_AIR_ConnectedExit(linkIndex);
+ 1195   1        #endif
+ 1196   1      }
+ 1197          
+ 1198          PRIVATE void MMI_OffEntry(U8 linkIndex)
+ 1199          {
+ 1200   1        UNUSED(linkIndex);
+ 1201   1        //Power off procedure will be activated while ringtone is finished
+ 1202   1        MMI_PushMediaEvent(MEDIA_EVT_OFF_STATE);
+ 1203   1        //Release timers
+ 1204   1        MMI_TIMER_ReleaseAllLinksConnectionTimer();
+ 1205   1      
+ 1206   1        MMI_ConnectabilityHandle(CMD_SYSTEM_OFF);
+ 1207   1      }
+ 1208          
+ 1209          PRIVATE void MMI_OffHandler(U8 linkIndex, MMIMsgType XDATA_PTR msgPtr)
+ 1210          {
+ 1211   1        UNUSED(linkIndex);
+ 1212   1        gMMI_ctl.msgHandled = PROCD_RELEASE;
+ 1213   1      
+ 1214   1        switch(msgPtr->eventCode)
+ 1215   1        {
+ 1216   2          case DRIVER_FAKE_MEDIA_VP_RINGTONE_EVENT:
+ 1217   2            if( msgPtr->msgBodyPtr.driverEvt.fakeMediaEvt.id == MEDIA_EVT_OFF_STATE)
+ 1218   2            {
+ 1219   3              MMI_DRV_SendRingtoneStopCmd();
+ 1220   3              MMI_DRV_SendVoicepromptStopCmd();
+C251 COMPILER V5.57.0,  MMI_State                                                          08/11/20  06:33:24  PAGE 20  
+
+ 1221   3              MMI_SendMMIReadyCmd();
+ 1222   3            }
+ 1223   2            break;
+ 1224   2      
+ 1225   2          case MMI_PWROFF_CMD:
+ 1226   2            MMI_SystemOff();
+ 1227   2            break;
+ 1228   2      
+ 1229   2          default:
+ 1230   2            gMMI_ctl.msgHandled = NOTPROCD;
+ 1231   2            break;
+ 1232   2        }
+ 1233   1      }
+ 1234          
+ 1235          PRIVATE void MMI_FakeonEntry(U8 linkIndex)
+ 1236          {
+ 1237   1        UNUSED(linkIndex);
+ 1238   1      
+ 1239   1        MMI_SendUpdateDriverParameterCmd();
+ 1240   1      
+ 1241   1        MMI_SendInternalCmdToMMI(MMI_CHECK_POWERON_TIMER);
+ 1242   1      
+ 1243   1        SetPowerSavingForDevice(FALSE, PWRSAV_FAKEON);
+ 1244   1      }
+ 1245          
+ 1246          PRIVATE void MMI_FakeonHandler(U8 linkIndex, MMIMsgType XDATA_PTR msgPtr)
+ 1247          {
+ 1248   1        U8 isWakeUpPressed;
+ 1249   1        UNUSED(linkIndex);
+ 1250   1        gMMI_ctl.msgHandled = PROCD_RELEASE;
+ 1251   1      
+ 1252   1        switch(msgPtr->eventCode)
+ 1253   1        {
+ 1254   2          case MMI_CHECK_POWERON_TIMER:
+ 1255   2            // The watchdog reset condition
+ 1256   2            // After watchdog reset, SYS_SW1_BOOT_FLAG_POWER_ON_READY will not be cleared.
+ 1257   2            // System will rely on this condition to self power-on.
+ 1258   2          #ifndef OPERATION_IN_BB_FPGA_VERSION
+ 1259   2            if (MMI_CheckBootFlag(SYS_SW1_BOOT_FLAG_POWER_ON_READY) && MMI_GetKeyState() == MMI_KEY_STATE_NONE  &&
+             - !MMI_UKEY_SWITCH_ONOFF_TYPE_FEAT)
+ 1260   2            {
+ 1261   3              if(MMI_DO_NOT_RING_WHEN_WATCHDOG_TO_PWON_FEAT)
+ 1262   3                SYS_SetTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.watchDogRebootNoMediaTimer, 2*ONE_SEC);
+ 1263   3      
+ 1264   3              MMI_PowerOnLoader();
+ 1265   3              #ifdef OLED_ENABLE
+                       OLED_DisplayOn(OLED_SHOW_START);
+                       #endif
+ 1268   3      
+ 1269   3              if(MMI_CheckBootFlag(SYS_SW1_BOOT_FLAG_ENTER_MP_TEST_MODE))
+ 1270   3              {
+ 1271   4                gMMI_ctl.currentSupportDeviceNo = 1;
+ 1272   4                gMMI_nvram.timerCtl.PairModeTimeout = 0;
+ 1273   4                gMMI_nvram.timerCtl.PairModeTimeoutIfPDLIsEmpty = 0;
+ 1274   4                MMI_HCI_SendEnableDeviceUnderTestMode();
+ 1275   4                MMI_SetEnterDiscoverable(TRUE);
+ 1276   4              }
+ 1277   3              else
+ 1278   3                MMI_SetWatchDogReboot(TRUE);
+ 1279   3            }
+ 1280   2            else
+ 1281   2          #endif
+ 1282   2            {
+ 1283   3              if(SYS_IsTimerExpired(&gMMI_ctl.mmiTimerInfo.sysTimer.autoPowerOnTimer))
+ 1284   3              {
+ 1285   4                if(gMMI_nvram.timerCtl.AutoPowerOnTimer)  // Not Auto Power On
+C251 COMPILER V5.57.0,  MMI_State                                                          08/11/20  06:33:24  PAGE 21  
+
+ 1286   4                {
+ 1287   5                  READ_WAKEUP_DEBOUNCE(isWakeUpPressed);
+ 1288   5                  if (isWakeUpPressed & 0x01)
+ 1289   5                  {
+ 1290   6                    SYS_SetTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.autoPowerOnTimer, (U32)(gMMI_nvram.timerCtl.AutoPower
+             -OnTimer)*320);
+ 1291   6      
+ 1292   6                    MMI_SendInternalCmdToMMI(MMI_CHECK_POWERON_TIMER);
+ 1293   6                  }
+ 1294   5                  else
+ 1295   5                  {
+ 1296   6                    MMI_SystemOff();   //MMI should power off immediately
+ 1297   6                  }
+ 1298   5                }
+ 1299   4                else  // Auto Power On
+ 1300   4                {
+ 1301   5                  READ_WAKEUP_DEBOUNCE(isWakeUpPressed);
+ 1302   5                  //Key Pressed wait until key event
+ 1303   5                  if (isWakeUpPressed & 0x01)
+ 1304   5                  {
+ 1305   6                    MMI_SendInternalCmdToMMI(MMI_CHECK_POWERON_TIMER);
+ 1306   6                  }
+ 1307   5                  else
+ 1308   5                  {
+ 1309   6                    //KeyReleased
+ 1310   6                    if (1
+ 1311   6                      #ifndef BLUETOOTH_SPEAKER
+ 1312   6                      && !MMI_IsChargerIn() && !gSYS_init_charger_exist
+ 1313   6                      #endif
+ 1314   6                      #ifdef OPERATION_IN_BB_ASIC_VERSION
+ 1315   6                      && gSYS_init_wakeupkey_exist
+ 1316   6                      #endif
+ 1317   6                      )
+ 1318   6                    {
+ 1319   7                      MMI_PowerOnLoader();
+ 1320   7                      #ifdef OLED_ENABLE
+                               OLED_DisplayOn(OLED_SHOW_START);
+                               #endif
+ 1323   7                    }
+ 1324   6                    else
+ 1325   6                    {
+ 1326   7                      MMI_SystemOff();
+ 1327   7                    }
+ 1328   6                  }
+ 1329   5                }
+ 1330   4              }
+ 1331   3              else  // Not Auto Power On
+ 1332   3              {
+ 1333   4                MMI_SendInternalCmdToMMI(MMI_CHECK_POWERON_TIMER);
+ 1334   4              }
+ 1335   3            }
+ 1336   2            break;
+ 1337   2      
+ 1338   2          default:
+ 1339   2            gMMI_ctl.msgHandled = NOTPROCD;
+ 1340   2            break;
+ 1341   2        }
+ 1342   1      }
+ 1343          
+ 1344          PRIVATE void MMI_FakeoffEntry(U8 linkIndex)
+ 1345          {
+ 1346   1        UNUSED(linkIndex);
+ 1347   1        MMI_DiscoverabilityHandle(CMD_SYSTEM_OFF);
+ 1348   1        MMI_ConnectabilityHandle(CMD_SYSTEM_OFF);
+ 1349   1      
+ 1350   1        //SYS_ReleaseTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.autoPowerOnTimer);
+C251 COMPILER V5.57.0,  MMI_State                                                          08/11/20  06:33:24  PAGE 22  
+
+ 1351   1      
+ 1352   1      
+ 1353   1        MMI_PowerSaving(TRUE, MMI_PWRSAVING_WRITE_CONNECTABILITY, MAX_MULTI_POINT_NO);
+ 1354   1        SetPowerSavingForDevice(TRUE, PWRSAV_PWRON);
+ 1355   1        SetPowerSavingForDevice(TRUE, PWRSAV_FAKEON);
+ 1356   1      
+ 1357   1        //Power off procedure will be activated while ringtone is finished
+ 1358   1        if (!MMI_IS_POWER_ON())
+ 1359   1          return;
+ 1360   1        //Close BLE ADV
+ 1361   1        #ifdef MMI_LE_ENABLE
+ 1362   1        MMI_LE_DisableBleLink();
+ 1363   1        #endif
+ 1364   1      
+ 1365   1        MMI_PushMediaEvent(MEDIA_EVT_OFF_STATE);
+ 1366   1      
+ 1367   1        //Release timers
+ 1368   1        MMI_TIMER_ReleaseAllLinksConnectionTimer();
+ 1369   1      
+ 1370   1        //Clear low battery power on flag
+ 1371   1        MMI_DRV_SetNoConnectivityPwOnLowBat(FALSE);
+ 1372   1        MMI_DRV_SetKeyInvalidPwOnLowBat(FALSE);
+ 1373   1      
+ 1374   1        //Clear discoverable flag
+ 1375   1        gMMI_ctl.miscMask2 &= ~(MMI_EXIT_DISCOVERABLE_STATE);
+ 1376   1        MMI_SetEnterDiscoverable(FALSE);
+ 1377   1      }
+ 1378          
+ 1379          PRIVATE void MMI_FakeoffHandler(U8 linkIndex, MMIMsgType XDATA_PTR msgPtr)
+ 1380          {
+ 1381   1        UNUSED(linkIndex);
+ 1382   1        gMMI_ctl.msgHandled = PROCD_RELEASE;
+ 1383   1      
+ 1384   1        switch(msgPtr->eventCode)
+ 1385   1        {
+ 1386   2          case DRIVER_FAKE_MEDIA_VP_RINGTONE_EVENT:
+ 1387   2            if( msgPtr->msgBodyPtr.driverEvt.fakeMediaEvt.id == MEDIA_EVT_OFF_STATE)
+ 1388   2            {
+ 1389   3              MMI_DRV_SendRingtoneStopCmd();
+ 1390   3              MMI_DRV_SendVoicepromptStopCmd();
+ 1391   3              MMI_SendMMIReadyCmd();
+ 1392   3            }
+ 1393   2            break;
+ 1394   2      
+ 1395   2          #ifdef BLUETOOTH_SPEAKER
+                   case MMI_CHECK_POWERON_TIMER:
+                     // The watchdog reset condition
+                     // After watchdog reset, SYS_SW1_BOOT_FLAG_POWER_ON_READY will not be cleared.
+                     // System will rely on this condition to self power-on.
+                     #ifndef OPERATION_IN_BB_FPGA_VERSION
+                     if (MMI_CheckBootFlag(SYS_SW1_BOOT_FLAG_POWER_ON_READY) && MMI_GetKeyState() == MMI_KEY_STATE_NONE  &&
+             - !MMI_UKEY_SWITCH_ONOFF_TYPE_FEAT)
+                     {
+                       MMI_SetWatchDogReboot(TRUE);
+               
+                       if(MMI_DO_NOT_RING_WHEN_WATCHDOG_TO_PWON_FEAT)
+                         SYS_SetTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.watchDogRebootNoMediaTimer, 2*ONE_SEC);
+               
+                       MMI_PowerOnLoader();
+                       #ifdef OLED_ENABLE
+                       OLED_DisplayOn(OLED_SHOW_START);
+                       #endif
+                     }
+                     else
+                     #endif
+                     {
+C251 COMPILER V5.57.0,  MMI_State                                                          08/11/20  06:33:24  PAGE 23  
+
+                       if(SYS_IsTimerExpired(&gMMI_ctl.mmiTimerInfo.sysTimer.autoPowerOnTimer))
+                       {
+                         U8 isWakeUpPressed;
+               
+                         // Auto Power On
+                         READ_WAKEUP_DEBOUNCE(isWakeUpPressed);
+                         //Key Pressed wait until key event
+                         if (isWakeUpPressed & 0x01)
+                         {
+                           MMI_SendInternalCmdToMMI(MMI_CHECK_POWERON_TIMER);
+                         }
+                         else
+                         {
+                           //KeyReleased
+                           if (1
+                             #ifdef OPERATION_IN_BB_ASIC_VERSION
+                             && gSYS_init_wakeupkey_exist
+                             #endif
+                             )
+                           {
+                             MMI_PowerOnLoader();
+                             #ifdef OLED_ENABLE
+                             OLED_DisplayOn(OLED_SHOW_START);
+                             #endif
+                           }
+                           else
+                           {
+                             SYS_SetTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.autoPowerOnTimer, (U32)(gMMI_nvram.timerCtl.AutoPower
+             -OnTimer)*320);
+                             MMI_SendInternalCmdToMMI(MMI_CHECK_POWERON_TIMER);
+                           }
+                         }
+                       }
+                     }
+                     break;
+                   #endif
+ 1451   2      
+ 1452   2          case MMI_PWROFF_CMD:
+ 1453   2            break;
+ 1454   2      
+ 1455   2          default:
+ 1456   2            gMMI_ctl.msgHandled = NOTPROCD;
+ 1457   2            break;
+ 1458   2        }
+ 1459   1      }
+ 1460          
+ 1461          PRIVATE void MMI_DetachEntry(U8 linkIndex)
+ 1462          {
+ 1463   1        UNUSED(linkIndex);
+ 1464   1      
+ 1465   1        MMI_SendInternalCmdToMMI(MMI_DETACH_CMD_TO_MMI);
+ 1466   1        MMI_ConnectabilityHandle(CMD_SYSTEM_OFF);
+ 1467   1      
+ 1468   1        SYS_SetTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.detachLinkTimeExpireTimer, (U32) 6* ONE_SEC);
+ 1469   1      }
+ 1470          
+ 1471          PRIVATE void MMI_DetachHandler(U8 linkIndex, MMIMsgType XDATA_PTR msgPtr)
+ 1472          {
+ 1473   1        UNUSED(linkIndex);
+ 1474   1        gMMI_ctl.msgHandled = PROCD_RELEASE;
+ 1475   1      
+ 1476   1        switch(msgPtr->eventCode)
+ 1477   1        {
+ 1478   2          case MMI_DETACH_CMD_TO_MMI:
+ 1479   2            if (gMMI_ctl.activeLinkRecord != 0x00)
+ 1480   2            {
+C251 COMPILER V5.57.0,  MMI_State                                                          08/11/20  06:33:24  PAGE 24  
+
+ 1481   3              //To loop checking
+ 1482   3              if (SYS_IsTimerExpired(&gMMI_ctl.mmiTimerInfo.sysTimer.detachLinkTimeExpireTimer))
+ 1483   3              {
+ 1484   4                if (MMI_IsChargerIn())
+ 1485   4                {
+ 1486   5                  PMU_SYS_SET_BOOT_SW_STATUS_B1 (0);
+ 1487   5                  MMI_Reset();
+ 1488   5                }
+ 1489   4                else
+ 1490   4                {
+ 1491   5                  MMI_PowerOffProce();
+ 1492   5                }
+ 1493   4              }
+ 1494   3              else
+ 1495   3              {
+ 1496   4                MMI_SendInternalCmdToMMI(MMI_DETACH_CMD_TO_MMI);
+ 1497   4              }
+ 1498   3            }
+ 1499   2            else
+ 1500   2            {
+ 1501   3              MMI_PowerOffProce();
+ 1502   3            }
+ 1503   2            break;
+ 1504   2          case DRIVER_FAKE_MEDIA_VP_RINGTONE_EVENT:
+ 1505   2            if( msgPtr->msgBodyPtr.driverEvt.fakeMediaEvt.id == MEDIA_EVT_OFF_STATE)
+ 1506   2            {
+ 1507   3              MMI_DRV_SendRingtoneStopCmd();
+ 1508   3              MMI_DRV_SendVoicepromptStopCmd();
+ 1509   3              MMI_SendMMIReadyCmd();
+ 1510   3            }
+ 1511   2            break;
+ 1512   2      
+ 1513   2          case MMI_PWROFF_CMD:
+ 1514   2            MMI_SendInternalCmdToMMI(MMI_PWROFF_CMD);
+ 1515   2            break;
+ 1516   2      
+ 1517   2          default:
+ 1518   2            gMMI_ctl.msgHandled = NOTPROCD;
+ 1519   2            break;
+ 1520   2        }
+ 1521   1      }
+ 1522          
+ 1523          PRIVATE void MMI_DetachExit(U8 linkIndex)
+ 1524          {
+ 1525   1        UNUSED(linkIndex);
+ 1526   1        SYS_ReleaseTimer(&gMMI_ctl.mmiTimerInfo.sysTimer.detachLinkTimeExpireTimer);
+ 1527   1      }
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =      4141     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =       168     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       224     ------
+C251 COMPILER V5.57.0,  MMI_State                                                          08/11/20  06:33:24  PAGE 25  
+
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

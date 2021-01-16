@@ -1,0 +1,1651 @@
+C251 COMPILER V5.57.0,  MMI_LE                                                             08/11/20  06:34:15  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE MMI_LE
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\MMI_LE.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\MMI_LE\MMI_LE.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) WARN
+                    -INGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\sourc
+                    -e\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\source\R
+                    -OM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_LE;.
+                    -\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspData;.
+                    -\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLASH_I
+                    -NIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoHeadset\MMI
+                    -_LE.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\MMI_LE.obj) 
+
+stmt  level    source
+
+    1          //////////////////////////////////////////////////////////
+    2          // Copyright@ 2009 Airoha.  All rights reserved.
+    3          //////////////////////////////////////////////////////////
+    4          #include "reside_flash.inc"
+    5          
+    6          #define _MMI_LE_C_
+    7          
+    8          #include "MMI_LE_interface.h"
+    9          #ifdef LE_SUPPORTED_HOST_FLASH
+   10          #include "..\HC\HC_interface.h"
+   11          #include "..\GAP\GAP_InterFace.h"
+   12          #include "..\ATT\ATT_interface.h"
+   13          #include "..\MMI\MMI.h"
+   14          #include "drv_sector_flash.h"
+   15          #include "..\MMI\MMI_HCI.h"
+   16          #include "MMI_LE.h"
+   17          #include "link_index_ctl.h"
+   18          //#include "LL_interface.h"
+   19          #include "LC_interface.h"
+   20          #include "drv_prbs.h"
+   21          
+   22          #ifdef SUPPORT_LE_XPORT
+               #include "..\MMI\MMI_TrspXport.h"
+               #include "..\LE_XPORT\Service_LE_xport.h"
+               #endif
+   26          
+   27          #ifdef BLE_AIRApp
+   28          #include "..\AirApp\AirApp_Interface.h"
+   29          #endif
+   30          
+   31          #ifdef APP_ANCS_C
+               #include "..\APP_ANCS\APP_ANCS_interface.h"
+               #endif
+   34          
+   35          #include "..\COMMON\sys_clk_ctl.h"
+   36          #include "sector_config1.h"
+   37          #include "..\L2CAP\L2CAP_low_energy.h"
+   38          MMI_LE_EXTERN MMI_LE_NVRAM_TYPE CODE_PTR XDATA gMMI_le_nvram;
+   39          extern PUBLIC void SaveLeNvramTo4kbFlash(void);
+   40          PRIVATE U8 MMI_LE_SetAdvPara(void);
+   41          PRIVATE U8 MMI_LE_SetRandomAddr(void);
+   42          PRIVATE void MMI_LE_NotifAppLinkStatus(U8 linkIdx, U8 status);
+   43          PRIVATE void MMI_LE_HdlConnAction(U8 idx);
+   44          
+   45          #ifdef BLE_AIRApp
+   46          extern PUBLIC void ChaCha20Encrypt(U8 XDATA_PTR ptr1, U8 length);
+   47          #endif
+   48          
+   49          #ifdef SM_SUPPORTED
+               PRIVATE SM_MSG XDATA_PTR MMI_GenSMCmd(U8 opCode, U8 idx, U8 len)
+               {
+                 SM_MSG XDATA_PTR cmdPtr;
+C251 COMPILER V5.57.0,  MMI_LE                                                             08/11/20  06:34:15  PAGE 2   
+
+               
+                 if((cmdPtr = (SM_MSG XDATA_PTR)SYS_MemoryGet(len + sizeof(SM_MSG_HEADER))) != NEAR_NULL)
+                 {
+                     cmdPtr->hdr.opCode = opCode;
+                     cmdPtr->hdr.linkIdx = idx;
+                     cmdPtr->hdr.dataLen = len;
+                   }
+                   return cmdPtr;
+               }
+               
+               PUBLIC void MMI_LE_SendUpdateLinkStatusToSM(U8 idx, U8 status)
+               {
+                 SM_MSG XDATA_PTR cmdPtr;
+                   if((cmdPtr = MMI_GenSMCmd(SM_CMD_MMI_UPDATE_LINK_STATUS, idx, sizeof(SM_MMI_UPDATE_LINK_STATUS))) != 
+             -NEAR_NULL)
+                   {
+                       cmdPtr->msg.updateState.linkStatus = status;
+                       OSMQ_Put(OSMQ_SM_Command_From_MMI_ptr, (U8 XDATA_PTR)cmdPtr);
+                   }
+               }
+               
+               PUBLIC void MMI_LE_AuthenticationRequest(U8 linkIdx)
+               {
+                 SM_MSG XDATA_PTR msgPtr;
+               
+                 if((msgPtr = (SM_MSG XDATA_PTR)MMI_GenSMCmd(SM_CMD_SEND_SECURITY_REQ, linkIdx, 0)) != NEAR_NULL)
+                 {
+                   OSMQ_Put (OSMQ_SM_Command_From_MMI_ptr, (U8 XDATA_PTR)msgPtr);
+               
+                   #ifdef DBG_UART_ENABLE_MMI_LE
+                   LightDbgPrint("MMI - START_AUTHENTICATION %d", linkIdx);
+                   #endif
+                 }
+               }
+               
+               PRIVATE void MMI_LE_CheckEvtFromSM(void)
+               {
+                 SM_MSG XDATA_PTR msgPtr;
+                 if((msgPtr = OSMQ_Get(OSMQ_SM_Event_To_MMI_ptr)) != NEAR_NULL)
+                 {
+                     switch (msgPtr->hdr.opCode)
+                   {
+                           case SM_EVT_MMI_UPDATE_LINK_ENC_STATUS:
+                               //LightDbgPrint("Update SM State,idx:%x,state:%x", (U8)msgPtr->hdr.linkIdx, (U8)(msgPtr->
+             -msg.updateState.linkStatus));
+                       MMI_LE_NotifAppLinkStatus(msgPtr->hdr.linkIdx, msgPtr->msg.status);
+                           break;
+               
+                     /*case SM_EVT_PASSKEY_INPUT_REQ:
+                           {
+                               HCI_LE_EVT_STRU XDATA_PTR evtPtr;
+                               gMMI_le_ctl.passkey = MMI_LE_PASSKEY_INVALID;
+                               if((evtPtr = (HCI_LE_EVT_STRU XDATA_PTR)OSMEM_Get(OSMEM_ptr1)) != NEAR_NULL)
+                             {
+                                   evtPtr->offset = CMD_OFFSET;
+                                   evtPtr->msgCode = HCI_VCMD_AIROHA_TO_UART;
+                                   evtPtr->len = (sizeof(BD_ADDR) + 2);
+                                   evtPtr->payload.uartEvt.vocf = MMI_TRSPX_PASSKEY_REQ;
+                                   evtPtr->payload.uartEvt.vogf = HCI_VENDOR_OGF_UART_SPP;
+                                   OSMEM_memcpy_xdata_code((U8 XDATA_PTR)&evtPtr->payload.uartEvt.bdAddr.member, LIC_LE_
+             -GetPeerAddr(msgPtr->hdr.linkIdx), sizeof(BD_ADDR));
+                               SYS_SwitchEndianBDAddr((U8 XDATA_PTR)&evtPtr->payload.uartEvt.bdAddr.member);
+                                   OSMQ_Put(OSMQ_HCIDRV_Command_From_GAP_ptr, (U8 XDATA_PTR)evtPtr);
+                             }
+                     }
+                           break;*/
+C251 COMPILER V5.57.0,  MMI_LE                                                             08/11/20  06:34:15  PAGE 3   
+
+               
+                           case SM_EVT_VERIFY_RAND_ADDR_RSP:
+                           {
+                               //LightDbgPrint("Verify RPA,idx:%x,state:%x", (U8)msgPtr->hdr.linkIdx, (U8)(msgPtr->msg.v
+             -erifyRandPara.status));
+                               if(msgPtr->msg.verifyRandPara.status == SM_STATUS_FAIL)
+                               {
+                                   MMI_LE_DisconnectLink();
+                               }
+                               else
+                               {
+                                   MMI_LE_HdlConnAction(msgPtr->hdr.linkIdx);
+                               }
+                           }
+                           break;
+               
+                     default:
+                           break;
+                     }
+                       OSMEM_Put((U8 XDATA_PTR)msgPtr);
+                 }
+               
+               }
+               #endif
+  139          
+  140          PRIVATE void MMI_LE_NotifAppLinkStatus(U8 linkIdx, U8 status)
+  141          {
+  142   1          MMI_LE_APP_NODE XDATA_PTR appNode = gMMI_LE_AppNodeList;
+  143   1      
+  144   1          while(appNode)
+  145   1          {
+  146   2              if (appNode->appDesc->appLinkEvent)
+  147   2              {
+  148   3                  appNode->appDesc->appLinkEvent(linkIdx, status);
+  149   3              }
+  150   2              appNode = appNode->nextNode;
+  151   2          }
+  152   1      }
+  153          
+  154          PUBLIC void MMI_LE_SetState(U8 state, U8 subState)
+  155          {
+  156   1        gMMI_le_rom_ctl.MMI_LE_State = state;
+  157   1        gMMI_le_rom_ctl.MMI_LE_SubState = subState;
+  158   1      }
+  159          
+  160          #ifdef MMI_LE_ENABLE
+  161          PRIVATE void MMI_LE_SendUartCmdRsp(U8 vocf, U8 vogf, U8 status)
+  162          {
+  163   1          HCI_LE_EVT_STRU XDATA_PTR msgPtr;
+  164   1          if((msgPtr = (HCI_LE_EVT_STRU XDATA_PTR)OSMEM_Get(OSMEM_ptr1)) != NEAR_NULL)
+  165   1        {
+  166   2              msgPtr->offset = CMD_OFFSET;
+  167   2              msgPtr->msgCode = HCI_VCMD_AIROHA_TO_UART;
+  168   2              msgPtr->len = 3;
+  169   2              msgPtr->payload.uartRsp.vocf = vocf;
+  170   2              msgPtr->payload.uartRsp.vogf = vogf;
+  171   2              msgPtr->payload.uartRsp.status = status;
+  172   2              OSMQ_Put(OSMQ_HCIDRV_Command_From_GAP_ptr, (U8 XDATA_PTR)msgPtr);
+  173   2        }
+  174   1      }
+  175          #endif
+  176          
+  177          PRIVATE void MMI_LE_CheckEvtFromUART(void)
+  178          {
+  179   1          HCI_LE_EVT_STRU XDATA_PTR evtPtr;
+  180   1      #ifdef MMI_LE_ENABLE
+C251 COMPILER V5.57.0,  MMI_LE                                                             08/11/20  06:34:15  PAGE 4   
+
+  181   1          U8 status;
+  182   1      #endif
+  183   1      
+  184   1          while((evtPtr = (HCI_LE_EVT_STRU XDATA_PTR)OSMQ_Get(OSMQ_MMI_LE_EVT_FROM_UART_ptr)) != (HCI_LE_EVT_ST
+             -RU XDATA_PTR)NEAR_NULL)
+  185   1          {
+  186   2      #ifdef MMI_LE_ENABLE
+  187   2              if(evtPtr->evtCode == HCI_EVENT_UART_LE_CMD)
+  188   2              {
+  189   3                  status = HCI_VEVT_OCF_RESULT_CODE_FAIL;
+  190   3                  switch(evtPtr->payload.uartCmd.vocf)
+  191   3                  {
+  192   4                      case MMI_LE_UART_CMD_UPDATE_ADV_DATA:
+  193   4                      {
+  194   5                          if(LIC_UpdateNvramParam((U8 XDATA_PTR)&(evtPtr->payload.uartCmd.payload), LIC_FLASH_U
+             -PDATE_ADV_DATA))
+  195   5                          {
+  196   6                  MMI_LE_SetHCIcmdToGAP(GAP_LE_CMD_FROM_PROFILE_SET_ADV_DATA,(U8 XDATA_PTR)&(evtPtr->payload.uartCmd.
+             -payload));
+  197   6                              status = HCI_VEVT_OCF_RESULT_CODE_SUCCESS;
+  198   6                          }
+  199   5                          MMI_LE_SendUartCmdRsp(evtPtr->payload.uartCmd.vocf, HCI_VENDOR_OGF_UART_LE_RESP, stat
+             -us);
+  200   5                      }
+  201   4                      break;
+  202   4      
+  203   4                      case MMI_LE_UART_CMD_CONNECTION_UPDATE:
+  204   4                      {
+  205   5                          U8 i, idx;
+  206   5                idx = 0xFF;
+  207   5                    SYS_SwitchEndianBDAddr((U8 XDATA_PTR)evtPtr->payload.uartCmd.bdAddr.member);
+  208   5                      for(i = 0; i < MAX_NUM_OF_LINK; i++)
+  209   5                      {
+  210   6                          if(SYS_ValueCompare((U8 XDATA_PTR)evtPtr->payload.uartCmd.bdAddr.member, gMMI_LE_v_nvra
+             -m_read_ptr->nvram_MMI_link_record[i].peerAddr, BD_ADDR_LEN))
+  211   6                          {
+  212   7                                  idx = i;
+  213   7                                  break;
+  214   7                          }
+  215   6                      }
+  216   5                          if(MMI_LE_SendConnUpdateReq((U8 XDATA_PTR)&(evtPtr->payload.uartCmd.payload), idx) ==
+             - MMI_LE_RESULT_SUCCESS)
+  217   5                          {
+  218   6                              status = HCI_VEVT_OCF_RESULT_CODE_SUCCESS;
+  219   6                          }
+  220   5                          else
+  221   5                          {
+  222   6                              status = HCI_VEVT_OCF_RESULT_CODE_FAIL;
+  223   6                          }
+  224   5                          MMI_LE_SendUartCmdRsp(evtPtr->payload.uartCmd.vocf, HCI_VENDOR_OGF_UART_LE_RESP, stat
+             -us);
+  225   5                      }
+  226   4                      break;
+  227   4      
+  228   4                      /*case MMI_LE_UART_CMD_ENABLE_ADV:
+  229   4                      {
+  230   4                          if((gMMI_le_rom_ctl.MMI_LE_State == MMI_LE_ROM_SUSPEND) && (gMMI_le_rom_ctl.MMI_LE_Su
+             -bState == MMI_LE_ROM_ENTER_SUSPEND))
+  231   4                          {
+  232   4                              MMI_LE_EnterAdvertising();
+  233   4                              status = HCI_VEVT_OCF_RESULT_CODE_SUCCESS;
+  234   4                          }
+  235   4                          MMI_LE_SendUartCmdRsp(evtPtr->payload.uartCmd.vocf, HCI_VENDOR_OGF_UART_LE_RESP, stat
+             -us);
+  236   4                      }
+  237   4                      break;*/
+C251 COMPILER V5.57.0,  MMI_LE                                                             08/11/20  06:34:15  PAGE 5   
+
+  238   4      
+  239   4                      /*case MMI_TRSPX_PASSKEY_ENTRY_RSP:
+  240   4                      {
+  241   4                          switch(evtPtr->payload.uartCmd.payload.pkRsp.ntfType)
+  242   4                          {
+  243   4                              case MMI_TRSPX_PASSKEY_DIGIT_ENTERED:
+  244   4                              {
+  245   4                                  if((evtPtr->payload.uartCmd.payload.pkRsp.etrPasskey >= MMI_LE_PASSKEY_ASCII_
+             -0)
+  246   4                                      && (evtPtr->payload.uartCmd.payload.pkRsp.etrPasskey <= MMI_LE_PASSKEY_AS
+             -CII_9))
+  247   4                                  {
+  248   4                                      evtPtr->payload.uartCmd.payload.pkRsp.etrPasskey &= 0x0F;
+  249   4      
+  250   4                                      if(gMMI_le_ctl.passkey == MMI_LE_PASSKEY_INVALID)
+  251   4                                      {
+  252   4                                          gMMI_le_ctl.passkey = 0;
+  253   4                                      }
+  254   4                                      else
+  255   4                                      {
+  256   4                                          gMMI_le_ctl.passkey *= 10;
+  257   4                                      }
+  258   4                                      gMMI_le_ctl.passkey += evtPtr->payload.uartCmd.payload.pkRsp.etrPasskey;
+  259   4                                      status = HCI_VEVT_OCF_RESULT_CODE_SUCCESS;
+  260   4                                  }
+  261   4                              }
+  262   4                              break;
+  263   4      
+  264   4                              case MMI_TRSPX_PASSKEY_DIGIT_ERASED:
+  265   4                              {
+  266   4                                  if(gMMI_le_ctl.passkey != MMI_LE_PASSKEY_INVALID)
+  267   4                                  {
+  268   4                                      gMMI_le_ctl.passkey /= 10;
+  269   4                                      status = HCI_VEVT_OCF_RESULT_CODE_SUCCESS;
+  270   4                                  }
+  271   4                              }
+  272   4                              break;
+  273   4      
+  274   4                              case MMI_TRSPX_PASSKEY_CLEARED:
+  275   4                              {
+  276   4                                  gMMI_le_ctl.passkey = MMI_TRSPX_PASSKEY_INVALID;
+  277   4                                  status = HCI_VEVT_OCF_RESULT_CODE_SUCCESS;
+  278   4                              }
+  279   4                              break;
+  280   4      
+  281   4                              #ifdef SM_SUPPORTED
+  282   4                              case MMI_TRSPX_PASSKEY_ENTRY_COMPLETED:
+  283   4                              {
+  284   4                                  U8 i, idx;
+  285   4                                SM_MSG XDATA_PTR cmdPtr;
+  286   4      
+  287   4                            SYS_SwitchEndianBDAddr((U8 XDATA_PTR)evtPtr->payload.uartEvt.bdAddr.member);
+  288   4                    idx = LIC_INVALID_LINK_INDEX;
+  289   4                              for (i = 0; i < LIC_LE_GetNumOfActiveLink(); i++)
+  290   4                              {
+  291   4                                  if(SYS_ValueCompare((U8 XDATA_PTR)evtPtr->payload.uartEvt.bdAddr.member, LIC_LE
+             -_GetPeerAddr(LIC_LE_GetActiveLinkIdx(i)), BD_ADDR_LEN))
+  292   4                                  {
+  293   4                                          idx = LIC_LE_GetActiveLinkIdx(i);
+  294   4                                          break;
+  295   4                                  }
+  296   4                              }
+  297   4                                  if((idx != 0xFF) && ((cmdPtr = MMI_GenSMCmd(SM_CMD_PASSKEY_INPUT_RSP, idx, si
+             -zeof(SM_PASSKEY_INPUT))) != NEAR_NULL))
+  298   4                                  {
+  299   4                                      cmdPtr->msg.keyPara.passkey[0] = BYTE2(gMMI_le_ctl.passkey);
+C251 COMPILER V5.57.0,  MMI_LE                                                             08/11/20  06:34:15  PAGE 6   
+
+  300   4                                      cmdPtr->msg.keyPara.passkey[1] = BYTE1(gMMI_le_ctl.passkey);
+  301   4                                      cmdPtr->msg.keyPara.passkey[2] = BYTE0(gMMI_le_ctl.passkey);
+  302   4                                      cmdPtr->msg.keyPara.status = SM_STATUS_OK;
+  303   4      
+  304   4                                      OSMQ_Put(OSMQ_SM_Command_From_MMI_ptr, (U8 XDATA_PTR)cmdPtr);
+  305   4                                      gMMI_le_ctl.passkey = MMI_LE_PASSKEY_INVALID;
+  306   4                                      status = HCI_VEVT_OCF_RESULT_CODE_SUCCESS;
+  307   4                                  }
+  308   4                              }
+  309   4                              break;
+  310   4                              #endif
+  311   4      
+  312   4                              default:
+  313   4                                  break;
+  314   4                          }
+  315   4                          MMI_LE_SendUartCmdRsp(evtPtr->payload.uartCmd.vocf, HCI_VENDOR_OGF_UART_LE_RESP, stat
+             -us);
+  316   4                      }
+  317   4                      break;*/
+  318   4                  }
+  319   3              }
+  320   2      #endif
+  321   2              OSMEM_Put(evtPtr);
+  322   2          }
+  323   1      }
+  324          
+  325          PUBLIC void MMI_LE_Init(void)
+  326          {
+  327   1          LIC_LE_Init();
+  328   1      
+  329   1      #ifdef MMI_LE_ENABLE_ADV    //enable LE adv when init. if no, it will enable after power on
+                   if(pMpParameterF->leBDAddr.type == LE_PUBLIC_DEVICE_ADDR)
+                   {
+                       MMI_LE_SetState(MMI_LE_ROM_CONFIG, MMI_LE_ROM_ADV_PARAM_SEND_CMD);
+                   }
+                   else
+                   {
+                       MMI_LE_SetState(MMI_LE_ROM_CONFIG, MMI_LE_ROM_SET_RANDOM_ADDRESS_SEND_CMD);
+                   }
+                   MMI_PowerSaving(FALSE, MMI_PWRSAVING_ENABLE_ADV, MAX_MULTI_POINT_NO);
+               #else
+  340   1          MMI_LE_SetState(MMI_LE_ROM_SUSPEND, MMI_LE_ROM_ENTER_SUSPEND);
+  341   1      #endif
+  342   1          gMMI_le_ctl.isInited = 0;
+  343   1      #ifdef APP_ANCS_C
+                   APP_ANCS_Init();
+               #endif
+  346   1      }
+  347          
+  348          PUBLIC void MMI_LE_RegisterApp(MMI_LE_APP_NODE XDATA_PTR appNode)
+  349          {
+  350   1        appNode->nextNode = gMMI_LE_AppNodeList;
+  351   1        gMMI_LE_AppNodeList = appNode;
+  352   1      }
+  353          
+  354          #ifdef MMI_LE_TEST_NOTIFICATION
+               PUBLIC void MMI_LE_NotificationTest(void)
+               {
+                 U8 i;
+                 U16 connHdl;
+               
+                 if(gMMI_le_ctl.notiDurationTimerPtr == (OST XDATA_PTR)NULL)
+                 {
+                   SYS_SetTimer (&gMMI_le_ctl.notiDurationTimerPtr, MMI_LE_NOTI_INTERVAL);
+                 }
+                 else if (SYS_IsTimerExpired(&gMMI_le_ctl.notiDurationTimerPtr))
+C251 COMPILER V5.57.0,  MMI_LE                                                             08/11/20  06:34:15  PAGE 7   
+
+                 {
+                   for (i = 0; i < MAX_NUM_OF_LINK; i++)
+                   {
+                     connHdl = LIC_LE_GetConnHdl(i);
+                     if (connHdl != LIC_INVALID_CONNECTION_HANDLE)
+                     {
+                               #ifdef DBG_UART_ENABLE_MMI_LE
+                               LightDbgPrint("USR - MMI_LE noti connHdl: %x %x ",(U8)connHdl, (U8)(connHdl>>8));
+                               #endif
+                       ATT_HandleValueReportMux(0x1B, 3, connHdl);
+                     }
+                   }
+                   SYS_SetTimer (&gMMI_le_ctl.notiDurationTimerPtr, MMI_LE_NOTI_INTERVAL);
+                 }
+               }
+               #endif
+  381          
+  382          PRIVATE void MMI_LE_UpdateAdvInfo(U8 subState)
+  383          {
+  384   1          gMMI_le_ctl.enableAdvAfterCMD = 1;
+  385   1          MMI_LE_SetState(MMI_LE_ROM_CONFIG, subState);
+  386   1          MMI_LE_ConfigStateHandler();
+  387   1      }
+  388          
+  389          PRIVATE void MMI_LE_EnableAdv(void)
+  390          {
+  391   1          if(gMMI_le_rom_ctl.MMI_LE_State != MMI_LE_ROM_ADVERTISING)
+  392   1          {
+  393   2              MMI_LE_SetState(MMI_LE_ROM_READY, MMI_LE_ROM_WAITING_TRIGGER);
+  394   2              MMI_LE_ReadyStateHandler();
+  395   2          }
+  396   1      }
+  397          
+  398          PUBLIC void MMI_LE_SetStateAfterDisc(U8 nextState)
+  399          {
+  400   1          gMMI_le_ctl.nextActionAfterDisc = nextState;
+  401   1      }
+  402          
+  403          PRIVATE void MMI_LE_CheckStateAfterDisc(void)
+  404          {
+  405   1          switch (gMMI_le_ctl.nextActionAfterDisc)
+  406   1          {
+  407   2              case MMI_LE_ENTER_POWER_OFF_STATE:
+  408   2              {
+  409   3                  MMI_LE_SetState(MMI_LE_ROM_POWER_OFF, MMI_LE_ROM_ENTER_POWER_OFF);
+  410   3              }
+  411   2              break;
+  412   2      
+  413   2              case MMI_LE_ENTER_SUSPEND_STATE:
+  414   2              {
+  415   3                  MMI_LE_SetState(MMI_LE_ROM_SUSPEND, MMI_LE_ROM_ENTER_SUSPEND);
+  416   3              }
+  417   2              break;
+  418   2      
+  419   2              case MMI_LE_ENTER_ADV_STATE:
+  420   2              default:
+  421   2              {
+  422   3                  MMI_LE_EnterAdvertising();
+  423   3              }
+  424   2              break;
+  425   2          }
+  426   1          gMMI_le_ctl.nextActionAfterDisc = MMI_LE_ENTER_ADV_STATE;
+  427   1      }
+  428          
+  429          PUBLIC void MMI_LE_EnterAdvertising(void)
+  430          {
+C251 COMPILER V5.57.0,  MMI_LE                                                             08/11/20  06:34:15  PAGE 8   
+
+  431   1          if(gMMI_le_ctl.isInited == 0)
+  432   1          {
+  433   2          LightDbgPrint("USR - LE enter ADV init");
+  434   2      
+  435   2              if(pMpParameterF->leBDAddr.type == LE_PUBLIC_DEVICE_ADDR)
+  436   2              {
+  437   3                  MMI_LE_SetState(MMI_LE_ROM_CONFIG, MMI_LE_ROM_ADV_PARAM_SEND_CMD);
+  438   3              }
+  439   2              else
+  440   2              {
+  441   3                  MMI_LE_SetState(MMI_LE_ROM_CONFIG, MMI_LE_ROM_SET_RANDOM_ADDRESS_SEND_CMD);
+  442   3              }
+  443   2              MMI_PowerSaving(FALSE, MMI_PWRSAVING_ENABLE_ADV, MAX_MULTI_POINT_NO);
+  444   2          }
+  445   1          else if(gMMI_le_ctl.rPowerAdv)
+  446   1          {
+  447   2              gMMI_le_ctl.rPowerAdv = 0;
+  448   2              MMI_LE_UpdateAdvInfo(MMI_LE_ROM_ADV_PARAM_SEND_CMD);
+  449   2          }
+  450   1          else
+  451   1          {
+  452   2              MMI_LE_EnableAdv();
+  453   2          }
+  454   1      }
+  455          
+  456          PUBLIC void MMI_LE_DisableBleLink(void)
+  457          {
+  458   1          switch (gMMI_le_rom_ctl.MMI_LE_State)
+  459   1          {
+  460   2              case MMI_LE_ROM_CONFIG:
+  461   2              {
+  462   3                  MMI_LE_SetState(MMI_LE_ROM_SUSPEND, MMI_LE_ROM_ENTER_SUSPEND);
+  463   3              }
+  464   2              break;
+  465   2      
+  466   2              case MMI_LE_ROM_READY:
+  467   2              {
+  468   3                if (gMMI_le_rom_ctl.MMI_LE_SubState == MMI_LE_READY_ENABLE_ADV_WAIT_EVT)
+  469   3              {
+  470   4                gMMI_le_ctl.disableBle = 1;
+  471   4              }
+  472   3              else
+  473   3              {
+  474   4                    MMI_LE_SetState(MMI_LE_ROM_SUSPEND, MMI_LE_ROM_ENTER_SUSPEND);
+  475   4                }
+  476   3              }
+  477   2              break;
+  478   2      
+  479   2              case MMI_LE_ROM_ADVERTISING:
+  480   2              {
+  481   3                  MMI_LE_DisableAdv();
+  482   3              }
+  483   2              break;
+  484   2      
+  485   2              case MMI_LE_ROM_CONNECTED:
+  486   2              {
+  487   3                  MMI_LE_DisconnectLink();
+  488   3                MMI_LE_SetStateAfterDisc(MMI_LE_ENTER_SUSPEND_STATE);
+  489   3              }
+  490   2              break;
+  491   2      
+  492   2              default:
+  493   2              break;
+  494   2          }
+  495   1      }
+  496          
+C251 COMPILER V5.57.0,  MMI_LE                                                             08/11/20  06:34:15  PAGE 9   
+
+  497          PUBLIC U8 MMI_LE_DisableAdv(void)
+  498          {
+  499   1          if(gMMI_le_rom_ctl.MMI_LE_State != MMI_LE_ROM_ADVERTISING)
+  500   1          {
+  501   2              return LE_SUCCESS;
+  502   2          }
+  503   1      
+  504   1          SYS_ReleaseTimer(&gMMI_le_rom_ctl.AdvDurationTimerPtr);
+  505   1        if(MMI_LE_SetHCIcmdToGAP(GAP_LE_CMD_FROM_PROFILE_ADVERTISING_DISABLE,NULL))
+  506   1        {
+  507   2              MMI_LE_SetState(MMI_LE_ROM_SUSPEND, MMI_LE_ROM_SUSPEND_DISABLE_ADV);
+  508   2              return LE_SUCCESS;
+  509   2        }
+  510   1          return LE_FAIL;
+  511   1      }
+  512          
+  513          PUBLIC U8 MMI_LE_SendConnUpdateReq(U8 XDATA_PTR paraPtr, U8 linkIdx)
+  514          {
+  515   1          /* send connection parameter update request */
+  516   1          L2CAP_CONN_PARA_REQ_TYPE XDATA_PTR ptr;
+  517   1      
+  518   1          if(paraPtr != NULL)
+  519   1          {
+  520   2              if(SYS_ValueCompare(paraPtr, (U8 CODE_PTR)&NVRAM_MMI_V_CONN_SETTING, sizeof(LE_CONN_SETTING_TYPE)
+             -))
+  521   2              {
+  522   3                  return MMI_LE_RESULT_THE_SAME_DATA;
+  523   3              }
+  524   2              if(!LIC_UpdateNvramParam(paraPtr, LIC_FLASH_UPDATE_CONN_SETTING))
+  525   2              {
+  526   3                  return MMI_LE_RESULT_UPDATE_NVRAM_FAILED;
+  527   3              }
+  528   2              if(gMMI_le_rom_ctl.MMI_LE_State != MMI_LE_ROM_CONNECTED)
+  529   2              {
+  530   3                  return MMI_LE_RESULT_SUCCESS;
+  531   3              }
+  532   2          }
+  533   1      
+  534   1          if((linkIdx == 0xFF) ||
+  535   1              ((ptr = (L2CAP_CONN_PARA_REQ_TYPE XDATA_PTR)OSMEM_Get(OSMEM_ptr1)) == NULL))
+  536   1          {
+  537   2              return MMI_LE_RESULT_NO_MEMORY;
+  538   2          }
+  539   1          if (paraPtr == NULL)
+  540   1          {
+  541   2              OS_cmemcpy((U8 XDATA_PTR)ptr, (U8 CODE_PTR)&NVRAM_MMI_V_CONN_SETTING, sizeof(L2CAP_CONN_PARA_REQ_
+             -TYPE));
+  542   2              UpperLayer_SendL2capConnParaUpdateRequest(linkIdx, (U8 XDATA_PTR)ptr);
+  543   2          }
+  544   1          else
+  545   1          {
+  546   2              UpperLayer_SendL2capConnParaUpdateRequest(linkIdx, (U8 XDATA_PTR)paraPtr);
+  547   2          }
+  548   1      
+  549   1          OSMEM_Put(ptr);
+  550   1          return MMI_LE_RESULT_SUCCESS;
+  551   1      }
+  552          
+  553          PUBLIC U8 MMI_LE_SendDisconnectCMD(U8 linkIndex)
+  554          {
+  555   1          U8 XDATA_PTR msgPtr;
+  556   1          HCI_CMD_PARA_DISCONNECT_STRU XDATA_PTR ptr;
+  557   1          U16 connHdl;
+  558   1          if((msgPtr = MMI_LE_GetCmdMsgMem(GAP_CMD_FROM_PROFILE_DISCONNECT)) == (U8 XDATA_PTR)NULL)
+  559   1          {
+  560   2              return LE_FAIL;
+C251 COMPILER V5.57.0,  MMI_LE                                                             08/11/20  06:34:15  PAGE 10  
+
+  561   2          }
+  562   1          ptr = (HCI_CMD_PARA_DISCONNECT_STRU XDATA_PTR)(msgPtr + GAP_COMMAND_PARA0_OFFSET);
+  563   1          connHdl = LIC_LE_GetConnHdl(linkIndex);
+  564   1          ptr->ConnHdlB0 = U16_LSB(connHdl);
+  565   1          ptr->ConnHdlB1 = U16_MSB(connHdl);
+  566   1          ptr->Reason = ERR_REMOTE_USER_TERMINATED_CONNECTION;
+  567   1        OSMQ_Put(OSMQ_GAP_Command_From_PROFILE_ptr, (U8 XDATA_PTR)msgPtr);
+  568   1          return LE_SUCCESS;
+  569   1      }
+  570          
+  571          PUBLIC void MMI_LE_DisconnectLink(void)
+  572          {
+  573   1          U8 i;
+  574   1      
+  575   1          LightDbgPrint("MMI - LE DIS %x", (U8)gMMI_le_ctl.discActive);
+  576   1          if (gMMI_le_ctl.discActive)
+  577   1          {
+  578   2              return;
+  579   2          }
+  580   1          gMMI_le_ctl.discActive = TRUE;
+  581   1      
+  582   1        for (i = 0; i < LIC_LE_GetNumOfActiveLink(); i++)
+  583   1        {
+  584   2              MMI_LE_SendDisconnectCMD(LIC_LE_GetActiveLinkIdx(i));
+  585   2              i++;
+  586   2        }
+  587   1      }
+  588          
+  589          PUBLIC BOOL MMI_LE_DisconnectPowerOff(void)
+  590          {
+  591   1          if(gMMI_le_rom_ctl.MMI_LE_State != MMI_LE_ROM_CONNECTED)
+  592   1          {
+  593   2              return TRUE;
+  594   2          }
+  595   1          //gMMI_le_ctl.powerOff = 1;
+  596   1          MMI_LE_SetStateAfterDisc(MMI_LE_ENTER_POWER_OFF_STATE);
+  597   1      
+  598   1          MMI_LE_DisconnectLink();
+  599   1          return FALSE;
+  600   1      }
+  601          
+  602          
+  603          PUBLIC void MMI_LE(void)
+  604          {
+  605   1          U8 XDATA_PTR ptr1;
+  606   1      
+  607   1        L2CAP_LE_ResourceManager();
+  608   1      
+  609   1          MMI_LE_CheckEvtFromUART();
+  610   1      #ifdef MMI_LE_ENABLE
+  611   1          switch(gMMI_le_rom_ctl.MMI_LE_State)
+  612   1          {
+  613   2          case MMI_LE_ROM_CONFIG:
+  614   2      
+  615   2            MMI_LE_ConfigStateHandler();
+  616   2            break;
+  617   2      
+  618   2          case MMI_LE_ROM_READY:
+  619   2      
+  620   2            MMI_LE_ReadyStateHandler();
+  621   2            break;
+  622   2      
+  623   2          case MMI_LE_ROM_ADVERTISING:
+  624   2      
+  625   2            MMI_LE_AdvertisingStateHandler();
+  626   2            break;
+C251 COMPILER V5.57.0,  MMI_LE                                                             08/11/20  06:34:15  PAGE 11  
+
+  627   2      
+  628   2          case MMI_LE_ROM_CONNECTED:
+  629   2      
+  630   2            MMI_LE_ConnectedStateHandler();
+  631   2            break;
+  632   2      
+  633   2          case MMI_LE_ROM_SUSPEND:
+  634   2          case MMI_LE_ROM_POWER_OFF:
+  635   2            MMI_LE_SuspendStateHandler();
+  636   2            break;
+  637   2      
+  638   2          default:
+  639   2            #ifdef DBG_UART_ENABLE_MMI_LE
+                       //LightDbgPrint("USR - MMI_LE Err State");
+                     #endif
+  642   2            ASSERT(0);
+  643   2            break;
+  644   2        }
+  645   1      
+  646   1          #ifdef MMI_LE_TEST_NOTIFICATION
+                 MMI_LE_NotificationTest();
+                   #endif
+  649   1      
+  650   1          MMI_LE_SectorSaveData();
+  651   1      
+  652   1          if(gMMI_le_rom_ctl.MMI_LE_State == MMI_LE_ROM_CONNECTED)
+  653   1          {
+  654   2              return;
+  655   2          }
+  656   1      #endif
+  657   1          while((ptr1 = OSMQ_Get (OSMQ_GAP_Event_To_MMILE_ptr)) != (U8 XDATA_PTR)0)
+  658   1          {
+  659   2              OSMEM_Put(ptr1);
+  660   2          }
+  661   1      }
+  662          
+  663          PUBLIC void MMI_LE_ConfigStateHandler(void)
+  664          {
+  665   1        switch(gMMI_le_rom_ctl.MMI_LE_SubState)
+  666   1        {
+  667   2          case MMI_LE_ROM_SET_RANDOM_ADDRESS_SEND_CMD:
+  668   2            if(MMI_LE_SetRandomAddr())
+  669   2            {
+  670   3              gMMI_le_rom_ctl.MMI_LE_SubState = MMI_LE_ROM_SET_RANDOM_ADDRESS_WAIT_EVENT;
+  671   3      
+  672   3              #ifdef DBG_UART_ENABLE_MMI_LE
+                       //LightDbgPrint("USR - Set random address!");
+                       #endif
+  675   3            }
+  676   2            break;
+  677   2      
+  678   2          case MMI_LE_ROM_SET_RANDOM_ADDRESS_WAIT_EVENT:
+  679   2            if(MMI_LE_WaitEvent(GAP_EVENT_TO_PROFILE_SET_RANDOM_ADDRESS_COMPLETE))
+  680   2            {
+  681   3                gMMI_le_rom_ctl.MMI_LE_SubState = MMI_LE_ROM_ADV_PARAM_SEND_CMD;
+  682   3            }
+  683   2            break;
+  684   2      
+  685   2          case MMI_LE_ROM_ADV_PARAM_SEND_CMD:
+  686   2            if(MMI_LE_SetAdvPara())
+  687   2            {
+  688   3                      gMMI_le_ctl.isInited = 1;
+  689   3              gMMI_le_rom_ctl.MMI_LE_SubState = MMI_LE_ROM_ADV_PARAM_WAIT_EVENT;
+  690   3      
+  691   3              #ifdef DBG_UART_ENABLE_MMI_LE
+                       //LightDbgPrint("USR - LE ADV Para!");
+C251 COMPILER V5.57.0,  MMI_LE                                                             08/11/20  06:34:15  PAGE 12  
+
+                       #endif
+  694   3            }
+  695   2            break;
+  696   2      
+  697   2          case MMI_LE_ROM_ADV_PARAM_WAIT_EVENT:
+  698   2            if(MMI_LE_WaitEvent(GAP_LE_CMD_FROM_PROFILE_SET_ADV_PARAMETER))
+  699   2            {
+  700   3                      if(gMMI_le_ctl.enableAdvAfterCMD)
+  701   3                      {
+  702   4                          gMMI_le_ctl.enableAdvAfterCMD = 0;
+  703   4                          MMI_LE_EnableAdv();
+  704   4                      }
+  705   3                      else
+  706   3                      {
+  707   4                          gMMI_le_rom_ctl.MMI_LE_SubState = MMI_LE_ROM_ADV_DATA_SEND_CMD;
+  708   4                      }
+  709   3            }
+  710   2            break;
+  711   2      
+  712   2          case MMI_LE_ROM_ADV_DATA_SEND_CMD:
+  713   2            if(MMI_LE_SetHCIcmdToGAP(GAP_LE_CMD_FROM_PROFILE_SET_ADV_DATA,NULL))
+  714   2            {
+  715   3              gMMI_le_rom_ctl.MMI_LE_SubState = MMI_LE_ROM_ADV_DATA_WAIT_EVENT;
+  716   3      
+  717   3              #ifdef DBG_UART_ENABLE_MMI_LE
+                       //LightDbgPrint("USR - LE ADV Data!");
+                       #endif
+  720   3            }
+  721   2            break;
+  722   2      
+  723   2          case MMI_LE_ROM_ADV_DATA_WAIT_EVENT:
+  724   2            if(MMI_LE_WaitEvent(GAP_LE_CMD_FROM_PROFILE_SET_ADV_DATA))
+  725   2            {
+  726   3                          gMMI_le_rom_ctl.MMI_LE_SubState = MMI_LE_ROM_SCAN_RSP_DATA_SEND_CMD;
+  727   3            }
+  728   2            break;
+  729   2      
+  730   2          case MMI_LE_ROM_SCAN_RSP_DATA_SEND_CMD:
+  731   2            if(MMI_LE_SetHCIcmdToGAP(GAP_LE_CMD_FROM_PROFILE_SET_SCAN_RESP_DATA,NULL))
+  732   2            {
+  733   3              gMMI_le_rom_ctl.MMI_LE_SubState = MMI_LE_ROM_SCAN_RSP_DATA_WAIT_EVENT;
+  734   3              #ifdef DBG_UART_ENABLE_MMI_LE
+                       //LightDbgPrint("USR - LE Scan Data!");
+                       #endif
+  737   3            }
+  738   2            break;
+  739   2      
+  740   2          case MMI_LE_ROM_SCAN_RSP_DATA_WAIT_EVENT:
+  741   2            if(MMI_LE_WaitEvent(GAP_LE_CMD_FROM_PROFILE_SET_SCAN_RESP_DATA))
+  742   2            {
+  743   3                    MMI_LE_SetState(MMI_LE_ROM_READY, MMI_LE_ROM_WAITING_TRIGGER);
+  744   3            }
+  745   2            break;
+  746   2      
+  747   2          default:
+  748   2            #ifdef DBG_UART_ENABLE_MMI_LE
+                       //LightDbgPrint("USR - MMI_LE Err Substate");
+                     #endif
+  751   2            ASSERT(0);
+  752   2            break;
+  753   2        }
+  754   1      }
+  755          
+  756          PUBLIC void MMI_LE_ReadyStateHandler(void)
+  757          {
+  758   1        switch(gMMI_le_rom_ctl.MMI_LE_SubState)
+C251 COMPILER V5.57.0,  MMI_LE                                                             08/11/20  06:34:15  PAGE 13  
+
+  759   1        {
+  760   2              case MMI_LE_ROM_WAITING_TRIGGER:
+  761   2              {
+  762   3                if(MMI_LE_SetHCIcmdToGAP(GAP_LE_CMD_FROM_PROFILE_ADVERTISING_ENABLE,NULL))
+  763   3                {
+  764   4                  gMMI_le_rom_ctl.MMI_LE_SubState = MMI_LE_READY_ENABLE_ADV_WAIT_EVT;
+  765   4      
+  766   4                  #ifdef DBG_UART_ENABLE_MMI_LE
+                           LightDbgPrint("USR - LE Enable Adv");
+                           #endif
+  769   4                }
+  770   3              }
+  771   2              break;
+  772   2      
+  773   2              case MMI_LE_READY_ENABLE_ADV_WAIT_EVT:
+  774   2              {
+  775   3                  if(MMI_LE_WaitEvent(GAP_LE_CMD_FROM_PROFILE_ADVERTISING_ENABLE))
+  776   3                  {
+  777   4                      MMI_LE_SetState(MMI_LE_ROM_ADVERTISING, MMI_LE_ROM_ADV_NORMAL);
+  778   4                      MMI_LE_AdvertisingStateHandler();
+  779   4                      MMI_PowerSaving(TRUE, MMI_PWRSAVING_ENABLE_ADV, MAX_MULTI_POINT_NO);
+  780   4                      if (gMMI_le_ctl.disableBle)
+  781   4                    {
+  782   5                      gMMI_le_ctl.disableBle = 0;
+  783   5                      MMI_LE_DisableBleLink();
+  784   5                    }
+  785   4                  }
+  786   3              }
+  787   2              break;
+  788   2        }
+  789   1      
+  790   1          /*
+  791   1          U8 gpioValue;
+  792   1        HC_SFR_READ_BY_FB(FBOFFS_RO_DEBOUNCE_DO_B0, gpioValue);
+  793   1      
+  794   1        if ((gpioValue & 0x80))//button Gpio7 pressed
+  795   1        {
+  796   1          if (gMMI_le_rom_ctl.EnableAdvTimerPtr == (OST XDATA_PTR)NULL)
+  797   1          {
+  798   1            SYS_SetTimer (&gMMI_le_rom_ctl.EnableAdvTimerPtr, 2*(3200L));
+  799   1          }
+  800   1          else if (SYS_IsTimerExpired(&gMMI_le_rom_ctl.EnableAdvTimerPtr))
+  801   1          {
+  802   1            #ifdef DBG_UART_ENABLE_MMI_LE
+  803   1              LightDbgPrint("USR - LE Enable Adv!");
+  804   1            #endif
+  805   1            if(MMI_LE_SetHCIcmdToGAP(GAP_LE_CMD_FROM_PROFILE_ADVERTISING_ENABLE))
+  806   1            {
+  807   1              gMMI_le_rom_ctl.MMI_LE_State = MMI_LE_ROM_ADVERTISING;
+  808   1              gMMI_le_rom_ctl.MMI_LE_SubState = MMI_LE_ROM_ADV_NORMAL;
+  809   1            }
+  810   1          }
+  811   1        }
+  812   1        else if (gMMI_le_rom_ctl.EnableAdvTimerPtr != (OST XDATA_PTR)NULL)
+  813   1        {
+  814   1          SYS_ReleaseTimer (&gMMI_le_rom_ctl.EnableAdvTimerPtr);
+  815   1        }
+  816   1        */
+  817   1      }
+  818          
+  819          PRIVATE void MMI_LE_HdlConnAction(U8 idx)
+  820          {
+  821   1          #ifdef SUPPORT_LE_XPORT
+                   {
+                       U16 connHdl;
+               
+C251 COMPILER V5.57.0,  MMI_LE                                                             08/11/20  06:34:15  PAGE 14  
+
+                     connHdl = two_byte_swap(LIC_LE_GetConnHdl(idx));
+                       MMI_TrspX_BleConnected(LIC_LE_GetPeerAddr(idx), connHdl);
+                   }
+                   #endif
+  829   1      
+  830   1          #if defined(SM_SUPPORTED) && defined(MMI_LE_CONNCMP_SEND_SECURITY_REQ)
+                   MMI_LE_AuthenticationRequest(idx);
+                   #endif
+  833   1      
+  834   1          #ifdef MMI_LE_CONNCMP_SEND_CONNUPDATE
+  835   1          {
+  836   2              //send L2CAP connection parameter update request
+  837   2              MMI_LE_SendConnUpdateReq(NULL, idx);
+  838   2          }
+  839   1          #endif
+  840   1      
+  841   1          MMI_LE_NotifAppLinkStatus(idx, MMI_LE_LINK_STATUS_CONNECTION_CMP);
+  842   1      }
+  843          
+  844          PRIVATE void MMI_LE_CheckRPA(U8 idx, U8 pAddrType, U8 XDATA_PTR pAddr)
+  845          {
+  846   1          #ifdef SM_SUPPORTED
+                   if((pAddrType == 0x01) && (pAddr[5] & 0x40))
+                   {
+                     SM_MSG XDATA_PTR cmdPtr;
+                       if((cmdPtr = MMI_GenSMCmd(SM_CMD_VERIFY_RAND_ADDR_REQ, idx, sizeof(SM_VERIFY_RAND_ADDR))) != NEAR
+             -_NULL)
+                       {
+                           OS_memcpy(cmdPtr->msg.verifyRandPara.addr, pAddr, 6);
+                           OSMQ_Put(OSMQ_SM_Command_From_MMI_ptr, (U8 XDATA_PTR)cmdPtr);
+                       }
+                       else
+                       {
+                           MMI_LE_DisconnectLink();
+                       }
+                       return;
+                   }
+                   #else
+  862   1              UNUSED(pAddrType);
+  863   1              UNUSED(pAddr);
+  864   1          #endif
+  865   1      
+  866   1          MMI_LE_HdlConnAction(idx);
+  867   1      }
+  868          
+  869          PRIVATE void MMI_LE_HdlConnCmpEvt(HCI_LE_EVT_STRU XDATA_PTR ptr1, U8 isDirectedAdv)
+  870          {
+  871   1        U16 connHdl;
+  872   1        U8 idx;
+  873   1      
+  874   1        if(ptr1->payload.connCmp.status == STATUS_OK)
+  875   1        {
+  876   2          SYS_ReleaseTimer(&gMMI_le_rom_ctl.AdvDurationTimerPtr);
+  877   2              connHdl = two_byte_swap(ptr1->payload.connCmp.connHandle);
+  878   2          #ifdef DBG_UART_ENABLE_MMI_LE
+                     LightDbgPrint("MMI_LE cc isDirADv:%x,ch:%x,%x, ", (U8)isDirectedAdv, (U8)BYTE0(connHdl), (U8)BYTE1(con
+             -nHdl));
+                   #endif
+  881   2      
+  882   2              #ifdef BLE_AIRApp
+  883   2              AirApp_BleUpdateConnStatus(TRUE, (U8 XDATA_PTR)ptr1);
+  884   2            SYS_CLK_Set(SYS_CLK_REQ_LE, SYS_CLK_24M_REQUEST);
+  885   2              #endif
+  886   2      
+  887   2          if (gMMI_le_ctl.crtLinkCnt == (MAX_NUM_OF_LINK - 1))
+  888   2          {
+C251 COMPILER V5.57.0,  MMI_LE                                                             08/11/20  06:34:15  PAGE 15  
+
+  889   3            LIC_LE_AddLinkInfo(ptr1);
+  890   3            gMMI_le_ctl.crtLinkCnt++;
+  891   3                  MMI_LE_SetState(MMI_LE_ROM_CONNECTED, MMI_LE_ROM_CONNECTING);
+  892   3            OSMEM_Put(ptr1);
+  893   3          }
+  894   2          else
+  895   2          {
+  896   3            #ifdef MMI_LE_SINGLE_LINK
+  897   3            LIC_LE_AddLinkInfo(ptr1);
+  898   3            gMMI_le_ctl.crtLinkCnt++;
+  899   3                  MMI_LE_SetState(MMI_LE_ROM_CONNECTED, MMI_LE_ROM_CONNECTING);
+  900   3            OSMEM_Put(ptr1);
+  901   3            #else
+                     if(MMI_LE_SetHCIcmdToGAP(GAP_LE_CMD_FROM_PROFILE_ADVERTISING_ENABLE,NULL))
+                     {
+                       #ifdef DBG_UART_ENABLE_MMI_LE
+                       LightDbgPrint("USR - MMI_ENABLE ADV!");
+                       #endif
+               
+                       LIC_LE_AddLinkInfo(ptr1);
+                       gMMI_le_ctl.crtLinkCnt++;
+                       OSMEM_Put(ptr1);
+                     }
+                     else
+                     {
+                       OSMQ_PutFront(OSMQ_GAP_Event_To_MMILE_ptr, (U8 XDATA_PTR)ptr1);
+                     }
+                     #endif
+  917   3          }
+  918   2          idx = LIC_LE_GetIdxByConnHdl(connHdl);
+  919   2      
+  920   2          LightDbgPrint("MMI_LE cc:%x %x %x %x", (U8)idx, (U8)isDirectedAdv, (U8)BYTE0(connHdl), (U8)BYTE1(connHd
+             -l));
+  921   2              MMI_LE_SetDelayWriteFlashTimer(idx, MMI_LE_DELAY_NUM_CONN_INTERVAL * ENDIAN_TRANSFORM_U16(*(U16 X
+             -DATA_PTR)ptr1->payload.connCmp.connInterval) * 4);
+  922   2      
+  923   2          L2CAP_LE_SetupSession(idx, connHdl);
+  924   2      
+  925   2              if(isDirectedAdv)
+  926   2              {
+  927   3                  MMI_LE_CheckRPA(idx, ptr1->payload.connCmp.peerAddrType, ptr1->payload.connCmp.peerAddr);
+  928   3              }
+  929   2              else
+  930   2              {
+  931   3                  MMI_LE_HdlConnAction(idx);
+  932   3              }
+  933   2        }
+  934   1        else
+  935   1        {
+  936   2          //TODO: handle the failure sub event code
+  937   2          #ifdef DBG_UART_ENABLE_MMI_LE
+                     //LightDbgPrint("USR - LE connection fail");
+                   #endif
+  940   2      
+  941   2          OSMEM_Put(ptr1);
+  942   2          //fail to establish connection; should power off or sleep
+  943   2        }
+  944   1      }
+  945          
+  946          PRIVATE void MMI_LE_HdlDisconnCmpEvt(HCI_LE_EVT_STRU XDATA_PTR ptr1)
+  947          {
+  948   1        U16 connHdl;
+  949   1        U8 idx;
+  950   1      
+  951   1        if(ptr1->payload.disconnCmp.status == STATUS_OK)
+  952   1        {
+C251 COMPILER V5.57.0,  MMI_LE                                                             08/11/20  06:34:15  PAGE 16  
+
+  953   2              connHdl = two_byte_swap(ptr1->payload.disconnCmp.connHandle);
+  954   2      
+  955   2          #ifdef DBG_UART_ENABLE_MMI_LE
+                   LightDbgPrint("USR - MMI_LE dcc:%d", connHdl);
+                   #endif
+  958   2      
+  959   2          if((idx = LIC_LE_DelLinkInfo(connHdl)) == LIC_INVALID_LINK_INDEX)
+  960   2          {
+  961   3            OSMEM_Put(ptr1);
+  962   3            return;
+  963   3          }
+  964   2      
+  965   2          #ifdef MMI_LE_SINGLE_LINK
+  966   2          if(MMI_LE_SetHCIcmdToGAP(GAP_LE_CMD_FROM_PROFILE_ADVERTISING_ENABLE,NULL))
+  967   2          {
+  968   3            #ifdef DBG_UART_ENABLE_MMI_LE
+                     LightDbgPrint("USR - MMI_ENABLE ADV!");
+                     #endif
+  971   3      
+  972   3            gMMI_le_ctl.crtLinkCnt--;
+  973   3            OSMEM_Put(ptr1);
+  974   3          }
+  975   2          else
+  976   2          {
+  977   3            #ifdef DBG_UART_ENABLE_MMI_LE
+                     //LightDbgPrint("USR - no MEM to MMI_ENABLE ADV!");
+                     #endif
+  980   3      
+  981   3            // need to modify
+  982   3            LIC_LE_AddLinkInfo(ptr1);
+  983   3            OSMQ_PutFront(OSMQ_GAP_Event_To_MMILE_ptr,ptr1);
+  984   3          }
+  985   2          #endif
+  986   2              if (LIC_LE_GetNumOfActiveLink() == 0)
+  987   2              {
+  988   3                  gMMI_le_ctl.discActive = FALSE;
+  989   3              }
+  990   2          L2CAP_LE_ClearSession(idx);
+  991   2          ATT_ClearCCCD(idx);
+  992   2        }
+  993   1        else
+  994   1        {
+  995   2          #ifdef DBG_UART_ENABLE_MMI_LE
+                     //LightDbgPrint("USR - LE disconnection fail");
+                   #endif
+  998   2          OSMEM_Put(ptr1);
+  999   2        }
+ 1000   1      }
+ 1001          
+ 1002          PUBLIC void MMI_LE_AdvertisingStateHandler(void)
+ 1003          {
+ 1004   1        HCI_LE_EVT_STRU XDATA_PTR ptr1;
+ 1005   1      
+ 1006   1        switch(gMMI_le_rom_ctl.MMI_LE_SubState)
+ 1007   1        {
+ 1008   2          case MMI_LE_ROM_ADV_NORMAL:
+ 1009   2          {
+ 1010   3            if((gMMI_le_rom_ctl.AdvDurationTimerPtr == (OST XDATA_PTR)NULL) && (gMMI_LE_v_nvram_read_ptr->advTimou
+             -t != 0) && (!gMMI_le_ctl.rPowerAdv))
+ 1011   3            {
+ 1012   4              SYS_SetTimer(&gMMI_le_rom_ctl.AdvDurationTimerPtr, (gMMI_LE_v_nvram_read_ptr->advTimout * ONE_SEC));
+ 1013   4              #ifdef DBG_UART_ENABLE_MMI_LE
+                         //LightDbgPrint("USR - LE_ADV_Timer");
+                       #endif
+ 1016   4            }
+ 1017   3            else if((ptr1 = (HCI_LE_EVT_STRU XDATA_PTR)OSMQ_Get(OSMQ_GAP_Event_To_MMILE_ptr)) != (HCI_LE_EVT_STRU 
+C251 COMPILER V5.57.0,  MMI_LE                                                             08/11/20  06:34:15  PAGE 17  
+
+             -XDATA_PTR)NEAR_NULL)
+ 1018   3            {
+ 1019   4                      switch(ptr1->evtCode)
+ 1020   4                      {
+ 1021   5                          case HCI_EVENT_LE_META:
+ 1022   5                          {
+ 1023   6                              if(ptr1->payload.connCmp.subEvtCode == HCI_EVENT_LE_CONNECTION_COMPLETE)
+ 1024   6                              {
+ 1025   7                                  MMI_LE_HdlConnCmpEvt(ptr1, FALSE);
+ 1026   7                              }
+ 1027   6                          }
+ 1028   5                          break;
+ 1029   5      
+ 1030   5                          case HCI_EVENT_DISCONNECTION_COMPLETE:
+ 1031   5                          {
+ 1032   6                              MMI_LE_HdlDisconnCmpEvt(ptr1);
+ 1033   6                          }
+ 1034   5                          break;
+ 1035   5      
+ 1036   5                          default:
+ 1037   5                {
+ 1038   6                  //unexpected event, should have a event handler
+ 1039   6      
+ 1040   6                  //OSMQ_PutFront(OSMQ_HC_Event_To_Bus_ptr, ptr1);
+ 1041   6                  #ifdef DBG_UART_ENABLE_MMI_LE
+                             //LightDbgPrint("USR - MMI_LE_ Put ptr");
+                             LightDbgPrint("USR - LE unex evt %d %d", (U8)ptr1->evtCode, (U8)ptr1->payload.subEvtCode);
+                           #endif
+ 1045   6                  OSMEM_Put(ptr1);
+ 1046   6                }
+ 1047   5                          break;
+ 1048   5                      }
+ 1049   4            }
+ 1050   3                  else if(SYS_IsTimerExpired(&gMMI_le_rom_ctl.AdvDurationTimerPtr))
+ 1051   3            {
+ 1052   4              if(MMI_LE_SetHCIcmdToGAP(GAP_LE_CMD_FROM_PROFILE_ADVERTISING_DISABLE,NULL))
+ 1053   4              {
+ 1054   5                          gMMI_le_ctl.rPowerAdv = 1;
+ 1055   5                gMMI_le_rom_ctl.MMI_LE_SubState = MMI_LE_ADV_DISABLE_WAIT_EVT;
+ 1056   5              }
+ 1057   4              else
+ 1058   4              {
+ 1059   5                SYS_SetTimer(&gMMI_le_rom_ctl.AdvDurationTimerPtr, 1* ONE_SEC);    //get message memory fail, wait 1
+             - second
+ 1060   5              }
+ 1061   4            }
+ 1062   3      
+ 1063   3            break;
+ 1064   3          }//end case MMI_LE_ROM_ADV_NORMAL:
+ 1065   2      
+ 1066   2          case MMI_LE_ROM_ADV_HIGH_DUTY:
+ 1067   2          //wait either connection complete or high duty cycle timeout
+ 1068   2              if((ptr1 = (HCI_LE_EVT_STRU XDATA_PTR)OSMQ_Get(OSMQ_GAP_Event_To_MMILE_ptr)) != (HCI_LE_EVT_STRU XD
+             -ATA_PTR)NEAR_NULL)
+ 1069   2            {
+ 1070   3              if((ptr1->evtCode == HCI_EVENT_LE_META) && (ptr1->payload.connCmp.subEvtCode == HCI_EVENT_LE_CONNECTI
+             -ON_COMPLETE))
+ 1071   3              {
+ 1072   4                #ifdef DBG_UART_ENABLE_MMI_LE
+                         //LightDbgPrint("USR - LE META -conn complete");
+                         #endif
+ 1075   4      
+ 1076   4                switch(ptr1->payload.connCmp.status)      //subevent code
+ 1077   4                {
+ 1078   5                  case STATUS_OK:
+ 1079   5                                  MMI_LE_HdlConnCmpEvt(ptr1, TRUE);
+C251 COMPILER V5.57.0,  MMI_LE                                                             08/11/20  06:34:15  PAGE 18  
+
+ 1080   5      /*
+ 1081   5                                  LIC_LE_AddLinkInfo(ptr1);
+ 1082   5                                  MMI_LE_SetState(MMI_LE_ROM_CONNECTED, MMI_LE_ROM_CONNECTING);
+ 1083   5                                  OSMEM_Put(ptr1);
+ 1084   5      */
+ 1085   5                                  break;
+ 1086   5      
+ 1087   5                              case ERR_DIRECTED_ADVERTISING_TIMEOUT:  //TODO
+ 1088   5                                  MMI_LE_EnableAdv();
+ 1089   5                                  OSMEM_Put(ptr1);
+ 1090   5                                  break;
+ 1091   5      
+ 1092   5                  default:
+ 1093   5                    #ifdef DBG_UART_ENABLE_MMI_LE
+                             //LightDbgPrint("USR - unknown Sub Evt");
+                             #endif
+ 1096   5                    ASSERT(0);
+ 1097   5                    break;
+ 1098   5                }
+ 1099   4              }
+ 1100   3              else
+ 1101   3              {
+ 1102   4                //OSMQ_PutFront(OSMQ_HC_Event_To_Bus_ptr, ptr1);
+ 1103   4                //TODO : should have a nother handler to handle such event
+ 1104   4                #ifdef DBG_UART_ENABLE_MMI_LE
+                           //LightDbgPrint("USR - LE unexpected evt %d %d", HC_EVENT_CODE(ptr1), *HC_EVENT_PARAM_PTR(ptr1));
+                         #endif
+ 1107   4                ASSERT(0);
+ 1108   4                //OSMEM_Put(ptr1);
+ 1109   4              }
+ 1110   3            }
+ 1111   2            break;
+ 1112   2      
+ 1113   2          case MMI_LE_ADV_DISABLE_WAIT_EVT:
+ 1114   2      
+ 1115   2            if(MMI_LE_WaitEvent(GAP_LE_CMD_FROM_PROFILE_ADVERTISING_DISABLE)) //disable adv (HCI cmd is the same w
+             -ith enable)
+ 1116   2            {
+ 1117   3                       if(gMMI_le_ctl.rPowerAdv)
+ 1118   3                      {
+ 1119   4                          MMI_LE_UpdateAdvInfo(MMI_LE_ROM_ADV_PARAM_SEND_CMD);
+ 1120   4                      }
+ 1121   3            }
+ 1122   2      
+ 1123   2                break;
+ 1124   2      
+ 1125   2          default:
+ 1126   2            #ifdef DBG_UART_ENABLE_MMI_LE
+                       //LightDbgPrint("USR - MMI_LE Err Substate");
+                     #endif
+ 1129   2            ASSERT(0);
+ 1130   2            break;
+ 1131   2        }
+ 1132   1      }
+ 1133          
+ 1134          PUBLIC void MMI_LE_ConnectedStateHandler(void)
+ 1135          {
+ 1136   1          HCI_LE_EVT_STRU XDATA_PTR evtPtr;
+ 1137   1          U8 idx;
+ 1138   1      
+ 1139   1        switch(gMMI_le_rom_ctl.MMI_LE_SubState)
+ 1140   1        {
+ 1141   2          case MMI_LE_ROM_CONNECTING:
+ 1142   2          {
+ 1143   3              #ifdef BLE_AIRApp
+ 1144   3                  AirApp_BlePolling();
+C251 COMPILER V5.57.0,  MMI_LE                                                             08/11/20  06:34:15  PAGE 19  
+
+ 1145   3                  #endif
+ 1146   3      
+ 1147   3            if((evtPtr = (HCI_LE_EVT_STRU XDATA_PTR)OSMQ_Get(OSMQ_GAP_Event_To_MMILE_ptr)) != (HCI_LE_EVT_STRU XDA
+             -TA_PTR)NEAR_NULL)
+ 1148   3            {
+ 1149   4                      switch(evtPtr->evtCode)
+ 1150   4                      {
+ 1151   5                          case HCI_EVENT_DISCONNECTION_COMPLETE:
+ 1152   5                          {
+ 1153   6                              if(evtPtr->payload.disconnCmp.status == STATUS_OK)
+ 1154   6                              {
+ 1155   7                                  #ifdef DBG_UART_ENABLE_MMI_LE
+                                               U16 connHdl;
+                                               connHdl = two_byte_swap(evtPtr->payload.disconnCmp.connHandle);
+                                   LightDbgPrint("USR - MMI_LE dcc:%d", connHdl);
+                                 #endif
+ 1160   7      
+ 1161   7                        if((idx = LIC_LE_DelLinkInfo(two_byte_swap(evtPtr->payload.disconnCmp.connHandle))) == LIC_I
+             -NVALID_LINK_INDEX)
+ 1162   7                        {
+ 1163   8                                      break;
+ 1164   8                        }
+ 1165   7                        {
+ 1166   8                                      U16 connHdl;
+ 1167   8                                      connHdl = two_byte_swap(evtPtr->payload.disconnCmp.connHandle);
+ 1168   8                                      LightDbgPrint("MMI_LE dcc: %x %d", (U8)idx, connHdl);
+ 1169   8                        }
+ 1170   7                      gMMI_le_ctl.crtLinkCnt--;
+ 1171   7                      MMI_LE_CheckStateAfterDisc();
+ 1172   7                        L2CAP_LE_ClearSession(idx);
+ 1173   7                        ATT_ClearCCCD(idx);
+ 1174   7                        ATT_ResetMTUSize();
+ 1175   7                                  if (LIC_LE_GetNumOfActiveLink() == 0)
+ 1176   7                                  {
+ 1177   8                                      gMMI_le_ctl.discActive = FALSE;
+ 1178   8                                  }
+ 1179   7      
+ 1180   7                                  #ifdef SUPPORT_LE_XPORT
+                                           MMI_TrspX_BleDisconnect();
+                                           gleXport.connPara[0]= 0;
+                                           #endif
+ 1184   7      
+ 1185   7                                  #ifdef BLE_AIRApp
+ 1186   7                                  AirApp_BleUpdateConnStatus(FALSE, NULL);
+ 1187   7                                  SYS_CLK_Set(SYS_CLK_REQ_LE, SYS_CLK_24M_LEAVE);
+ 1188   7                                  #endif
+ 1189   7      
+ 1190   7                                  MMI_LE_NotifAppLinkStatus(idx, MMI_LE_LINK_STATUS_DISCONNECTION);
+ 1191   7                              }
+ 1192   6                              else
+ 1193   6                              {
+ 1194   7                        #ifdef DBG_UART_ENABLE_MMI_LE
+                                   LightDbgPrint("USR - LE dcc evt %x %x", (U8)evtPtr->evtCode, (U8)evtPtr->payload.paraPtr[0]
+             -);
+                                 #endif
+ 1197   7                              }
+ 1198   6                          }
+ 1199   5                          break;
+ 1200   5      
+ 1201   5                          #ifdef SUPPORT_LE_XPORT
+                                   case HCI_EVENT_LE_META:
+                                   {
+                                       if((evtPtr->payload.updateCmp.subEvtCode == HCI_EVENT_LE_CONNECTION_UPDATE_COMPLE
+             -TE) && (evtPtr->payload.updateCmp.status == STATUS_OK))
+                                       {
+                                           gleXport.connPara[0]= 0;
+C251 COMPILER V5.57.0,  MMI_LE                                                             08/11/20  06:34:15  PAGE 20  
+
+                                       }
+                                   }
+                                   break;
+                                   #endif
+ 1211   5      
+ 1212   5                          default:
+ 1213   5                          {
+ 1214   6                    #ifdef DBG_UART_ENABLE_MMI_LE
+                               LightDbgPrint("USR - LE unex evt %x %x", (U8)evtPtr->evtCode, (U8)evtPtr->payload.subEvtCode);
+                             #endif
+ 1217   6                          }
+ 1218   5                          break;
+ 1219   5                      }
+ 1220   4              OSMEM_Put(evtPtr);
+ 1221   4            }
+ 1222   3      #ifdef SM_SUPPORTED
+                           MMI_LE_CheckEvtFromSM();
+               #endif
+ 1225   3          }
+ 1226   2          break;
+ 1227   2      
+ 1228   2          case MMI_LE_ROM_DISCONNECT:
+ 1229   2            break;
+ 1230   2      
+ 1231   2          default:
+ 1232   2            #ifdef DBG_UART_ENABLE_MMI_LE
+                       //LightDbgPrint("USR - MMI_LE Err Substate");
+                     #endif
+ 1235   2            ASSERT(0);
+ 1236   2            break;
+ 1237   2        }
+ 1238   1      }
+ 1239          
+ 1240          PUBLIC void MMI_LE_SuspendStateHandler(void)
+ 1241          {
+ 1242   1        if((gMMI_le_rom_ctl.MMI_LE_SubState == MMI_LE_ROM_SUSPEND_DISABLE_ADV) && (MMI_LE_WaitEvent(GAP_LE_CMD_F
+             -ROM_PROFILE_ADVERTISING_DISABLE)))
+ 1243   1        {
+ 1244   2              gMMI_le_rom_ctl.MMI_LE_SubState = MMI_LE_ROM_ENTER_SUSPEND;
+ 1245   2        }
+ 1246   1      }
+ 1247          
+ 1248          PRIVATE U8 MMI_LE_SetRandomAddr(void)
+ 1249          {
+ 1250   1          U8 XDATA_PTR msgPtr;
+ 1251   1          if((msgPtr = MMI_LE_GetCmdMsgMem(GAP_LE_CMD_FROM_PROFILE_SET_RANDOM_ADDRESS)) == (U8 XDATA_PTR)NULL)
+ 1252   1          {
+ 1253   2              return LE_FAIL;
+ 1254   2          }
+ 1255   1          /*
+ 1256   1          msgPtr[GAP_COMMAND_PARA0_OFFSET + 0] = 0xFF;
+ 1257   1          msgPtr[GAP_COMMAND_PARA0_OFFSET + 1] = 0x78;
+ 1258   1          msgPtr[GAP_COMMAND_PARA0_OFFSET + 2] = 0x34;
+ 1259   1          msgPtr[GAP_COMMAND_PARA0_OFFSET + 3] = 0x56;
+ 1260   1          msgPtr[GAP_COMMAND_PARA0_OFFSET + 4] = 0x89;
+ 1261   1          msgPtr[GAP_COMMAND_PARA0_OFFSET + 5] = 0xFF;
+ 1262   1          */
+ 1263   1          if(pMpParameterF->leBDAddr.type == LE_RANDOMBDADDR_FIXED)
+ 1264   1          {
+ 1265   2              OS_cmemcpy(msgPtr + GAP_COMMAND_PARA0_OFFSET, (U8 CODE_PTR)&pMpParameterF->leBDAddr.staticRandomA
+             -ddress.member[0], sizeof(BD_ADDR));
+ 1266   2          }
+ 1267   1          else if(pMpParameterF->leBDAddr.type == LE_RANDOMBDADDR_RANDOM)
+ 1268   1          {
+ 1269   2              msgPtr[GAP_COMMAND_PARA0_OFFSET + 0] = DRV_PRBS_Read();
+ 1270   2              msgPtr[GAP_COMMAND_PARA0_OFFSET + 1] = DRV_PRBS_Read();
+C251 COMPILER V5.57.0,  MMI_LE                                                             08/11/20  06:34:15  PAGE 21  
+
+ 1271   2              msgPtr[GAP_COMMAND_PARA0_OFFSET + 2] = DRV_PRBS_Read();
+ 1272   2              msgPtr[GAP_COMMAND_PARA0_OFFSET + 3] = DRV_PRBS_Read();
+ 1273   2              msgPtr[GAP_COMMAND_PARA0_OFFSET + 4] = DRV_PRBS_Read();
+ 1274   2              msgPtr[GAP_COMMAND_PARA0_OFFSET + 5] = DRV_PRBS_Read() | 0xC0;
+ 1275   2              OSMEM_memcpy_xdata_xdata(gMMI_le_ctl.randomBdAddr, msgPtr + GAP_COMMAND_PARA0_OFFSET, 6);
+ 1276   2          }
+ 1277   1      
+ 1278   1          OSMQ_Put(OSMQ_GAP_Command_From_PROFILE_ptr, (U8 XDATA_PTR)msgPtr);
+ 1279   1          return LE_SUCCESS;
+ 1280   1      }
+ 1281          
+ 1282          PRIVATE U8 MMI_LE_SetAdvPara(void)
+ 1283          {
+ 1284   1          LE_ADV_PARA_TYPE XDATA_PTR advPtr;
+ 1285   1          U8 XDATA_PTR msgPtr;
+ 1286   1      
+ 1287   1          if((msgPtr = MMI_LE_GetCmdMsgMem(GAP_LE_CMD_FROM_PROFILE_SET_ADV_PARAMETER)) == (U8 XDATA_PTR)NULL)
+ 1288   1          {
+ 1289   2              return LE_FAIL;
+ 1290   2          }
+ 1291   1      
+ 1292   1          OS_cmemcpy(msgPtr + GAP_COMMAND_PARA0_OFFSET, (U8 CODE_PTR)&gMMI_LE_v_nvram_read_ptr->advPara, sizeof
+             -(LE_ADV_PARA_TYPE));
+ 1293   1      
+ 1294   1          advPtr = (LE_ADV_PARA_TYPE XDATA_PTR)(msgPtr + GAP_COMMAND_PARA0_OFFSET);
+ 1295   1      
+ 1296   1          if(pMpParameterF->leBDAddr.type == LE_PUBLIC_DEVICE_ADDR)
+ 1297   1          {
+ 1298   2              advPtr->ownAddrType = 0;
+ 1299   2          }
+ 1300   1          else
+ 1301   1          {
+ 1302   2              advPtr->ownAddrType = 1;
+ 1303   2          }
+ 1304   1        //Test print
+ 1305   1        LightDbgPrint("USR - LE SetAdvPara %x %x", (U8)pMpParameterF->leBDAddr.type, (U8)advPtr->ownAddrType);
+ 1306   1      
+ 1307   1          if(gMMI_le_ctl.rPowerAdv)
+ 1308   1          {
+ 1309   2              advPtr->advIntMin = gMMI_LE_v_nvram_read_ptr->rPowerAdvIntMin;
+ 1310   2              advPtr->advIntMax = gMMI_LE_v_nvram_read_ptr->rPowerAdvIntMax;
+ 1311   2          }
+ 1312   1          OSMQ_Put(OSMQ_GAP_Command_From_PROFILE_ptr, (U8 XDATA_PTR)msgPtr);
+ 1313   1          return LE_SUCCESS;
+ 1314   1      }
+ 1315          
+ 1316          ////////////////////////////////////////////////////
+ 1317          
+ 1318          PUBLIC U8 MMI_LE_SetHCIcmdToGAP(U8 command_op,U8 XDATA_PTR param)
+ 1319          {
+ 1320   1          U8 XDATA_PTR msgPtr;
+ 1321   1          #ifdef BLE_AIRApp
+ 1322   1        //U8 tmp[6];
+ 1323   1          #endif
+ 1324   1      
+ 1325   1          if((msgPtr = MMI_LE_GetCmdMsgMem(command_op)) == (U8 XDATA_PTR)NULL)
+ 1326   1          {
+ 1327   2              return LE_FAIL;
+ 1328   2          }
+ 1329   1          switch(command_op)
+ 1330   1          {
+ 1331   2              case GAP_LE_CMD_FROM_PROFILE_SET_ADV_DATA:
+ 1332   2            if(param){
+ 1333   3              LE_ADV_DATA_TYPE XDATA_PTR advData_ptr= (LE_ADV_DATA_TYPE XDATA_PTR) param;
+ 1334   3              OS_cmemcpy(msgPtr + GAP_COMMAND_PARA0_OFFSET, advData_ptr, (advData_ptr->adv_data_Len + 1));
+ 1335   3            }else{
+C251 COMPILER V5.57.0,  MMI_LE                                                             08/11/20  06:34:15  PAGE 22  
+
+ 1336   3                    OS_cmemcpy(msgPtr + GAP_COMMAND_PARA0_OFFSET, (U8 CODE_PTR)&NVRAM_MMI_V_ADV_DATA, (NVRAM_MMI
+             -_V_ADV_DATA.adv_data_Len + 1));
+ 1337   3            }
+ 1338   2      
+ 1339   2            #ifdef BLE_AIRApp
+ 1340   2            if(LE_FEATURE_AUTO_PAIRING_SUPPORTED && ((MMI_LE_ADV_DATA_MAX_DATA_LEN - NVRAM_MMI_V_ADV_DATA.adv_data
+             -_Len - 1) > 9))
+ 1341   2            {
+ 1342   3              msgPtr[GAP_COMMAND_PARA0_OFFSET + NVRAM_MMI_V_ADV_DATA.adv_data_Len + 1] = 0x09;
+ 1343   3              msgPtr[GAP_COMMAND_PARA0_OFFSET + NVRAM_MMI_V_ADV_DATA.adv_data_Len + 2] = 0xFF;
+ 1344   3              msgPtr[GAP_COMMAND_PARA0_OFFSET + NVRAM_MMI_V_ADV_DATA.adv_data_Len + 3] = 0x94;
+ 1345   3              msgPtr[GAP_COMMAND_PARA0_OFFSET + NVRAM_MMI_V_ADV_DATA.adv_data_Len + 4] = 0x00;
+ 1346   3              //OS_cmemcpy((U8 XDATA_PTR)&tmp[0], (U8 XDATA_PTR)&gHC_ctl.BdAddr, sizeof(BD_ADDR_STRU));
+ 1347   3              //ChaCha20Encrypt((U8 XDATA_PTR)&tmp[0], sizeof(BD_ADDR_STRU));
+ 1348   3              //ChaCha20Encrypt((U8 XDATA_PTR)&tmp[0], sizeof(BD_ADDR_STRU));
+ 1349   3              //CRYPTO_chacha_20((U8 XDATA_PTR)&tmp[0], (U8 XDATA_PTR)&tmp[0], sizeof(BD_ADDR_STRU), key, nonce, 0)
+             -;
+ 1350   3      
+ 1351   3              //OS_cmemcpy(msgPtr + (GAP_COMMAND_PARA0_OFFSET + NVRAM_MMI_V_ADV_DATA.adv_data_Len + 5), (U8 XDATA_P
+             -TR)&tmp[0], sizeof(BD_ADDR_STRU));
+ 1352   3              OS_cmemcpy(msgPtr + (GAP_COMMAND_PARA0_OFFSET + NVRAM_MMI_V_ADV_DATA.adv_data_Len + 5), (U8 XDATA_PTR
+             -)&gHC_ctl.BdAddr, sizeof(BD_ADDR_STRU));
+ 1353   3              msgPtr[GAP_COMMAND_PARA0_OFFSET] = NVRAM_MMI_V_ADV_DATA.adv_data_Len + 0x0A;
+ 1354   3            }
+ 1355   2            #endif
+ 1356   2                break;
+ 1357   2      
+ 1358   2              case GAP_LE_CMD_FROM_PROFILE_SET_SCAN_RESP_DATA:
+ 1359   2            if(param){
+ 1360   3              LE_SCAN_RSP_TYPE XDATA_PTR scanRsp_ptr = (LE_SCAN_RSP_TYPE XDATA_PTR)param;
+ 1361   3              OS_cmemcpy(msgPtr + GAP_COMMAND_PARA0_OFFSET, scanRsp_ptr,(scanRsp_ptr->scan_rsp_data_len+1));
+ 1362   3            }else{
+ 1363   3                    OS_cmemcpy(msgPtr + GAP_COMMAND_PARA0_OFFSET, (U8 CODE_PTR)&gMMI_LE_v_nvram_read_ptr->scanRs
+             -p, (gMMI_LE_v_nvram_read_ptr->scanRsp.scan_rsp_data_len+1));
+ 1364   3              }
+ 1365   2                break;
+ 1366   2      
+ 1367   2              case GAP_LE_CMD_FROM_PROFILE_ADVERTISING_ENABLE:
+ 1368   2                  *(msgPtr + GAP_COMMAND_PARA0_OFFSET) = LE_ADV_ENABLE;
+ 1369   2                  break;
+ 1370   2              case GAP_LE_CMD_FROM_PROFILE_ADVERTISING_DISABLE:
+ 1371   2                  *(msgPtr + GAP_COMMAND_PARA0_OFFSET) = LE_ADV_DISABLE;
+ 1372   2                  break;
+ 1373   2      
+ 1374   2          }
+ 1375   1          OSMQ_Put(OSMQ_GAP_Command_From_PROFILE_ptr, (U8 XDATA_PTR)msgPtr);
+ 1376   1          return LE_SUCCESS;
+ 1377   1      }
+ 1378          
+ 1379          PUBLIC U8 MMI_LE_WaitEvent(U8 command_op)
+ 1380          {
+ 1381   1          U8 XDATA_PTR mq_ptr;
+ 1382   1        while(OSMQ_Entries(OSMQ_GAP_Event_To_MMILE_ptr))
+ 1383   1          {
+ 1384   2              mq_ptr = OSMQ_Get (OSMQ_GAP_Event_To_MMILE_ptr);
+ 1385   2              #ifdef DBG_UART_ENABLE_MMI_LE
+                           //LightDbgPrint("USR - Get event: %d %d ", (U8)mq_ptr[3], (U8)mq_ptr[6]);
+                       #endif
+ 1388   2              if( (mq_ptr[GAP_EVENT_CODE_OFFSET] == command_op))
+ 1389   2              {
+ 1390   3                  OSMEM_Put (mq_ptr);
+ 1391   3                  return TRUE;
+ 1392   3              }
+ 1393   2              else
+ 1394   2              {
+ 1395   3                  //OSMQ_PutFront(OSMQ_GAP_Event_To_PM_ptr, mq_ptr);
+C251 COMPILER V5.57.0,  MMI_LE                                                             08/11/20  06:34:15  PAGE 23  
+
+ 1396   3                  //return FALSE;
+ 1397   3            OSMEM_Put (mq_ptr); //todo: since 7/15 version PM doesn't handle GAP event to PM, put ptr at here
+ 1398   3              }
+ 1399   2          }
+ 1400   1          return FALSE;
+ 1401   1      }
+ 1402          
+ 1403          PUBLIC U8 XDATA_PTR MMI_LE_GetCmdMsgMem(U8 command_op)
+ 1404          {
+ 1405   1          MMI_LE_ROM_CMDTYPE XDATA_PTR ptr1;
+ 1406   1          ptr1 = (MMI_LE_ROM_CMDTYPE XDATA_PTR)OSMEM_Get (OSMEM_ptr1);
+ 1407   1      
+ 1408   1          if(ptr1 != (MMI_LE_ROM_CMDTYPE XDATA_PTR)NULL)
+ 1409   1        {
+ 1410   2          OSMEM_memset_xdata((U8 XDATA_PTR)ptr1, 0, OSMEM1_BLKSIZE);
+ 1411   2            ptr1->dataOffset = CMD_OFFSET;
+ 1412   2          ptr1->cmdOpcode =  command_op;
+ 1413   2            return ptr1;
+ 1414   2          }
+ 1415   1          else
+ 1416   1          {
+ 1417   2              return NULL;
+ 1418   2          }
+ 1419   1      }
+ 1420          
+ 1421          PUBLIC void MMI_LE_SetDelayWriteFlashTimer(U8 idx, U32 delayTime)
+ 1422          {
+ 1423   1        SYS_SetTimer(&gMMI_le_ctl.delayWriteFlashTimerPtr[idx], delayTime);
+ 1424   1      }
+ 1425          
+ 1426          PUBLIC BOOL MMI_LE_AllowUpdateFlash(void)
+ 1427          {
+ 1428   1          U8 i;
+ 1429   1          #if (LE_SUPPORTED_CONTROLLER)
+ 1430   1          if (gLC_ctl.BLE_device_ctl[0].chM_update_ctl.chM_update_bit_ctl.chM_updating || gLC_ctl.BLE_device_ct
+             -l[1].chM_update_ctl.chM_update_bit_ctl.chM_updating &&
+ 1431   1              gLC_ctl.BLE_device_ctl[0].conn_update_ctl.conn_update_bit_ctl.conn_updating || gLC_ctl.BLE_device
+             -_ctl[1].conn_update_ctl.conn_update_bit_ctl.conn_updating)
+ 1432   1          {
+ 1433   2              return FALSE;
+ 1434   2          }
+ 1435   1          #endif
+ 1436   1          for (i = 0; i < MAX_NUM_OF_LINK; i++)
+ 1437   1          {
+ 1438   2              if (gMMI_le_ctl.delayWriteFlashTimerPtr[i] != NULL && !SYS_IsTimerExpired(&gMMI_le_ctl.delayWrite
+             -FlashTimerPtr[i]))
+ 1439   2              {
+ 1440   3                  return FALSE;
+ 1441   3              }
+ 1442   2          }
+ 1443   1      
+ 1444   1          return TRUE;
+ 1445   1      }
+ 1446          PUBLIC void MMI_LE_SectorSaveData(void)
+ 1447          {
+ 1448   1        if(!gSYS_allow_updating || !(gLIC_hal_ctl.miscMask & LIC_UPDATE_FLASH) || gSYS_update_by_uart_flash_comm
+             -and)
+ 1449   1          return;
+ 1450   1        if (MMI_HCI_IsInquiryOnGoing() || gMMI_ctl.page_ongoing)
+ 1451   1          return;
+ 1452   1        if(rs_is_ongoing)
+ 1453   1          return;
+ 1454   1      
+ 1455   1          if (!MMI_LE_AllowUpdateFlash())
+ 1456   1              return;
+ 1457   1      
+C251 COMPILER V5.57.0,  MMI_LE                                                             08/11/20  06:34:15  PAGE 24  
+
+ 1458   1          //LightDbgPrint("LIC-WillSaveImmToFlash");
+ 1459   1      
+ 1460   1        SaveLeNvramTo4kbFlash();
+ 1461   1      }
+ 1462          
+ 1463          PUBLIC BOOL MMI_LE_GetLeBdAddr(MMI_LE_BD_ADDR XDATA_PTR bdAddrPtr)
+ 1464          {
+ 1465   1      #ifdef MMI_LE_ENABLE
+ 1466   1          if (bdAddrPtr == NULL)
+ 1467   1          {
+ 1468   2              return FALSE;
+ 1469   2          }
+ 1470   1      
+ 1471   1          switch(pMpParameterF->leBDAddr.type)
+ 1472   1          {
+ 1473   2              case LE_RANDOMBDADDR_FIXED:
+ 1474   2                  OSMEM_memcpy_xdata_code(bdAddrPtr, pMpParameterF->leBDAddr.staticRandomAddress.member, 6);
+ 1475   2                  break;
+ 1476   2      
+ 1477   2              case LE_RANDOMBDADDR_RANDOM:
+ 1478   2                  OSMEM_memcpy_xdata_xdata(bdAddrPtr, gMMI_le_ctl.randomBdAddr, 6);
+ 1479   2                  break;
+ 1480   2      
+ 1481   2              default:
+ 1482   2                  OSMEM_memcpy_xdata_xdata(bdAddrPtr, (U8 XDATA_PTR)&pMpParameter->MP_SysLocalDeviceInfo.BdAddr
+             -, 6);
+ 1483   2                  break;
+ 1484   2          }
+ 1485   1          return TRUE;
+ 1486   1      #else
+                 UNUSED(bdAddrPtr);
+                   return FALSE;
+               #endif
+ 1490   1      }
+ 1491          
+ 1492          PUBLIC U8 MMI_LE_UpdateAdvData(BLE_ADV_DATA_TYPE advData){
+ 1493   1      
+ 1494   1        if(!MMI_LE_SetHCIcmdToGAP(GAP_LE_CMD_FROM_PROFILE_SET_ADV_DATA,(U8 XDATA_PTR)&advData))
+ 1495   1            return MMI_LE_UPDATE_HCI_CMD_FAIL;
+ 1496   1      
+ 1497   1        if (!LIC_UpdateNvramParam((U8 XDATA_PTR)&advData, LIC_FLASH_UPDATE_ADV_DATA))
+ 1498   1          return MMI_LE_UPDATE_WRITE_FLASH_FAIL;
+ 1499   1      
+ 1500   1        return MMI_LE_UPDATE_SUCCESS;
+ 1501   1      
+ 1502   1      }
+ 1503          
+ 1504          PUBLIC U8 MMI_LE_UpdateScanRspData(BLE_SCAN_RSP_TYPE scanRsp){
+ 1505   1      
+ 1506   1        if(!MMI_LE_SetHCIcmdToGAP(GAP_LE_CMD_FROM_PROFILE_SET_SCAN_RESP_DATA,(U8 XDATA_PTR)&scanRsp))
+ 1507   1          return MMI_LE_UPDATE_HCI_CMD_FAIL;
+ 1508   1      
+ 1509   1        if(!LIC_UpdateNvramParam((U8 XDATA_PTR)&scanRsp, LIC_FLASH_UPDATE_SCAN_RSP))
+ 1510   1          return MMI_LE_UPDATE_WRITE_FLASH_FAIL;
+ 1511   1      
+ 1512   1        return MMI_LE_UPDATE_SUCCESS;
+ 1513   1      }
+ 1514          
+ 1515          #endif
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =      3222     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+C251 COMPILER V5.57.0,  MMI_LE                                                             08/11/20  06:34:15  PAGE 25  
+
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =        29     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       106     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

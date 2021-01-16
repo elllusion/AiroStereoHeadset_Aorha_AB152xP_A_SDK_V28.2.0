@@ -1,0 +1,199 @@
+MERGEPUBLICS
+
+CLASSES (
+        BIT                     (D:0x22-D:0x2F),
+        DATA                    (D:0x08-0x1F,0x30-D:0x7F),
+        EDATA                   (0x6000-0xEFFF),
+        EDATA_ORI               (0x8000-0xEFFF),
+        EDATA_HIEDATA           (0xF000-0xFFDF),	;EDATA used by boot code(0xF000-0xFF78),
+        EDATA_PATCH_PARA        (0xFFE0-0xFFFF),
+
+        ;ECODE_STARTUP           (0x800040-0x801FFF),
+        HCONST_STARTUP          (0x800000-0x801FFF),
+        HCONST_MP_PARAM         (0x802000-0x802FFF),
+        HCONST_MP_PARAM_F       (0x802000-0x802FFF),
+        HCONST_DESCRIP          (0x803000-0x8030FF),
+        HCONST_CFGHEAD          (0x803100-0x8032FF),
+        CODE                    (0x803300-0x80FFF7),
+        ECODE                   (0x803300-0x80FFF7,0x810000-0x81FFF7,0x820000-0x82FFF7,0x830000-0x83FFF7,0x840000-0x84FFF7,0x850000-0x85FFF7,0x860000-0x86FFF7,0x870000-0x87FFF7),
+        HCONST                  (0x803300-0x885FFF),
+        ECODE_FLASH             (0x803300-0x80FFF7,0x810000-0x81FFF7,0x820000-0x82FFF7,0x830000-0x83FFF7,0x840000-0x84FFF7,0x850000-0x85FFF7,0x860000-0x86FFF7,0x870000-0x87FFF7),
+        HCONST_FLASH            (0x803300-0x884FFF),
+        HCONST_DSP_ROM          (0x885000-0x8D0FFF),
+        HCONST_CONFIG           (0x8D1000-0x8D65FF),
+        HCONST_VO_DAT           (0x8D6600-0x8F1FFF),
+        HCONST_VO_APD           (0x8F2000-0x8F4FFF),
+        HCONST_DSP_FUNCPARA     (0x8F5000-0x8F5FFF),
+        ;HCONST_DSP_HPFPARA      (0x8F6000-0x8F7FFF),
+        ;HCONST_DSP_PEQPARA      (0x8F6000-0x8F7FFF),
+		HCONST_DSP_PEQHPFPARA   (0x8F6000-0x8F7FFF),
+        HCONST_APP_CALLNAME     (0x8F8000-0x8F8FFF),
+        HCONST_MMI_V_NVRAM2     (0x8F9000-0x8F9FFF),
+        HCONST_LE_V_NVRAM2      (0x8F9200-0x8F9FFF),
+        HCONST_DUAL_MIC2        (0x8F9400-0x8F9FFF),
+        HCONST_MMI_C_V_NVRAM2   (0x8F9600-0x8F9FFF),
+        HCONST_MMI_V_NVRAM      (0x8FA000-0x8FAFFF),
+        HCONST_LE_V_NVRAM       (0x8FA200-0x8FAFFF),
+        HCONST_DUAL_MIC         (0x8FA400-0x8FAFFF),
+        HCONST_MMI_C_V_NVRAM    (0x8FA600-0x8FAFFF)
+        ;WARNING! 0x8FB000~0x8FFFFF is reserved as OTA area
+        ;DFU sector             (0x9FF000-0x9FFFFF)
+)
+
+SEGMENTS (
+		;DFU use
+		;?ED?HIEDATA?OS_HEAP,
+		;?ED?HIEDATA?DFU_LOADER,
+		;?ED?HIEDATA?DRV_SPIFLASH,
+		;?ED?HIEDATA?DRV_FLASH_AB1520C,
+		;?ED?HIEDATA?BOOTCODE,
+		;;;;
+		?XD?BOOT_CODE_ARRAY?1,
+		
+		?C_INITEDATA,
+		?C_INITEDATA_END
+
+)
+
+OVERLAY	(	OS_Scheduler !	(
+								KERNEL??,
+								LM,
+								GAP,
+								L2CAP,
+								SDAP,
+								RFCOMM,
+								AVCTP,
+								AVDTP,
+								A2DP,
+								AVRCP,
+								MMI,
+								MMI_LE,
+								ATT,
+								SM,
+								HFP,
+								DRIVER,
+								SPP,
+								SYS_CLK
+							),
+			MMI_STATE_PassThruMsg!(
+				MMI_ConnectDiscoverableHandler,
+				MMI_ConnectableHandler,
+				MMI_ConnectedHandler,
+				MMI_HFPImgHandler,
+				MMI_HFPOggHandler,
+				MMI_HFPCaHandler,
+				MMI_HFPCaOggHandler,
+				MMI_HFPCaImgHandler,
+				MMI_HFPCaMultyHandler,
+				MMI_TestModeHandler,
+				MMI_OffHandler,
+				MMI_FakeonHandler,
+				MMI_FakeoffHandler,				
+				MMI_DetachHandler,
+				MMI_LineInHandler,
+				MMI_FMHandler
+				),
+			MMI_LoadHandler!(
+						MMI_ConnectDiscoverableEntry,
+						MMI_ConnectableEntry,
+						MMI_ConnectedEntry,
+						MMI_HFPImgEntry,
+						MMI_HFPOggEntry,
+						MMI_HFPCaEntry,
+						MMI_HFPCaImgEntry,
+						MMI_TestModeEntry,
+						MMI_OffEntry,
+						;MMI_PasskeyEntry,
+						MMI_FakeonEntry,
+						MMI_FakeoffEntry,
+						MMI_DetachEntry,
+						MMI_LineInEntry,
+						MMI_FMEntry,
+						MMI_VoicePromptLangSelectEntry,
+						MMI_TWS_PairingEntry
+						),
+			MMI_UnloadHandler!(
+						MMI_ConnectedExit,
+						MMI_ConnectDiscoverableExit,
+						MMI_HFPCaExit,
+						MMI_HFPImgExit,
+						MMI_TestModeExit,
+						MMI_DetachExit,
+						MMI_VoicePromptLangSelectExit,
+						MMI_LineInExit,
+						MMI_FMExit,
+						MMI_TWS_PairingExit
+						),
+			MMI_TestMode_Execute!(
+						MMI_RxTest,
+						MMI_TxContinuePacket,
+						MMI_TxBurstPacket,
+						MMI_TxSingleTone
+						),
+			LM_PowerControl!(
+						LM_SendIncreasePowerReqHandler,
+						LM_SendDecreasePowerReqHandler
+						),
+			DRIVER_ProcMmiCmd!(
+						DRIVER_BGLedCmdHandler,
+						DRIVER_FGLedCmdHandler,
+						DRIVER_FilterLedCmdHandler,
+						DRIVER_ResetLEDCmdHandler,
+						DRIVER_UpdateLEDPWMCmdHandler,
+						DRIVER_MMIReadyCmdHandler,
+						DRIVER_UpdateGeneralParaCmdHandler,
+						DRIVER_SetNormalVolumeCmdHandler,
+						DRIVER_SetA2DPVolumeCmdHandler,
+						DRIVER_SetLineInVolumeCmdHandler, 
+						DRIVER_BuzzerCmdHandler,
+						DRIVER_RingToneVPCmdHandler,
+						DRIVER_StopSpecificRingCmdHandler,
+						DRIVER_StopSpecificVPCmdHandler,
+						DRIVER_StopRingCmdHandler,
+						DRIVER_StopVPCmdHandler,
+						DRIVER_FakeMediaVPRingCmdHandler,
+						DRIVER_SCOCmdHandler,
+						DRIVER_A2DPCmdHandler,
+						DRIVER_LineInCmdHandler,
+						DRIVER_StopLineInCmdHandler,
+						DRIVER_StopDSPCmdHandler,
+						DRIVER_StopDSPPowerOffCmdHandler,
+						;DRIVER_ReloadPEQCmdHandler,
+						DRIVER_PowerOnCloseADDACmdHandler,
+						DRIVER_BatteryStatusCmdHandler,
+						DRIVER_VoiceCommandHandler,
+						DRIVER_StopVoiceCommandHandler,
+						DRIVER_SetAudioSelHandler
+						),
+			MailBox_CmdHandler!(
+						OneStep_SubStateHandler??,
+                                                PromptStart_SubStateHandler??,
+                                                PromptStop_SubStateHandler??
+						),
+
+			MailBox_EvtHandler!(
+						CMD_REPLY_EvtHandler,
+						VP_END_EvtHandler,
+						RT_END_EvtHandler,
+						VC_END_EvtHandler
+						),
+			CMD_REPLY_EvtHandler!(
+						OneStep_SubStateHandler??,
+                        PromptStart_SubStateHandler??,
+                        PromptStop_SubStateHandler??                        
+						)
+		)
+		
+;allow you to add dummy calls and the linker thinks that the function is called
+OVERLAY (* ! (
+				SDAP_GetServiceAttribute?,
+				
+;follows the uncalled functions in Release_Flash
+				SYSMODE_CTLR_INIT?,
+				SYSMODE_Device_init,
+				_LM_LinkQueueInit?
+			 )
+		)
+SPEEDOVL
+NOSORTSIZE
+NOOVERLAY

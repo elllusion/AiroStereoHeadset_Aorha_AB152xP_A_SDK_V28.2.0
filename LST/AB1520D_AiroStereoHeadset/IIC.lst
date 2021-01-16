@@ -1,0 +1,159 @@
+C251 COMPILER V5.57.0,  IIC                                                                08/11/20  06:34:25  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE IIC
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\IIC.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SDK\IOSYS\IIC.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) WARN
+                    -INGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\sourc
+                    -e\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\source\R
+                    -OM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_LE;.
+                    -\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspData;.
+                    -\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLASH_I
+                    -NIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoHeadset\IIC
+                    -.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\IIC.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #include "rc.h"
+    4          #include "I2C.h"
+    5          #include "..\SDK_Proxy\SDK_Proxy.h"
+    6          
+    7          #define I2C_ENABLE  0
+    8          
+    9          
+   10          PUBLIC U8 SDK_IIC_ReadU8_400K(U8 device_addr, U8 reg_addr)
+   11          {
+   12   1        return I2C_StdReadU8(device_addr, reg_addr);
+   13   1      }
+   14          
+   15          PUBLIC U16 SDK_IIC_ReadU16_400K(U8 device_addr, U8 reg_addr)
+   16          {
+   17   1          return I2C_StdReadU16(device_addr, reg_addr);
+   18   1      }
+   19          
+   20          PUBLIC U32 SDK_IIC_ReadU32_400K(U8 device_addr, U8 reg_addr)
+   21          {
+   22   1          return I2C_StdReadU32(device_addr, reg_addr);
+   23   1      }
+   24          
+   25          PUBLIC U8 SDK_IIC_ReadBytes_400K(U8 device_addr, U8 reg_addr, U16 datLength, U8 *dataPtr)
+   26          {
+   27   1          return I2C_StdReadChunk(device_addr, reg_addr, datLength, (U8 XDATA_PTR)dataPtr);
+   28   1      }
+   29          
+   30          PUBLIC void SDK_IIC_WriteU8_400K(U8 device_addr, U8 reg_addr, U8 value)
+   31          {
+   32   1          I2C_StdWriteU8(device_addr, reg_addr, value);
+   33   1      }
+   34          
+   35          PUBLIC void SDK_IIC_WriteU16_400K(U8 device_addr, U8 reg_addr, U16 value)
+   36          {
+   37   1          I2C_StdWriteU16(device_addr, reg_addr, value);
+   38   1      }
+   39          
+   40          PUBLIC void SDK_IIC_WriteU32_400K(U8 device_addr, U8 reg_addr, U32 value)
+   41          {
+   42   1          I2C_StdWriteU32(device_addr, reg_addr, value);
+   43   1      }
+   44          
+   45          PUBLIC U8 SDK_IIC_WriteBytes_400K(U8 device_addr, U8 reg_addr, U16 datLength, U8 *dataPtr)
+   46          {
+   47   1          return I2C_StdWriteChunk(device_addr, reg_addr, datLength, dataPtr);
+   48   1      }
+   49          
+   50          #if I2C_ENABLE
+               PRIVATE void SDK_CB_IIC_Start(U8 device_addr)
+               {
+C251 COMPILER V5.57.0,  IIC                                                                08/11/20  06:34:25  PAGE 2   
+
+                 //if(device_addr == EEPROM_WRITE_ADDRESS)
+                 //{
+                   //Set write protection pin low
+                 //}
+                 UNUSED(device_addr);
+               }
+               
+               PRIVATE void SDK_CB_IIC_Stop(U8 device_addr)
+               {
+                 //if(device_addr == EEPROM_WRITE_ADDRESS)
+                 //{
+                   //Set write protection pin high
+                 //}
+                 UNUSED(device_addr);
+               }
+               #endif //I2C_ENABLE
+   69          
+   70          PUBLIC void SDK_IIC_Init(void)
+   71          {
+   72   1      #if I2C_ENABLE
+                 SDK_Proxy_RegisterAPI(API_GRP_IOSYS_CB_IIC_START, API_GRP_IOSYS, (VFUN)SDK_CB_IIC_Start);
+                 SDK_Proxy_RegisterAPI(API_GRP_IOSYS_CB_IIC_STOP, API_GRP_IOSYS, (VFUN)SDK_CB_IIC_Stop);
+               #endif
+   76   1      }
+   77          
+   78          
+   79          ///////////////////////////////////////////////////////////////////////////////
+   80          ////////////////////////////  Sample code  ////////////////////////////////////
+   81          ///////////////////////////////////////////////////////////////////////////////
+   82          /*
+   83          PUBLIC void SDK_IIC_ReadChunkSample(U8 device_addr, U8 reg_addr, U8 length)
+   84          {
+   85            U8 XDATA_PTR rxBufPtr = SYS_MemoryGet(length);
+   86            if(rxBufPtr)
+   87            {
+   88              SDK_IIC_ReadBytes_400K(device_addr, reg_addr, length, rxBufPtr);
+   89          
+   90              //rxBufPtr store all the read data. Do things here.
+   91          
+   92              OSMEM_Put(rxBufPtr);
+   93            }
+   94          }
+   95          
+   96          PUBLIC void SDK_IIC_WriteChunkSample(U8 device_addr, U8 reg_addr, U8 length)
+   97          {
+   98            U8 XDATA_PTR txBufPtr = SYS_MemoryGet(length);
+   99            if(txBufPtr)
+  100            {
+  101              txBufPtr[0] = 0xAA;
+  102              txBufPtr[1] = 0xAA;
+  103              txBufPtr[2] = 0xAA;
+  104              
+  105              SDK_IIC_WriteBytes_400K(device_addr, reg_addr, length, txBufPtr);
+  106          
+  107              //txBufPtr store all the read data. Do things here.
+  108          
+  109              OSMEM_Put(txBufPtr);
+  110            }
+  111          }
+  112           */
+  113          
+  114          
+  115          
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+C251 COMPILER V5.57.0,  IIC                                                                08/11/20  06:34:25  PAGE 3   
+
+  code size            =    ------     ------
+  ecode size           =        97     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =    ------     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

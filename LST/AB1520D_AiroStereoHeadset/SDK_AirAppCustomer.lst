@@ -1,0 +1,110 @@
+C251 COMPILER V5.57.0,  SDK_AirAppCustomer                                                 08/11/20  06:34:43  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE SDK_AirAppCustomer
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\SDK_AirAppCustomer.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SDK\Profile\SDK_AirAppCustomer.c XSMALL HPTR FUNCTIONS(REENTRAN
+                    -T) ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\
+                    -source\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\
+                    -ROM\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\so
+                    -urce\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source
+                    -\SECTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMis
+                    -c) DEFINE(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_Airo
+                    -StereoHeadset\SDK_AirAppCustomer.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\SDK_AirAppCustomer.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #include "rc.h"
+    4          #include "..\SDK_Proxy\SDK_Proxy.h"
+    5          #include "..\SDK\include\SDK_Config.h"
+    6          #include "..\MMI\MMI_Base.h"
+    7          
+    8          #include "..\SDK\include\SDK_AirAppCustomer.h"
+    9          #include "..\\AirApp\AirApp_Interface.h"
+   10          
+   11          /*                  SAMPLE CODE START                     */
+   12          #define SAMPLE_LEN    1
+   13          PRIVATE void  SDK_AIRAPP_CST_Sample1(U8 linkIndex, U8 vOcf,U8 dataLen, U8 XDATA_PTR dataPtr)
+   14          {
+   15   1        U8 XDATA_PTR rspPtr;
+   16   1      
+   17   1        UNUSED(dataPtr);
+   18   1        UNUSED(dataLen);
+   19   1        rspPtr = (U8 XDATA_PTR) SYS_MemoryGet(SAMPLE_LEN);
+   20   1      
+   21   1        if(rspPtr != (U8 XDATA_PTR)NULL)
+   22   1        {
+   23   2          #ifdef AIRAPP_Profile
+   24   2          AirApp_CustomerDataRsp(linkIndex, vOcf, RSP_SUCCESS, SAMPLE_LEN, rspPtr);
+   25   2          #else
+                   UNUSED(linkIndex);
+                   UNUSED(vOcf);
+                   #endif
+   29   2          OSMEM_Put(rspPtr);
+   30   2        }
+   31   1      }
+   32          /*                  SAMPLE CODE END                       */
+   33          
+   34          PUBLIC void SDK_AirAppCustomerCMDHandler(U8 linkIndex, U8 XDATA_PTR msgPtr)
+   35          {
+   36   1        U8 vOcf;
+   37   1        U8 dataLen;
+   38   1        MMIMsgType XDATA_PTR airCmdPtr = (MMIMsgType XDATA_PTR)msgPtr;
+   39   1      
+   40   1        if(airCmdPtr == (MMIMsgType XDATA_PTR) NULL)
+   41   1          return;
+   42   1        
+   43   1        vOcf = airCmdPtr->msgBodyPtr.hciVCmd.VOpCode.VCmdOcf;
+   44   1        dataLen = airCmdPtr->paraLen - sizeof(HCI_VCMD_OPCODE_STRU);
+   45   1        
+   46   1        switch(vOcf)
+   47   1        {
+   48   2          /*                      SAMPLE CODE START                           */
+   49   2          case SDK_AIRAPP_CST_SAMPLE1:
+   50   2            SDK_AIRAPP_CST_Sample1(linkIndex, vOcf, dataLen, (U8 XDATA_PTR)airCmdPtr->msgBodyPtr.hciVCmd.VPara.dat
+             -aBegin);
+   51   2            break;
+C251 COMPILER V5.57.0,  SDK_AirAppCustomer                                                 08/11/20  06:34:43  PAGE 2   
+
+   52   2          /*                      SAMPLE CODE END                             */
+   53   2          default:
+   54   2            #ifdef AIRAPP_Profile
+   55   2            AirApp_CustomerDataRsp(linkIndex, vOcf, RSP_FAIL, 0, (U8 XDATA_PTR)NULL);
+   56   2            #endif
+   57   2            break;
+   58   2        }
+   59   1      }
+   60          
+   61          PUBLIC void SDK_AirAppCustomerInit(void)
+   62          {
+   63   1        #if SDK_AIRAPP_CUSTOMER
+                 SDK_Proxy_RegisterAPI(API_GRP_PF_CB_AIRAPP_CUSTOMER_CTL, API_GRP_PROFILE, (VFUN)SDK_AirAppCustomerCMDHan
+             -dler);
+                 #endif
+   66   1      }
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =       101     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =    ------     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

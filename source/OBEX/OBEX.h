@@ -1,0 +1,10 @@
+//////////////////////////////////////////////////////////
+// Copyright@ 2009 Airoha.  All right reserved.
+//////////////////////////////////////////////////////////
+#ifndef _OBEX_H_
+#define _OBEX_H_
+
+#include "OBEX_interface.h"
+#include "..\MMI\MMI_interface.h"
+
+#endif

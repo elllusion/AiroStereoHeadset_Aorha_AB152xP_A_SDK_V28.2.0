@@ -1,0 +1,498 @@
+C251 COMPILER V5.57.0,  lic_hal                                                            08/11/20  05:53:26  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE lic_hal
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\lic_hal.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\MMI_LE\lic_hal.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) WAR
+                    -NINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\sour
+                    -ce\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\source\
+                    -ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_LE;
+                    -.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspData;
+                    -.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLASH_
+                    -INIT=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520C_AiroStereoHeadset\li
+                    -c_hal.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\lic_hal.obj) 
+
+stmt  level    source
+
+    1          #define _LIC_HAL_C_
+    2          
+    3          #include "lic_hal.h"
+    4          
+    5          #ifdef LE_SUPPORTED_HOST_FLASH
+    6          
+    7          #include "drv_program_flash_flash.h"
+    8          
+    9          #ifdef AB1600
+               PUBLIC void LIC_UpdateNvramAddr(U8 idx, HCI_LE_EVT_STRU XDATA_PTR msgPtr)
+               {
+                 U8 XDATA_PTR ptr;
+                 NVRAM_MMI_LINK_RECORD_TYPE XDATA_PTR ptr2;
+                   U8 startIdx;
+               
+                   if((ptr = SYS_MemoryGet(MMI_NVRAM_PAGE_SIZE)) == NULL)
+                   {
+                       return;
+                   }
+                   startIdx = idx & 0xFC;   //4 link data store in a page flash (512)
+                 OSMEM_memcpy_xdata_xdata(ptr, (U8 XDATA_PTR)&gNvram_MMI_link_record[startIdx], MMI_NVRAM_PAGE_SIZE);
+                   idx &= 0x03;
+                   ptr2 = (NVRAM_MMI_LINK_RECORD_TYPE XDATA_PTR)(ptr + (sizeof(NVRAM_MMI_LINK_RECORD_TYPE) * idx));
+               
+                   OSMEM_memset_xdata((U8 XDATA_PTR)ptr2, 0, sizeof(NVRAM_MMI_LINK_RECORD_TYPE));
+                 OSMEM_memcpy_xdata_xdata(ptr2->peerAddr, msgPtr->payload.connCmp.peerAddr, BD_ADDR_LEN);
+                   //to do save ptr to flash
+                   //to do update gNvram_MMI_variation.nextRecordIdx
+                   OSMEM_Put(ptr);
+               }
+               
+               PUBLIC void LIC_HalInit(void)
+               {
+               }
+               
+               #else
+   37          
+   38          #include "sector_merge_runtime.h"
+   39          #include "drv_flash.h"
+   40          #include "drv_program_flash.h"
+   41          #include "LC.h"
+   42          #include "..\MMI\MMI_Interface.h"
+   43          #include "..\SDK_Proxy\SDK_Proxy.h"
+   44          
+   45          extern VFUN XDATA api_iosys_evt_func[API_GRP_IOSYS_CB_CNT];
+   46          
+   47          #ifdef DUAL_MIC_ENABLE
+   48          extern PUBLIC void AUDIO_SaveDataToFlash(U8 CODE_PTR pValidSector, U8 XDATA_PTR dataPtr);
+   49          #endif
+   50          extern PUBLIC void MMI_SaveMmiDriverNvramToFlash(U8 CODE_PTR flashAddr);
+   51          extern PUBLIC void UpdateValidSector(U32 ValidSectorAddr, U32 InvalidSectorAddr);
+   52          
+C251 COMPILER V5.57.0,  lic_hal                                                            08/11/20  05:53:26  PAGE 2   
+
+   53          PUBLIC void LIC_UpdateFlashAddr(void)
+   54          {
+   55   1          U8 CODE_PTR ptr1 = GET_SECTOR_MERGE_RUNTIME_1_ADDR(SECTOR_MMI_DRIVER_V_NVRAM_INIT);
+   56   1        U8 CODE_PTR ptr2 = GET_SECTOR_MERGE_RUNTIME_2_ADDR(SECTOR_MMI_DRIVER_V_NVRAM_INIT2);
+   57   1      
+   58   1        if(*ptr1 == MMI_SECTOR_DATA_VALID)
+   59   1        {
+   60   2          gMMI_LE_v_nvram_read_ptr = (NVRAM_MMI_LINK_DATA_TYPE CODE_PTR)GET_SECTOR_MERGE_RUNTIME_1_ADDR(SECTOR_MM
+             -I_LE_V_NVRAM_INIT);
+   61   2        }
+   62   1        else if(*ptr2 == MMI_SECTOR_DATA_VALID)
+   63   1        {
+   64   2          gMMI_LE_v_nvram_read_ptr = (NVRAM_MMI_LINK_DATA_TYPE CODE_PTR)GET_SECTOR_MERGE_RUNTIME_2_ADDR(SECTOR_MM
+             -I_LE_V_NVRAM_INIT2);
+   65   2        }
+   66   1      }
+   67          
+   68          PUBLIC U8 LIC_GetLatestFlashIdx(void)
+   69          {
+   70   1          U8 fIdx;
+   71   1          if(gLIC_hal_ctl.nextRecordIdx != 0)
+   72   1          {
+   73   2              fIdx = gLIC_hal_ctl.nextRecordIdx-1;
+   74   2          }
+   75   1          else
+   76   1          {
+   77   2              fIdx = MAX_NUM_LE_LINK-1;
+   78   2          }
+   79   1          //LightDbgPrint("LIC_GetLatestFlashIdx:%x",(U8)fIdx);
+   80   1          return fIdx;
+   81   1      }
+   82          
+   83          PUBLIC U8 LIC_GetFlashIdxByAddr(U8 XDATA_PTR addrPtr, U8 addrType)
+   84          {
+   85   1          U8 i;
+   86   1          for(i = 0; i < MAX_NUM_LE_LINK; i++)
+   87   1          {
+   88   2              if(gLIC_hal_ctl.reservedUpdataPtr == NULL)
+   89   2              {
+   90   3              if(SYS_ValueCompare(addrPtr, NVRAM_MMI_V_LINK_RECORD(i).peerAddr, BD_ADDR_LEN) && (addrType == NVRA
+             -M_MMI_V_LINK_RECORD(i).peerAddrType))
+   91   3              {
+   92   4              #ifdef DBG_UART_ENABLE_LINK_INDEX_CTL
+                               LightDbgPrint("LIC_GetFlashIdxByAddr_N:%x",(U8)i);
+                       #endif
+   95   4                  return i;
+   96   4              }
+   97   3              }
+   98   2              else
+   99   2              {
+  100   3                  NVRAM_MMI_LINK_RECORD_TYPE XDATA_PTR ptr;
+  101   3                  ptr = &(((NVRAM_MMI_LINK_DATA_TYPE XDATA_PTR)gLIC_hal_ctl.reservedUpdataPtr)->nvram_MMI_link_
+             -record[i]);
+  102   3              if(SYS_ValueCompare(addrPtr, ptr->peerAddr, BD_ADDR_LEN) && (addrType == ptr->peerAddrType))
+  103   3              {
+  104   4              #ifdef DBG_UART_ENABLE_LINK_INDEX_CTL
+                               LightDbgPrint("LIC_GetFlashIdxByAddr_P:%x",(U8)i);
+                       #endif
+  107   4                  return i;
+  108   4              }
+  109   3              }
+  110   2          }
+  111   1          #ifdef DBG_UART_ENABLE_LINK_INDEX_CTL
+                   LightDbgPrint("No_FlashIdx!!");
+                 #endif
+  114   1          return 0xFF;
+C251 COMPILER V5.57.0,  lic_hal                                                            08/11/20  05:53:26  PAGE 3   
+
+  115   1      }
+  116          
+  117          PUBLIC void LIC_SaveToFlash(void)
+  118          {
+  119   1          if(gLIC_hal_ctl.reservedUpdataPtr == NULL)
+  120   1          {
+  121   2            LightDbgPrint("USR - LIC_SaveToFlash err null");
+  122   2              return;
+  123   2          }
+  124   1      
+  125   1          gLIC_hal_ctl.miscMask |= LIC_UPDATE_FLASH;
+  126   1      
+  127   1          if(gLIC_hal_ctl.miscMask & LIC_UPDATE_FLASH_LATER)
+  128   1          {
+  129   2          //LightDbgPrint("USR - LIC_SaveToFlash need update!");
+  130   2              gLIC_hal_ctl.miscMask &= ~LIC_UPDATE_FLASH_LATER;
+  131   2          }
+  132   1      }
+  133          #ifdef LE_SUPPORTED_HOST_FLASH
+  134          PUBLIC void LIC_ImmSaveToFlash(U8 CODE_PTR pValidSector, U8 XDATA_PTR pLeNvram)
+  135          {
+  136   1        U8 count = 5;
+  137   1      
+  138   1          do 
+  139   1          {
+  140   2            if(!FLASH_PROGRAM_WriteXDataToFlash(pValidSector, pLeNvram, sizeof(NVRAM_MMI_LINK_DATA_TYPE)))
+  141   2            {
+  142   3              #ifdef DBG_UART_ENABLE_LINK_INDEX_CTL
+                         LightDbgPrint("LIC-FailSaveImmToFlash");
+                     #endif
+  145   3              continue;
+  146   3            }
+  147   2              break;
+  148   2        } while (--count);
+  149   1      
+  150   1        LightDbgPrint("LIC-SaveToFlashRetry %d", (U8)(5 - count));
+  151   1      }
+  152          
+  153          PUBLIC void SaveLeNvramTo4kbFlash(void)
+  154          {
+  155   1        U8 CODE_PTR ptr1;
+  156   1        U8 CODE_PTR ptr2;
+  157   1        U32 Addr_FlashSectorCanWr;
+  158   1        U32 Addr_FlashSectorOri;
+  159   1        U8 gMMI_rf_rxon_time;
+  160   1        U8 XDATA_PTR pLeNvram;
+  161   1        U8 XDATA_PTR pLeNvram_4bAlign;
+  162   1        #ifdef DUAL_MIC_ENABLE
+  163   1        U8 XDATA_PTR pDualMic;
+  164   1        U8 XDATA_PTR pDualMic_4bAlign;
+  165   1        #endif
+  166   1      
+  167   1          if ((pLeNvram = OSMEM_Get(&gAlignOSMEM.OSMEM2_small_TX)) == NULL)
+  168   1            return;
+  169   1      
+  170   1          #ifdef DUAL_MIC_ENABLE
+  171   1        if ((pDualMic = OSMEM_Get(&gAlignOSMEM.OSMEM2_small_TX)) == NULL)
+  172   1        {
+  173   2          OSMEM_Put(pLeNvram);
+  174   2            return;
+  175   2        }
+  176   1        pDualMic_4bAlign = OS_AlignToNext4ByteAddr(pDualMic);
+  177   1        #endif
+  178   1      
+  179   1        if(api_iosys_evt_func[API_GRP_IOSYS_CB_NVRAM_ALLOC_PROG_MEM])
+  180   1        {
+C251 COMPILER V5.57.0,  lic_hal                                                            08/11/20  05:53:26  PAGE 4   
+
+  181   2          if(!((API_IOSYS_NVRAM_ALLOC_PROG_CB_FUNC)api_iosys_evt_func[API_GRP_IOSYS_CB_NVRAM_ALLOC_PROG_MEM])())
+  182   2          {
+  183   3              OSMEM_Put(pLeNvram);
+  184   3            #ifdef DUAL_MIC_ENABLE
+  185   3            OSMEM_Put(pDualMic);
+  186   3              #endif
+  187   3            return;
+  188   3          }
+  189   2        }
+  190   1      
+  191   1        pLeNvram_4bAlign = OS_AlignToNext4ByteAddr(pLeNvram);
+  192   1      
+  193   1        OS_memcpy(pLeNvram_4bAlign, gLIC_hal_ctl.reservedUpdataPtr,sizeof(NVRAM_MMI_LINK_DATA_TYPE));
+  194   1      
+  195   1        gMMI_rf_rxon_time = MMI_EnterFlashProgramWorkaround();
+  196   1      
+  197   1        ptr1 = GET_SECTOR_MERGE_RUNTIME_1_ADDR(SECTOR_MMI_DRIVER_V_NVRAM_INIT);
+  198   1        ptr2 = GET_SECTOR_MERGE_RUNTIME_2_ADDR(SECTOR_MMI_DRIVER_V_NVRAM_INIT2);
+  199   1      
+  200   1        if(*ptr1 == MMI_SECTOR_DATA_VALID)
+  201   1        {
+  202   2            Addr_FlashSectorCanWr = FLASH_MEMORY_MAP(ptr2);
+  203   2            Addr_FlashSectorOri = FLASH_MEMORY_MAP(ptr1);
+  204   2      
+  205   2            #ifdef DUAL_MIC_ENABLE
+  206   2            FLASH_PROGRAM_PageReadConti(
+  207   2                  FLASH_MEMORY_MAP(GET_SECTOR_MERGE_RUNTIME_1_ADDR(SECTOR_DUAL_MIC_DATA)),
+  208   2                  pDualMic_4bAlign,
+  209   2                  (U16)GET_SECTOR_MERGE_RUNTIME_1_LEN(SECTOR_DUAL_MIC_DATA));
+  210   2            #endif
+  211   2      
+  212   2            FLASH_PROGRAM_UnlockSector(Addr_FlashSectorCanWr);
+  213   2      
+  214   2            fFlashDrv->SectorErase(Addr_FlashSectorCanWr);
+  215   2      
+  216   2          #ifdef DUAL_MIC_ENABLE
+  217   2            AUDIO_SaveDataToFlash(
+  218   2                GET_SECTOR_MERGE_RUNTIME_2_ADDR(SECTOR_DUAL_MIC_DATA2),
+  219   2                pDualMic_4bAlign);
+  220   2          #endif
+  221   2          LIC_ImmSaveToFlash(
+  222   2                GET_SECTOR_MERGE_RUNTIME_2_ADDR(SECTOR_MMI_LE_V_NVRAM_INIT2),
+  223   2                pLeNvram_4bAlign);
+  224   2      
+  225   2          if(api_iosys_evt_func[API_GRP_IOSYS_CB_NVRAM_UPDATE])
+  226   2          {
+  227   3            ((API_IOSYS_NVRAM_UPDATE_CB)api_iosys_evt_func[API_GRP_IOSYS_CB_NVRAM_UPDATE])(GET_SECTOR_MERGE_RUNTIM
+             -E_2_ADDR(SECTOR_CUSTOMIZE_V_NVRAM_INIT2));
+  228   3          }
+  229   2          
+  230   2          MMI_SaveMmiDriverNvramToFlash(ptr2);
+  231   2        }
+  232   1        else
+  233   1        {
+  234   2            Addr_FlashSectorCanWr = FLASH_MEMORY_MAP(ptr1);
+  235   2            Addr_FlashSectorOri = FLASH_MEMORY_MAP(ptr2);
+  236   2      
+  237   2            #ifdef DUAL_MIC_ENABLE
+  238   2            FLASH_PROGRAM_PageReadConti(
+  239   2                  FLASH_MEMORY_MAP(GET_SECTOR_MERGE_RUNTIME_2_ADDR(SECTOR_DUAL_MIC_DATA2)),
+  240   2                  pDualMic_4bAlign,
+  241   2                  (U16)GET_SECTOR_MERGE_RUNTIME_2_LEN(SECTOR_DUAL_MIC_DATA2));
+  242   2            #endif
+  243   2      
+  244   2            FLASH_PROGRAM_UnlockSector(Addr_FlashSectorCanWr);
+  245   2      
+C251 COMPILER V5.57.0,  lic_hal                                                            08/11/20  05:53:26  PAGE 5   
+
+  246   2            fFlashDrv->SectorErase(Addr_FlashSectorCanWr);
+  247   2      
+  248   2          #ifdef DUAL_MIC_ENABLE
+  249   2            AUDIO_SaveDataToFlash(
+  250   2                GET_SECTOR_MERGE_RUNTIME_1_ADDR(SECTOR_DUAL_MIC_DATA),
+  251   2                pDualMic_4bAlign);
+  252   2          #endif
+  253   2          LIC_ImmSaveToFlash(
+  254   2                GET_SECTOR_MERGE_RUNTIME_1_ADDR(SECTOR_MMI_LE_V_NVRAM_INIT),
+  255   2                pLeNvram_4bAlign);
+  256   2            
+  257   2          if(api_iosys_evt_func[API_GRP_IOSYS_CB_NVRAM_UPDATE])
+  258   2          {
+  259   3            ((API_IOSYS_NVRAM_UPDATE_CB)api_iosys_evt_func[API_GRP_IOSYS_CB_NVRAM_UPDATE])(GET_SECTOR_MERGE_RUNTIM
+             -E_1_ADDR(SECTOR_CUSTOMIZE_V_NVRAM_INIT));
+  260   3          }
+  261   2          MMI_SaveMmiDriverNvramToFlash(ptr1);
+  262   2        }
+  263   1      
+  264   1        UpdateValidSector(Addr_FlashSectorCanWr, Addr_FlashSectorOri);
+  265   1      
+  266   1        MMI_ExitFlashProgramWorkaround(gMMI_rf_rxon_time);
+  267   1      
+  268   1        FLASH_PROGRAM_LockAll();
+  269   1      
+  270   1          gLIC_hal_ctl.miscMask &= ~(LIC_UPDATE_FLASH);
+  271   1        OSMEM_Put(gLIC_hal_ctl.reservedUpdataPtr);
+  272   1        gLIC_hal_ctl.reservedUpdataPtr = NULL;
+  273   1          LIC_UpdateFlashAddr();
+  274   1        OSMEM_Put(pLeNvram);
+  275   1        #ifdef DUAL_MIC_ENABLE
+  276   1        OSMEM_Put(pDualMic);
+  277   1        #endif
+  278   1      }
+  279          #endif
+  280          
+  281          PUBLIC void LIC_FreeNvRamData(void)
+  282          {
+  283   1          if(gLIC_hal_ctl.reservedUpdataPtr == NULL)
+  284   1          {
+  285   2            LightDbgPrint("USR - LE_FreeNvRamData err null");
+  286   2              return;
+  287   2          }
+  288   1      
+  289   1          if(gLIC_hal_ctl.miscMask & LIC_UPDATE_FLASH)
+  290   1          {
+  291   2            //LightDbgPrint("USR - LE_FreeNvRamData err mask");
+  292   2              return;
+  293   2          }
+  294   1      
+  295   1          if(gLIC_hal_ctl.miscMask & LIC_UPDATE_FLASH_LATER)
+  296   1          {
+  297   2          //LightDbgPrint("USR - LE_FreeNvRamData need update!");
+  298   2              gLIC_hal_ctl.miscMask &= ~LIC_UPDATE_FLASH_LATER;
+  299   2              gLIC_hal_ctl.miscMask |= LIC_UPDATE_FLASH;
+  300   2              return;
+  301   2          }
+  302   1      
+  303   1        //LightDbgPrint("USR - LE_FreeNvRamData!");
+  304   1          OSMEM_Put(gLIC_hal_ctl.reservedUpdataPtr);
+  305   1        gLIC_hal_ctl.reservedUpdataPtr = NULL;
+  306   1      }
+  307          
+  308          /* must call LIC_FreeNvRamData() or LIC_SaveToFlash after use*/
+  309          PUBLIC NVRAM_MMI_LINK_DATA_TYPE XDATA_PTR LIC_GetNvRamData(void)
+  310          {
+C251 COMPILER V5.57.0,  lic_hal                                                            08/11/20  05:53:26  PAGE 6   
+
+  311   1          if(gLIC_hal_ctl.reservedUpdataPtr == NULL)
+  312   1          {
+  313   2            if((gLIC_hal_ctl.reservedUpdataPtr = (NVRAM_MMI_LINK_DATA_TYPE XDATA_PTR)SYS_MemoryGet(sizeof(NVRAM_
+             -MMI_LINK_DATA_TYPE))) != NULL)
+  314   2            {
+  315   3              OSMEM_memcpy_xdata_code((U8 XDATA_PTR)gLIC_hal_ctl.reservedUpdataPtr, &NVRAM_MMI_V_LINK_RECORD(0), 
+             -sizeof(NVRAM_MMI_LINK_DATA_TYPE));
+  316   3            }
+  317   2            else
+  318   2            {
+  319   3              #ifdef DBG_UART_ENABLE_LINK_INDEX_CTL
+                       LightDbgPrint("USR - no mem");
+                       #endif
+  322   3            }
+  323   2          }
+  324   1          else if(gLIC_hal_ctl.miscMask & LIC_UPDATE_FLASH)
+  325   1          {
+  326   2          //LightDbgPrint("USR - LE_GetNvRamData update later");
+  327   2              gLIC_hal_ctl.miscMask &= ~(LIC_UPDATE_FLASH);
+  328   2              gLIC_hal_ctl.miscMask |= LIC_UPDATE_FLASH_LATER;
+  329   2          }
+  330   1        return gLIC_hal_ctl.reservedUpdataPtr;
+  331   1      }
+  332          
+  333          PUBLIC void LIC_UpdateNvramAddr(U8 idx, HCI_LE_EVT_STRU XDATA_PTR msgPtr)
+  334          {
+  335   1        NVRAM_MMI_LINK_DATA_TYPE XDATA_PTR dataPtr;
+  336   1      
+  337   1        #ifdef DBG_UART_ENABLE_LINK_INDEX_CTL
+                 LightDbgPrint("USR - addr :%x %x %x %x %x %x", (U8)msgPtr->payload.connCmp.peerAddr[0], (U8)msgPtr->payl
+             -oad.connCmp.peerAddr[1], (U8)msgPtr->payload.connCmp.peerAddr[2], (U8)msgPtr->payload.connCmp.peerAddr[3], (U8)msgPtr->p
+             -ayload.connCmp.peerAddr[4], (U8)msgPtr->payload.connCmp.peerAddr[5]);
+                 #endif
+  340   1      
+  341   1        if((dataPtr = LIC_GetNvRamData()) == NULL)
+  342   1        {
+  343   2          return;
+  344   2        }
+  345   1      
+  346   1        // update addr and addrType
+  347   1        OSMEM_memcpy_xdata_xdata(dataPtr->nvram_MMI_link_record[idx].peerAddr, msgPtr->payload.connCmp.peerAddr,
+             - BD_ADDR_LEN);
+  348   1        dataPtr->nvram_MMI_link_record[idx].peerAddrType = msgPtr->payload.connCmp.peerAddrType;
+  349   1        // update next index
+  350   1        dataPtr->nextRecordIdx = ((idx + 1) % MAX_NUM_OF_LINK);
+  351   1          gLIC_hal_ctl.nextRecordIdx = dataPtr->nextRecordIdx;
+  352   1          LIC_SaveToFlash();
+  353   1        //OSMEM_Put((U8 XDATA_PTR)dataPtr);
+  354   1      
+  355   1        #ifdef DBG_UART_ENABLE_LINK_INDEX_CTL
+                 LightDbgPrint("USR - updateNvram cmp!");
+                 LightDbgPrint("USR - addr :%x %x %x %x %x %x", (U8)NVRAM_MMI_V_LINK_RECORD(idx).peerAddr[0], (U8)NVRAM_M
+             -MI_V_LINK_RECORD(idx).peerAddr[1],(U8)NVRAM_MMI_V_LINK_RECORD(idx).peerAddr[2], (U8)NVRAM_MMI_V_LINK_RECORD(idx).peerAdd
+             -r[3],(U8)NVRAM_MMI_V_LINK_RECORD(idx).peerAddr[4], (U8)NVRAM_MMI_V_LINK_RECORD(idx).peerAddr[5]);
+                 #endif
+  359   1      }
+  360          
+  361          PUBLIC BOOL LIC_UpdateNvramParam(U8 XDATA_PTR paramPtr, U8 type)
+  362          {
+  363   1        NVRAM_MMI_LINK_DATA_TYPE XDATA_PTR dataPtr;
+  364   1        if((dataPtr = LIC_GetNvRamData()) == NULL)
+  365   1        {
+  366   2          return FALSE;
+  367   2        }
+  368   1      
+  369   1        switch(type)
+C251 COMPILER V5.57.0,  lic_hal                                                            08/11/20  05:53:26  PAGE 7   
+
+  370   1        {
+  371   2              case LIC_FLASH_UPDATE_ADV_DATA:
+  372   2              {
+  373   3                  U8 len;
+  374   3                  len = *paramPtr;
+  375   3                OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&dataPtr->advData, paramPtr, len+1);
+  376   3                  if(len < MMI_LE_ADV_DATA_MAX_DATA_LEN)
+  377   3                  {
+  378   4                      OSMEM_memset_xdata((U8 XDATA_PTR)&dataPtr->advData.adv_data[len], 0, (MMI_LE_ADV_DATA_MAX
+             -_DATA_LEN - len));
+  379   4                  }
+  380   3              }
+  381   2              break;
+  382   2      
+  383   2              case LIC_FLASH_UPDATE_ADV_PARAM:
+  384   2              {
+  385   3                  OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&dataPtr->advPara, paramPtr, sizeof(LE_ADV_PARA_TYPE))
+             -;
+  386   3              }
+  387   2              break;
+  388   2      
+  389   2              case LIC_FLASH_UPDATE_CONN_SETTING:
+  390   2              {
+  391   3                  OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&dataPtr->connSetting, paramPtr, sizeof(LE_CONN_SETTIN
+             -G_TYPE));
+  392   3              }
+  393   2              break;
+  394   2      
+  395   2              case LIC_FLASH_UPDATE_SCAN_RSP:
+  396   2              {
+  397   3                  U8 len;
+  398   3                  len = *paramPtr;
+  399   3                OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&dataPtr->scanRsp, paramPtr, len+1);
+  400   3                  if(len != MMI_LE_SCAN_RSP_MAX_DATA_LEN)
+  401   3                  {
+  402   4                      OSMEM_memset_xdata((U8 XDATA_PTR)&dataPtr->scanRsp.scan_rsp_data[len], 0, (MMI_LE_SCAN_RS
+             -P_MAX_DATA_LEN - len));
+  403   4                  }
+  404   3              }
+  405   2              break;
+  406   2      
+  407   2              case LIC_FLASH_UPDATE_VIBRATION_SETTING:
+  408   2              {
+  409   3                  OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&dataPtr->vibrationSetting, paramPtr, VIBRATION_SETTIN
+             -G_LEN);
+  410   3              }
+  411   2              break;
+  412   2        }
+  413   1      
+  414   1        LIC_SaveToFlash();
+  415   1        //OSMEM_Put((U8 XDATA_PTR)dataPtr);
+  416   1          return TRUE;
+  417   1      }
+  418          
+  419          PUBLIC void LIC_HalInit(void)
+  420          {
+  421   1          LIC_UpdateFlashAddr();
+  422   1          gLIC_hal_ctl.nextRecordIdx = gMMI_LE_v_nvram_read_ptr->nextRecordIdx;
+  423   1      }
+  424          
+  425          #endif /* LE_SUPPORTED */
+  426          #endif /* LE_SUPPORTED_HOST_FLASH */
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+C251 COMPILER V5.57.0,  lic_hal                                                            08/11/20  05:53:26  PAGE 8   
+
+  ecode size           =      1455     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =         8     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =        87     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

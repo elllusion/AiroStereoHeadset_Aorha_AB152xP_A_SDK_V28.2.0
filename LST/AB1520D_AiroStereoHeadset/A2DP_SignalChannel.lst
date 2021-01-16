@@ -1,0 +1,1697 @@
+C251 COMPILER V5.57.0,  A2DP_SignalChannel                                                 08/11/20  06:34:03  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE A2DP_SignalChannel
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\A2DP_SignalChannel.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\A2DP\A2DP_SignalChannel.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(
+                    -HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\
+                    -OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;
+                    -.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\RO
+                    -M\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR
+                    -\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFI
+                    -NE(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoH
+                    -eadset\A2DP_SignalChannel.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\A2DP_SignalChannel.obj) 
+
+stmt  level    source
+
+    1          //////////////////////////////////////////////////////////
+    2          // Copyright@ 2009 Airoha.  All right reserved.
+    3          //////////////////////////////////////////////////////////
+    4          #include "reside_flash.inc"
+    5          
+    6          #define _A2DP_SIGNAL_CHANNEL_C_
+    7          
+    8          #include "A2DP.h"
+    9          #include "align_flash.h"
+   10          
+   11          #include "..\MMI\MMI.h"
+   12          #include "..\MMI\MMI_Base.h"
+   13          #include "..\MMI\MMI_Protocol.h"
+   14          #include "..\MMI\MMI_A2DP.h"
+   15          #include "..\MMI\MMI_Driver.h"
+   16          #ifdef AIR_MODULE
+   17            #include "..\MMI\MMI_AirModule.h"
+   18          #endif
+   19          
+   20          #ifdef A2DP_Profile
+   21          
+   22          #include "..\SDK_Proxy\SDK_Proxy.h"
+   23          extern VFUN XDATA api_profile_func[API_GRP_PF_CB_CNT];
+   24          
+   25          PRIVATE void A2DP_ClearSubStateAndTimer(A2DP_LINK_INFO XDATA_PTR a2dpLinkInfo)
+   26          {
+   27   1        a2dpLinkInfo->substates = A2DP_SUBSTATE_BEGINNING_STATE;
+   28   1        SYS_MemoryRelease(&a2dpLinkInfo->discovSeidInfoPtr);
+   29   1        SYS_ReleaseTimer(&a2dpLinkInfo->timer);
+   30   1      }
+   31          
+   32          
+   33          /////////////////////////////////////////////////////////////////////
+   34          // Delay Report Handler
+   35          /////////////////////////////////////////////////////////////////////
+   36          PUBLIC void A2DP_SendInitDelayReport(U8 linkIndex)
+   37          {
+   38   1        A2DP_LINK_INFO XDATA_PTR a2dpLinkInfo = A2DP_GetLinkInfo(linkIndex);
+   39   1        
+   40   1        A2DP_DelayReportClearPara(linkIndex);
+   41   1        #if SUPPORT_SBC_SNK
+   42   1        a2dpLinkInfo->delayReportCtl.reportedValue = ((a2dpLinkInfo->localSeid == AAC_SNK_SEID) ? 200 : 150) * A
+             -2DP_DspBufferDepth(linkIndex);
+   43   1        #endif
+   44   1        
+   45   1        AVDTP_SendDelayReportCmd(linkIndex, a2dpLinkInfo->remoteSeid, a2dpLinkInfo->delayReportCtl.reportedValue
+             -);
+   46   1      }
+   47          
+   48          PUBLIC void A2DP_SendDelayReport(U8 linkIndex, U16 newDelay, BOOL isBigger)
+   49          {
+   50   1        U8 i, quot;
+C251 COMPILER V5.57.0,  A2DP_SignalChannel                                                 08/11/20  06:34:03  PAGE 2   
+
+   51   1        A2DP_LINK_INFO XDATA_PTR a2dpLinkInfo = A2DP_GetLinkInfo(linkIndex);
+   52   1      
+   53   1        if(isBigger)
+   54   1          quot = newDelay - a2dpLinkInfo->delayReportCtl.reportedValue;
+   55   1        else
+   56   1          quot = a2dpLinkInfo->delayReportCtl.reportedValue - newDelay;
+   57   1      
+   58   1        quot = quot / DELAY_REPORT_MAX_DEVIATION;
+   59   1      
+   60   1      
+   61   1        for(i = 0; i <= quot; i++)
+   62   1        {
+   63   2          if(i == quot)
+   64   2            AVDTP_SendDelayReportCmd(linkIndex, a2dpLinkInfo->remoteSeid, newDelay);
+   65   2          else
+   66   2          {
+   67   3            U16 delayValue = (isBigger) ? 
+   68   3                    (a2dpLinkInfo->delayReportCtl.reportedValue + (i+1) * DELAY_REPORT_MAX_DEVIATION) :
+   69   3                    (a2dpLinkInfo->delayReportCtl.reportedValue - (i+1)* DELAY_REPORT_MAX_DEVIATION);
+   70   3      
+   71   3            AVDTP_SendDelayReportCmd(linkIndex, a2dpLinkInfo->remoteSeid, delayValue);
+   72   3          }
+   73   2        }
+   74   1      
+   75   1        a2dpLinkInfo->delayReportCtl.reportedValue = newDelay;
+   76   1      }
+   77          
+   78          PUBLIC void A2DP_DelayReportClearPara(U8 linkIndex)
+   79          {
+   80   1        A2DP_LINK_INFO XDATA_PTR a2dpLinkInfo = A2DP_GetLinkInfo(linkIndex);
+   81   1        
+   82   1        a2dpLinkInfo->delayReportCtl.pktCnt = 0;
+   83   1        a2dpLinkInfo->delayReportCtl.isDspPlay = FALSE;
+   84   1      }
+   85          
+   86          PUBLIC void A2DP_CalculateDelayReportValue(U8 linkIndex)
+   87          {
+   88   1        A2DP_LINK_INFO XDATA_PTR a2dpLinkInfo = A2DP_GetLinkInfo(linkIndex);
+   89   1        U16 delay = gAlignDSP.DSP_RESERVED_PARA_1;
+   90   1        
+   91   1        if(!a2dpLinkInfo->delayReportCtl.isDspPlay)
+   92   1        {
+   93   2          a2dpLinkInfo->delayReportCtl.pktCnt++;
+   94   2          
+   95   2          #if SUPPORT_SBC_SNK
+   96   2          if(a2dpLinkInfo->delayReportCtl.pktCnt >= 2 * A2DP_DspBufferDepth(linkIndex))
+   97   2            a2dpLinkInfo->delayReportCtl.isDspPlay = TRUE;
+   98   2          #endif
+   99   2        }
+  100   1        else if(!(gAlignDSP.debug_var03 >> 8))
+  101   1        {
+  102   2          A2DP_DelayReportClearPara(linkIndex);
+  103   2        }
+  104   1        
+  105   1        if(!a2dpLinkInfo->delayReportCtl.isDspPlay)
+  106   1          return;
+  107   1        
+  108   1        if(delay > a2dpLinkInfo->delayReportCtl.reportedValue &&
+  109   1          delay - a2dpLinkInfo->delayReportCtl.reportedValue >= DELAY_REPORT_RECOMMEND_DEVIATION)
+  110   1        {
+  111   2          A2DP_SendDelayReport(linkIndex, delay, TRUE);
+  112   2        }
+  113   1        else if(delay < a2dpLinkInfo->delayReportCtl.reportedValue &&
+  114   1          a2dpLinkInfo->delayReportCtl.reportedValue - delay >= DELAY_REPORT_RECOMMEND_DEVIATION)
+  115   1        {
+  116   2          A2DP_SendDelayReport(linkIndex, delay, FALSE);
+C251 COMPILER V5.57.0,  A2DP_SignalChannel                                                 08/11/20  06:34:03  PAGE 3   
+
+  117   2        }
+  118   1      }
+  119          
+  120          
+  121          /////////////////////////////////////////////////////////////////////
+  122          // Signal Command Handler
+  123          /////////////////////////////////////////////////////////////////////
+  124          
+  125          PUBLIC BOOL A2DP_CheckSeidInUse(U8 linkIndex, U8 seid)
+  126          {
+  127   1        A2DP_LINK_INFO XDATA_PTR a2dpLinkInfo = A2DP_GetLinkInfo(linkIndex);
+  128   1        
+  129   1        if(linkIndex < MAX_MULTI_POINT_NO)
+  130   1        {
+  131   2          if (a2dpLinkInfo->mmiProfileInfo.state == A2DP_CONFIGURED ||
+  132   2            a2dpLinkInfo->mmiProfileInfo.state == A2DP_OPEN ||
+  133   2            a2dpLinkInfo->mmiProfileInfo.state == A2DP_STREAMING)
+  134   2          {
+  135   3            if (seid == a2dpLinkInfo->localSeid)
+  136   3              return TRUE;
+  137   3          }
+  138   2        }
+  139   1        return FALSE;
+  140   1      }
+  141          
+  142          PRIVATE U8 A2DP_SignalCheckIntegrity(A2DP_LINK_INFO XDATA_PTR a2dpLinkInfo, AvdtpSignalType XDATA_PTR eve
+             -ntPtr)
+  143          {
+  144   1        U8 serviceLength;
+  145   1        U16 capabilitiesLength;
+  146   1        U8 XDATA_PTR categoryPtr;
+  147   1        U8 acpSeid;
+  148   1      
+  149   1        switch(eventPtr->signalIdentifier & 0x3F)
+  150   1        {
+  151   2          case AVDTP_DISCOVER:
+  152   2            if( eventPtr->l2capLength < 2 )
+  153   2            {
+  154   3              return AVDTP_BAD_LENGTH;
+  155   3            }
+  156   2            break;
+  157   2      
+  158   2          case AVDTP_SET_CONFIGURATION:
+  159   2            if( eventPtr->l2capLength < 4 )
+  160   2            {
+  161   3              return AVDTP_BAD_LENGTH;
+  162   3            }
+  163   2            if ( A2DP_CheckSeidInUse(eventPtr->offset, (eventPtr->para[0]>>2)) )
+  164   2            {
+  165   3              return AVDTP_SEP_IN_USE;
+  166   3            }
+  167   2            //Check the format of the media transport category
+  168   2            categoryPtr = &eventPtr->para[2];
+  169   2            capabilitiesLength = eventPtr->l2capLength - 4;
+  170   2            while(capabilitiesLength >= 2)
+  171   2            {
+  172   3              if (categoryPtr[0] == MEDIA_TRANSPORT && categoryPtr[1] != 0)
+  173   3              {
+  174   4                return AVDTP_BAD_MEDIA_TRANSPORT_FORMAT;
+  175   4              }
+  176   3              if (categoryPtr[0] == CONTENT_PROTECTION && categoryPtr[1] != 2)
+  177   3              {
+  178   4                return AVDTP_BAD_CP_FORMAT;
+  179   4              }
+  180   3              serviceLength = 2 + categoryPtr[1];
+  181   3              categoryPtr += serviceLength;
+C251 COMPILER V5.57.0,  A2DP_SignalChannel                                                 08/11/20  06:34:03  PAGE 4   
+
+  182   3              capabilitiesLength -= serviceLength;
+  183   3            }
+  184   2            break;
+  185   2      
+  186   2          case AVDTP_RECONFIGURE:
+  187   2            if (eventPtr->para[1] > DELAY_REPORTING)
+  188   2            {
+  189   3              return AVDTP_BAD_SERV_CATEGORY;
+  190   3            }
+  191   2            if (eventPtr->para[1] != MEDIA_CODEC) //AVDTP_spec v1.3, pg.63 Note 3.
+  192   2            {
+  193   3              return AVDTP_INVALID_CAPABILITIES;
+  194   3            }
+  195   2            /* fallthrough */
+  196   2          case AVDTP_GET_CONFIGURATION:
+  197   2          case AVDTP_OPEN:
+  198   2          case AVDTP_START:
+  199   2          case AVDTP_CLOSE:
+  200   2          case AVDTP_SUSPEND:
+  201   2          case AVDTP_SECURITY_CONTROL:
+  202   2            acpSeid = eventPtr->para[0] >> 2;
+  203   2            if (a2dpLinkInfo->mmiProfileInfo.state < A2DP_CONFIGURED)
+  204   2            {
+  205   3              return AVDTP_BAD_STATE;
+  206   3            }
+  207   2            if (acpSeid == 0 || acpSeid > 0x3E)
+  208   2            {
+  209   3              return AVDTP_BAD_ACP_SEID;
+  210   3            }
+  211   2            if(acpSeid != a2dpLinkInfo->localSeid && a2dpLinkInfo->airCtl.packetRole != PACKET_ROLE_FOLLOWER)
+  212   2            {
+  213   3              return AVDTP_BAD_ACP_SEID;
+  214   3            }
+  215   2            /* fallthrough */
+  216   2          case AVDTP_GET_CAPABILITIES:
+  217   2          case AVDTP_GET_ALL_CAPABILITIES:
+  218   2          case AVDTP_ABORT:
+  219   2            if (eventPtr->l2capLength < 3)
+  220   2            {
+  221   3              return AVDTP_BAD_LENGTH;
+  222   3            }
+  223   2            break;
+  224   2        }
+  225   1        return AVDTP_NO_ERROR;
+  226   1      }
+  227          
+  228          PRIVATE BOOL A2DP_SetCodecPara(A2DP_LINK_INFO XDATA_PTR a2dpLinkInfo, U8 codec)
+  229          {
+  230   1        switch(codec)
+  231   1        {
+  232   2          #if SUPPORT_SBC_SNK
+  233   2          case SBC_SNK_SEID:
+  234   2            //#ifdef DBG_UART_ENABLE_A2DP
+  235   2            LightDbgPrint("A2P - SBC");
+  236   2            //#endif
+  237   2            a2dpLinkInfo->fA2DPRxMediaCodec = A2DP_SBCDecoderRxMediaPacket;
+  238   2            return TRUE;
+  239   2          #endif
+  240   2            
+  241   2          #if SUPPORT_AAC_SNK
+  242   2          case AAC_SNK_SEID:
+  243   2            //#ifdef DBG_UART_ENABLE_A2DP
+  244   2            LightDbgPrint("A2P - AAC");
+  245   2            //#endif
+  246   2            a2dpLinkInfo->fA2DPRxMediaCodec = A2DP_AACDecoderRxMediaPacket;
+  247   2            return TRUE;
+C251 COMPILER V5.57.0,  A2DP_SignalChannel                                                 08/11/20  06:34:03  PAGE 5   
+
+  248   2          #endif
+  249   2          
+  250   2          #if SUPPORT_SBC_SRC
+                   case SBC_SRC_SEID:
+                     a2dpLinkInfo->fA2DPRxMediaCodec = (A2DP_MEDIA_RX_FUNC)A2DP_UndefinedDecoderRxMediaPacket;
+                     return TRUE;
+                   #endif
+  255   2          
+  256   2          default:
+  257   2            if(api_profile_func[API_GRP_PF_CB_AVDTP_SET_MEDIA_PKT_DECODER])
+  258   2            {
+  259   3              a2dpLinkInfo->fA2DPRxMediaCodec = (A2DP_MEDIA_RX_FUNC)(((API_PROFILE_AVDTP_SET_MEDIA_PKT_DECODER_FUNC
+             -)api_profile_func[API_GRP_PF_CB_AVDTP_SET_MEDIA_PKT_DECODER])(codec));
+  260   3              if(a2dpLinkInfo->fA2DPRxMediaCodec)
+  261   3                return TRUE;
+  262   3            }
+  263   2                  
+  264   2            a2dpLinkInfo->fA2DPRxMediaCodec = A2DP_UndefinedDecoderRxMediaPacket;
+  265   2            return FALSE;
+  266   2        }
+  267   1      }
+  268          
+  269          PRIVATE U8 A2DP_ParseCapabilities(A2DP_LINK_INFO XDATA_PTR a2dpLinkInfo, U8 XDATA_PTR categoryPtr, U16 ca
+             -pabilitiesLength, U8 cfgSeid)
+  270          {
+  271   1        U8 value, serviceLength;
+  272   1        U8 caps = 0;
+  273   1      
+  274   1        while (capabilitiesLength >= 2)
+  275   1        {
+  276   2          switch (categoryPtr[0])
+  277   2          {
+  278   3            case MEDIA_CODEC:
+  279   3              if(categoryPtr[2] != AUDIO_TYPE)
+  280   3                return AVDTP_UNSUPPORTED_CONFIGURATION;
+  281   3              
+  282   3              switch (cfgSeid)
+  283   3              {
+  284   4                #if SUPPORT_SBC_SNK
+  285   4                case SBC_SNK_SEID:
+  286   4                #endif
+  287   4                #if SUPPORT_SBC_SRC
+                         case SBC_SRC_SEID:
+                         #endif
+  290   4                  if (categoryPtr[3] != SBC_CODEC)
+  291   4                    return AVDTP_UNSUPPORTED_CONFIGURATION;
+  292   4      
+  293   4                  value = categoryPtr[4] & (A2DP_SBC_SAMPLE_FREQ_48000|A2DP_SBC_SAMPLE_FREQ_44100|A2DP_SBC_SAMPLE_FRE
+             -Q_32000);
+  294   4                  if (value == 0)
+  295   4                    return AVDTP_UNSUPPORTED_CONFIGURATION;
+  296   4      
+  297   4                  OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&a2dpLinkInfo->codecSettings.sbc, (U8 XDATA_PTR)&categoryPtr
+             -[4], sizeof(SBCCodecSettings));
+  298   4                  break;
+  299   4      
+  300   4                #if SUPPORT_AAC_SNK
+  301   4                case AAC_SNK_SEID:
+  302   4                  if (categoryPtr[3] != AAC_CODEC)
+  303   4                    return AVDTP_UNSUPPORTED_CONFIGURATION;
+  304   4                  
+  305   4                  value = categoryPtr[4] & A2DP_AAC_OBJECT_TYPE_MPEG2_AAC_LC;
+  306   4                  if (value == 0)
+  307   4                    return AVDTP_UNSUPPORTED_CONFIGURATION;
+  308   4      
+  309   4                  value = categoryPtr[5] & (A2DP_AAC_SAMPLE_FREQ_44100|A2DP_AAC_SAMPLE_FREQ_32000|A2DP_AAC_SAMPLE_FRE
+C251 COMPILER V5.57.0,  A2DP_SignalChannel                                                 08/11/20  06:34:03  PAGE 6   
+
+             -Q_24000|A2DP_AAC_SAMPLE_FREQ_22050|A2DP_AAC_SAMPLE_FREQ_16000|A2DP_AAC_SAMPLE_FREQ_12000|A2DP_AAC_SAMPLE_FREQ_11025|A2DP
+             -_AAC_SAMPLE_FREQ_8000);
+  310   4                  if (value == 0 && (categoryPtr[6] & A2DP_AAC_SAMPLE_FREQ_48000) == 0)
+  311   4                    return AVDTP_UNSUPPORTED_CONFIGURATION;
+  312   4      
+  313   4                  if ((categoryPtr[6] & (A2DP_AAC_CHANNELS_1|A2DP_AAC_CHANNELS_2)) == 0)
+  314   4                    return AVDTP_UNSUPPORTED_CONFIGURATION;
+  315   4      
+  316   4                  OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&a2dpLinkInfo->codecSettings.aac, (U8 XDATA_PTR)&categoryPtr
+             -[4], sizeof(AACCodecSettings));
+  317   4                  break;
+  318   4                #endif
+  319   4                
+  320   4                default:
+  321   4                  if(api_profile_func[API_GRP_PF_CB_AVDTP_SET_CONFIG_CMD])
+  322   4                  {
+  323   5                    U8 cpapLen = ((API_PROFILE_AVDTP_SET_CONFIG_CMD_FUNC)api_profile_func[API_GRP_PF_CB_AVDTP_SET_CONF
+             -IG_CMD])(cfgSeid, categoryPtr);
+  324   5                    if(cpapLen)
+  325   5                    {
+  326   6                      OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&a2dpLinkInfo->codecSettings.vendor, (U8 XDATA_PTR)&catego
+             -ryPtr[4], cpapLen);
+  327   6                    }
+  328   5                    else
+  329   5                    {
+  330   6                      return AVDTP_UNSUPPORTED_CONFIGURATION;
+  331   6                    }
+  332   5                  }
+  333   4                  else
+  334   4                  {
+  335   5                    return AVDTP_UNSUPPORTED_CONFIGURATION;
+  336   5                  }
+  337   4                  break;
+  338   4              }
+  339   3              break;
+  340   3      
+  341   3            case CONTENT_PROTECTION:
+  342   3              if(categoryPtr[2] == A2DP_CP_SCMS_T && categoryPtr[3] == 0)
+  343   3              {
+  344   4                caps |= A2DP_CAPS_CONTENT_PROTECTION;
+  345   4              }
+  346   3              break;
+  347   3      
+  348   3            case DELAY_REPORTING:
+  349   3              if (MMI_A2DP_DELAY_REPORT_FEAT)
+  350   3              {
+  351   4                caps |= A2DP_CAPS_DELAY_REPORTING;
+  352   4              }
+  353   3              break;
+  354   3          }
+  355   2      
+  356   2          serviceLength = 2 + categoryPtr[1];
+  357   2          categoryPtr += serviceLength;
+  358   2          capabilitiesLength -= serviceLength;
+  359   2        }
+  360   1      
+  361   1        a2dpLinkInfo->enableSCMS = (caps & A2DP_CAPS_CONTENT_PROTECTION) ? TRUE : FALSE;
+  362   1        a2dpLinkInfo->enableDelayReport = (caps & A2DP_CAPS_DELAY_REPORTING) ? TRUE : FALSE;
+  363   1        return AVDTP_NO_ERROR;
+  364   1      }
+  365          
+  366          PRIVATE U8 A2DP_SetServiceConfiguration(U8 linkIndex, AvdtpSignalConfigType XDATA_PTR eventPtr, U8 isReCo
+             -nfig)
+  367          {
+  368   1        A2DP_LINK_INFO XDATA_PTR a2dpLinkInfo = A2DP_GetLinkInfo(linkIndex);
+  369   1        U8 cfgSeid = eventPtr->acpSEID >> 2;
+C251 COMPILER V5.57.0,  A2DP_SignalChannel                                                 08/11/20  06:34:03  PAGE 7   
+
+  370   1      
+  371   1        if(isReConfig && a2dpLinkInfo->localSeid != cfgSeid)
+  372   1          return AVDTP_BAD_ACP_SEID;
+  373   1      
+  374   1        if(!A2DP_SetCodecPara(a2dpLinkInfo, cfgSeid))
+  375   1        {
+  376   2          return AVDTP_BAD_ACP_SEID;
+  377   2        }
+  378   1      
+  379   1        if(isReConfig)
+  380   1        {
+  381   2          return A2DP_ParseCapabilities(a2dpLinkInfo, (U8 XDATA_PTR)&eventPtr->intSEID, eventPtr->l2capLength-3, 
+             -cfgSeid);
+  382   2        }
+  383   1        else
+  384   1        {
+  385   2          return A2DP_ParseCapabilities(a2dpLinkInfo, (U8 XDATA_PTR)&eventPtr->configData[0], eventPtr->l2capLeng
+             -th-4, cfgSeid);
+  386   2        }
+  387   1      }
+  388          
+  389          PRIVATE U8 A2DP_GetServiceConfiguration(A2DP_LINK_INFO XDATA_PTR a2dpLinkInfo, AvdtpSignalType XDATA_PTR 
+             -eventPtr)
+  390          {
+  391   1        U8 XDATA_PTR servicePtr;
+  392   1      
+  393   1        if(a2dpLinkInfo->localSeid != (eventPtr->para[0]>>2))
+  394   1        {
+  395   2          return AVDTP_BAD_ACP_SEID;
+  396   2        }
+  397   1      
+  398   1        servicePtr = &eventPtr->para[0];
+  399   1      
+  400   1        servicePtr[0] = MEDIA_TRANSPORT;
+  401   1        servicePtr[1] = 0;
+  402   1        servicePtr += 2;
+  403   1      
+  404   1        if(a2dpLinkInfo->enableSCMS)
+  405   1        {
+  406   2          servicePtr[0] = CONTENT_PROTECTION;
+  407   2          servicePtr[1] = 0x02;
+  408   2          servicePtr[2] = A2DP_CP_SCMS_T;
+  409   2          servicePtr[3] = 0;
+  410   2          servicePtr += 4;
+  411   2        }
+  412   1      
+  413   1        servicePtr[0] = MEDIA_CODEC;
+  414   1        servicePtr[2] = AUDIO_TYPE;
+  415   1        switch (a2dpLinkInfo->localSeid)
+  416   1        {
+  417   2          #if SUPPORT_SBC_SNK
+  418   2          case SBC_SNK_SEID:
+  419   2          #endif
+  420   2          #if SUPPORT_SBC_SRC
+                   case SBC_SRC_SEID:
+                   #endif
+  423   2            servicePtr[1] = sizeof(SBCCodecSettings) + 2;
+  424   2            servicePtr[3] = SBC_CODEC;
+  425   2            OSMEM_memcpy_xdata_xdata(&servicePtr[4], (U8 XDATA_PTR)&a2dpLinkInfo->codecSettings.sbc, sizeof(SBCCod
+             -ecSettings));
+  426   2            break;
+  427   2      
+  428   2          #if SUPPORT_AAC_SNK
+  429   2          case AAC_SNK_SEID:
+  430   2            servicePtr[1] = sizeof(AACCodecSettings) + 2;
+  431   2            servicePtr[3] = AAC_CODEC;
+C251 COMPILER V5.57.0,  A2DP_SignalChannel                                                 08/11/20  06:34:03  PAGE 8   
+
+  432   2            OSMEM_memcpy_xdata_xdata(&servicePtr[4], (U8 XDATA_PTR)&a2dpLinkInfo->codecSettings.aac, sizeof(AACCod
+             -ecSettings));
+  433   2            break;
+  434   2          #endif
+  435   2          default:
+  436   2            if(api_profile_func[API_GRP_PF_CB_AVDTP_GET_CONFIG_CMD])
+  437   2            {
+  438   3              if(!((API_PROFILE_AVDTP_GET_CONFIG_CMD_FUNC)api_profile_func[API_GRP_PF_CB_AVDTP_GET_CONFIG_CMD])(a2d
+             -pLinkInfo->localSeid, servicePtr, (U8 XDATA_PTR)&a2dpLinkInfo->codecSettings.vendor))
+  439   3              {
+  440   4                return AVDTP_BAD_ACP_SEID;
+  441   4              }
+  442   3            }     
+  443   2            break;
+  444   2        }
+  445   1        servicePtr += servicePtr[1] + 2;
+  446   1      
+  447   1        if (a2dpLinkInfo->enableDelayReport)
+  448   1        {
+  449   2          servicePtr[0] = DELAY_REPORTING;
+  450   2          servicePtr[1] = 0;
+  451   2          servicePtr += 2;
+  452   2        }
+  453   1      
+  454   1        eventPtr->l2capLength = (servicePtr - &eventPtr->para[0]);
+  455   1        return AVDTP_NO_ERROR;
+  456   1      }
+  457          
+  458          PRIVATE void A2DP_SignalCommandHandler(U8 linkIndex, AvdtpSignalType XDATA_PTR eventPtr)
+  459          {
+  460   1        U8 errorCode;
+  461   1        A2DP_LINK_INFO XDATA_PTR a2dpLinkInfo = A2DP_GetLinkInfo(linkIndex);
+  462   1        
+  463   1        if ((errorCode = A2DP_SignalCheckIntegrity(a2dpLinkInfo, eventPtr)) != AVDTP_NO_ERROR)
+  464   1        {
+  465   2          AVDTP_SendRejectRsp(linkIndex, eventPtr, errorCode);
+  466   2          return;
+  467   2        }
+  468   1      
+  469   1        switch(eventPtr->signalIdentifier & 0x3F)
+  470   1        {
+  471   2          case AVDTP_DISCOVER:
+  472   2            if(a2dpLinkInfo->mmiProfileInfo.state == PROFILE_CONNECTED && a2dpLinkInfo->substates != A2DP_SUBSTATE
+             -_IDLE_WAIT_SET_CONFIG_RESP)
+  473   2              A2DP_ClearSubStateAndTimer(a2dpLinkInfo);
+  474   2            break;
+  475   2          case AVDTP_GET_CAPABILITIES:
+  476   2          case AVDTP_GET_ALL_CAPABILITIES:
+  477   2            if(a2dpLinkInfo->mmiProfileInfo.state == PROFILE_CONNECTED && a2dpLinkInfo->substates != A2DP_SUBSTATE
+             -_IDLE_WAIT_SET_CONFIG_RESP)
+  478   2              A2DP_ClearSubStateAndTimer(a2dpLinkInfo);
+  479   2            break;
+  480   2          case AVDTP_SET_CONFIGURATION:
+  481   2            if(a2dpLinkInfo->mmiProfileInfo.state != PROFILE_CONNECTED)
+  482   2            {
+  483   3              errorCode = AVDTP_SEP_IN_USE;
+  484   3              break;
+  485   3            }
+  486   2            if((errorCode = A2DP_SetServiceConfiguration(linkIndex, (AvdtpSignalConfigType XDATA_PTR)eventPtr, FAL
+             -SE)) == AVDTP_NO_ERROR)
+  487   2            {
+  488   3              a2dpLinkInfo->localSeid = ((AvdtpSignalConfigType XDATA_PTR)eventPtr)->acpSEID >> 2;
+  489   3              a2dpLinkInfo->remoteSeid = ((AvdtpSignalConfigType XDATA_PTR)eventPtr)->intSEID >> 2;
+  490   3              a2dpLinkInfo->mmiProfileInfo.state = A2DP_CONFIGURED;
+  491   3              A2DP_ClearSubStateAndTimer(a2dpLinkInfo);
+  492   3            }
+C251 COMPILER V5.57.0,  A2DP_SignalChannel                                                 08/11/20  06:34:03  PAGE 9   
+
+  493   2            break;
+  494   2          case AVDTP_GET_CONFIGURATION:
+  495   2            if(!(a2dpLinkInfo->mmiProfileInfo.state >= A2DP_CONFIGURED && a2dpLinkInfo->mmiProfileInfo.state <= A2
+             -DP_STREAMING))
+  496   2            {
+  497   3              errorCode = AVDTP_BAD_STATE;
+  498   3              break;
+  499   3            }
+  500   2            errorCode = A2DP_GetServiceConfiguration(a2dpLinkInfo, eventPtr);
+  501   2            break;
+  502   2          case AVDTP_RECONFIGURE:
+  503   2            if(a2dpLinkInfo->mmiProfileInfo.state != A2DP_OPEN)
+  504   2            {
+  505   3              errorCode = AVDTP_BAD_STATE;
+  506   3              break;
+  507   3            }
+  508   2            errorCode = A2DP_SetServiceConfiguration(linkIndex, (AvdtpSignalConfigType XDATA_PTR)eventPtr, TRUE);
+  509   2            break;
+  510   2          case AVDTP_OPEN:
+  511   2            if(a2dpLinkInfo->mmiProfileInfo.state != A2DP_CONFIGURED)
+  512   2            {
+  513   3              errorCode = AVDTP_BAD_STATE;
+  514   3              break;
+  515   3            }
+  516   2            a2dpLinkInfo->mmiProfileInfo.state = A2DP_OPEN;
+  517   2            A2DP_ClearSubStateAndTimer(a2dpLinkInfo);
+  518   2            break;
+  519   2          case AVDTP_START:
+  520   2            if(a2dpLinkInfo->mmiProfileInfo.state != A2DP_OPEN)
+  521   2            {
+  522   3              errorCode = AVDTP_BAD_STATE;
+  523   3              break;
+  524   3            }
+  525   2            if(a2dpLinkInfo->airCtl.packetRole == PACKET_ROLE_FOLLOWER)
+  526   2            {
+  527   3              U8 acpSEID = (((AvdtpSignalConfigType XDATA_PTR)eventPtr)->acpSEID >> 2);
+  528   3              if(acpSEID == AUX_ENCODER_SEID)
+  529   3              {
+  530   4                a2dpLinkInfo->localSeid = SBC_SNK_SEID;
+  531   4                MMI_A2DP_EventHandler(linkIndex, A2DP_CHANNEL_FOLLOWER_AUX);
+  532   4              }
+  533   3              else
+  534   3              {
+  535   4                a2dpLinkInfo->localSeid = acpSEID;
+  536   4                MMI_A2DP_EventHandler(linkIndex, A2DP_CHANNEL_FOLLOWER_MUSIC);
+  537   4              }
+  538   3              A2DP_SetCodecPara(a2dpLinkInfo, a2dpLinkInfo->localSeid);
+  539   3            }
+  540   2            else if(a2dpLinkInfo->airCtl.packetRole == PACKET_ROLE_RELAYER)
+  541   2            {
+  542   3              a2dpLinkInfo->remoteReqPtr = (U8 XDATA_PTR)eventPtr;
+  543   3              eventPtr = 0;
+  544   3              SYS_SetTimer(&a2dpLinkInfo->timer, GAVDP_TIMER_100);
+  545   3              AVDTP_SendAcceptRsp(linkIndex, (AvdtpSignalType XDATA_PTR)a2dpLinkInfo->remoteReqPtr);
+  546   3              a2dpLinkInfo->mmiProfileInfo.state = A2DP_STREAMING;
+  547   3              A2DP_CommandComplete(a2dpLinkInfo);
+  548   3              MMI_SniffDisable(linkIndex, MMI_SNIFF_A2DP_MUSIC);
+  549   3              break;
+  550   3            }
+  551   2            
+  552   2            if( a2dpLinkInfo->substates == A2DP_SUBSTATE_OPEN_WAIT_MMI_DSP_RESP ||
+  553   2              a2dpLinkInfo->substates == A2DP_SUBSTATE_OPEN_OPEN_MEDIA_CHANNEL||
+  554   2              a2dpLinkInfo->substates == A2DP_SUBSTATE_OPEN_WAIT_MEDIA_CHANNEL_READY)
+  555   2            {
+  556   3              OSMQ_PutFront(&a2dpLinkInfo->OSMQ_AVDTP_Signal_To_A2DP, (U8 XDATA_PTR)eventPtr);
+  557   3              eventPtr = 0;
+C251 COMPILER V5.57.0,  A2DP_SignalChannel                                                 08/11/20  06:34:03  PAGE 10  
+
+  558   3            }
+  559   2            else
+  560   2            {
+  561   3              a2dpLinkInfo->substates = A2DP_SUBSTATE_OPEN_WAIT_MMI_DSP_RESP;
+  562   3              a2dpLinkInfo->remoteReqPtr = (U8 XDATA_PTR)eventPtr;
+  563   3              eventPtr = 0;
+  564   3              SYS_SetTimer(&a2dpLinkInfo->timer, GAVDP_TIMER_100);
+  565   3              MMI_A2DP_EventHandler(linkIndex, A2DP_CHANNEL_START_REQ);
+  566   3            }
+  567   2            break;
+  568   2          case AVDTP_CLOSE:
+  569   2            if(a2dpLinkInfo->mmiProfileInfo.state != A2DP_OPEN && a2dpLinkInfo->mmiProfileInfo.state != A2DP_STREA
+             -MING)
+  570   2            {
+  571   3              errorCode = AVDTP_BAD_STATE;
+  572   3              break;
+  573   3            }
+  574   2            MMI_A2DP_EventHandler(linkIndex, A2DP_CHANNEL_FOLLOWER_MUSIC);
+  575   2            if( a2dpLinkInfo->substates == A2DP_SUBSTATE_OPEN_WAIT_MMI_DSP_RESP||
+  576   2              a2dpLinkInfo->substates == A2DP_SUBSTATE_OPEN_WAIT_MEDIA_CHANNEL_READY||
+  577   2              a2dpLinkInfo->substates == A2DP_SUBSTATE_STREAM_WAIT_MMI_DSP_RESP)
+  578   2            {
+  579   3              OSMQ_PutFront(&a2dpLinkInfo->OSMQ_AVDTP_Signal_To_A2DP, (U8 XDATA_PTR)eventPtr);
+  580   3              eventPtr = 0;
+  581   3            }
+  582   2            else
+  583   2            {
+  584   3              SYS_MemoryRelease(&a2dpLinkInfo->remoteReqPtr);
+  585   3              a2dpLinkInfo->remoteReqPtr = (U8 XDATA_PTR)eventPtr;
+  586   3              eventPtr = 0;
+  587   3      
+  588   3              if(a2dpLinkInfo->mmiProfileInfo.state == A2DP_STREAMING)
+  589   3              {
+  590   4                MMI_SniffEnable(linkIndex, MMI_SNIFF_A2DP_MUSIC);
+  591   4              }
+  592   3              a2dpLinkInfo->mmiProfileInfo.state = A2DP_CLOSING;
+  593   3              a2dpLinkInfo->substates =A2DP_SUBSTATE_CLOSE_WAIT_MMI_CLOSE_RESP;
+  594   3              A2DP_SetMediaDataPlayByLink(a2dpLinkInfo, FALSE);
+  595   3              A2DP_DelayReportClearPara(linkIndex);
+  596   3              SYS_SetTimer(&a2dpLinkInfo->timer, GAVDP_TIMER_100);
+  597   3              MMI_A2DP_EventHandler(linkIndex, A2DP_CHANNEL_CLOSE_REQ);
+  598   3            }
+  599   2            break;
+  600   2          case AVDTP_SUSPEND:
+  601   2            if(a2dpLinkInfo->mmiProfileInfo.state == A2DP_STREAMING)
+  602   2            {
+  603   3              if(a2dpLinkInfo->substates == A2DP_SUBSTATE_BEGINNING_STATE)
+  604   3              {
+  605   4                A2DP_SetMediaDataPlayByLink(a2dpLinkInfo, FALSE);
+  606   4                a2dpLinkInfo->substates = A2DP_SUBSTATE_STREAM_WAIT_MMI_DSP_RESP;
+  607   4                a2dpLinkInfo->remoteReqPtr = (U8 XDATA_PTR)eventPtr;
+  608   4                eventPtr = 0;
+  609   4                A2DP_DelayReportClearPara(linkIndex);
+  610   4                SYS_SetTimer(&a2dpLinkInfo->timer, GAVDP_TIMER_100);
+  611   4                SYS_SetTimer(&a2dpLinkInfo->suspendDelayTimer, 3 * HALF_SEC); //for issue 1504
+  612   4                MMI_A2DP_EventHandler(linkIndex, A2DP_CHANNEL_SUSPEND_REQ);
+  613   4                break;
+  614   4              }
+  615   3              else if(a2dpLinkInfo->substates == A2DP_SUBSTATE_STREAM_WAIT_MMI_DSP_RESP)
+  616   3              {
+  617   4                OSMQ_PutFront(&a2dpLinkInfo->OSMQ_AVDTP_Signal_To_A2DP, (U8 XDATA_PTR)eventPtr);
+  618   4                eventPtr = 0;
+  619   4                break;
+  620   4              }
+  621   3            }
+  622   2            else if (a2dpLinkInfo->mmiProfileInfo.state == A2DP_OPEN)
+C251 COMPILER V5.57.0,  A2DP_SignalChannel                                                 08/11/20  06:34:03  PAGE 11  
+
+  623   2            {
+  624   3              if(a2dpLinkInfo->substates == A2DP_SUBSTATE_OPEN_WAIT_SUSPEND)
+  625   3              {
+  626   4                A2DP_CommandComplete(a2dpLinkInfo);
+  627   4                break;
+  628   4              }
+  629   3            }
+  630   2            errorCode = AVDTP_BAD_STATE;
+  631   2            break;
+  632   2          case AVDTP_ABORT:
+  633   2            //by spec. However, AVDTP_ABORT can be sent or received in IDLE state. In the event that an
+  634   2            //AVDTP_ABORT is received in IDLE state, ACP or INT shall reply with an AVDTP_ABORT_RSP,
+  635   2            //no state change is required. As there should be no Transport Channels established no actions have
+  636   2            //to be taken to release the Transport Channels.
+  637   2            if( a2dpLinkInfo->mmiProfileInfo.state >= A2DP_CONFIGURED && a2dpLinkInfo->mmiProfileInfo.state <= A2D
+             -P_STREAMING &&
+  638   2              a2dpLinkInfo->localSeid == (((AvdtpSignalConfigType XDATA_PTR)eventPtr)->acpSEID >> 2))
+  639   2            {
+  640   3              a2dpLinkInfo->mmiProfileInfo.state = A2DP_ABORTING;
+  641   3              a2dpLinkInfo->substates = A2DP_SUBSTATE_ABORT_PASSIVE_GET_ABORT_CMD;
+  642   3              SYS_SetTimer(&a2dpLinkInfo->timer, GAVDP_TIMER_100);
+  643   3              MMI_SniffEnable(linkIndex, MMI_SNIFF_A2DP_MUSIC);
+  644   3            }
+  645   2            else
+  646   2            {
+  647   3              /* dicard erroneous abort command, no response should send */
+  648   3              OSMEM_Put((U8 XDATA_PTR)eventPtr);
+  649   3              eventPtr = 0;
+  650   3            }
+  651   2            break;
+  652   2          case AVDTP_SECURITY_CONTROL:
+  653   2            if(!(a2dpLinkInfo->mmiProfileInfo.state >= A2DP_CONFIGURED && a2dpLinkInfo->mmiProfileInfo.state <= A2
+             -DP_STREAMING))
+  654   2            {
+  655   3              errorCode = AVDTP_BAD_STATE;
+  656   3              break;
+  657   3            }
+  658   2            if(a2dpLinkInfo->localSeid != (((AvdtpSignalConfigType XDATA_PTR)eventPtr)->acpSEID >> 2))
+  659   2            {
+  660   3              errorCode = AVDTP_BAD_ACP_SEID;
+  661   3              break;
+  662   3            }
+  663   2            break;
+  664   2          case AVDTP_DELAYREPORT:
+  665   2            if (a2dpLinkInfo->enableDelayReport)
+  666   2            {
+  667   3              break; //support delay report
+  668   3            }
+  669   2            /* fallthrough */
+  670   2          default:
+  671   2            errorCode =  AVDTP_NOT_SUPPORT_COMMAND;
+  672   2            break;
+  673   2        }
+  674   1        
+  675   1        if(eventPtr)
+  676   1        {
+  677   2          //eventPtr is transferred to response
+  678   2          if (errorCode == AVDTP_NO_ERROR)
+  679   2          {
+  680   3            AVDTP_SendAcceptRsp(linkIndex, eventPtr);
+  681   3            if (a2dpLinkInfo->enableDelayReport && ((eventPtr->signalIdentifier & 0x3F) == AVDTP_SET_CONFIGURATION
+             - || (eventPtr->signalIdentifier & 0x3F) == AVDTP_RECONFIGURE))
+  682   3            {
+  683   4              A2DP_SendInitDelayReport(linkIndex);
+  684   4            }
+  685   3            #ifdef AVDTP_PTS_TP_SIG_SMG_BV_11_C
+C251 COMPILER V5.57.0,  A2DP_SignalChannel                                                 08/11/20  06:34:03  PAGE 12  
+
+                     if ((eventPtr->signalIdentifier & 0x3F) == AVDTP_SET_CONFIGURATION)
+                     {
+                       AVDTP_SendGetConfigurationCmd(linkIndex, a2dpLinkInfo->remoteSeid);
+                     }
+                     #endif
+  691   3            #ifdef AVDTP_PTS_TP_SIG_SMG_ESR05_BV_13_C
+                     if ((eventPtr->signalIdentifier & 0x3F) == AVDTP_OPEN)
+                     {
+                       U8 LDATA cfgData[] = {0x07, 0x06, 0x00, 0x00, 0x11, 0x15, 0x08, 0x80};
+                       AVDTP_SendReconfigureCmd(linkIndex, a2dpLinkInfo->remoteSeid, sizeof(cfgData), (U8 XDATA_PTR)&cfgData
+             -[0]);
+                     }
+                     #endif
+  698   3          }
+  699   2          else
+  700   2          {
+  701   3            AVDTP_SendRejectRsp(linkIndex, eventPtr, errorCode);
+  702   3          }
+  703   2        }
+  704   1      }
+  705          
+  706          /////////////////////////////////////////////////////////////////////
+  707          // Signal Response Handler
+  708          /////////////////////////////////////////////////////////////////////
+  709          
+  710          PRIVATE U8 A2DP_FilterDiscovSeid(A2dpDiscovSeidInfo XDATA_PTR discovSeidInfoPtr, U8 seidDataLen, U8 XDATA
+             -_PTR seidDataPtr)
+  711          {
+  712   1        U8 count = 0;
+  713   1      
+  714   1        while(count < A2DP_MAX_SEID_MATCH_NUM && seidDataLen >= sizeof(A2DP_SEID_INFO))
+  715   1        {
+  716   2          if( ((A2DP_SEID_INFO XDATA_PTR)seidDataPtr)->inUse == 0 &&
+  717   2            ((A2DP_SEID_INFO XDATA_PTR)seidDataPtr)->mediaType == A2DP_AUDIO &&
+  718   2            ((A2DP_SEID_INFO XDATA_PTR)seidDataPtr)->tsep == discovSeidInfoPtr->tsep )
+  719   2          {
+  720   3            discovSeidInfoPtr->seid[count++] = ((A2DP_SEID_INFO XDATA_PTR)seidDataPtr)->seid;
+  721   3          }
+  722   2          seidDataPtr += sizeof(A2DP_SEID_INFO);
+  723   2          seidDataLen -= sizeof(A2DP_SEID_INFO);
+  724   2        }
+  725   1        return count;
+  726   1      }
+  727          
+  728          PRIVATE U8 A2DP_MatchDiscovSeid(A2dpDiscovSeidInfo XDATA_PTR discovSeidInfoPtr, AvdtpSignalType XDATA_PTR
+             - eventPtr)
+  729          {
+  730   1        U8 XDATA_PTR paraPtr = &eventPtr->para[0];
+  731   1        U8 caps;
+  732   1        U8 serviceLength, capabilitiesLength = (U8)(eventPtr->l2capLength - 2);
+  733   1        U8 LDATA configParam[A2DP_MAX_CAPS_MATCH_SIZE];
+  734   1        U8 XDATA_PTR configPtr = (U8 XDATA_PTR)&configParam[0];
+  735   1        U8 LDATA configLen = 0;
+  736   1        U8 LDATA intSeid = 0;
+  737   1      
+  738   1        caps = 0;
+  739   1      
+  740   1        
+  741   1        while(capabilitiesLength >= 2)
+  742   1        {
+  743   2          switch(paraPtr[0])
+  744   2          {
+  745   3            case MEDIA_TRANSPORT:
+  746   3              caps |= A2DP_CAPS_MEDIA_TRANSPORT;
+  747   3              configPtr[0] = MEDIA_TRANSPORT;
+  748   3              configPtr[1] = 0;
+C251 COMPILER V5.57.0,  A2DP_SignalChannel                                                 08/11/20  06:34:03  PAGE 13  
+
+  749   3              configPtr += 2;
+  750   3              configLen += 2;
+  751   3              break;
+  752   3      
+  753   3            case MEDIA_CODEC:
+  754   3              if(paraPtr[2] == AUDIO_TYPE)
+  755   3              {
+  756   4                OSMEM_memcpy_xdata_xdata(configPtr, paraPtr, 4);
+  757   4      
+  758   4                #if SUPPORT_SBC_SNK || SUPPORT_SBC_SRC
+  759   4                if(paraPtr[3] == SBC_CODEC)
+  760   4                {
+  761   5                  U8 value, value2;
+  762   5                  
+  763   5                  value2 = 0;
+  764   5                  value = paraPtr[4];
+  765   5      
+  766   5                  if(value & (gA2DP_nvram.seidCtl.sbcDefaultSettings.content1 & 0x0F))
+  767   5                    value2 |= (gA2DP_nvram.seidCtl.sbcDefaultSettings.content1 & 0x0F);
+  768   5                  else if(value & A2DP_SBC_CHANNEL_MODE_JOINT_STEREO)
+  769   5                    value2 |= A2DP_SBC_CHANNEL_MODE_JOINT_STEREO;
+  770   5                  else if(value & A2DP_SBC_CHANNEL_MODE_STEREO)
+  771   5                    value2 |= A2DP_SBC_CHANNEL_MODE_STEREO;
+  772   5                  else if(value & A2DP_SBC_CHANNEL_MODE_MONO)
+  773   5                    value2 |= A2DP_SBC_CHANNEL_MODE_MONO;
+  774   5                  else if(value & A2DP_SBC_CHANNEL_MODE_DUAL)
+  775   5                    value2 |= A2DP_SBC_CHANNEL_MODE_DUAL;
+  776   5                  else
+  777   5                    break;
+  778   5      
+  779   5                  if(value & (gA2DP_nvram.seidCtl.sbcDefaultSettings.content1 & 0xF0))
+  780   5                    value2 |= (gA2DP_nvram.seidCtl.sbcDefaultSettings.content1 & 0xF0);
+  781   5                  else if(value & A2DP_SBC_SAMPLE_FREQ_48000)
+  782   5                    value2 |= A2DP_SBC_SAMPLE_FREQ_48000;
+  783   5                  else if(value & A2DP_SBC_SAMPLE_FREQ_44100)
+  784   5                    value2 |= A2DP_SBC_SAMPLE_FREQ_44100;
+  785   5                  else if(value & A2DP_SBC_SAMPLE_FREQ_32000)
+  786   5                    value2 |= A2DP_SBC_SAMPLE_FREQ_32000;
+  787   5                  else
+  788   5                    break;
+  789   5      
+  790   5                  configPtr[4] = value2;
+  791   5      
+  792   5                  value2 = 0;
+  793   5                  value = paraPtr[5];
+  794   5      
+  795   5                  if(value & (gA2DP_nvram.seidCtl.sbcDefaultSettings.content2 & 0x03))
+  796   5                    value2 |= (gA2DP_nvram.seidCtl.sbcDefaultSettings.content2 & 0x03);
+  797   5                  else if(value & A2DP_SBC_ALLOCATION_LOUDNESS)
+  798   5                    value2 |= A2DP_SBC_ALLOCATION_LOUDNESS;
+  799   5                  else if(value & A2DP_SBC_ALLOCATION_SNR)
+  800   5                    value2 |= A2DP_SBC_ALLOCATION_SNR;
+  801   5                  else
+  802   5                    break;
+  803   5      
+  804   5                  if(value & (gA2DP_nvram.seidCtl.sbcDefaultSettings.content2 & 0x0C))
+  805   5                    value2 |= (gA2DP_nvram.seidCtl.sbcDefaultSettings.content2 & 0x0C);
+  806   5                  else if(value & A2DP_SBC_SUBBAND_NUMBER_8)
+  807   5                    value2 |= A2DP_SBC_SUBBAND_NUMBER_8;
+  808   5                  else if(value & A2DP_SBC_SUBBAND_NUMBER_4)
+  809   5                    value2 |= A2DP_SBC_SUBBAND_NUMBER_4;
+  810   5                  else
+  811   5                    break;
+  812   5      
+  813   5                  if(value & (gA2DP_nvram.seidCtl.sbcDefaultSettings.content2 & 0xF0))
+  814   5                    value2 |= (gA2DP_nvram.seidCtl.sbcDefaultSettings.content2 & 0xF0);
+C251 COMPILER V5.57.0,  A2DP_SignalChannel                                                 08/11/20  06:34:03  PAGE 14  
+
+  815   5                  else if(value & A2DP_SBC_BLOCK_LENGTH_16)
+  816   5                    value2 |= A2DP_SBC_BLOCK_LENGTH_16;
+  817   5                  else if(value & A2DP_SBC_BLOCK_LENGTH_12)
+  818   5                    value2 |= A2DP_SBC_BLOCK_LENGTH_12;
+  819   5                  else if(value & A2DP_SBC_BLOCK_LENGTH_8)
+  820   5                    value2 |= A2DP_SBC_BLOCK_LENGTH_8;
+  821   5                  else if(value & A2DP_SBC_BLOCK_LENGTH_4)
+  822   5                    value2 |= A2DP_SBC_BLOCK_LENGTH_4;
+  823   5                  else
+  824   5                    break;
+  825   5      
+  826   5                  configPtr[5] = value2;
+  827   5      
+  828   5                  if(paraPtr[6] < gA2DP_nvram.seidCtl.sbcDefaultSettings.minBitPool)
+  829   5                    configPtr[6] = gA2DP_nvram.seidCtl.sbcDefaultSettings.minBitPool;
+  830   5                  else
+  831   5                    configPtr[6] = paraPtr[6];
+  832   5      
+  833   5                  if(paraPtr[7] > gA2DP_nvram.seidCtl.sbcDefaultSettings.maxBitPool)
+  834   5                    configPtr[7] = gA2DP_nvram.seidCtl.sbcDefaultSettings.maxBitPool;
+  835   5                  else
+  836   5                    configPtr[7] = paraPtr[7];
+  837   5      
+  838   5                  configPtr += 8;
+  839   5                  configLen += 8;
+  840   5                  
+  841   5                  #ifdef A2DP_SRC_Profile
+                           intSeid = SBC_SRC_SEID;
+                           #else
+  844   5                  intSeid = SBC_SNK_SEID;
+  845   5                  #endif
+  846   5                  break;
+  847   5                }
+  848   4                #endif
+  849   4                #if SUPPORT_AAC_SNK
+  850   4                if(paraPtr[3] == AAC_CODEC)
+  851   4                {
+  852   5                  U32 bitrate1, bitrate2;
+  853   5                  
+  854   5                  if(paraPtr[4] & A2DP_AAC_OBJECT_TYPE_MPEG2_AAC_LC)
+  855   5                    configPtr[4] = A2DP_AAC_OBJECT_TYPE_MPEG2_AAC_LC;
+  856   5                  else
+  857   5                    break;
+  858   5      
+  859   5                  if(paraPtr[5] & A2DP_AAC_SAMPLE_FREQ_44100)
+  860   5                  {
+  861   6                    configPtr[5] = A2DP_AAC_SAMPLE_FREQ_44100;
+  862   6                    configPtr[6] = 0;
+  863   6                  }
+  864   5                  else if(paraPtr[6] & A2DP_AAC_SAMPLE_FREQ_48000)
+  865   5                  {
+  866   6                    configPtr[5] = 0;
+  867   6                    configPtr[6] = A2DP_AAC_SAMPLE_FREQ_48000;
+  868   6                  }
+  869   5                  else
+  870   5                    break;
+  871   5      
+  872   5                  if(paraPtr[6] & A2DP_AAC_CHANNELS_2)
+  873   5                    configPtr[6] |= A2DP_AAC_CHANNELS_2;
+  874   5                  else if(paraPtr[6] & A2DP_AAC_CHANNELS_1)
+  875   5                    configPtr[6] |= A2DP_AAC_CHANNELS_1;
+  876   5                  else
+  877   5                    break;
+  878   5      
+  879   5                  bitrate2 = (*(U32 XDATA_PTR)&paraPtr[6]) & 0x007FFFFF;
+  880   5                  bitrate1 = (*(U32 XDATA_PTR)&gA2DP_nvram.seidCtl.aacDefaultSettings.sampleRate2) & 0x007FFFFF;
+C251 COMPILER V5.57.0,  A2DP_SignalChannel                                                 08/11/20  06:34:03  PAGE 15  
+
+  881   5                  if (bitrate2 > bitrate1)
+  882   5                  {
+  883   6                    bitrate2 = bitrate1;
+  884   6                  }
+  885   5                  
+  886   5                  configPtr[7] = (paraPtr[7] & A2DP_AAC_VARIABLE_BIT_RATE) | (U8)(bitrate2 >> 16);
+  887   5                  configPtr[8] = (U8)(bitrate2 >> 8);
+  888   5                  configPtr[9] = (U8)bitrate2;
+  889   5      
+  890   5                  configPtr += 10;
+  891   5                  configLen += 10;
+  892   5                  intSeid = AAC_SNK_SEID;
+  893   5                  break;
+  894   5                }
+  895   4                #endif
+  896   4                if(api_profile_func[API_GRP_PF_CB_AVDTP_GET_CAPABILITY_RESP])
+  897   4                {
+  898   5                  if(((API_PROFILE_AVDTP_GET_CAPABILITY_RESP_FUNC)api_profile_func[API_GRP_PF_CB_AVDTP_GET_CAPABILITY
+             -_RESP])(paraPtr, &configPtr, &configLen, &intSeid))
+  899   5                  {
+  900   6                    discovSeidInfoPtr->preferSeid = intSeid;
+  901   6                  }
+  902   5                  if(intSeid)
+  903   5                  {
+  904   6                    break;
+  905   6                  }
+  906   5                }
+  907   4              }
+  908   3              break;
+  909   3      
+  910   3            case CONTENT_PROTECTION:
+  911   3              if(paraPtr[2] == A2DP_CP_SCMS_T && paraPtr[3] == 0)
+  912   3              {
+  913   4                caps |= A2DP_CAPS_CONTENT_PROTECTION;
+  914   4                OSMEM_memcpy_xdata_xdata(configPtr, paraPtr, 4);
+  915   4                configPtr += 4;
+  916   4                configLen += 4;
+  917   4              }
+  918   3              break;
+  919   3      
+  920   3            case DELAY_REPORTING:
+  921   3              if (MMI_A2DP_DELAY_REPORT_FEAT)
+  922   3              {
+  923   4                caps |= A2DP_CAPS_DELAY_REPORTING;
+  924   4                configPtr[0] = DELAY_REPORTING;
+  925   4                configPtr[1] = 0;
+  926   4                configPtr += 2;
+  927   4                configLen += 2;
+  928   4              }
+  929   3              break;
+  930   3          }
+  931   2      
+  932   2          paraPtr += (serviceLength = 2 + paraPtr[1]);
+  933   2          capabilitiesLength -= serviceLength;
+  934   2        }
+  935   1        
+  936   1        if (intSeid)
+  937   1        {
+  938   2          if (discovSeidInfoPtr->preferSeid == intSeid || discovSeidInfoPtr->intSeid == 0)
+  939   2          {
+  940   3            discovSeidInfoPtr->acpSeid = discovSeidInfoPtr->seid[discovSeidInfoPtr->index];
+  941   3            discovSeidInfoPtr->intSeid = intSeid;
+  942   3            discovSeidInfoPtr->caps = caps;
+  943   3            discovSeidInfoPtr->configLen = configLen;
+  944   3            OSMEM_memcpy_xdata_xdata(&discovSeidInfoPtr->configParam[0], (U8 XDATA_PTR)&configParam[0], configLen)
+             -;
+C251 COMPILER V5.57.0,  A2DP_SignalChannel                                                 08/11/20  06:34:03  PAGE 16  
+
+  945   3          }
+  946   2        }
+  947   1        return intSeid;
+  948   1      }
+  949          
+  950          PRIVATE void A2DP_SetMatchConfiguration(A2DP_LINK_INFO XDATA_PTR a2dpLinkInfo, A2dpDiscovSeidInfo XDATA_P
+             -TR discovSeidInfoPtr)
+  951          {
+  952   1        U8 XDATA_PTR configPtr = &discovSeidInfoPtr->configParam[0];
+  953   1        U8 serviceLength, configLen = discovSeidInfoPtr->configLen;
+  954   1        
+  955   1        while (configLen >= 2)
+  956   1        {
+  957   2          switch (configPtr[0])
+  958   2          {
+  959   3            case MEDIA_CODEC:
+  960   3              switch (discovSeidInfoPtr->intSeid)
+  961   3              {
+  962   4                #if SUPPORT_SBC_SNK
+  963   4                case SBC_SNK_SEID:
+  964   4                #endif
+  965   4                #if SUPPORT_SBC_SRC
+                         case SBC_SRC_SEID:
+                         #endif
+  968   4                  OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&a2dpLinkInfo->codecSettings.sbc, &configPtr[4], sizeof(SBCC
+             -odecSettings));
+  969   4                  break;
+  970   4                
+  971   4                #if SUPPORT_AAC_SNK
+  972   4                case AAC_SNK_SEID:
+  973   4                  OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&a2dpLinkInfo->codecSettings.aac, &configPtr[4], sizeof(AACC
+             -odecSettings));
+  974   4                  break;
+  975   4                #endif
+  976   4              }
+  977   3              break;
+  978   3          }
+  979   2      
+  980   2          configPtr += (serviceLength = 2 + configPtr[1]);
+  981   2          configLen -= serviceLength;
+  982   2        }
+  983   1        
+  984   1        A2DP_SetCodecPara(a2dpLinkInfo, discovSeidInfoPtr->intSeid);
+  985   1      
+  986   1        a2dpLinkInfo->enableSCMS = (discovSeidInfoPtr->caps & A2DP_CAPS_CONTENT_PROTECTION) ? TRUE : FALSE;
+  987   1        a2dpLinkInfo->enableDelayReport = (discovSeidInfoPtr->caps & A2DP_CAPS_DELAY_REPORTING) ? TRUE : FALSE;
+  988   1      }
+  989          
+  990          PRIVATE void A2DP_SignalResponseAcceptHandler(U8 linkIndex, AvdtpSignalType XDATA_PTR eventPtr)
+  991          {
+  992   1        A2DP_LINK_INFO XDATA_PTR a2dpLinkInfo = A2DP_GetLinkInfo(linkIndex);
+  993   1        A2dpDiscovSeidInfo XDATA_PTR discovSeidInfoPtr;
+  994   1        
+  995   1        switch(eventPtr->signalIdentifier & 0x3F)
+  996   1        {
+  997   2          case AVDTP_DISCOVER:
+  998   2            if(a2dpLinkInfo->mmiProfileInfo.state == PROFILE_CONNECTED && a2dpLinkInfo->substates == A2DP_SUBSTATE
+             -_IDLE_WAIT_DISCOVER_RESP)
+  999   2            {
+ 1000   3              SYS_ReleaseTimer(&a2dpLinkInfo->timer);
+ 1001   3              if(discovSeidInfoPtr = (A2dpDiscovSeidInfo XDATA_PTR)a2dpLinkInfo->discovSeidInfoPtr)
+ 1002   3              {
+ 1003   4                discovSeidInfoPtr->count = A2DP_FilterDiscovSeid(discovSeidInfoPtr, (U8)(eventPtr->l2capLength - AVD
+             -TP_MSH_HEADER_SIZE), &eventPtr->para[0]);
+ 1004   4                if(discovSeidInfoPtr->count)
+ 1005   4                {
+C251 COMPILER V5.57.0,  A2DP_SignalChannel                                                 08/11/20  06:34:03  PAGE 17  
+
+ 1006   5                  discovSeidInfoPtr->intSeid = 0;
+ 1007   5                  discovSeidInfoPtr->index = 0;
+ 1008   5                  #if defined(AVDTP_PTS_TP_SIG_SMG_BV_25_28_C_BI_35_36_C) || defined(AVDTP_PTS_TP_SIG_SYN_BV_02_C)
+                           AVDTP_SendGetAllCapabilitiesCmd(linkIndex, discovSeidInfoPtr->seid[discovSeidInfoPtr->index]);
+                           #else
+ 1011   5                  AVDTP_SendGetCapabilitiesCmd(linkIndex, discovSeidInfoPtr->seid[discovSeidInfoPtr->index]);
+ 1012   5                  #endif
+ 1013   5                  a2dpLinkInfo->substates = A2DP_SUBSTATE_IDLE_WAIT_GET_CAPABILITY_RESP;
+ 1014   5                  SYS_SetTimer(&a2dpLinkInfo->timer, GAVDP_TIMER_100);
+ 1015   5                  return;
+ 1016   5                }
+ 1017   4              }
+ 1018   3              A2DP_ClearSubStateAndTimer(a2dpLinkInfo);
+ 1019   3            }
+ 1020   2            break;
+ 1021   2            
+ 1022   2          case AVDTP_GET_CAPABILITIES:
+ 1023   2          case AVDTP_GET_ALL_CAPABILITIES:
+ 1024   2            if(a2dpLinkInfo->mmiProfileInfo.state == PROFILE_CONNECTED && a2dpLinkInfo->substates == A2DP_SUBSTATE
+             -_IDLE_WAIT_GET_CAPABILITY_RESP)
+ 1025   2            {
+ 1026   3              SYS_ReleaseTimer(&a2dpLinkInfo->timer);
+ 1027   3              if(discovSeidInfoPtr = (A2dpDiscovSeidInfo XDATA_PTR)a2dpLinkInfo->discovSeidInfoPtr)
+ 1028   3              {
+ 1029   4                if(discovSeidInfoPtr->preferSeid == A2DP_MatchDiscovSeid(discovSeidInfoPtr, eventPtr))
+ 1030   4                {
+ 1031   5                  label_send_set_config_cmd:
+ 1032   5                  A2DP_SetMatchConfiguration(a2dpLinkInfo, discovSeidInfoPtr);
+ 1033   5                  AVDTP_SendSetConfigurationCmd(linkIndex,
+ 1034   5                                  a2dpLinkInfo->remoteSeid = discovSeidInfoPtr->acpSeid,
+ 1035   5                                  a2dpLinkInfo->localSeid = discovSeidInfoPtr->intSeid,
+ 1036   5                                  discovSeidInfoPtr->configLen, &discovSeidInfoPtr->configParam[0]);
+ 1037   5                  SYS_MemoryRelease(&a2dpLinkInfo->discovSeidInfoPtr);
+ 1038   5                  a2dpLinkInfo->substates = A2DP_SUBSTATE_IDLE_WAIT_SET_CONFIG_RESP;
+ 1039   5                  SYS_SetTimer(&a2dpLinkInfo->timer, GAVDP_TIMER_100);
+ 1040   5                  return;
+ 1041   5                }
+ 1042   4                else
+ 1043   4                {
+ 1044   5                  discovSeidInfoPtr->index++;
+ 1045   5                  if(discovSeidInfoPtr->index < discovSeidInfoPtr->count)
+ 1046   5                  {
+ 1047   6                    AVDTP_SendGetCapabilitiesCmd(linkIndex, discovSeidInfoPtr->seid[discovSeidInfoPtr->index]);
+ 1048   6                    SYS_SetTimer(&a2dpLinkInfo->timer, GAVDP_TIMER_100);
+ 1049   6                    return;
+ 1050   6                  }
+ 1051   5                  else if(discovSeidInfoPtr->intSeid)
+ 1052   5                  {
+ 1053   6                    goto label_send_set_config_cmd;
+ 1054   6                  }
+ 1055   5                }
+ 1056   4              }
+ 1057   3              A2DP_ClearSubStateAndTimer(a2dpLinkInfo);
+ 1058   3            }
+ 1059   2            break;
+ 1060   2            
+ 1061   2          case AVDTP_SET_CONFIGURATION:
+ 1062   2            if(a2dpLinkInfo->mmiProfileInfo.state == PROFILE_CONNECTED && a2dpLinkInfo->substates == A2DP_SUBSTATE
+             -_IDLE_WAIT_SET_CONFIG_RESP)
+ 1063   2            {
+ 1064   3              SYS_ReleaseTimer(&a2dpLinkInfo->timer);
+ 1065   3              a2dpLinkInfo->mmiProfileInfo.state = A2DP_CONFIGURED;
+ 1066   3              
+ 1067   3              if(a2dpLinkInfo->enableDelayReport)
+ 1068   3              {
+ 1069   4                A2DP_SendInitDelayReport(linkIndex);
+C251 COMPILER V5.57.0,  A2DP_SignalChannel                                                 08/11/20  06:34:03  PAGE 18  
+
+ 1070   4              }
+ 1071   3      
+ 1072   3              #ifdef AVDTP_PTS_TP_SIG_SEC_BV_01_C
+                       {
+                         U8 LDATA cpData[] = {0x12, 0x34};
+                         AVDTP_SendSecurityControlCmd(linkIndex, a2dpLinkInfo->remoteSeid, sizeof(cpData), (U8 XDATA_PTR)&cpD
+             -ata[0]);
+                       }
+                       #endif
+ 1078   3              #ifdef AVDTP_PTS_TP_SIG_SMG_BV_23_C
+                       {
+                         AVDTP_SendAbortCmd(linkIndex, a2dpLinkInfo->remoteSeid);
+                       }
+                       #endif
+ 1083   3              
+ 1084   3              a2dpLinkInfo->substates = A2DP_SUBSTATE_CONFIG_WAIT_OPEN_RESP;
+ 1085   3              AVDTP_SendOpenCmd(linkIndex, a2dpLinkInfo->remoteSeid);
+ 1086   3              return;
+ 1087   3            }   
+ 1088   2            break;
+ 1089   2            
+ 1090   2          case AVDTP_OPEN:
+ 1091   2            if(a2dpLinkInfo->mmiProfileInfo.state == A2DP_CONFIGURED && a2dpLinkInfo->substates == A2DP_SUBSTATE_C
+             -ONFIG_WAIT_OPEN_RESP)
+ 1092   2            {
+ 1093   3              SYS_ReleaseTimer(&a2dpLinkInfo->timer);
+ 1094   3              a2dpLinkInfo->mmiProfileInfo.state = A2DP_OPEN;
+ 1095   3              a2dpLinkInfo->substates = A2DP_SUBSTATE_OPEN_OPEN_MEDIA_CHANNEL;
+ 1096   3              if(AVDTP_ConnectMediaChannel(linkIndex) != INVALID_L2CAP_CHANNEL)
+ 1097   3              {
+ 1098   4                a2dpLinkInfo->substates = A2DP_SUBSTATE_OPEN_WAIT_MEDIA_CHANNEL_READY;
+ 1099   4              }
+ 1100   3              MMI_SniffEnable(linkIndex, MMI_SNIFF_A2DP_CONTROL);       
+ 1101   3            }
+ 1102   2            break;
+ 1103   2            
+ 1104   2          case AVDTP_START:
+ 1105   2            if(a2dpLinkInfo->mmiProfileInfo.state == A2DP_OPEN && a2dpLinkInfo->substates == A2DP_SUBSTATE_OPEN_WA
+             -IT_START_RESPONSE_AFTER_ACTIVE_MEDIA_CHANNEL)
+ 1106   2            {
+ 1107   3              a2dpLinkInfo->substates = A2DP_SUBSTATE_OPEN_WAIT_SUSPEND;
+ 1108   3              SYS_SetTimer(&a2dpLinkInfo->timer, HALF_SEC);
+ 1109   3            }
+ 1110   2            else if(a2dpLinkInfo->mmiProfileInfo.state == A2DP_OPEN && a2dpLinkInfo->substates == A2DP_SUBSTATE_OP
+             -EN_WAIT_START_RESPONSE)
+ 1111   2            {
+ 1112   3              SYS_ReleaseTimer(&a2dpLinkInfo->timer);
+ 1113   3              a2dpLinkInfo->mmiProfileInfo.state = A2DP_STREAMING;
+ 1114   3              a2dpLinkInfo->substates = A2DP_SUBSTATE_BEGINNING_STATE;
+ 1115   3              #ifdef A2DP_SRC_Profile
+                         MMI_A2DP_EventHandler(linkIndex, A2DP_CHANNEL_SOURCE_START_EVT);
+                       #else
+ 1118   3                MMI_A2DP_EventHandler(linkIndex, A2DP_CHANNEL_START_RESP_FOR_INT);
+ 1119   3              #endif
+ 1120   3              MMI_SniffDisable(linkIndex, MMI_SNIFF_A2DP_MUSIC);
+ 1121   3            }
+ 1122   2            else if(a2dpLinkInfo->mmiProfileInfo.state == A2DP_OPEN && a2dpLinkInfo->substates == A2DP_SUBSTATE_OP
+             -EN_WAIT_START_RESP_FROM_FOLLOWER)
+ 1123   2            {
+ 1124   3              SYS_ReleaseTimer(&a2dpLinkInfo->timer);
+ 1125   3              a2dpLinkInfo->mmiProfileInfo.state = A2DP_STREAMING;
+ 1126   3              a2dpLinkInfo->substates = A2DP_SUBSTATE_BEGINNING_STATE;
+ 1127   3              A2DP_SetRelayStateReady(TRUE);
+ 1128   3            }     
+ 1129   2            break;
+ 1130   2          
+C251 COMPILER V5.57.0,  A2DP_SignalChannel                                                 08/11/20  06:34:03  PAGE 19  
+
+ 1131   2          case AVDTP_SUSPEND:
+ 1132   2            if(a2dpLinkInfo->mmiProfileInfo.state == A2DP_OPEN && a2dpLinkInfo->substates == A2DP_SUBSTATE_OPEN_WA
+             -IT_SUSPEND_RESPONSE)
+ 1133   2            {
+ 1134   3              A2DP_CommandComplete(a2dpLinkInfo);
+ 1135   3            }
+ 1136   2            else if(a2dpLinkInfo->mmiProfileInfo.state == A2DP_STREAMING && a2dpLinkInfo->substates == A2DP_SUBSTA
+             -TE_STREAM_WAIT_SUSPEND_RESP)
+ 1137   2            {
+ 1138   3              SYS_ReleaseTimer(&a2dpLinkInfo->timer);
+ 1139   3              a2dpLinkInfo->mmiProfileInfo.state = A2DP_OPEN;
+ 1140   3              A2DP_SetMediaDataPlayByLink(a2dpLinkInfo, FALSE);
+ 1141   3              A2DP_DelayReportClearPara(linkIndex);
+ 1142   3              A2DP_CommandComplete(a2dpLinkInfo);
+ 1143   3              MMI_A2DP_EventHandler(linkIndex, A2DP_CHANNEL_SUSPEND_EVT);
+ 1144   3              MMI_SniffEnable(linkIndex, MMI_SNIFF_A2DP_MUSIC);
+ 1145   3              #if defined(AVDTP_PTS_TP_SIG_SMG_BV_13_C) || defined(GAVDP_PTS_TP_APP_TRC_BV_01_C)
+                       {
+                         U8 LDATA cfgData[] = {0x07, 0x06, 0x00, 0x00, 0x11, 0x15, 0x08, 0x80};
+                         AVDTP_SendReconfigureCmd(linkIndex, a2dpLinkInfo->remoteSeid, sizeof(cfgData), (U8 XDATA_PTR)&cfgDat
+             -a[0]);
+                       }
+                       #endif
+ 1151   3            }
+ 1152   2            break;
+ 1153   2        }
+ 1154   1      }
+ 1155          
+ 1156          /////////////////////////////////////////////////////////////////////
+ 1157          // Signal State Handler
+ 1158          /////////////////////////////////////////////////////////////////////
+ 1159          
+ 1160          PRIVATE U8 A2DP_WaitRemoteMsg(U8 linkIndex, AvdtpSignalType XDATA_PTR eventPtr, U8 opCode)
+ 1161          {
+ 1162   1        A2DP_LINK_INFO XDATA_PTR a2dpLinkInfo = A2DP_GetLinkInfo(linkIndex);
+ 1163   1        U8 rerturnValue = 0;
+ 1164   1      
+ 1165   1        if(eventPtr && ((eventPtr->signalIdentifier & 0x3F) == opCode))
+ 1166   1        {
+ 1167   2          switch(eventPtr->signalHeader.f.messageType)
+ 1168   2          {
+ 1169   3            case AVDTP_RESPONSE_ACCEPT_MSG:
+ 1170   3              rerturnValue = AVDTP_GET_UNACCEPT_RESP;
+ 1171   3              switch(opCode)
+ 1172   3              {
+ 1173   4                case AVDTP_GET_CONFIGURATION:
+ 1174   4                  if(eventPtr->l2capLength == 3)
+ 1175   4                  {
+ 1176   5                    rerturnValue = AVDTP_GET_UNACCEPT_RESP;
+ 1177   5                  }
+ 1178   4                  break;
+ 1179   4      
+ 1180   4                default:
+ 1181   4                  if(eventPtr->l2capLength > 2)
+ 1182   4                  {
+ 1183   5                    rerturnValue = AVDTP_GET_UNACCEPT_RESP;
+ 1184   5                  }
+ 1185   4                  else
+ 1186   4                  {
+ 1187   5                    rerturnValue = AVDTP_GET_ACCEPT_RESP;
+ 1188   5                  }
+ 1189   4                  break;
+ 1190   4              }
+ 1191   3              SYS_ReleaseTimer(&a2dpLinkInfo->timer);
+ 1192   3              break;
+ 1193   3      
+C251 COMPILER V5.57.0,  A2DP_SignalChannel                                                 08/11/20  06:34:03  PAGE 20  
+
+ 1194   3            case AVDTP_RESPONSE_REJECT_MSG:
+ 1195   3            case AVDTP_GENERAL_REJECT_MSG:
+ 1196   3              rerturnValue = AVDTP_GET_UNACCEPT_RESP;
+ 1197   3              SYS_ReleaseTimer(&a2dpLinkInfo->timer);
+ 1198   3              break;
+ 1199   3          }
+ 1200   2        }
+ 1201   1        return rerturnValue;
+ 1202   1      }
+ 1203          
+ 1204          PRIVATE void A2DP_StateStreamingHandler(U8 linkIndex, AvdtpSignalType XDATA_PTR eventPtr)
+ 1205          {
+ 1206   1        A2DP_LINK_INFO XDATA_PTR a2dpLinkInfo = A2DP_GetLinkInfo(linkIndex);
+ 1207   1        UNUSED(eventPtr);
+ 1208   1        
+ 1209   1        switch(a2dpLinkInfo->substates)
+ 1210   1        {
+ 1211   2          case A2DP_SUBSTATE_STREAM_GET_MMI_DSP_RESP_WAIT_AIR_READY:
+ 1212   2            if(A2DP_AirSideReadyToReceiveMediaStream())
+ 1213   2            {
+ 1214   3              if(MMI_A2DP_SEND_START_RESP_AFTER_DSP_IS_ENABLED_FEAT && (linkIndex != MMI_DRV_GetA2DPEnabledLinkInde
+             -x()))
+ 1215   3              {
+ 1216   4                a2dpLinkInfo->substates = A2DP_SUBSTATE_STREAM_WAIT_DSP_ENABLE_FOR_START_RESP;
+ 1217   4              }
+ 1218   3              else
+ 1219   3              {
+ 1220   4                A2DP_SendAcceptStartResponse(linkIndex);
+ 1221   4              }
+ 1222   3            }
+ 1223   2            break;
+ 1224   2          case A2DP_SUBSTATE_STREAM_WAIT_DSP_ENABLE_FOR_START_RESP:
+ 1225   2            if(linkIndex == MMI_DRV_GetA2DPEnabledLinkIndex())
+ 1226   2            {
+ 1227   3              A2DP_SendAcceptStartResponse(linkIndex);
+ 1228   3            }
+ 1229   2            break;
+ 1230   2        }
+ 1231   1      }
+ 1232          
+ 1233          PRIVATE void A2DP_StateClosingHandler(U8 linkIndex, AvdtpSignalType XDATA_PTR eventPtr)
+ 1234          {
+ 1235   1        A2DP_LINK_INFO XDATA_PTR a2dpLinkInfo = A2DP_GetLinkInfo(linkIndex);
+ 1236   1        U8 waitMsgValue;
+ 1237   1      
+ 1238   1        switch(a2dpLinkInfo->substates)
+ 1239   1        {
+ 1240   2          case A2DP_SUBSTATE_CLOSE_SEND_CLOSE_CMD: /// Active close the a2dp
+ 1241   2            a2dpLinkInfo->substates = A2DP_SUBSTATE_CLOSE_WAIT_CLOSE_RESP;
+ 1242   2            A2DP_SetMediaDataPlayByLink(a2dpLinkInfo, FALSE);
+ 1243   2            AVDTP_SendCloseCmd(linkIndex, a2dpLinkInfo->remoteSeid);
+ 1244   2            break;
+ 1245   2      
+ 1246   2          case A2DP_SUBSTATE_CLOSE_WAIT_CLOSE_RESP:
+ 1247   2            waitMsgValue =A2DP_WaitRemoteMsg(linkIndex,eventPtr, AVDTP_CLOSE);
+ 1248   2            if(waitMsgValue)
+ 1249   2            {
+ 1250   3              a2dpLinkInfo->substates = A2DP_SUBSTATE_CLOSE_CLOSE_MEDIA_CHANNEL;
+ 1251   3              MMI_A2DP_EventHandler(linkIndex, A2DP_CHANNEL_CLOSED_EVT);
+ 1252   3            }
+ 1253   2            break;
+ 1254   2      
+ 1255   2          case A2DP_SUBSTATE_CLOSE_CLOSE_MEDIA_CHANNEL:
+ 1256   2            if(a2dpLinkInfo->mediaChannelConnected && CMD_WAITING == AVDTP_DisconnectMediaChannel(linkIndex))
+ 1257   2            {
+ 1258   3              a2dpLinkInfo->substates = A2DP_SUBSTATE_CLOSE_WAIT_CLOSE_MEDIA_CHANNEL;
+C251 COMPILER V5.57.0,  A2DP_SignalChannel                                                 08/11/20  06:34:03  PAGE 21  
+
+ 1259   3            }
+ 1260   2            else
+ 1261   2            {
+ 1262   3              a2dpLinkInfo->mediaChannelConnected = FALSE;
+ 1263   3              goto CLOSE_SIGNAL_CHANNEL;
+ 1264   3            }
+ 1265   2            break;
+ 1266   2      
+ 1267   2          case A2DP_SUBSTATE_CLOSE_WAIT_CLOSE_MEDIA_CHANNEL:
+ 1268   2            if(!a2dpLinkInfo->mediaChannelConnected)
+ 1269   2              goto CLOSE_SIGNAL_CHANNEL;
+ 1270   2            break;
+ 1271   2      
+ 1272   2          case A2DP_SUBSTATE_CLOSE_CLOSE_CHANNEL: // Active close the L2capChannel
+ 1273   2            CLOSE_SIGNAL_CHANNEL:
+ 1274   2            if(CMD_WAITING == AVDTP_DisconnectSignalChannel(linkIndex))
+ 1275   2            {
+ 1276   3              a2dpLinkInfo->mmiProfileInfo.state = PROFILE_DISCONNECTING; 
+ 1277   3            }
+ 1278   2            else
+ 1279   2            {
+ 1280   3              MMI_A2DP_ClearCtlData(linkIndex);
+ 1281   3              MMI_UnloadProfile(linkIndex, &a2dpLinkInfo->mmiProfileInfo);
+ 1282   3              A2DP_CloseHandler(linkIndex);     
+ 1283   3            }
+ 1284   2            break;
+ 1285   2        }
+ 1286   1      }
+ 1287          
+ 1288          PRIVATE void A2DP_StateAbortingHandler(U8 linkIndex, AvdtpSignalType XDATA_PTR eventPtr)
+ 1289          {
+ 1290   1        A2DP_LINK_INFO XDATA_PTR a2dpLinkInfo = A2DP_GetLinkInfo(linkIndex);
+ 1291   1        //When the INT and ACP have received appropriate responses to the
+ 1292   1        //Abort Command they transition to the <ABORTING> state until Transport
+ 1293   1        //Channel release is complete
+ 1294   1      
+ 1295   1        switch(a2dpLinkInfo->substates)
+ 1296   1        {
+ 1297   2          case A2DP_SUBSTATE_ABORT_PASSIVE_GET_ABORT_CMD: // Passive get Abort Cmd
+ 1298   2            a2dpLinkInfo->substates = A2DP_SUBSTATE_ABORT_WAIT_PASSIVE_RELEASE_MEDIA_CHANNEL;
+ 1299   2            SYS_MemoryRelease(&a2dpLinkInfo->remoteReqPtr);
+ 1300   2            A2DP_SetMediaDataPlayByLink(a2dpLinkInfo, FALSE);
+ 1301   2            break;
+ 1302   2          case A2DP_SUBSTATE_ABORT_WAIT_PASSIVE_RELEASE_MEDIA_CHANNEL: //Passive
+ 1303   2          case A2DP_SUBSTATE_ABORT_WAIT_ACTIVE_RELEASE_MEDIA_CHANNEL: //Active
+ 1304   2            if(!a2dpLinkInfo->mediaChannelConnected)
+ 1305   2            {
+ 1306   3              a2dpLinkInfo->mmiProfileInfo.state = PROFILE_CONNECTED;
+ 1307   3              A2DP_ClearSubStateAndTimer(a2dpLinkInfo);
+ 1308   3              if (a2dpLinkInfo->airCtl.packetRole == PACKET_ROLE_RELAYER)
+ 1309   3              //Abort is not Close, and we try to recover Media channel for relayer/follower pair 
+ 1310   3              {
+ 1311   4                MMI_A2DP_EventHandler(linkIndex, A2DP_CHANNEL_RECONNECT_AFTER_ABORT_EVT);
+ 1312   4              }
+ 1313   3            }
+ 1314   2            break;
+ 1315   2          case A2DP_SUBSTATE_ABORT_SEND_RELEASE_MEDIA_CHANNEL_CMD:// Active
+ 1316   2            if(CMD_WAITING == AVDTP_DisconnectMediaChannel(linkIndex))
+ 1317   2            {
+ 1318   3              a2dpLinkInfo->substates = A2DP_SUBSTATE_ABORT_WAIT_ACTIVE_RELEASE_MEDIA_CHANNEL;
+ 1319   3            }
+ 1320   2            else
+ 1321   2            {
+ 1322   3              a2dpLinkInfo->mediaChannelConnected = FALSE;
+ 1323   3              a2dpLinkInfo->mmiProfileInfo.state = PROFILE_CONNECTED;
+ 1324   3              A2DP_ClearSubStateAndTimer(a2dpLinkInfo);
+C251 COMPILER V5.57.0,  A2DP_SignalChannel                                                 08/11/20  06:34:03  PAGE 22  
+
+ 1325   3            }
+ 1326   2            break;
+ 1327   2      
+ 1328   2          case A2DP_SUBSTATE_ABORT_SEND_ABORT_CMD:  // Active send abort cmd
+ 1329   2            a2dpLinkInfo->substates = A2DP_SUBSTATE_ABORT_WAIT_ABORT_RESP;
+ 1330   2            SYS_MemoryRelease(&a2dpLinkInfo->remoteReqPtr);
+ 1331   2            AVDTP_SendAbortCmd(linkIndex, a2dpLinkInfo->remoteSeid);
+ 1332   2            break;
+ 1333   2          case A2DP_SUBSTATE_ABORT_WAIT_ABORT_RESP:// Active send abort cmd
+ 1334   2            if(A2DP_WaitRemoteMsg(linkIndex,eventPtr, AVDTP_ABORT))
+ 1335   2            {
+ 1336   3              a2dpLinkInfo->substates = A2DP_SUBSTATE_ABORT_DECIDE_RELEASE_MEDIA_CHANNEL;
+ 1337   3            }
+ 1338   2            break;
+ 1339   2          case A2DP_SUBSTATE_ABORT_DECIDE_RELEASE_MEDIA_CHANNEL:
+ 1340   2            if(a2dpLinkInfo->mediaChannelConnected)
+ 1341   2              a2dpLinkInfo->substates = A2DP_SUBSTATE_ABORT_SEND_RELEASE_MEDIA_CHANNEL_CMD;
+ 1342   2            else
+ 1343   2              a2dpLinkInfo->substates = A2DP_SUBSTATE_ABORT_WAIT_ACTIVE_RELEASE_MEDIA_CHANNEL;
+ 1344   2            break;
+ 1345   2        }
+ 1346   1      }
+ 1347          
+ 1348          PUBLIC void A2DP_SignalHandler(U8 linkIndex)
+ 1349          {
+ 1350   1        A2DP_LINK_INFO XDATA_PTR a2dpLinkInfo = A2DP_GetLinkInfo(linkIndex);
+ 1351   1        AvdtpSignalType XDATA_PTR eventPtr = (AvdtpSignalType XDATA_PTR)OSMQ_Get(&a2dpLinkInfo->OSMQ_AVDTP_Signa
+             -l_To_A2DP);
+ 1352   1      
+ 1353   1        if(eventPtr)
+ 1354   1        {
+ 1355   2          switch(eventPtr->signalHeader.f.messageType)
+ 1356   2          {
+ 1357   3            case AVDTP_COMMAND_MSG:
+ 1358   3              A2DP_SignalCommandHandler(linkIndex, eventPtr);
+ 1359   3              eventPtr = 0;     
+ 1360   3              break;
+ 1361   3          
+ 1362   3            case AVDTP_RESPONSE_ACCEPT_MSG:
+ 1363   3              A2DP_SignalResponseAcceptHandler(linkIndex, eventPtr);
+ 1364   3              break;
+ 1365   3              
+ 1366   3            case AVDTP_RESPONSE_REJECT_MSG:
+ 1367   3            case AVDTP_GENERAL_REJECT_MSG:
+ 1368   3              if(a2dpLinkInfo->mmiProfileInfo.state == PROFILE_CONNECTED)
+ 1369   3              {
+ 1370   4                if(a2dpLinkInfo->substates == A2DP_SUBSTATE_IDLE_WAIT_DISCOVER_RESP)
+ 1371   4                {
+ 1372   5                  if((eventPtr->signalIdentifier & 0x3F) == AVDTP_DISCOVER)
+ 1373   5                  {
+ 1374   6                    A2DP_ClearSubStateAndTimer(a2dpLinkInfo);
+ 1375   6                  }
+ 1376   5                }
+ 1377   4                else if(a2dpLinkInfo->substates == A2DP_SUBSTATE_IDLE_WAIT_GET_CAPABILITY_RESP)
+ 1378   4                {
+ 1379   5                  if((eventPtr->signalIdentifier & 0x3F) == AVDTP_GET_CAPABILITIES || (eventPtr->signalIdentifier & 0
+             -x3F) == AVDTP_GET_ALL_CAPABILITIES)
+ 1380   5                  {
+ 1381   6                    A2DP_ClearSubStateAndTimer(a2dpLinkInfo);
+ 1382   6                  }         
+ 1383   5                }
+ 1384   4                else if(a2dpLinkInfo->substates == A2DP_SUBSTATE_IDLE_WAIT_SET_CONFIG_RESP)
+ 1385   4                {
+ 1386   5                  if((eventPtr->signalIdentifier & 0x3F) == AVDTP_SET_CONFIGURATION)
+ 1387   5                  {
+ 1388   6                    A2DP_ClearSubStateAndTimer(a2dpLinkInfo);
+C251 COMPILER V5.57.0,  A2DP_SignalChannel                                                 08/11/20  06:34:03  PAGE 23  
+
+ 1389   6                  }
+ 1390   5                }
+ 1391   4              }
+ 1392   3              else if(a2dpLinkInfo->mmiProfileInfo.state == A2DP_CONFIGURED)
+ 1393   3              {
+ 1394   4                if(a2dpLinkInfo->substates == A2DP_SUBSTATE_CONFIG_WAIT_OPEN_RESP)
+ 1395   4                {
+ 1396   5                  if((eventPtr->signalIdentifier & 0x3F) == AVDTP_OPEN)
+ 1397   5                  {
+ 1398   6                    A2DP_ClearSubStateAndTimer(a2dpLinkInfo);
+ 1399   6                    MMI_SniffEnable(linkIndex, MMI_SNIFF_A2DP_CONTROL);
+ 1400   6                  }
+ 1401   5                }
+ 1402   4              }
+ 1403   3              else if(a2dpLinkInfo->mmiProfileInfo.state == A2DP_OPEN)
+ 1404   3              {
+ 1405   4                if(a2dpLinkInfo->substates == A2DP_SUBSTATE_OPEN_WAIT_START_RESPONSE_AFTER_ACTIVE_MEDIA_CHANNEL || a
+             -2dpLinkInfo->substates == A2DP_SUBSTATE_OPEN_WAIT_START_RESPONSE)
+ 1406   4                {
+ 1407   5                  if((eventPtr->signalIdentifier & 0x3F) == AVDTP_START)
+ 1408   5                  {
+ 1409   6                    A2DP_CommandComplete(a2dpLinkInfo);
+ 1410   6                  }
+ 1411   5                }
+ 1412   4                else if(a2dpLinkInfo->substates == A2DP_SUBSTATE_OPEN_WAIT_SUSPEND_RESPONSE)
+ 1413   4                {
+ 1414   5                  if((eventPtr->signalIdentifier & 0x3F) == AVDTP_SUSPEND)
+ 1415   5                  {
+ 1416   6                    A2DP_CommandComplete(a2dpLinkInfo);
+ 1417   6                  }         
+ 1418   5                }
+ 1419   4                else if(a2dpLinkInfo->substates == A2DP_SUBSTATE_OPEN_WAIT_START_RESP_FROM_FOLLOWER)
+ 1420   4                {
+ 1421   5                  if((eventPtr->signalIdentifier & 0x3F) == AVDTP_START)
+ 1422   5                  {
+ 1423   6                    A2DP_CommandComplete(a2dpLinkInfo);
+ 1424   6                    A2DP_SetRelayStateReady(FALSE);
+ 1425   6                  }
+ 1426   5                }
+ 1427   4              }
+ 1428   3              else if(a2dpLinkInfo->mmiProfileInfo.state == A2DP_STREAMING && a2dpLinkInfo->substates == A2DP_SUBST
+             -ATE_STREAM_WAIT_SUSPEND_RESP)
+ 1429   3              {
+ 1430   4                if((eventPtr->signalIdentifier & 0x3F) == AVDTP_SUSPEND)
+ 1431   4                {
+ 1432   5                  A2DP_SetMediaDataPlayByLink(a2dpLinkInfo, FALSE);
+ 1433   5                  A2DP_CommandComplete(a2dpLinkInfo);
+ 1434   5                  MMI_A2DP_EventHandler(linkIndex, A2DP_CHANNEL_SUSPEND_FAIL_EVT);
+ 1435   5                }
+ 1436   4              }
+ 1437   3              break;
+ 1438   3          }
+ 1439   2        }
+ 1440   1      
+ 1441   1        switch(a2dpLinkInfo->mmiProfileInfo.state)
+ 1442   1        {
+ 1443   2          case PROFILE_DISCONNECTED:
+ 1444   2          case PROFILE_CONNECTING:
+ 1445   2          case PROFILE_DISCONNECTING:
+ 1446   2          case PROFILE_CONNECTED:
+ 1447   2          case A2DP_CONFIGURED:
+ 1448   2          case A2DP_OPEN:
+ 1449   2            break;
+ 1450   2          case A2DP_STREAMING:
+ 1451   2            A2DP_StateStreamingHandler(linkIndex, eventPtr);
+ 1452   2            break;
+C251 COMPILER V5.57.0,  A2DP_SignalChannel                                                 08/11/20  06:34:03  PAGE 24  
+
+ 1453   2          case A2DP_CLOSING:
+ 1454   2            A2DP_StateClosingHandler(linkIndex, eventPtr);
+ 1455   2            break;
+ 1456   2          case A2DP_ABORTING:
+ 1457   2            A2DP_StateAbortingHandler(linkIndex, eventPtr);
+ 1458   2            break;
+ 1459   2        }
+ 1460   1      
+ 1461   1        if(eventPtr)
+ 1462   1        {
+ 1463   2          OSMEM_Put((U8 XDATA_PTR)eventPtr);
+ 1464   2        }
+ 1465   1      }
+ 1466          
+ 1467          PUBLIC void A2DP_Signal_LinkEvent(U8 linkIndex, U8 evtCode, LINK_EVENT_PARAMS XDATA_PTR evtParams)
+ 1468          {
+ 1469   1        A2DP_LINK_INFO XDATA_PTR a2dpLinkInfo = A2DP_GetLinkInfo(linkIndex);
+ 1470   1        
+ 1471   1        switch(evtCode)
+ 1472   1        {
+ 1473   2          case PROFILE_LINK_EVENT_CONN_REQUEST:
+ 1474   2            evtParams->connRequest.result = PROFILE_LINK_RESULT_CONN_REJECT;
+ 1475   2            if (a2dpLinkInfo->mmiProfileInfo.state == PROFILE_DISCONNECTED)
+ 1476   2            {
+ 1477   3              if(MMI_IsLinkActiveDisconnecting(linkIndex))
+ 1478   3              {
+ 1479   4                evtParams->connRequest.result = PROFILE_LINK_RESULT_CONN_REJECT_ACTIVE_DISC;
+ 1480   4              }
+ 1481   3              else
+ 1482   3              {
+ 1483   4                evtParams->connRequest.result = PROFILE_LINK_RESULT_CONN_ACCEPT;
+ 1484   4                evtParams->connRequest.profileInfo = &a2dpLinkInfo->mmiProfileInfo;
+ 1485   4              }
+ 1486   3            }
+ 1487   2            break;
+ 1488   2            
+ 1489   2          case PROFILE_LINK_EVENT_CONN_COMPLETE:
+ 1490   2            if (a2dpLinkInfo->mmiProfileInfo.state == PROFILE_CONNECTING)
+ 1491   2            {
+ 1492   3              if (evtParams->connComplete.status == NO_ERROR)
+ 1493   3              {
+ 1494   4                a2dpLinkInfo->mmiProfileInfo.state = PROFILE_CONNECTED;
+ 1495   4                a2dpLinkInfo->substates = A2DP_SUBSTATE_BEGINNING_STATE;
+ 1496   4                a2dpLinkInfo->isPassive = evtParams->connComplete.isPassive;
+ 1497   4                #ifdef A2DP_SRC_Profile
+                         MMI_A2DP_ConnectMediaChannelSource(linkIndex);
+                         #else
+ 1500   4                if (a2dpLinkInfo->isPassive)
+ 1501   4                {
+ 1502   5                  if(gMMI_nvram.timerCtl.checkA2DPMediaChannelEstTime)
+ 1503   5                  {
+ 1504   6                    SYS_SetTimer(&a2dpLinkInfo->waitForMediaChannelOpenTimer,(U32) gMMI_nvram.timerCtl.checkA2DPMediaC
+             -hannelEstTime * 320L);
+ 1505   6                  }
+ 1506   5                }
+ 1507   4                else
+ 1508   4                {
+ 1509   5                  if(gMMI_nvram.checkA2DPMediaChannelEstTimeActiveConn)
+ 1510   5                  {
+ 1511   6                    SYS_SetTimer(&a2dpLinkInfo->waitForMediaChannelOpenTimer,(U32) gMMI_nvram.checkA2DPMediaChannelEst
+             -TimeActiveConn * 320L);
+ 1512   6                    #ifdef __SEQUENTIAL_ACTIVE_PROFILE__
+ 1513   6                    MMI_SequentialActiveProfileConnection(linkIndex);
+ 1514   6                    #endif
+ 1515   6                  }
+ 1516   5                }
+C251 COMPILER V5.57.0,  A2DP_SignalChannel                                                 08/11/20  06:34:03  PAGE 25  
+
+ 1517   4                #endif
+ 1518   4                #ifdef AIR_MODULE
+ 1519   4                MMI_AIR_A2DPSignalChannelReadyNotify(linkIndex);
+ 1520   4                #endif          
+ 1521   4              }
+ 1522   3              else
+ 1523   3              {
+ 1524   4                if(evtParams->connComplete.status == SECURITY_BLOCK)
+ 1525   4                {
+ 1526   5                  MMI_SetReconnectProfile(linkIndex, a2dpLinkInfo->mmiProfileInfo.profileDesc->profileId, ONE_SEC);
+ 1527   5                }
+ 1528   4                evtCode = PROFILE_LINK_EVENT_DISC_COMPLETE;
+ 1529   4                goto A2DP_DISC_CPL;
+ 1530   4              }
+ 1531   3            }   
+ 1532   2            break;
+ 1533   2            
+ 1534   2          case PROFILE_LINK_EVENT_DISC_COMPLETE:
+ 1535   2          case PROFILE_LINK_EVENT_DISC_LINKLOSS:
+ 1536   2            if (a2dpLinkInfo->mmiProfileInfo.state != PROFILE_DISCONNECTED)
+ 1537   2            {
+ 1538   3              A2DP_DISC_CPL:
+ 1539   3              MMI_A2DP_ClearCtlData(linkIndex);
+ 1540   3              MMI_UnloadProfile(linkIndex, &a2dpLinkInfo->mmiProfileInfo);
+ 1541   3              MMI_PROTOCOL_L2CAPDisconnected(linkIndex, evtCode, FALSE);
+ 1542   3              A2DP_CloseHandler(linkIndex);
+ 1543   3            } 
+ 1544   2            break;
+ 1545   2        }
+ 1546   1      }
+ 1547          
+ 1548          PUBLIC void A2DP_Signal_DataEvent(U8 linkIndex, U8 XDATA_PTR dataPtr)
+ 1549          {
+ 1550   1        A2DP_LINK_INFO XDATA_PTR a2dpLinkInfo = A2DP_GetLinkInfo(linkIndex);
+ 1551   1      
+ 1552   1        OSMQ_Put(&a2dpLinkInfo->OSMQ_AVDTP_Signal_To_A2DP, (U8 XDATA_PTR)dataPtr);
+ 1553   1      }
+ 1554          
+ 1555          #endif //A2DP_Profile
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =      7025     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =        20     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

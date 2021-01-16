@@ -1,0 +1,177 @@
+C251 COMPILER V5.57.0,  Led                                                                08/11/20  06:34:24  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE Led
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\Led.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SDK\IOSYS\Led.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) WARN
+                    -INGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\sourc
+                    -e\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\source\R
+                    -OM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_LE;.
+                    -\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspData;.
+                    -\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLASH_I
+                    -NIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoHeadset\Led
+                    -.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\Led.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #include "rc.h"
+    4          #include "drv_led.h"
+    5          #include "..\Driver\Driver_LED.h"
+    6          
+    7          /*
+    8           * drv_led.h and Driver_LED.h provide all the led functions
+    9           * <SDK LED API>
+   10           * 1. Hw level control APIs are in drv_led.h
+   11           * 2. Foreground, background and filter led APIs are in Driver_LED.h 
+   12           */
+   13          
+   14          
+   15          /* Feature manual
+   16           * 1. MMI_QUEUE_LED_FEAT                    --> source\Driver\Driver_LED.h, DRIVER_Cmd_LED_FGLed
+   17           * 2. MMI_MEDIA_LED_WITH_FILTER_EFFECT_FEAT           --> source\Driver\Driver_LED.h, DRIVER_Cmd_LED_FGLed
+   18           * 3. MMI_LED_PWM_COMPENSATE_IN_DIFFERENT_BATTERY_LEVEL     --> if MMI_SHOW_CONDISCABLE_LED_ONLY_ONE_CONNEC
+             -TED_DEVICE_FEAT is on, device would adjust led brightness by itself according to battery level
+   19           * 4. MMI_IGNORE_KEYEVENT_JUST_ENABLE_LED_FEAT          --> if MMI_SHOW_CONDISCABLE_LED_ONLY_ONE_CONNECTED_DEV
+             -ICE_FEAT is on, KEY_BUTTONLOCKTOGGLE resumes BG LED under led power saving mode
+   20           * 5. MMI_SHOW_CONDISCABLE_LED_ONLY_ONE_CONNECTED_DEVICE_FEAT --> if MMI_SHOW_CONDISCABLE_LED_ONLY_ONE_CO
+             -NNECTED_DEVICE_FEAT, condiscoverable led is displayed when only one connection.
+   21           * 6. MMI_SDK_DISABLE_LED_FILTER_FEAT             --> Disbale all led filter control in NDK
+   22           * 7. MMI_SDK_DISABLE_BACKGROUND_LED_FEAT           --> Disbale all background led control in NDK
+   23           * 8. MMI_SDK_DISABLE_FOREGROUND_LED_FEAT           --> Disbale all foreground led control in NDK
+   24           */
+   25          
+   26           
+   27          /*  
+   28           * Hardware related APIs 
+   29           */
+   30          void SDK_LED_HW_SetPWM(U8 pwm)
+   31          {
+   32   1        LED_SetPwm(pwm);
+   33   1      }
+   34          
+   35          void SDK_LED_HW_SetPattern(LedPatternType XDATA_PTR ledCtlPtr)
+   36          {
+   37   1        LED_SetPatternToHW(ledCtlPtr);
+   38   1      }
+   39          
+   40          void SDK_LED_HW_TurnOffAllLeds(void)
+   41          {
+   42   1        LED_TurnOffAllLeds();
+   43   1      }
+   44          
+   45          /* 
+   46           * software related APIs
+   47           */
+   48          PUBLIC BOOL SDK_LED_DRV_LoadPattern(U8 ledIndex, LedPatternType XDATA_PTR destPtr)
+   49          {
+C251 COMPILER V5.57.0,  Led                                                                08/11/20  06:34:24  PAGE 2   
+
+   50   1        return DRIVER_LED_LoadPattern(ledIndex, (U8 XDATA_PTR)destPtr);
+   51   1      }
+   52          
+   53          PUBLIC void SDK_LED_DRV_Cmd_Restart(U8 para)
+   54          {
+   55   1        DRIVER_Cmd_LED_Restart(para);
+   56   1      }
+   57          
+   58          PUBLIC void SDK_LED_DRV_Cmd_FGLed(U8 ledDataIndex, U8 timeout, U8 id, U8 isOverrideFilter)
+   59          {
+   60   1        DRIVER_Cmd_LED_FGLed(ledDataIndex, timeout, id, isOverrideFilter);
+   61   1      }
+   62          
+   63          PUBLIC void SDK_LED_DRV_Cmd_BGLed(U8 ledDataIndex)
+   64          {
+   65   1        DRIVER_Cmd_LED_BGLed(ledDataIndex);
+   66   1      }
+   67          
+   68          PUBLIC void SDK_LED_DRV_Cmd_FilterLed(U8 type, U8 para)
+   69          {
+   70   1        DRIVER_Cmd_LED_FilterLed(type, para);
+   71   1      }
+   72           
+   73          /* 
+   74           * SDK_LED_SetHWSample: sample code to set led HW
+   75           */
+   76          PUBLIC void SDK_LED_SetHWSample(void)
+   77          {
+   78   1        LedPatternType XDATA_PTR LedCtrlPtr;
+   79   1        
+   80   1        LedCtrlPtr = SYS_MemoryGet(sizeof(LedPatternType));
+   81   1        
+   82   1        if(!LedCtrlPtr)
+   83   1          ASSERT(FALSE);
+   84   1        
+   85   1        OSMEM_memset_xdata((U8 XDATA_PTR)LedCtrlPtr, 0, sizeof(LedPatternType));
+   86   1      
+   87   1        //RED
+   88   1        LedCtrlPtr->ledSettings[0].onOff  = LED_ON;
+   89   1        LedCtrlPtr->ledSettings[0].ledFollowMultiplierControl = 0x01;
+   90   1        LedCtrlPtr->ledSettings[0].pwmSetting = 0xF0;
+   91   1        LedCtrlPtr->ledSettings[0].t1 = 50; //1s, unit:20ms
+   92   1        LedCtrlPtr->ledSettings[0].t2 = 50; //1s, unit:20ms
+   93   1        LedCtrlPtr->ledSettings[0].t3 = 15;   //0.3s, unit:20ms
+   94   1        LedCtrlPtr->ledSettings[0].rampOnStep = 0x20; //64ms, unit:2ms
+   95   1        LedCtrlPtr->ledSettings[0].rampOffStep = 0x20;  //64ms, unit:2ms
+   96   1        //BLUE
+   97   1        LedCtrlPtr->ledSettings[1].onOff  = LED_ON;
+   98   1        LedCtrlPtr->ledSettings[1].ledFollowMultiplierControl = 0x01;
+   99   1        LedCtrlPtr->ledSettings[1].pwmSetting = 0xF0;
+  100   1        LedCtrlPtr->ledSettings[1].t1 = 50; //1s, unit:20ms
+  101   1        LedCtrlPtr->ledSettings[1].t2 = 50; //1s, unit:20ms
+  102   1        LedCtrlPtr->ledSettings[1].t3 = 15;   //0.3s, unit:20ms
+  103   1        LedCtrlPtr->ledSettings[1].rampOnStep = 0x20; //64ms, unit:2ms
+  104   1        LedCtrlPtr->ledSettings[1].rampOffStep = 0x20;  //64ms, unit:2ms
+  105   1        
+  106   1        LED_SetPatternToHW(LedCtrlPtr);
+  107   1        
+  108   1        OSMEM_Put((U8 XDATA_PTR)LedCtrlPtr);
+  109   1      }
+  110          
+  111          
+  112          /* 
+  113           * SDK_LED_SetHWBySectorDataSample: sample code to set led HW by sector data
+  114           */
+  115          PUBLIC void SDK_LED_SetHWBySectorDataSample(U8 ledIndex)
+C251 COMPILER V5.57.0,  Led                                                                08/11/20  06:34:24  PAGE 3   
+
+  116          {
+  117   1        LedPatternType XDATA_PTR LedCtrlPtr;
+  118   1        
+  119   1        LedCtrlPtr = SYS_MemoryGet(sizeof(LedPatternType));
+  120   1        
+  121   1        if(!LedCtrlPtr)
+  122   1          ASSERT(FALSE);
+  123   1        
+  124   1        SDK_LED_DRV_LoadPattern(ledIndex, LedCtrlPtr);
+  125   1        
+  126   1        LED_SetPatternToHW(LedCtrlPtr);
+  127   1        
+  128   1        OSMEM_Put((U8 XDATA_PTR)LedCtrlPtr);
+  129   1      }
+  130          
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =       234     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =    ------     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,204 @@
+C251 COMPILER V5.57.0,  sector_dsp_hpf_param_type                                          08/11/20  06:32:21  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_dsp_hpf_param_type
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\sector_dsp_hpf_param_type.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\sector_dsp_hpf_param_type.c XSMALL HPTR FUNCTIONS(REENTR
+                    -ANT) ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;
+                    -.\source\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\sourc
+                    -e\ROM\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\
+                    -source\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\sour
+                    -ce\SECTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolM
+                    -isc) DEFINE(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_Ai
+                    -roStereoHeadset\sector_dsp_hpf_param_type.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\sector_dsp_hpf_param_ty
+                    -pe.obj) 
+
+stmt  level    source
+
+    1          /*
+    2           * AIROHA Bluetooth Device Firmware
+    3           * COPYRIGHT (C) 2014 AIROHA TECHNOLOGY CORP. CO., LTD. ALL RIGHTS RESERVED
+    4           *
+    5           * sector_dsp_hpf_param_type.c defines the HPF parameters.
+    6           *
+    7           * Programmer : DingaCheng@airoha.com.tw, Ext.2882
+    8           */
+    9          #include "sector_peq_hpf_param.h"
+   10          
+   11          #pragma userclass (HCONST = CONFIG)
+   12          
+   13          
+   14          ////////////////////////////////////////////////////////////////////////////////
+   15          // Global Variables ////////////////////////////////////////////////////////////
+   16          ////////////////////////////////////////////////////////////////////////////////
+   17          #ifdef DSP_ENABLE
+   18          
+   19          SECTOR_DSP_HPF_PARAMETER_STRU CODE gSector_DspHpfParameter =
+   20          {
+   21              {
+   22                #ifdef OPERATION_IN_BB_FPGA_VERSION
+                     0,
+                     #else
+   25                (ENABLE_DEFAULT_A2DP_HPF_CONFIG || ENABLE_DEFAULT_LINEIN_HPF_CONFIG), //- hpf_enable
+   26                #endif
+   27              #if ENABLE_DEFAULT_A2DP_HPF_CONFIG
+                     {
+                       //- set 1
+                       {
+                         {
+                           //- 32k sample rate
+                           {1,32169,-15810,-16384,8192,3,2,2,32181},
+                           //- 44.1k sample rate
+                           {1,32336,-15965,-16384,8192,3,2,2,32343},
+                           //- 48k sample rate
+                           {1,32372,-15999,-16384,8192,3,2,2,32377}
+                         }
+                       },
+               
+                       //- set 2
+                       {
+                         {
+                           //- 32k sample rate
+                           {1,32279,-15909,-16384,8192,3,2,2,32286},
+                           //- 44.1k sample rate
+                           {1,32414,-16038,-16384,8192,3,2,2,32418},
+                           //- 48k sample rate
+                           {1,32443,-16065,-16384,8192,3,2,2,32446}
+                         }
+                       },
+C251 COMPILER V5.57.0,  sector_dsp_hpf_param_type                                          08/11/20  06:32:21  PAGE 2   
+
+               
+                       //- set 3
+                       {
+                         {
+                           //- 32k sample rate
+                           {1,32443,-16065,-16384,8192,3,2,2,32446},
+                           //- 44.1k sample rate
+                           {1,32533,-16152,-16384,8192,3,2,2,32535},
+                           //- 48k sample rate
+                           {1,32552,-16171,-16384,8192,3,2,2,32554}
+                         }
+                       },
+               
+                       //- set 4
+                       {
+                         {
+                           //- 32k sample rate
+                           {1,32496,-16118,-16384,8192,3,2,2,32499},
+                           //- 44.1k sample rate
+                           {1,32571,-16191,-16384,8192,3,2,2,32573},
+                           //- 48k sample rate
+                           {1,32587,-16206,-16384,8192,3,2,2,32589}
+                         }
+                       },
+               
+                       //- set 5
+                       {
+                         {
+                           //- 32k sample rate
+                           {1,32523,-16145,-16384,8192,3,2,2,32526},
+                           //- 44.1k sample rate
+                           {1,32591,-16210,-16384,8192,3,2,2,32593},
+                           //- 48k sample rate
+                           {1,32606,-16224,-16384,8192,3,2,2,32607}
+                         }
+                       }
+                     },
+                   #endif
+   90              #if ENABLE_DEFAULT_LINEIN_HPF_CONFIG
+                     {
+                         //- set 1
+                       {
+                         {
+                           //- 32k sample rate
+                           {1,32169,-15810,-16384,8192,3,2,2,32181},
+                           //- 44.1k sample rate
+                           {1,32336,-15965,-16384,8192,3,2,2,32343},
+                           //- 48k sample rate
+                           {1,32372,-15999,-16384,8192,3,2,2,32377}
+                         }
+                       },
+               
+                       //- set 2
+                       {
+                         {
+                           //- 32k sample rate
+                           {1,32279,-15909,-16384,8192,3,2,2,32286},
+                           //- 44.1k sample rate
+                           {1,32414,-16038,-16384,8192,3,2,2,32418},
+                           //- 48k sample rate
+                           {1,32443,-16065,-16384,8192,3,2,2,32446}
+                         }
+                       },
+               
+                       //- set 3
+                       {
+C251 COMPILER V5.57.0,  sector_dsp_hpf_param_type                                          08/11/20  06:32:21  PAGE 3   
+
+                         {
+                           //- 32k sample rate
+                           {1,32443,-16065,-16384,8192,3,2,2,32446},
+                           //- 44.1k sample rate
+                           {1,32533,-16152,-16384,8192,3,2,2,32535},
+                           //- 48k sample rate
+                           {1,32552,-16171,-16384,8192,3,2,2,32554}
+                         }
+                       },
+               
+                       //- set 4
+                       {
+                         {
+                           //- 32k sample rate
+                           {1,32496,-16118,-16384,8192,3,2,2,32499},
+                           //- 44.1k sample rate
+                           {1,32571,-16191,-16384,8192,3,2,2,32573},
+                           //- 48k sample rate
+                           {1,32587,-16206,-16384,8192,3,2,2,32589}
+                         }
+                       },
+               
+                       //- set 5
+                       {
+                         {
+                           //- 32k sample rate
+                           {1,32523,-16145,-16384,8192,3,2,2,32526},
+                           //- 44.1k sample rate
+                           {1,32591,-16210,-16384,8192,3,2,2,32593},
+                           //- 48k sample rate
+                           {1,32606,-16224,-16384,8192,3,2,2,32607}
+                         }
+                       }
+                     }
+                   #endif
+  153              },
+  154          
+  155            //- CRC
+  156              {0,0}
+  157          };
+  158          
+  159          #endif
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =         3     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

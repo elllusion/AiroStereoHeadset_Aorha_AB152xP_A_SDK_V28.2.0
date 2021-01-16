@@ -1,0 +1,1756 @@
+A251 MACRO ASSEMBLER  AB1520C_Patch                                                         08/11/20 06:34:23 PAGE     1
+
+
+MACRO ASSEMBLER A251 V4.69.5.0
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\AB1520C_Patch.obj
+ASSEMBLER INVOKED BY: C:\Keil_v5\C251\BIN\A251.EXE Patch\AB1520C_Patch.asm MODSRC INCDIR(.\source\common;.\source\ROM\CO
+                      MMON) SET(XSMALL,ROMHUGE,FLASH_INIT=1,AB1520D=1,MIGRATE_ROM_TO_FLASH=1,DFU_LOADER_IN_BOOT_CODE=1) 
+                      DEBUG PRINT(.\LST\AB1520D_AiroStereoHeadset\AB1520C_Patch.lst) OBJECT(.\output\AB1520D_AiroStereoH
+                      eadset\AB1520C_Patch.obj) EP
+
+LOC    OBJ             LINE     SOURCE
+
+                          1     ;#include "config.h"
+                    +1    2     
+                    +1    3     
+                    +1    4     
+                    +1    5     
+                    +1    6     
+                    +1    7     
+                    +1    8     
+                    +1    9     
+                    +1   10     
+                    +1   11     
+                    +1   12     ;#include "boolean.h"
+                    +2   13     
+                    +2   14     
+                    +2   15     
+                    +2   16     
+                    +2   17     
+                    +2   18     
+                    +2   19     
+                    +2   20     
+                    +2   21     
+                    +2   22     
+                    +2   23     
+                    +2   24     
+                    +2   25     
+                    +2   26     
+                    +2   27     
+                    +2   28     
+                    +2   29     
+                    +2   30     
+                    +2          
+                    +2          
+                    +2          
+                    +2   34     
+                    +2   35     
+                    +2   36     
+                    +2          
+                    +2          
+                    +2          
+                    +2   40     
+                    +2   41     
+                    +2   42     
+                    +1   43     
+                    +1   44     ;#include "ctlr_config.h"
+                    +2   45     
+                    +2   46     
+                    +2   47     
+                    +2   48     
+                    +2   49     
+                    +2   50     
+                    +2   51     
+                    +2   52     
+                    +2   53     
+                    +2   54     
+                    +2   55     ;#include "boolean.h"
+A251 MACRO ASSEMBLER  AB1520C_Patch                                                         08/11/20 06:34:23 PAGE     2
+
+                    +3   56     
+                    +3          
+                    +3          
+                    +3          
+                    +3          
+                    +3          
+                    +3          
+                    +3          
+                    +3          
+                    +3          
+                    +3          
+                    +3          
+                    +3          
+                    +3          
+                    +3          
+                    +3          
+                    +3          
+                    +3          
+                    +3          
+                    +3          
+                    +3          
+                    +3          
+                    +3          
+                    +3          
+                    +3          
+                    +3          
+                    +3          
+                    +3          
+                    +3          
+                    +3   85     
+                    +2   86     
+                    +2   87     
+                    +2   88     
+                    +2   89     
+                    +2   90     
+                    +2   91     
+                    +2   92     
+                    +2   93     
+                    +2   94     
+                    +2          
+                    +2          
+                    +2   97     
+                    +2   98     
+                    +2   99     
+                    +2  100     
+                    +2  101     
+                    +2          
+                    +2          
+                    +2  104     
+                    +2  105     
+                    +2  106     
+                    +1  107     
+                    +1  108     
+                    +1  109     
+                    +1  110     
+                    +1  111     
+                    +1  112     
+                    +1  113     
+                    +1  114     
+                    +1  115     
+                    +1  116     
+                    +1  117     
+                    +1  118     
+                    +1  119     
+                    +1  120     
+                    +1  121     
+A251 MACRO ASSEMBLER  AB1520C_Patch                                                         08/11/20 06:34:23 PAGE     3
+
+                    +1  122     
+                    +1  123     
+                    +1  124     
+                    +1  125     
+                    +1          
+                    +1          
+                    +1          
+                    +1  129     
+                    +1  130     
+                    +1  131     
+                    +1          
+                    +1          
+                    +1          
+                    +1          
+                    +1  136     
+                    +1  137     
+                    +1  138     
+                    +1  139     
+                    +1  140     
+                    +1  141     
+                    +1  142     
+                    +1  143     
+                    +1  144     
+                    +1  145     
+                    +1  146     
+                    +1  147     
+                    +1  148     
+                    +1  149     
+                    +1  150     
+                    +1  151     
+                    +1  152     
+                    +1  153     
+                    +1  154     
+                    +1  155     
+                    +1  156     
+                    +1  157     
+                    +1  158     
+                    +1  159     
+                    +1  160     
+                    +1  161     
+                    +1  162     
+                    +1  163     
+                    +1  164     
+                    +1  165     
+                    +1  166     
+                    +1  167     
+                    +1  168     
+                    +1  169     
+                    +1  170     
+                    +1  171     
+                    +1  172     
+                    +1  173     
+                    +1  174     
+                    +1  175     
+                    +1  176     
+                    +1  177     
+                    +1  178     
+                    +1  179     
+                    +1  180     
+                    +1  181     
+                    +1  182     
+                    +1  183     
+                    +1  184     
+                    +1  185     
+                    +1  186     
+                    +1  187     
+A251 MACRO ASSEMBLER  AB1520C_Patch                                                         08/11/20 06:34:23 PAGE     4
+
+                    +1  188     
+                    +1  189     
+                    +1  190     
+                    +1  191     
+                    +1  192     
+                    +1  193     
+                    +1  194     
+                    +1  195     
+                    +1  196     
+                    +1  197     
+                    +1  198     
+                    +1  199     
+                    +1  200     
+                    +1  201     
+                    +1  202     
+                    +1  203     
+                    +1  204     
+                    +1  205     
+                    +1  206     
+                    +1  207     
+                    +1  208     
+                    +1  209     
+                    +1  210     
+                    +1  211     
+                    +1  212     
+                    +1  213     
+                    +1  214     
+                    +1  215     
+                    +1  216     
+                    +1  217     
+                    +1  218     
+                    +1  219     
+                    +1  220     
+                    +1  221     
+                    +1  222     
+                    +1  223     
+                    +1  224     
+                    +1              
+                    +1          
+                    +1  227     
+                    +1  228     
+                    +1  229     
+                    +1  230     
+                    +1  231     
+                    +1  232     
+                    +1  233     
+                    +1  234     
+                    +1  235     
+                    +1  236     
+                    +1  237     
+                    +1  238     
+                    +1  239     
+                    +1  240     
+                    +1  241     
+                    +1          
+                    +1          
+                    +1  244     
+                    +1  245     
+                    +1          
+                    +1          
+                    +1          
+                    +1          
+                    +1          
+                    +1          
+                    +1          
+                    +1  253     
+A251 MACRO ASSEMBLER  AB1520C_Patch                                                         08/11/20 06:34:23 PAGE     5
+
+                    +1  254     
+                    +1  255     
+                    +1  256     
+                    +1  257     
+                    +1  258     
+                    +1  259     
+                    +1  260     
+                    +1  261     
+                    +1  262     
+                    +1              
+                    +1          
+                    +1  265     
+                    +1  266     
+                    +1  267     
+                    +1  268     
+                    +1  269     
+                    +1  270     
+                    +1  271     
+                    +1  272     
+                    +1  273     
+                    +1  274     
+                    +1  275     
+                    +1  276     
+                    +1  277     
+                    +1  278     
+                    +1  279     
+                    +1  280     
+                    +1  281     
+                    +1  282     
+                    +1  283     
+                    +1  284     
+                    +1  285     
+                    +1  286     
+                    +1  287     
+                    +1  288     
+                    +1  289     
+                    +1  290     
+                    +1  291     
+                    +1  292     
+                    +1  293     
+                    +1  294     
+                    +1  295     
+                    +1  296     
+                    +1  297     
+                    +1  298     
+                    +1  299     
+                    +1  300     
+                    +1  301     
+                    +1  302     
+                    +1  303     
+                    +1  304     
+                    +1  305     
+                    +1  306     
+                    +1  307     
+                    +1  308     
+                    +1  309     
+                    +1  310     
+                    +1  311     
+                    +1  312     
+                    +1  313             
+                    +1  314             
+                    +1          
+                    +1              
+                    +1              
+                    +1              
+                    +1              
+A251 MACRO ASSEMBLER  AB1520C_Patch                                                         08/11/20 06:34:23 PAGE     6
+
+                    +1              
+                    +1              
+                    +1              
+                    +1          
+                    +1  324     
+                    +1  325     
+                    +1  326     
+                    +1  327     
+                    +1  328     
+                    +1  329     
+                    +1  330     
+                    +1  331     
+                    +1  332     
+                    +1  333     
+                    +1  334     
+                    +1  335     
+                    +1  336     
+                    +1  337     
+                    +1  338     
+                    +1  339     
+                    +1  340             
+                    +1  341         
+                    +1  342             
+                    +1  343             
+                    +1  344         
+                    +1  345         
+                    +1          
+                    +1              
+                    +1          
+                    +1  349     
+                    +1  350     
+                    +1  351     
+                    +1  352     
+                    +1  353     
+                    +1  354     
+                    +1  355     
+                    +1  356     
+                    +1  357     
+                    +1  358     
+                    +1  359     
+                    +1  360     
+                    +1  361     
+                    +1  362     
+                    +1  363     
+                    +1  364     
+                    +1              
+                    +1                  
+                    +1              
+                    +1          
+                    +1  369     
+                    +1  370     
+                    +1  371     
+                    +1  372     
+                    +1  373     
+                    +1  374     
+                    +1  375     
+                    +1  376     
+                    +1  377     
+                    +1  378     
+                    +1  379     
+                    +1          
+                    +1          
+                    +1  382     
+                    +1  383     
+                    +1  384     
+                    +1  385     
+A251 MACRO ASSEMBLER  AB1520C_Patch                                                         08/11/20 06:34:23 PAGE     7
+
+                    +1  386     
+                    +1  387     
+                    +1  388     
+                    +1  389     
+                    +1  390     
+                    +1  391     
+                    +1  392             
+                    +1  393     
+                    +1  394     
+                    +1  395     
+                    +1  396             
+                    +1  397             
+                    +1                      
+                    +1                  
+                    +1                  
+                    +1  401             
+                    +1          
+                    +1                  
+                    +1          
+                    +1  405     
+                    +1  406     
+                    +1  407     
+                    +1  408     
+                    +1  409     
+                    +1  410     
+                    +1  411     
+                    +1  412     
+                    +1  413         
+                    +1  414             
+                    +1  415         
+                    +1  416             
+                    +1  417         
+                    +1  418     
+                    +1  419     
+                    +1  420     
+                    +1  421     
+                    +1  422     
+                    +1  423     
+                    +1  424     
+                    +1  425     
+                    +1  426     
+                    +1  427     
+                    +1  428     
+                    +1  429     
+                    +1  430     
+                    +1  431     
+                    +1  432     
+                    +1              
+                    +1              
+                    +1          
+                    +1  436     
+                    +1  437     
+                    +1              
+                    +1              
+                    +1              
+                    +1          
+                    +1  442         
+                    +1  443     
+                    +1  444     
+                    +1  445     
+                    +1  446     
+                    +1  447     
+                    +1  448     
+                    +1  449     
+                    +1  450     
+                    +1  451     
+A251 MACRO ASSEMBLER  AB1520C_Patch                                                         08/11/20 06:34:23 PAGE     8
+
+                    +1          
+                    +1          
+                    +1          
+                    +1          
+                    +1  456     
+                    +1  457     
+                    +1  458     
+                    +1  459     
+                    +1  460     
+                    +1  461     
+                    +1  462     
+                    +1  463     
+                    +1  464             
+                    +1  465             
+                    +1  466             
+                    +1  467             
+                    +1  468             
+                    +1  469             
+                    +1  470     
+                    +1  471     
+                    +1  472     
+                    +1  473             
+                    +1  474             
+                    +1  475             
+                    +1  476     
+                    +1  477     
+                    +1  478     
+                    +1  479             
+                    +1  480             
+                    +1  481             
+                    +1  482             
+                    +1  483             
+                    +1  484             
+                    +1  485             
+                    +1  486             
+                    +1  487             
+                    +1  488             
+                    +1  489             
+                    +1  490     
+                    +1  491     
+                    +1  492             
+                    +1  493             
+                    +1  494             
+                    +1  495     
+                    +1  496     
+                    +1  497     
+                        498     
+                        499     ;#include "AB1520C_PatchDefine.h"
+                    +1  500     
+                    +1  501     
+                    +1  502     
+                    +1  503     
+                    +1  504     
+                    +1  505     
+                    +1  506     
+                    +1  507     
+                    +1  508     
+                    +1  509     
+                    +1  510     
+                    +1  511     
+                    +1  512     
+                    +1  513     
+                    +1  514     
+                    +1  515     
+                    +1  516     
+                    +1  517     
+A251 MACRO ASSEMBLER  AB1520C_Patch                                                         08/11/20 06:34:23 PAGE     9
+
+                    +1  518     
+                    +1  519     
+                    +1  520     
+                    +1  521     
+                    +1  522     
+                    +1  523     
+                    +1  524     
+                    +1  525     
+                    +1  526     
+                    +1  527     
+                        528     
+                        529     
+                        530     
+                        531     ;$include ( AB1520C_P001_HcVcmdModeChange.asm )
+------              +1  532     ?EP?P001_f1_0xFE79F8?P001 SEGMENT 'ECODE_FLASH'
+                    +1  533     PUBLIC P001_f1_0xFE79F8??
+------              +1  534     RSEG ?EP?P001_f1_0xFE79F8?P001  ;program segment
+                    +1  535     
+000000              +1  536     P001_f1_0xFE79F8??:
+000000 F879FE       +1  537     DB              0xF8, 0x79, 0xFE
+000003 00           +1  538     DB              0
+000004 8A000000   F +1  539     EJMP    P001_f1_patch
+                    +1  540     
+000008              +1  541     P001_f1_patch:
+000008 C2AF         +1  542     CLR      (0xA8.7)
+00000A C2AF         +1  543     CLR      (0xA8.7)
+00000C C2AF         +1  544     CLR      (0xA8.7)
+00000E C2AF         +1  545     CLR      (0xA8.7)
+000010 00           +1  546     NOP      
+000011 00           +1  547     NOP      
+000012 00           +1  548     NOP      
+000013 00           +1  549     NOP      
+000014 050B         +1  550     INC      (0x0B)
+000016 75C155       +1  551     MOV      0xC1,#0x55
+000019 75FE00       +1  552     MOV      0xFE,#0x00
+00001C 150B         +1  553     DEC      (0x0B)
+00001E E50B         +1  554     MOV      A,(0x0B)
+000020 7000       F +1  555     JNZ      P001_f1_0xFE7A00_label1
+000022 D2AF         +1  556     SETB     (0xA8.7)
+                    +1  557     ;  OS_delay_us(100);  
+000024              +1  558     P001_f1_0xFE7A00_label1:
+000024 7E340064     +1  559     MOV      WR6,#0x0064
+000028 9A000000   F +1  560     ECALL    0xFFAF15
+                    +1  561     ;  BANK_SFR_WRITE(C2,C2OFFS_RW_WD_ENABLE,0); 
+00002C C2AF         +1  562     CLR      (0xA8.7)
+00002E C2AF         +1  563     CLR      (0xA8.7)
+000030 C2AF         +1  564     CLR      (0xA8.7)
+000032 C2AF         +1  565     CLR      (0xA8.7)
+000034 00           +1  566     NOP      
+000035 00           +1  567     NOP      
+000036 00           +1  568     NOP      
+000037 00           +1  569     NOP      
+000038 050B         +1  570     INC      (0x0B)
+00003A 75C1C3       +1  571     MOV      0xC1,#0xC3
+00003D 75C200       +1  572     MOV      0xC2,#0x00
+000040 150B         +1  573     DEC      (0x0B)
+000042 E50B         +1  574     MOV      A,(0x0B)
+000044 7000       F +1  575     JNZ      P001_f1_0xFE7A00_label2
+000046 D2AF         +1  576     SETB     (0xA8.7)
+                    +1  577     ;  OS_SoftwareReset(); 
+000048              +1  578     P001_f1_0xFE7A00_label2:
+000048 9A000000   F +1  579     ECALL    0xFFB8A5
+                    +1  580     
+00004C 8A000000   F +1  581     EJMP     0xFE7A1C
+                        582     
+                        583     
+A251 MACRO ASSEMBLER  AB1520C_Patch                                                         08/11/20 06:34:23 PAGE    10
+
+                        584     
+                        585     
+                        586     ;$include ( AB1520C_P002_LeLabtestRx.asm )
+------              +1  587     ?EP?P002_f1_0xFF78E4?P002 SEGMENT 'ECODE_FLASH'
+                    +1  588     PUBLIC P002_f1_0xFF78E4??
+------              +1  589     RSEG ?EP?P002_f1_0xFF78E4?P002  ;program segment
+                    +1  590     
+000000              +1  591     P002_f1_0xFF78E4??:
+000000 E478FF       +1  592     DB              0xE4, 0x78, 0xFF
+000003 00           +1  593     DB              0
+000004 8A000000   F +1  594     EJMP    P002_f1_patch
+                    +1  595     
+000008              +1  596     P002_f1_patch:
+                    +1  597     ;MOV      0xC1,#0x1A
+                    +1  598     ;ORL      A,#0x10
+                    +1  599     ;MOV      0xE6,A
+000008 75C120       +1  600     MOV      0xC1,#0x20
+00000B 75E604       +1  601     MOV      0xE6,#0x04
+                    +1  602     
+00000E 9A000000   F +1  603     ECALL    0xFE04D9
+000012 9A000000   F +1  604     ECALL    0xFFAEBA
+                    +1  605     ; Clear Rx done status
+000016 75C11A       +1  606     MOV          0xC1,#0x1A
+000019 75E610       +1  607     MOV      0xE6,#0x10
+                    +1  608     
+                    +1  609     
+                    +1  610     
+00001C 8A000000   F +1  611     EJMP     0xFF78F9
+                        612     
+                        613     
+                        614     
+                        615     
+                        616     ;$include ( AB1520C_P003_LabTest_LE_TxTest_Hopping_Scheme_1.asm )
+------              +1  617     ?EP?P003_f1_0xFF78C0?P003 SEGMENT 'ECODE_FLASH'
+                    +1  618     PUBLIC P003_f1_0xFF78C0??
+------              +1  619     RSEG ?EP?P003_f1_0xFF78C0?P003  ;program segment
+                    +1  620     
+000000              +1  621     P003_f1_0xFF78C0??:
+000000 C078FF       +1  622     DB              0xC0, 0x78, 0xFF
+000003 00           +1  623     DB              0
+000004 8A000000   F +1  624     EJMP    P003_f1_patch
+                    +1  625     
+000008              +1  626     P003_f1_patch:
+                    +1  627     ; Check tx count value
+000008 7E3787D4     +1  628     MOV     WR6,00:87D4H
+00000C BE3787D6     +1  629     CMP     WR6,00:87D6H
+000010 7800       F +1  630     JNE             P003_f1_0xFF78C0_1
+000012 8A000000   F +1  631     EJMP    0xFF7AF2
+                    +1  632     
+000016              +1  633     P003_f1_0xFF78C0_1:
+                    +1  634     ; Check whether gHopEnb is set or not
+000016 900000     F +1  635     MOV          DPTR, #gHopEnb
+000019 E0           +1  636     MOVX     A, @DPTR
+00001A 6000       F +1  637     JZ       P003_f1_0xFF78C0_3
+                    +1  638     ; Increment hop is set to 1
+00001C 900000     F +1  639     MOV      DPTR, #gHopChannel
+00001F E0           +1  640     MOVX     A, @DPTR
+000020 04           +1  641     INC      A
+000021 BEB028       +1  642     CMP      R11, #0x28
+000024 4000       F +1  643     JC           P003_f1_0xFF78C0_2
+000026 E4           +1  644     CLR      A
+000027              +1  645     P003_f1_0xFF78C0_2:
+000027 C3           +1  646     CLR      C
+                    +1  647     ; Set up the newest hopping frequency
+000028 A5FF         +1  648     MOV      R7,A
+00002A 75C121       +1  649     MOV      0xC1,#0x21
+A251 MACRO ASSEMBLER  AB1520C_Patch                                                         08/11/20 06:34:23 PAGE    11
+
+00002D E5E6         +1  650     MOV      A,0xE6
+00002F 54DF         +1  651     ANL      A,#0xDF
+000031 4420         +1  652     ORL      A,#0x20
+000033 75C121       +1  653     MOV      0xC1,#0x21
+000036 F5E6         +1  654     MOV      0xE6,A
+000038 75C12B       +1  655     MOV      0xC1,#0x2B
+00003B 7A71E6       +1  656     MOV      0xE6,R7
+                    +1  657     ; Save the newest hopping channel into 0xF7
+00003E 7CB7         +1  658     MOV      R11,R7
+000040 F0           +1  659     MOVX     @DPTR, A
+                    +1  660     ; LE_ENABLE_DATA_TX();
+000041              +1  661     P003_f1_0xFF78C0_3:
+000041 75C120       +1  662     MOV      0xC1,#0x20
+000044 75E601       +1  663     MOV      0xE6,#0x01
+000047 AA           +1  664     ERET
+                        665     
+                        666     
+                        667     
+                        668     
+                        669     ;$include ( AB1520C_P004_LabTest_LE_TxTest_Hopping_Scheme_2.asm )
+------              +1  670     ?XD?P004_f1_0xFF7A74?1 SEGMENT 'EDATA_PATCH_PARA'
+                    +1  671     PUBLIC gHopChannel
+                    +1  672     PUBLIC gHopEnb
+------              +1  673     RSEG ?XD?P004_f1_0xFF7A74?1
+                    +1  674     
+000000              +1  675     gHopChannel:            DS      1
+000001              +1  676     gHopEnb:                    DS  1
+                    +1  677     
+------              +1  678     ?EP?P004_f1_0xFF7A74?P004 SEGMENT 'ECODE_FLASH'
+                    +1  679     PUBLIC P004_f1_0xFF7A74??
+------              +1  680     RSEG ?EP?P004_f1_0xFF7A74?P004  ;program segment
+                    +1  681     
+000000              +1  682     P004_f1_0xFF7A74??:
+000000 747AFF       +1  683     DB              0x74, 0x7A, 0xFF
+000003 00           +1  684     DB              0
+000004 8A000000   F +1  685     EJMP    P004_f1_patch
+                    +1  686     
+000008              +1  687     P004_f1_patch:
+000008 F5E6         +1  688     MOV      0xE6,A
+                    +1  689     ; Save the hopping channel into internal memory gHopChannel
+00000A 900000     F +1  690     MOV      DPTR, #gHopChannel
+00000D 09B70005     +1  691     MOV      R11,@WR14+0x0005
+000011 F0           +1  692     MOVX     @DPTR, A
+000012 900000     F +1  693     MOV      DPTR, #gHopEnb
+000015 09B700A1     +1  694     MOV      R11, @WR14+0x00A1
+000019 F0           +1  695     MOVX     @DPTR, A
+                    +1  696     
+00001A 09B70005     +1  697     MOV      R11,@WR14+0x0005
+                    +1  698     
+00001E 8A000000   F +1  699     EJMP     0xFF7A7A
+                        700     
+                        701     
+                        702     
+                        703     
+                        704     ;$include ( AB1520C_P005_LabTest_BRX_RSSI_stable_1.asm )
+------              +1  705     ?XD?P005_f1_0xFEB5B8?1 SEGMENT 'EDATA_PATCH_PARA'
+                    +1  706     PUBLIC gAgcgain
+------              +1  707     RSEG ?XD?P005_f1_0xFEB5B8?1
+                    +1  708     
+000000              +1  709     gAgcgain:               DS      1
+000001              +1  710     gAgcflag:           DS  1
+000002              +1  711     gAgcval:            DS  1
+                    +1  712             
+------              +1  713     ?EP?P005_f1_0xFEB5B8?P005 SEGMENT 'ECODE_FLASH'
+                    +1  714     PUBLIC P005_f1_0xFEB5B8??
+------              +1  715     RSEG ?EP?P005_f1_0xFEB5B8?P005  ;program segment
+A251 MACRO ASSEMBLER  AB1520C_Patch                                                         08/11/20 06:34:23 PAGE    12
+
+                    +1  716     
+000000              +1  717     P005_f1_0xFEB5B8??:
+000000 B8B5FE       +1  718     DB              0xB8, 0xB5, 0xFE
+000003 00           +1  719     DB              0
+000004 8A000000   F +1  720     EJMP    P005_f1_patch
+                    +1  721     
+                    +1  722     
+000008              +1  723     P005_f1_patch:
+                    +1  724     ; LC_SW_STATE_CTL_LABTEST.brx_rssi = LC_SFR_READ_BY_E4(E4OFFS_RO_RSSI)
+000008 75C1CF       +1  725     MOV          0xC1, #0xCF
+00000B E5E4         +1  726     MOV     A, 0xE4
+                    +1  727     ;MOVX        0xE000, R11
+                    +1  728     
+                    +1  729     
+00000D 900000     F +1  730     MOV      DPTR, #gAgcgain
+                    +1  731     
+000010 F0           +1  732     MOVX    @DPTR, A
+                    +1  733     
+000011 7000       F +1  734     JNZ      P005_f1_patch_01 
+000013 900000     F +1  735     MOV      DPTR, #gAgcflag
+000016 440F         +1  736     ORL      A,#0x0f
+000018 F0           +1  737     MOVX    @DPTR, A
+000019 8A000000   F +1  738     EJMP    P005_f1_patch_1
+                    +1  739     
+00001D              +1  740     P005_f1_patch_01:
+00001D 75C1CE       +1  741     MOV          0xC1, #0xCE
+000020 E5E4         +1  742     MOV     A, 0xE4
+000022 9087F1       +1  743     MOV         DPTR, #0x87F1
+                    +1  744     
+000025 F0           +1  745     MOVX    @DPTR, A
+                    +1  746     ; 0x97e0 = LC_SFR_READ_BY_E4(E4OFFS_AGC_GAIN_SEL);
+                    +1  747     
+                    +1  748     
+                    +1  749     
+000026              +1  750     P005_f1_patch_1:
+                    +1  751     
+000026 8A000000   F +1  752     EJMP    0xFEB5C1
+                    +1  753     
+00002A              +1  754     P005_f1_patch_2:  
+                    +1  755     
+                    +1  756     
+                    +1  757     
+00002A 8A000000   F +1  758     EJMP    0xFEB6C0  
+                        759     
+                        760     
+                        761     
+                        762     
+                        763     ;$include ( AB1520C_P006_LabTest_BRX_RSSI_stable_2.asm )
+------              +1  764     ?EP?P006_f1_0xFE75C8?P006 SEGMENT 'ECODE_FLASH'
+                    +1  765     PUBLIC P006_f1_0xFE75C8??
+------              +1  766     RSEG ?EP?P006_f1_0xFE75C8?P006  ;program segment
+                    +1  767     
+000000              +1  768     P006_f1_0xFE75C8??:
+000000 C875FE       +1  769     DB              0xC8, 0x75, 0xFE
+000003 00           +1  770     DB              0
+000004 8A000000   F +1  771     EJMP    P006_f1_patch
+                    +1  772     
+000008              +1  773     P006_f1_patch:
+                    +1  774     
+                    +1  775     
+                    +1  776     ; AgcGainSel = 0x8ffff
+000008 050B         +1  777     INC  0x0B
+                    +1  778     ;
+                    +1  779     
+00000A 900000     F +1  780     MOV         DPTR, #gAgcflag
+00000D 759300       +1  781     MOV     0x93, #0
+A251 MACRO ASSEMBLER  AB1520C_Patch                                                         08/11/20 06:34:23 PAGE    13
+
+000010 E0           +1  782     MOVX    A, @DPTR 
+                    +1  783     
+000011 6000       F +1  784     JZ      P006_f1_patch_01 
+                    +1  785     
+000013 09B10014     +1  786     MOV     R11,@WR2+0x0014
+000017 7000       F +1  787     JNZ     P006_f1_patch_00
+000019 09B10013     +1  788     MOV     R11,@WR2+0x0013
+00001D 54FE         +1  789     ANL     A,#0xFE
+00001F 6000       F +1  790     JZ      P006_f1_patch_01   
+                    +1  791     
+000021              +1  792     P006_f1_patch_00:
+000021 7400         +1  793     MOV     A, #0x00     
+000023 8A000000   F +1  794     EJMP    P006_f1_patch_02
+                    +1  795     
+000027              +1  796     P006_f1_patch_01:   
+000027 7401         +1  797     MOV     A, #0x01    
+000029              +1  798     P006_f1_patch_02:
+                    +1  799     
+000029 19B10015     +1  800     MOV     @WR2+0x0015,R11
+00002D 7400         +1  801     MOV     A, #0x00
+00002F F0           +1  802     MOVX    @DPTR, A
+                    +1  803     
+                    +1  804     ;MOV      R10, 0xE000
+                    +1  805     
+000030 900000     F +1  806     MOV         DPTR, #gAgcval
+000033 759300       +1  807     MOV     0x93, #0
+000036 E0           +1  808     MOVX    A, @DPTR 
+                    +1  809     
+000037 7CAB         +1  810     MOV     R10, R11 
+                    +1  811     
+000039 7000       F +1  812     JNZ     P006_f1_patch_03
+                    +1  813     
+00003B 7400         +1  814     MOV     A, #0x00     
+00003D 19B10015     +1  815     MOV     @WR2+0x0015,R11
+                    +1  816     
+000041              +1  817     P006_f1_patch_03:
+000041 7400         +1  818     MOV     A, #0x00
+000043 F0           +1  819     MOVX    @DPTR, A
+                    +1  820     
+000044 8A000000   F +1  821     EJMP     0xFE75D0
+                        822     
+                        823     
+                        824     
+                        825     
+                        826     ;$include ( AB1520C_P007_LCS_LabTestRXDoneHandler.asm )
+------              +1  827     ?EP?P007_f1_0xFEB55C?P007 SEGMENT 'ECODE_FLASH'
+                    +1  828     PUBLIC P007_f1_0xFEB55C??
+------              +1  829     RSEG ?EP?P007_f1_0xFEB55C?P007  ;program segment
+                    +1  830     
+000000              +1  831     P007_f1_0xFEB55C??:
+000000 5CB5FE       +1  832     DB              0x5C, 0xB5, 0xFE
+000003 00           +1  833     DB              0
+000004 8A000000   F +1  834     EJMP    P007_f1_patch
+                    +1  835     
+                    +1  836     
+                    +1  837     
+000008              +1  838     P007_f1_patch:
+000008 9A000000   F +1  839     ECALL    0xFE04D9    
+00000C 9A000000   F +1  840     ECALL    0xFFAEBA    
+000010 9A000000   F +1  841     ECALL    0xFE0520    
+                    +1  842     
+000014 900000     F +1  843     MOV         DPTR, #gAgcgain
+000017 759300       +1  844     MOV     0x93, #0
+00001A E0           +1  845     MOVX    A, @DPTR 
+00001B 6000       F +1  846     JZ      P007_f1_patch_1
+                    +1  847     
+A251 MACRO ASSEMBLER  AB1520C_Patch                                                         08/11/20 06:34:23 PAGE    14
+
+                    +1  848     
+00001D 900000     F +1  849     MOV     DPTR, #gAgcval
+000020 F0           +1  850     MOVX    @DPTR, A 
+                    +1  851     
+000021 9087D4       +1  852     MOV         DPTR, #0x87D4
+000024 759300       +1  853     MOV     0x93, #0
+000027 7401         +1  854     MOV     A, #0x01
+000029 F0           +1  855     MOVX    @DPTR, A 
+                    +1  856     
+00002A 8A000000   F +1  857     EJMP     0xFEB562
+                    +1  858     
+00002E              +1  859     P007_f1_patch_1:
+00002E 75C1C4       +1  860     MOV          0xC1, #0xC4
+000031 E5FE         +1  861     MOV     A, 0xFE
+                    +1  862     
+000033 75C1C5       +1  863     MOV          0xC1, #0xC5
+000036 E5FE         +1  864     MOV     A, 0xFE
+                    +1  865     
+000038 9087D4       +1  866     MOV         DPTR, #0x87D4
+00003B 759300       +1  867     MOV     0x93, #0
+00003E 7400         +1  868     MOV     A, #0x00
+000040 F0           +1  869     MOVX    @DPTR, A 
+                    +1  870     
+000041 8A000000   F +1  871     EJMP     0xFEB59E
+                        872     
+                        873     
+                        874     
+                        875     
+                        876     ;$include ( AB1520C_P008_LC_LabTestRFTestBRxPacketSetup.asm )
+------              +1  877     ?EP?P008_f1_0xFEBED0?P008 SEGMENT 'ECODE_FLASH'
+                    +1  878     PUBLIC P008_f1_0xFEBED0??
+------              +1  879     RSEG ?EP?P008_f1_0xFEBED0?P008  ;program segment
+                    +1  880     
+000000              +1  881     P008_f1_0xFEBED0??:
+000000 D0BEFE       +1  882     DB              0xD0, 0xBE, 0xFE
+000003 00           +1  883     DB              0
+000004 8A000000   F +1  884     EJMP    P008_f1_patch
+                    +1  885     
+000008              +1  886     P008_f1_patch:
+000008 9A000000   F +1  887     ECALL    0xFE0520    
+                    +1  888     
+00000C 7E348028     +1  889     MOV      WR6,#0x8028
+                    +1  890     
+000010 8A000000   F +1  891     EJMP     0xFEBED4
+                        892     
+                        893     
+                        894     
+                        895     
+                        896     ;$include ( AB1520C_P009_LC_LabTestLeRxTestSetup.asm )
+------              +1  897     ?EP?P009_f1_0xFF799C?P009 SEGMENT 'ECODE_FLASH'
+                    +1  898     PUBLIC P009_f1_0xFF799C_1??
+                    +1  899     PUBLIC P009_f1_0xFF799C_2??     
+------              +1  900     RSEG ?EP?P009_f1_0xFF799C?P009  ;program segment
+                    +1  901     
+000000              +1  902     P009_f1_0xFF799C_1??:
+000000 9C79FF       +1  903     DB              0x9C, 0x79, 0xFF
+000003 00           +1  904     DB              0
+000004 1C           +1  905     DB              0x1C
+000005 8A000000   F +1  906     EJMP    P009_f1_patch
+                    +1  907     
+000009              +1  908     P009_f1_0xFF799C_2??:
+000009 A079FF       +1  909     DB              0xA0, 0x79, 0xFF
+00000C 03           +1  910     DB              3
+00000D 8A000000   F +1  911     EJMP    P009_f1_patch
+000011 378066       +1  912     DB              0x37, 0x80, 0x66
+                    +1  913     
+A251 MACRO ASSEMBLER  AB1520C_Patch                                                         08/11/20 06:34:23 PAGE    15
+
+000014              +1  914     P009_f1_patch:
+000014 9A000000   F +1  915     ECALL    0xFE0520  
+                    +1  916     
+000018 75C12B       +1  917     MOV      0xC1,#0x2B
+00001B 75E70B       +1  918     MOV      0xE7,#0x0B
+                    +1  919     
+00001E 8A000000   F +1  920     EJMP     0xFF79B5
+                        921     
+                        922     
+                        923     
+                        924     
+                        925     ;$include ( AB1520C_P010_LC_EnterLabTestInit.asm )
+------              +1  926     ?EP?P010_f1_0xFEB824?P010 SEGMENT 'ECODE_FLASH'
+                    +1  927     PUBLIC P010_f1_0xFEB824??
+------              +1  928     RSEG ?EP?P010_f1_0xFEB824?P010  ;program segment
+                    +1  929     
+000000              +1  930     P010_f1_0xFEB824??:
+000000 24B8FE       +1  931     DB              0x24, 0xB8, 0xFE
+000003 00           +1  932     DB              0
+000004 8A000000   F +1  933     EJMP    P010_f1_patch
+                    +1  934     
+000008              +1  935     P010_f1_patch:
+000008 75C202       +1  936     MOV      0xC2,#0x02
+                    +1  937     
+                    +1  938     
+00000B 75C104       +1  939     MOV      0xC1,#0x04
+00000E 75FE04       +1  940     MOV      0xFE,#0x04
+                    +1  941     
+                    +1  942     
+000011 75C105       +1  943     MOV      0xC1,#0x05
+000014 75FE30       +1  944     MOV      0xFE,#0x30
+                    +1  945     
+                    +1  946     
+000017 75C11D       +1  947     MOV      0xC1,#0x1D
+00001A 75FE80       +1  948     MOV      0xFE,#0x80
+                    +1  949     
+                    +1  950     
+                    +1  951     
+00001D 7400         +1  952     MOV     A, #0x00
+00001F 908CDD       +1  953     MOV         DPTR, #0x8CDD
+000022 F0           +1  954     MOVX    @DPTR, A
+000023 908CDE       +1  955     MOV         DPTR, #0x8CDE
+000026 F0           +1  956     MOVX    @DPTR, A
+000027 908CDF       +1  957     MOV         DPTR, #0x8CDF
+00002A F0           +1  958     MOVX    @DPTR, A
+00002B 908CE0       +1  959     MOV         DPTR, #0x8CE0
+00002E F0           +1  960     MOVX    @DPTR, A
+00002F 908CE1       +1  961     MOV         DPTR, #0x8CE1
+000032 F0           +1  962     MOVX    @DPTR, A
+000033 908CE2       +1  963     MOV         DPTR, #0x8CE2
+000036 F0           +1  964     MOVX    @DPTR, A
+000037 75C133       +1  965     MOV     0xC1,#0x33
+00003A 75C202       +1  966     MOV     0xC2,#0x02
+                    +1  967     
+00003D 9A000000   F +1  968     ECALL    0xFE0520  
+                    +1  969     
+000041 75C107       +1  970     MOV      0xC1,#0x07
+000044 8A000000   F +1  971     EJMP     0xFEB82A
+                        972     
+                        973     
+                        974     
+                        975     
+                        976     ;$include ( AB1520C_P011_LabTest_TxDone.asm )
+------              +1  977     ?EP?P011_f1_0xFEB4C0?P011 SEGMENT 'ECODE_FLASH'
+                    +1  978     PUBLIC P011_f1_0xFEB4C0??
+------              +1  979     RSEG ?EP?P011_f1_0xFEB4C0?P011  ;program segment
+A251 MACRO ASSEMBLER  AB1520C_Patch                                                         08/11/20 06:34:23 PAGE    16
+
+                    +1  980     
+000000              +1  981     P011_f1_0xFEB4C0??:
+000000 C0B4FE       +1  982     DB              0xC0, 0xB4, 0xFE
+000003 00           +1  983     DB              0
+000004 8A000000   F +1  984     EJMP    P011_f1_patch
+                    +1  985     
+000008              +1  986     P011_f1_patch:
+000008 908534       +1  987     MOV          DPTR, #0x8534
+00000B 7403         +1  988     MOV          A, #0x03
+00000D 8A000000   F +1  989     EJMP     0xFEB507
+                        990     
+                        991     
+                        992     
+                        993     
+                        994     ;$include ( AB1520C_P012_LC_LabTestLeRxTestSetup.asm )
+------              +1  995     ?EP?P012_f1_0xFF795C?P012 SEGMENT 'ECODE_FLASH'
+                    +1  996     PUBLIC P012_f1_0xFF795C??
+------              +1  997     RSEG ?EP?P012_f1_0xFF795C?P012  ;program segment
+                    +1  998     
+000000              +1  999     P012_f1_0xFF795C??:
+000000 5C79FF       +1 1000     DB              0x5C, 0x79, 0xFF
+000003 00           +1 1001     DB              0
+000004 8A000000   F +1 1002     EJMP    P012_f1_patch
+                    +1 1003     
+000008              +1 1004     P012_f1_patch:
+                    +1 1005     
+000008 75E6A0       +1 1006     MOV      0xE6,#0xA0
+                    +1 1007     
+00000B 75C127       +1 1008     MOV      0xC1,#0x27
+00000E 75E600       +1 1009     MOV      0xE6,#0x00
+                    +1 1010     
+000011 8A000000   F +1 1011     EJMP     0xFF7965
+                       1012     
+                       1013     
+                       1014     
+                       1015     
+                       1016     ;$include ( AB1520C_P013_LabTestRXDoneHandler.asm )
+------              +1 1017     ?EP?P013_f1_0xFEB59C?P013 SEGMENT 'ECODE_FLASH'
+                    +1 1018     PUBLIC P013_f1_0xFEB59C_1??
+                    +1 1019     PUBLIC P013_f1_0xFEB59C_2??     
+------              +1 1020     RSEG ?EP?P013_f1_0xFEB59C?P013  ;program segment
+                    +1 1021     
+000000              +1 1022     P013_f1_0xFEB59C_1??:
+000000 9CB5FE       +1 1023     DB              0x9C, 0xB5, 0xFE
+000003 00           +1 1024     DB              0
+000004 F5D3         +1 1025     DB              0xF5, 0xD3
+000006 8A000000   F +1 1026     EJMP    P013_f1_patch
+                    +1 1027     
+00000A              +1 1028     P013_f1_0xFEB59C_2??:
+00000A A0B5FE       +1 1029     DB              0xA0, 0xB5, 0xFE
+00000D 02           +1 1030     DB              2
+00000E 8A000000   F +1 1031     EJMP    P013_f1_patch
+000012 55D2         +1 1032     DB              0x55, 0xD2
+                    +1 1033     
+000014              +1 1034     P013_f1_patch:
+                    +1 1035     
+000014 7403         +1 1036     MOV          A, #0x03
+000016 7C7B         +1 1037     MOV      R7,R11
+000018 0A37         +1 1038     MOVZ     WR6,R7
+00001A 6D22         +1 1039     XRL      WR4,WR4
+00001C 1B1C         +1 1040     DEC      DR4,#0x01
+00001E 9A000000   F +1 1041     ECALL    0xFFB826   
+                    +1 1042     
+000022 A5EC         +1 1043     MOV      A,R4
+000024 908042       +1 1044     MOV         DPTR, #0x8042
+000027 F0           +1 1045     MOVX      @DPTR,A
+A251 MACRO ASSEMBLER  AB1520C_Patch                                                         08/11/20 06:34:23 PAGE    17
+
+000028              +1 1046     P013_f1_patch_01:
+                    +1 1047     
+000028 908042       +1 1048     MOV         DPTR, #0x8042
+00002B E0           +1 1049     MOVX      A,@DPTR
+00002C A5FC         +1 1050     MOV      R4,A
+00002E 9A000000   F +1 1051     ECALL    0xFFB68B  
+000032 6000       F +1 1052     JZ       P013_f1_patch_01
+000034 D2FE         +1 1053     SETB     0xF8.6
+000036 8A000000   F +1 1054     EJMP     0xFEB5A5
+                       1055     
+                       1056     
+                       1057     
+                       1058     
+                       1059     ;$include ( AB1520C_P014_HC_HciLabTestRdThreeWiredVCmdHdlr.asm )
+------              +1 1060     ?EP?P014_f1_0xFE7F58?P014 SEGMENT 'ECODE_FLASH'
+                    +1 1061     PUBLIC P014_f1_0xFE7F58??
+------              +1 1062     RSEG ?EP?P014_f1_0xFE7F58?P014  ;program segment
+                    +1 1063     
+000000              +1 1064     P014_f1_0xFE7F58??:
+000000 587FFE       +1 1065     DB              0x58, 0x7F, 0xFE
+000003 00           +1 1066     DB              0
+000004 8A000000   F +1 1067     EJMP    P014_f1_patch
+                    +1 1068     
+000008              +1 1069     P014_f1_patch:
+                    +1 1070     
+000008 693FFFFD     +1 1071     MOV      WR6,@DR60+0xFFFD
+00000C 09B30005     +1 1072     MOV      R11,@WR6+0x0005
+000010 BEB023       +1 1073     CMP      R11,#0x23
+000013 7800       F +1 1074     JNE      P014_f1_patch_end
+                    +1 1075     ;MOV      0x80, #0xFF
+000015 C2AF         +1 1076     CLR      (0xA8.7)     ;//EA = 0
+000017 75C156       +1 1077     MOV      0xC1,#0x56
+00001A 75E702       +1 1078     MOV      0xE7,#0x02
+00001D 75C157       +1 1079     MOV      0xC1,#0x57
+000020 75E700       +1 1080     MOV      0xE7,#0x00
+000023 00           +1 1081     NOP
+000024 00           +1 1082     NOP
+000025 00           +1 1083     NOP
+000026 00           +1 1084     NOP
+000027 00           +1 1085     NOP
+000028 00           +1 1086     NOP
+000029 00           +1 1087     NOP
+00002A 00           +1 1088     NOP
+00002B 00           +1 1089     NOP
+00002C 00           +1 1090     NOP
+00002D D2AF         +1 1091     SETB     (0xA8.7)     ;//EA = 1
+00002F 75C1DC       +1 1092     MOV      0xC1,#0xDC   ;//_BANK_SFR_WRITE(C2, C2OFFS_WO_PMU_ENABLE, 0x80);
+000032 75C280       +1 1093     MOV      0xC2,#0x80
+000035 00           +1 1094     NOP
+000036 00           +1 1095     NOP
+000037 00           +1 1096     NOP
+000038 00           +1 1097     NOP
+000039 00           +1 1098     NOP
+00003A 00           +1 1099     NOP
+00003B 00           +1 1100     NOP
+00003C 00           +1 1101     NOP
+00003D 00           +1 1102     NOP
+00003E 00           +1 1103     NOP
+00003F 00           +1 1104     NOP
+000040 00           +1 1105     NOP
+000041 00           +1 1106     NOP
+000042 00           +1 1107     NOP
+000043 00           +1 1108     NOP
+000044 00           +1 1109     NOP
+000045 00           +1 1110     NOP
+000046 00           +1 1111     NOP
+A251 MACRO ASSEMBLER  AB1520C_Patch                                                         08/11/20 06:34:23 PAGE    18
+
+000047 00           +1 1112     NOP
+000048 00           +1 1113     NOP
+000049 00           +1 1114     NOP
+00004A 00           +1 1115     NOP
+00004B 00           +1 1116     NOP
+00004C 00           +1 1117     NOP
+00004D 00           +1 1118     NOP
+00004E 00           +1 1119     NOP
+00004F 00           +1 1120     NOP
+000050 00           +1 1121     NOP
+000051 00           +1 1122     NOP
+000052 00           +1 1123     NOP
+000053 75C156       +1 1124     MOV      0xC1,#0x56
+000056 75E700       +1 1125     MOV      0xE7,#0x00
+000059 75C157       +1 1126     MOV      0xC1,#0x57
+00005C 75E700       +1 1127     MOV      0xE7,#0x00
+                    +1 1128     
+00005F              +1 1129     P014_f1_patch_end:
+                    +1 1130     ;MOV      0x80, #0x00
+00005F 7D37         +1 1131     MOV      WR6,WR14
+000061 9A000000   F +1 1132     ECALL    0xFFAEBA     ;//OSMEM_Put(C:0xAEBA)
+000065 8A000000   F +1 1133     EJMP     0xFE7F5C
+                       1134     
+                       1135     
+                       1136     
+                       1137     
+                       1138     ;$include ( AB1520C_P015_LC_LabTestLeTestStop.asm )
+------              +1 1139     ?EP?P015_f1_0xFF7B00?P015 SEGMENT 'ECODE_FLASH'
+                    +1 1140     PUBLIC P015_f1_0xFF7B00??
+------              +1 1141     RSEG ?EP?P015_f1_0xFF7B00?P015  ;program segment
+                    +1 1142     
+000000              +1 1143     P015_f1_0xFF7B00??:
+000000 007BFF       +1 1144     DB              0x00, 0x7B, 0xFF
+000003 00           +1 1145     DB              0
+000004 8A000000   F +1 1146     EJMP    P015_f1_patch
+                    +1 1147     
+000008              +1 1148     P015_f1_patch:
+                    +1 1149     
+000008 7401         +1 1150     MOV      A,#0x01
+00000A 9A000000   F +1 1151     ECALL    0xFE9EE2  
+                    +1 1152     
+00000E              +1 1153     P015_f1_patch_end:
+00000E 8A000000   F +1 1154     EJMP     0xFF7B06
+                       1155     
+                       1156     
+                       1157     
+                       1158     
+                                
+                                
+                       1161     
+                       1162     
+                                
+                                
+                       1165     
+                       1166     
+                                
+                                
+                       1169     
+                       1170     
+                                
+                                
+                       1173     
+                       1174     
+                                
+                                
+                       1177     
+A251 MACRO ASSEMBLER  AB1520C_Patch                                                         08/11/20 06:34:23 PAGE    19
+
+                       1178             
+                       1179     $if  (AB1520D = 1)
+                       1180     
+                       1181     ;$include ( AB1520D_P100_gOsIntrHdlrVector.asm )
+                    +1 1182     ;#include "config.h"
+                    +2 1183     
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+A251 MACRO ASSEMBLER  AB1520C_Patch                                                         08/11/20 06:34:23 PAGE    20
+
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+A251 MACRO ASSEMBLER  AB1520C_Patch                                                         08/11/20 06:34:23 PAGE    21
+
+                    +2          
+                    +2          
+                    +2              
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2              
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+A251 MACRO ASSEMBLER  AB1520C_Patch                                                         08/11/20 06:34:23 PAGE    22
+
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2                  
+                    +2                  
+                    +2          
+                    +2              
+                    +2              
+                    +2              
+                    +2              
+                    +2              
+                    +2              
+                    +2              
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2                  
+                    +2              
+                    +2                  
+                    +2                  
+                    +2              
+                    +2              
+                    +2          
+                    +2              
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+A251 MACRO ASSEMBLER  AB1520C_Patch                                                         08/11/20 06:34:23 PAGE    23
+
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2              
+                    +2                  
+                    +2              
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2                  
+                    +2          
+                    +2          
+                    +2          
+                    +2                  
+                    +2                  
+                    +2                      
+                    +2                  
+                    +2                  
+                    +2                  
+                    +2          
+                    +2                  
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2              
+                    +2                  
+                    +2              
+                    +2                  
+                    +2              
+                    +2          
+                    +2          
+                    +2          
+A251 MACRO ASSEMBLER  AB1520C_Patch                                                         08/11/20 06:34:23 PAGE    24
+
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2              
+                    +2              
+                    +2          
+                    +2          
+                    +2          
+                    +2              
+                    +2              
+                    +2              
+                    +2          
+                    +2              
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2          
+                    +2                  
+                    +2                  
+                    +2                  
+                    +2                  
+                    +2                  
+                    +2                  
+                    +2          
+                    +2          
+                    +2          
+                    +2                  
+                    +2                  
+                    +2                  
+                    +2          
+                    +2          
+                    +2          
+                    +2                  
+                    +2                  
+                    +2                  
+                    +2                  
+                    +2                  
+                    +2                  
+                    +2                  
+                    +2                  
+A251 MACRO ASSEMBLER  AB1520C_Patch                                                         08/11/20 06:34:23 PAGE    25
+
+                    +2                  
+                    +2                  
+                    +2                  
+                    +2          
+                    +2          
+                    +2                  
+                    +2                  
+                    +2                  
+                    +2          
+                    +2          
+                    +2          
+                    +1 1585     
+                    +1 1586     
+------              +1 1587     ?EP?P100_f1_0xFFAF78?P100 SEGMENT 'ECODE_FLASH'
+                    +1 1588     PUBLIC P100_f1_0xFFAF78_1??
+                    +1 1589     PUBLIC P100_f1_0xFFAF78_2??
+------              +1 1590     RSEG ?EP?P100_f1_0xFFAF78?P100  ;program segment
+                    +1 1591     
+000000              +1 1592     P100_f1_0xFFAF78_1??:
+000000 78AFFF       +1 1593     DB              0x78, 0xAF, 0xFF
+000003 00           +1 1594     DB              0
+000004 600E4925     +1 1595     DB      0x60,0x0E,0x49,0x25
+                    +1 1596     
+000008              +1 1597     P100_f1_0xFFAF78_2??:
+000008 7CAFFF       +1 1598     DB              0x7C, 0xAF, 0xFF
+00000B 00           +1 1599     DB              0
+00000C 600C8918     +1 1600     DB      0x60,0x0C,0x89,0x18
+                       1601     
+                                
+                                
+                                
+                       1605     $endif 
+                       1606     
+                       1607     END
+A251 MACRO ASSEMBLER  AB1520C_Patch                                                         08/11/20 06:34:23 PAGE    26
+
+SYMBOL TABLE LISTING
+------ ----- -------
+
+
+N A M E                    T Y P E  V A L U E     ATTRIBUTES
+
+?EP?P001_F1_0XFE79F8?P001  EC SEG   000050H       REL=UNIT, ALN=BYTE
+?EP?P002_F1_0XFF78E4?P002  EC SEG   000020H       REL=UNIT, ALN=BYTE
+?EP?P003_F1_0XFF78C0?P003  EC SEG   000048H       REL=UNIT, ALN=BYTE
+?EP?P004_F1_0XFF7A74?P004  EC SEG   000022H       REL=UNIT, ALN=BYTE
+?EP?P005_F1_0XFEB5B8?P005  EC SEG   00002EH       REL=UNIT, ALN=BYTE
+?EP?P006_F1_0XFE75C8?P006  EC SEG   000048H       REL=UNIT, ALN=BYTE
+?EP?P007_F1_0XFEB55C?P007  EC SEG   000045H       REL=UNIT, ALN=BYTE
+?EP?P008_F1_0XFEBED0?P008  EC SEG   000014H       REL=UNIT, ALN=BYTE
+?EP?P009_F1_0XFF799C?P009  EC SEG   000022H       REL=UNIT, ALN=BYTE
+?EP?P010_F1_0XFEB824?P010  EC SEG   000048H       REL=UNIT, ALN=BYTE
+?EP?P011_F1_0XFEB4C0?P011  EC SEG   000011H       REL=UNIT, ALN=BYTE
+?EP?P012_F1_0XFF795C?P012  EC SEG   000015H       REL=UNIT, ALN=BYTE
+?EP?P013_F1_0XFEB59C?P013  EC SEG   00003AH       REL=UNIT, ALN=BYTE
+?EP?P014_F1_0XFE7F58?P014  EC SEG   000069H       REL=UNIT, ALN=BYTE
+?EP?P015_F1_0XFF7B00?P015  EC SEG   000012H       REL=UNIT, ALN=BYTE
+?EP?P100_F1_0XFFAF78?P100  EC SEG   000010H       REL=UNIT, ALN=BYTE
+?XD?P004_F1_0XFF7A74?1. .  ED SEG   000002H       REL=UNIT, ALN=BYTE
+?XD?P005_F1_0XFEB5B8?1. .  ED SEG   000003H       REL=UNIT, ALN=BYTE
+GAGCFLAG. . . . . . . . .  ED ADDR  0001H     R   SEG=?XD?P005_F1_0XFEB5B8?1
+GAGCGAIN. . . . . . . . .  ED ADDR  0000H     R   SEG=?XD?P005_F1_0XFEB5B8?1
+GAGCVAL . . . . . . . . .  ED ADDR  0002H     R   SEG=?XD?P005_F1_0XFEB5B8?1
+GHOPCHANNEL . . . . . . .  ED ADDR  0000H     R   SEG=?XD?P004_F1_0XFF7A74?1
+GHOPENB . . . . . . . . .  ED ADDR  0001H     R   SEG=?XD?P004_F1_0XFF7A74?1
+P001_F1_0XFE79F8??. . . .  EC ADDR  0000H     R   SEG=?EP?P001_F1_0XFE79F8?P001
+P001_F1_0XFE7A00_LABEL1 .  EC ADDR  0024H     R   SEG=?EP?P001_F1_0XFE79F8?P001
+P001_F1_0XFE7A00_LABEL2 .  EC ADDR  0048H     R   SEG=?EP?P001_F1_0XFE79F8?P001
+P001_F1_PATCH . . . . . .  EC ADDR  0008H     R   SEG=?EP?P001_F1_0XFE79F8?P001
+P002_F1_0XFF78E4??. . . .  EC ADDR  0000H     R   SEG=?EP?P002_F1_0XFF78E4?P002
+P002_F1_PATCH . . . . . .  EC ADDR  0008H     R   SEG=?EP?P002_F1_0XFF78E4?P002
+P003_F1_0XFF78C0??. . . .  EC ADDR  0000H     R   SEG=?EP?P003_F1_0XFF78C0?P003
+P003_F1_0XFF78C0_1. . . .  EC ADDR  0016H     R   SEG=?EP?P003_F1_0XFF78C0?P003
+P003_F1_0XFF78C0_2. . . .  EC ADDR  0027H     R   SEG=?EP?P003_F1_0XFF78C0?P003
+P003_F1_0XFF78C0_3. . . .  EC ADDR  0041H     R   SEG=?EP?P003_F1_0XFF78C0?P003
+P003_F1_PATCH . . . . . .  EC ADDR  0008H     R   SEG=?EP?P003_F1_0XFF78C0?P003
+P004_F1_0XFF7A74??. . . .  EC ADDR  0000H     R   SEG=?EP?P004_F1_0XFF7A74?P004
+P004_F1_PATCH . . . . . .  EC ADDR  0008H     R   SEG=?EP?P004_F1_0XFF7A74?P004
+P005_F1_0XFEB5B8??. . . .  EC ADDR  0000H     R   SEG=?EP?P005_F1_0XFEB5B8?P005
+P005_F1_PATCH . . . . . .  EC ADDR  0008H     R   SEG=?EP?P005_F1_0XFEB5B8?P005
+P005_F1_PATCH_01. . . . .  EC ADDR  001DH     R   SEG=?EP?P005_F1_0XFEB5B8?P005
+P005_F1_PATCH_1 . . . . .  EC ADDR  0026H     R   SEG=?EP?P005_F1_0XFEB5B8?P005
+P005_F1_PATCH_2 . . . . .  EC ADDR  002AH     R   SEG=?EP?P005_F1_0XFEB5B8?P005
+P006_F1_0XFE75C8??. . . .  EC ADDR  0000H     R   SEG=?EP?P006_F1_0XFE75C8?P006
+P006_F1_PATCH . . . . . .  EC ADDR  0008H     R   SEG=?EP?P006_F1_0XFE75C8?P006
+P006_F1_PATCH_00. . . . .  EC ADDR  0021H     R   SEG=?EP?P006_F1_0XFE75C8?P006
+P006_F1_PATCH_01. . . . .  EC ADDR  0027H     R   SEG=?EP?P006_F1_0XFE75C8?P006
+P006_F1_PATCH_02. . . . .  EC ADDR  0029H     R   SEG=?EP?P006_F1_0XFE75C8?P006
+P006_F1_PATCH_03. . . . .  EC ADDR  0041H     R   SEG=?EP?P006_F1_0XFE75C8?P006
+P007_F1_0XFEB55C??. . . .  EC ADDR  0000H     R   SEG=?EP?P007_F1_0XFEB55C?P007
+P007_F1_PATCH . . . . . .  EC ADDR  0008H     R   SEG=?EP?P007_F1_0XFEB55C?P007
+P007_F1_PATCH_1 . . . . .  EC ADDR  002EH     R   SEG=?EP?P007_F1_0XFEB55C?P007
+P008_F1_0XFEBED0??. . . .  EC ADDR  0000H     R   SEG=?EP?P008_F1_0XFEBED0?P008
+P008_F1_PATCH . . . . . .  EC ADDR  0008H     R   SEG=?EP?P008_F1_0XFEBED0?P008
+P009_F1_0XFF799C_1??. . .  EC ADDR  0000H     R   SEG=?EP?P009_F1_0XFF799C?P009
+P009_F1_0XFF799C_2??. . .  EC ADDR  0009H     R   SEG=?EP?P009_F1_0XFF799C?P009
+P009_F1_PATCH . . . . . .  EC ADDR  0014H     R   SEG=?EP?P009_F1_0XFF799C?P009
+P010_F1_0XFEB824??. . . .  EC ADDR  0000H     R   SEG=?EP?P010_F1_0XFEB824?P010
+P010_F1_PATCH . . . . . .  EC ADDR  0008H     R   SEG=?EP?P010_F1_0XFEB824?P010
+P011_F1_0XFEB4C0??. . . .  EC ADDR  0000H     R   SEG=?EP?P011_F1_0XFEB4C0?P011
+P011_F1_PATCH . . . . . .  EC ADDR  0008H     R   SEG=?EP?P011_F1_0XFEB4C0?P011
+P012_F1_0XFF795C??. . . .  EC ADDR  0000H     R   SEG=?EP?P012_F1_0XFF795C?P012
+A251 MACRO ASSEMBLER  AB1520C_Patch                                                         08/11/20 06:34:23 PAGE    27
+
+P012_F1_PATCH . . . . . .  EC ADDR  0008H     R   SEG=?EP?P012_F1_0XFF795C?P012
+P013_F1_0XFEB59C_1??. . .  EC ADDR  0000H     R   SEG=?EP?P013_F1_0XFEB59C?P013
+P013_F1_0XFEB59C_2??. . .  EC ADDR  000AH     R   SEG=?EP?P013_F1_0XFEB59C?P013
+P013_F1_PATCH . . . . . .  EC ADDR  0014H     R   SEG=?EP?P013_F1_0XFEB59C?P013
+P013_F1_PATCH_01. . . . .  EC ADDR  0028H     R   SEG=?EP?P013_F1_0XFEB59C?P013
+P014_F1_0XFE7F58??. . . .  EC ADDR  0000H     R   SEG=?EP?P014_F1_0XFE7F58?P014
+P014_F1_PATCH . . . . . .  EC ADDR  0008H     R   SEG=?EP?P014_F1_0XFE7F58?P014
+P014_F1_PATCH_END . . . .  EC ADDR  005FH     R   SEG=?EP?P014_F1_0XFE7F58?P014
+P015_F1_0XFF7B00??. . . .  EC ADDR  0000H     R   SEG=?EP?P015_F1_0XFF7B00?P015
+P015_F1_PATCH . . . . . .  EC ADDR  0008H     R   SEG=?EP?P015_F1_0XFF7B00?P015
+P015_F1_PATCH_END . . . .  EC ADDR  000EH     R   SEG=?EP?P015_F1_0XFF7B00?P015
+P100_F1_0XFFAF78_1??. . .  EC ADDR  0000H     R   SEG=?EP?P100_F1_0XFFAF78?P100
+P100_F1_0XFFAF78_2??. . .  EC ADDR  0008H     R   SEG=?EP?P100_F1_0XFFAF78?P100
+
+
+REGISTER BANK(S) USED: 0 
+
+
+ASSEMBLY COMPLETE.  0 WARNING(S), 0 ERROR(S).

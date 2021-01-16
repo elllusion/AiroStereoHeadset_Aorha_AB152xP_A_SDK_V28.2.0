@@ -1,0 +1,714 @@
+C251 COMPILER V5.57.0,  Driver_Key                                                         08/11/20  05:51:53  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE Driver_Key
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\Driver_Key.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\DRIVER\Driver_Key.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) 
+                    -WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\s
+                    -ource\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\sour
+                    -ce\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_
+                    -LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspDa
+                    -ta;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLA
+                    -SH_INIT=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520C_AiroStereoHeadset
+                    -\Driver_Key.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\Driver_Key.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #define _DRIVER_KEY_C_
+    4          #include "rc.h"
+    5          #include "bt_config_profile.h"
+    6          
+    7          
+    8          #include "keypad.h"
+    9          #include "Driver.h"
+   10          #include "..\MMI\MMI.h"
+   11          #include "..\MMI\MMI_Driver.h"
+   12          #include "..\HC\hc_interface.h"
+   13          
+   14          extern PUBLIC void DRIVER_LED_PowerSavingExit(BOOL isResetTimer);
+   15          
+   16          #define GET_CURRENT_PRESSED_KEY_COUNT (gDriver_Key_Ctl.currentKeyStatus & 0X0000FFFF)
+   17          #define GET_CURRENT_PRESSED_KEY_MAP   ((U8)((gDriver_Key_Ctl.currentKeyStatus & 0XFFFF0000) >> 24))
+   18          
+   19          
+   20          #define GET_KEY_PRESS_TIME(A)         (U32)(gMMI_nvram.keypadGpioCtl.keyTime.keyPressTime[A])
+   21          #define GET_KEY_LONG_PRESS_TIME(A)        (U32)(gMMI_nvram.keypadGpioCtl.keyTime.keyLongPressTime[A])
+   22          #define GET_KEY_LONGLONG_PRESS_TIME(A)      (U32)(gMMI_nvram.keypadGpioCtl.keyTime.keyLongLongPressTime[A])
+   23          #define GET_KEY_EXTREMELYLONG_PRESS_TIME(A)   (U32)(gMMI_nvram.keypadGpioCtl.keyTime.keyExtremelyLongPress
+             -Time[A])
+   24          #define GET_KEY_MULTI_TIME(A)         (U32)(gMMI_nvram.keypadGpioCtl.keyTime.keyMultiTime[A])
+   25          #define GET_KEY_CONT_PRESS_TIME(A)        (U32)(gMMI_nvram.keypadGpioCtl.keyTime.keyContPressTime[A])
+   26          
+   27          enum
+   28          {
+   29            DRIVER_KEY_NONE,  
+   30            DRIVER_KEY_PRESS,
+   31            DRIVER_KEY_LONG,
+   32            DRIVER_KEY_MULTI,
+   33            DRIVER_KEY_LONGLONG,
+   34            DRIVER_KEY_EXTREMELY_LONG,
+   35            DRIVER_KEY_VERYLONG,
+   36            DRIVER_KEY_INTERNAL_TOGGLE_LONG,
+   37            DRIVER_KEY_INTERNAL_TOGGLE_NONE,
+   38            DRIVER_KEY_TAP,
+   39            DRIVER_KEY_DOUBLE,
+   40            DRIVER_KEY_TRIPPLE,
+   41          };
+   42          
+   43          #define PWR_SAVING_KEY_CONTINUE 15
+   44            
+   45          typedef struct
+   46          {
+   47            OST XDATA_PTR ptr;
+   48            U8 type;
+   49          }DriverKeyTimer;
+   50            
+   51          typedef struct
+C251 COMPILER V5.57.0,  Driver_Key                                                         08/11/20  05:51:53  PAGE 2   
+
+   52          {
+   53            U32 currKeyBitmap;
+   54            U32 oldKeyBitmap;
+   55            U32 currentKeyStatus; //key index(4 significant bits) , number of key pressed
+   56            U8 currentPressedKeyIndex;
+   57            U16 rotaryEncoderKeyStatus;
+   58            DriverKeyTimer keyPressTimer[TOTAL_KEY_NO];
+   59            OST XDATA_PTR keyContinuousPressTimer;
+   60            U16 pwrSavingMask; //TOTAL_KEY_NO = 13
+   61            OST XDATA_PTR keyDelayPwrSavingTimer;
+   62          }DriverKeyCtlType;
+   63          
+   64          DriverKeyCtlType XDATA gDriver_Key_Ctl;
+   65          
+   66          PRIVATE void DRIVER_Key_SetKeyTimer(U8 keyInd, U8 type)
+   67          {
+   68   1        U32 time;
+   69   1        
+   70   1        if(keyInd < TOTAL_KEY_NO)
+   71   1        {
+   72   2          switch(type)
+   73   2          {
+   74   3            case DRIVER_KEY_PRESS:
+   75   3              time = GET_KEY_PRESS_TIME(keyInd);
+   76   3              break;
+   77   3            case DRIVER_KEY_LONG:
+   78   3              time = GET_KEY_LONG_PRESS_TIME(keyInd);
+   79   3              break;
+   80   3            case DRIVER_KEY_LONGLONG:
+   81   3              time = GET_KEY_LONGLONG_PRESS_TIME(keyInd);
+   82   3              break;
+   83   3            case DRIVER_KEY_EXTREMELY_LONG:
+   84   3              time = GET_KEY_EXTREMELYLONG_PRESS_TIME(keyInd);
+   85   3              break;
+   86   3            case DRIVER_KEY_INTERNAL_TOGGLE_LONG:
+   87   3              time = GET_KEY_LONG_PRESS_TIME(keyInd);
+   88   3              break;
+   89   3            case DRIVER_KEY_INTERNAL_TOGGLE_NONE:
+   90   3              time = GET_KEY_LONG_PRESS_TIME(keyInd);
+   91   3              break;
+   92   3            case DRIVER_KEY_MULTI:
+   93   3              time = GET_KEY_MULTI_TIME(keyInd);
+   94   3              break;
+   95   3            default:
+   96   3              return;
+   97   3          }
+   98   2          gDriver_Key_Ctl.keyPressTimer[keyInd].type = type;
+   99   2          SYS_SetTimer(&gDriver_Key_Ctl.keyPressTimer[keyInd].ptr, (U32)(time * 320L));
+  100   2          gDriver_Key_Ctl.pwrSavingMask |= BIT_MASK16(keyInd);    
+  101   2          DRIVER_SetPowerSaving(FALSE, DRIVER_POWER_SAVING_KEY_TIMER);
+  102   2          SYS_ReleaseTimer(&gDriver_Key_Ctl.keyDelayPwrSavingTimer);
+  103   2        }
+  104   1      
+  105   1      }
+  106          
+  107          PRIVATE void DRIVER_Key_ReleaseKeyTimer(U8 keyInd, U8 type)
+  108          {
+  109   1        if(keyInd < TOTAL_KEY_NO)
+  110   1        {
+  111   2          gDriver_Key_Ctl.keyPressTimer[keyInd].type = type;
+  112   2          SYS_ReleaseTimer(&gDriver_Key_Ctl.keyPressTimer[keyInd].ptr);
+  113   2          gDriver_Key_Ctl.pwrSavingMask &= ~BIT_MASK16(keyInd);
+  114   2          if(!gDriver_Key_Ctl.pwrSavingMask)
+  115   2          {
+  116   3            SYS_SetTimer(&gDriver_Key_Ctl.keyDelayPwrSavingTimer, HALF_SEC);
+  117   3          }
+C251 COMPILER V5.57.0,  Driver_Key                                                         08/11/20  05:51:53  PAGE 3   
+
+  118   2        }
+  119   1      }
+  120          
+  121          PRIVATE void DRIVER_Key_SetContinueTimer(U8 scanInd)
+  122          {
+  123   1        if(GET_KEY_CONT_PRESS_TIME(scanInd) && !gDriver_Key_Ctl.keyContinuousPressTimer)
+  124   1        {
+  125   2          SYS_SetTimer(&gDriver_Key_Ctl.keyContinuousPressTimer, GET_KEY_CONT_PRESS_TIME(scanInd) * 320);
+  126   2          DRIVER_SetPowerSaving(FALSE, DRIVER_POWER_SAVING_KEY_TIMER);
+  127   2          gDriver_Key_Ctl.pwrSavingMask |= BIT_MASK16(PWR_SAVING_KEY_CONTINUE);
+  128   2          SYS_ReleaseTimer(&gDriver_Key_Ctl.keyDelayPwrSavingTimer);    
+  129   2        }
+  130   1      }
+  131          
+  132          PRIVATE void DRIVER_Key_ReleaseContinueTimer(void)
+  133          {
+  134   1        SYS_ReleaseTimer(&gDriver_Key_Ctl.keyContinuousPressTimer);
+  135   1        gDriver_Key_Ctl.pwrSavingMask &= ~BIT_MASK16(PWR_SAVING_KEY_CONTINUE);
+  136   1        if(!gDriver_Key_Ctl.pwrSavingMask)
+  137   1        {
+  138   2          SYS_SetTimer(&gDriver_Key_Ctl.keyDelayPwrSavingTimer, HALF_SEC);
+  139   2        }
+  140   1      }
+  141          
+  142          PRIVATE void DRIVER_Key_SendEvent(KeyIndex keyIndex, U8 keyAction)
+  143          {
+  144   1        if(gMMI_nvram.timerCtl.PowerSavingLightTimer)
+  145   1        {
+  146   2          DRIVER_LED_PowerSavingExit(TRUE);
+  147   2        }
+  148   1        LightDbgPrint("Key_SendEvent:%d,%d",(U8)keyIndex, (U8)keyAction);
+  149   1        SetPowerSavingForDevice(FALSE, PWRSAV_KEY);
+  150   1        gMMI_Drv_Handler.fDriverKeyEvent(keyIndex, keyAction);
+  151   1      }
+  152          
+  153          PRIVATE void DRIVER_Key_MultiCheck(U8 scanInd)
+  154          {
+  155   1        if (KeypadCheckKeyPressed(scanInd))
+  156   1        {
+  157   2          DRIVER_Key_SetKeyTimer(scanInd, DRIVER_KEY_PRESS);
+  158   2        }
+  159   1        else
+  160   1        {
+  161   2          DRIVER_Key_SendEvent(scanInd, KEY_TAP);
+  162   2        }
+  163   1      }
+  164          
+  165          PRIVATE void DRIVER_Key_TapCheck(U8 scanInd)
+  166          {
+  167   1        if (!KeypadCheckKeyPressed(scanInd))
+  168   1        {
+  169   2          DRIVER_Key_SendEvent(scanInd, KEY_TAP);
+  170   2        }
+  171   1      }
+  172          
+  173          PRIVATE void DRIVER_Key_DoubleCheck(U8 scanInd)
+  174          {
+  175   1        if (!KeypadCheckKeyPressed(scanInd))
+  176   1        {
+  177   2          DRIVER_Key_SendEvent(scanInd, KEY_DOUBLE);
+  178   2        }
+  179   1      }
+  180          
+  181          PRIVATE void DRIVER_Key_TrippleCheck(U8 scanInd)
+  182          {
+  183   1        if (!KeypadCheckKeyPressed(scanInd))
+C251 COMPILER V5.57.0,  Driver_Key                                                         08/11/20  05:51:53  PAGE 4   
+
+  184   1        {
+  185   2          DRIVER_Key_SendEvent(scanInd, KEY_TRIPLE);
+  186   2        }
+  187   1      }
+  188          
+  189          PRIVATE void DRIVER_Key_PressCheck(U8 scanInd)
+  190          {
+  191   1        if(KeypadCheckKeyPressed(scanInd))
+  192   1        {
+  193   2          DRIVER_Key_SendEvent((GET_CURRENT_PRESSED_KEY_COUNT > 1)? (GET_CURRENT_PRESSED_KEY_MAP& 0XF0) : scanInd
+             -, KEY_PRESS);
+  194   2          DRIVER_Key_SetKeyTimer(scanInd, DRIVER_KEY_LONG);
+  195   2        }
+  196   1        else
+  197   1        {
+  198   2          DRIVER_Key_SendEvent(scanInd, KEY_TAP);
+  199   2        }
+  200   1      }
+  201          
+  202          PRIVATE void DRIVER_Key_LongpressCheck(U8 scanInd)
+  203          {
+  204   1        if(KEY_IS_SWITCH(scanInd))
+  205   1        {
+  206   2          DRIVER_Key_SetKeyTimer(scanInd, DRIVER_KEY_LONGLONG);
+  207   2          DRIVER_Key_SendEvent(scanInd, KEY_LONGPRESS);
+  208   2        }
+  209   1        else
+  210   1        {
+  211   2          if (KeypadCheckKeyPressed(scanInd))
+  212   2          {
+  213   3            DRIVER_Key_SendEvent((GET_CURRENT_PRESSED_KEY_COUNT > 1)? (GET_CURRENT_PRESSED_KEY_MAP& 0XF0) : scanIn
+             -d, KEY_LONGPRESS);
+  214   3            DRIVER_Key_SetKeyTimer(scanInd, DRIVER_KEY_LONGLONG);
+  215   3          }
+  216   2          else
+  217   2          {
+  218   3            DRIVER_Key_SendEvent(scanInd, KEY_PRESS_RELEASE);
+  219   3          }
+  220   2        }
+  221   1      }
+  222          
+  223          PRIVATE void DRIVER_Key_LongLongPressCheck(U8 scanInd)
+  224          {
+  225   1        if(KEY_IS_SWITCH(scanInd))
+  226   1        {
+  227   2          DRIVER_Key_SetKeyTimer(scanInd, DRIVER_KEY_EXTREMELY_LONG);
+  228   2          DRIVER_Key_SendEvent(scanInd, KEY_LONGLONGPRESS);
+  229   2        }
+  230   1        else
+  231   1        {
+  232   2          if (KeypadCheckKeyPressed(scanInd))
+  233   2          {
+  234   3            DRIVER_Key_SendEvent((GET_CURRENT_PRESSED_KEY_COUNT > 1)? (GET_CURRENT_PRESSED_KEY_MAP& 0XF0) : scanIn
+             -d, KEY_LONGLONGPRESS);
+  235   3            DRIVER_Key_SetKeyTimer(scanInd, DRIVER_KEY_EXTREMELY_LONG);
+  236   3          }
+  237   2          else
+  238   2          {
+  239   3            DRIVER_Key_SendEvent(scanInd, KEY_LONGPRESS_RELEASE);
+  240   3          }
+  241   2        }
+  242   1      }
+  243          
+  244          PRIVATE void DRIVER_Key_ExtremelyLongPressCheck(U8 scanInd)
+  245          {
+  246   1        if(KEY_IS_SWITCH(scanInd))
+C251 COMPILER V5.57.0,  Driver_Key                                                         08/11/20  05:51:53  PAGE 5   
+
+  247   1        {
+  248   2          gDriver_Key_Ctl.keyPressTimer[scanInd].type = DRIVER_KEY_NONE;
+  249   2          DRIVER_Key_SendEvent(scanInd, KEY_EXTREMELY_LONGPRESS);
+  250   2        }
+  251   1        else
+  252   1        {
+  253   2          if (KeypadCheckKeyPressed(scanInd))
+  254   2          {
+  255   3            DRIVER_Key_SendEvent((GET_CURRENT_PRESSED_KEY_COUNT > 1)? (GET_CURRENT_PRESSED_KEY_MAP& 0XF0) : scanIn
+             -d, KEY_EXTREMELY_LONGPRESS);
+  256   3      
+  257   3            gDriver_Key_Ctl.keyPressTimer[scanInd].type = DRIVER_KEY_VERYLONG;
+  258   3          }
+  259   2          else
+  260   2          {
+  261   3            DRIVER_Key_SendEvent(scanInd, KEY_LONGLONGPRESS_RELEASE);
+  262   3          }
+  263   2        }
+  264   1      }
+  265          
+  266          PRIVATE void DRIVER_Key_ToggleLongpressCheck(U8 scanInd)
+  267          {
+  268   1        DRIVER_Key_SendEvent(scanInd, KEY_LONGPRESS);
+  269   1        gDriver_Key_Ctl.keyPressTimer[scanInd].type = DRIVER_KEY_INTERNAL_TOGGLE_LONG;
+  270   1      }
+  271          
+  272          PRIVATE void DRIVER_Key_ToggleLongReleaseCheck(U8 scanInd)
+  273          {
+  274   1        DRIVER_Key_SendEvent(scanInd, KEY_LONGPRESS_RELEASE);
+  275   1        gDriver_Key_Ctl.keyPressTimer[scanInd].type = DRIVER_KEY_INTERNAL_TOGGLE_NONE;
+  276   1      }
+  277          
+  278          PUBLIC void DRIVER_Key_Init(void)
+  279          {
+  280   1        KeypadInit();
+  281   1      }
+  282          
+  283          PUBLIC void DRIVER_Key_Update(void)
+  284          {
+  285   1        U8 mask;
+  286   1      
+  287   1        gKeypadCtrl.isConfiged = TRUE;
+  288   1        
+  289   1        if(MMI_FAST_DETECT_FOR_ROTARY_ENCODER_FEAT)
+  290   1        {
+  291   2          OS_ENTER_CRITICAL ();
+  292   2          mask = LC_SFR_READ_BY_FE(FEOFFS_RW_INTF_INT_MASK);
+  293   2          LC_SFR_WRITE_BY_FE(FEOFFS_RW_INTF_INT_MASK, (mask|INT1_ENABLE_PMU));
+  294   2          mask = PMU_SYS_GET_BOOT_SW_STATUS_B1 () &(~SYS_SW1_CTL_ENABLE_GPIO_INT_FOR_S_NORMAL);
+  295   2          PMU_SYS_SET_BOOT_SW_STATUS_B1(mask);
+  296   2          OS_EXIT_CRITICAL ();
+  297   2          DRIVER_SetPowerSaving(FALSE, DRIVER_POWER_ROTARY_ENCODER);
+  298   2        }
+  299   1      }
+  300          
+  301          PUBLIC void DRIVER_Key_Polling(void)
+  302          {
+  303   1        U8 scanInd;
+  304   1        U32 keyEvent, chkingKeyEvent;
+  305   1      
+  306   1        if (KeypadScanKeyDebounce(&gDriver_Key_Ctl.currKeyBitmap))
+  307   1        {
+  308   2          //Key is pressed or released now.
+  309   2          //keyEvent: High 16 bits->KEY_PRESS
+  310   2          //keyEvent: LOW 16 bits->KEY_RELEASE
+  311   2          keyEvent = KeypadCheckKeyEvent(gDriver_Key_Ctl.oldKeyBitmap);
+C251 COMPILER V5.57.0,  Driver_Key                                                         08/11/20  05:51:53  PAGE 6   
+
+  312   2      
+  313   2          for (scanInd = KEY1; scanInd < TOTAL_KEY_NO; scanInd++)
+  314   2          {
+  315   3            //Press
+  316   3            chkingKeyEvent = keyEvent & (KEY1_PRESS >> scanInd);
+  317   3      
+  318   3            if(chkingKeyEvent)  // key is pressed
+  319   3            {
+  320   4              #ifdef DBG_UART_ENABLE_DRV
+                       LightDbgPrint("DRV - Press KeyID: %d", (U8)scanInd);
+                       #endif
+  323   4      
+  324   4              if(scanInd == KEY1 && !KEY_IS_SWITCH(scanInd))   // power key
+  325   4              {
+  326   5                DRIVER_SetBusyMask(TRUE, DRIVER_BUSY_POWER_KEY);
+  327   5              }
+  328   4              
+  329   4              if(KEY_IS_ROTARY(scanInd))
+  330   4              {
+  331   5                if(!gDriver_Key_Ctl.rotaryEncoderKeyStatus)
+  332   5                  DRIVER_Key_SendEvent(scanInd, KEY_DOWN);
+  333   5      
+  334   5                gDriver_Key_Ctl.rotaryEncoderKeyStatus |=  (0x0001<<scanInd);
+  335   5              }
+  336   4              else if(KEY_IS_TOGGLE(scanInd))
+  337   4              {
+  338   5                gDriver_Key_Ctl.keyPressTimer[scanInd].type = DRIVER_KEY_INTERNAL_TOGGLE_LONG;
+  339   5                if (gDriver_Key_Ctl.keyPressTimer[scanInd].ptr == (OST XDATA_PTR)NULL)
+  340   5                {
+  341   6                  DRIVER_Key_SetKeyTimer(scanInd, DRIVER_KEY_INTERNAL_TOGGLE_LONG);
+  342   6                }
+  343   5              }
+  344   4              else if(KEY_IS_SWITCH(scanInd))
+  345   4              {
+  346   5                if (gDriver_Key_Ctl.keyPressTimer[scanInd].ptr == (OST XDATA_PTR)NULL  && gDriver_Key_Ctl.keyPressTi
+             -mer[scanInd].type == DRIVER_KEY_NONE)
+  347   5                {
+  348   6                  DRIVER_Key_SetKeyTimer(scanInd, DRIVER_KEY_LONG);
+  349   6                  DRIVER_Key_SendEvent(scanInd, KEY_DOWN);
+  350   6                }
+  351   5              }
+  352   4              else if(scanInd < KEY5 && !MMI_NO_COMBO_KEY_NODE_FEAT)  //KEY is normal with combo effect
+  353   4              {
+  354   5                //Send KEY_DOWN event as soon as we sense any key has been pressed.
+  355   5                DRIVER_Key_SendEvent(scanInd, KEY_DOWN);
+  356   5      
+  357   5                //Keep current key status
+  358   5                gDriver_Key_Ctl.currentKeyStatus |= chkingKeyEvent;
+  359   5                gDriver_Key_Ctl.currentKeyStatus++;
+  360   5      
+  361   5                if(GET_CURRENT_PRESSED_KEY_COUNT == 1)  //First key
+  362   5                {
+  363   6                  gDriver_Key_Ctl.currentPressedKeyIndex = scanInd;
+  364   6      
+  365   6                  if(gDriver_Key_Ctl.keyPressTimer[scanInd].type == DRIVER_KEY_NONE)
+  366   6                  {
+  367   7                    DRIVER_Key_SetKeyTimer(scanInd, DRIVER_KEY_MULTI);
+  368   7                    DRIVER_Key_SetContinueTimer(scanInd);
+  369   7                  }
+  370   6                }
+  371   5                else // combo
+  372   5                {
+  373   6                  //key is pressed, trigger keyPressTimer
+  374   6                  if(gDriver_Key_Ctl.keyPressTimer[gDriver_Key_Ctl.currentPressedKeyIndex].type == DRIVER_KEY_MULTI)
+  375   6                  {
+  376   7                    DRIVER_Key_SetKeyTimer(gDriver_Key_Ctl.currentPressedKeyIndex, DRIVER_KEY_MULTI);
+C251 COMPILER V5.57.0,  Driver_Key                                                         08/11/20  05:51:53  PAGE 7   
+
+  377   7                  }
+  378   6                  else  // invalid combo
+  379   6                  {
+  380   7                    DRIVER_Key_ReleaseKeyTimer(gDriver_Key_Ctl.currentPressedKeyIndex, DRIVER_KEY_NONE);
+  381   7                    gDriver_Key_Ctl.currentPressedKeyIndex = 0xFF;
+  382   7                  }
+  383   6                  DRIVER_Key_ReleaseContinueTimer();
+  384   6                }
+  385   5              }
+  386   4              else  //KEY is normal.
+  387   4              {
+  388   5                //Send KEY_DOWN event as soon as we sense any key has been pressed.
+  389   5                DRIVER_Key_SendEvent(scanInd, KEY_DOWN);
+  390   5      
+  391   5                if(!gDriver_Key_Ctl.currentKeyStatus) //First key
+  392   5                {
+  393   6                  gDriver_Key_Ctl.currentPressedKeyIndex = scanInd;
+  394   6                  DRIVER_Key_SetContinueTimer(scanInd);
+  395   6                }
+  396   5                //Keep current key status
+  397   5                gDriver_Key_Ctl.currentKeyStatus |= chkingKeyEvent;
+  398   5      
+  399   5                if(gDriver_Key_Ctl.keyPressTimer[scanInd].type == DRIVER_KEY_NONE)
+  400   5                {
+  401   6                  DRIVER_Key_SetKeyTimer(scanInd, DRIVER_KEY_MULTI);
+  402   6                }
+  403   5              }
+  404   4            }
+  405   3      
+  406   3      
+  407   3            //Release
+  408   3            chkingKeyEvent = keyEvent & (KEY1_RELEASE >> scanInd);
+  409   3      
+  410   3            if(chkingKeyEvent)  // key is released.
+  411   3            {
+  412   4              #ifdef DBG_UART_ENABLE_DRV
+                       LightDbgPrint("DRV - Release KeyID:%d", (U8)scanInd);
+                       #endif
+  415   4      
+  416   4              if(scanInd == KEY1 && !KEY_IS_SWITCH(scanInd))   // power key
+  417   4              {
+  418   5                DRIVER_SetBusyMask(FALSE, DRIVER_BUSY_POWER_KEY);
+  419   5              }
+  420   4      
+  421   4              if(KEY_IS_ROTARY(scanInd))
+  422   4              {
+  423   5                gDriver_Key_Ctl.rotaryEncoderKeyStatus &= (~(0x0001<<scanInd));
+  424   5      
+  425   5                if(gDriver_Key_Ctl.rotaryEncoderKeyStatus)
+  426   5                {
+  427   6                  DRIVER_Key_SendEvent(scanInd, KEY_UP);
+  428   6                }
+  429   5              }
+  430   4              else if(KEY_IS_TOGGLE(scanInd))
+  431   4              {
+  432   5                gDriver_Key_Ctl.keyPressTimer[scanInd].type = DRIVER_KEY_INTERNAL_TOGGLE_NONE;
+  433   5                if (gDriver_Key_Ctl.keyPressTimer[scanInd].ptr == (OST XDATA_PTR)NULL)
+  434   5                {
+  435   6                  DRIVER_Key_SetKeyTimer(scanInd, DRIVER_KEY_INTERNAL_TOGGLE_NONE);
+  436   6                }
+  437   5              }
+  438   4              else if(KEY_IS_SWITCH(scanInd))
+  439   4              {
+  440   5                switch(gDriver_Key_Ctl.keyPressTimer[scanInd].type)
+  441   5                {
+  442   6                  case DRIVER_KEY_LONGLONG:
+C251 COMPILER V5.57.0,  Driver_Key                                                         08/11/20  05:51:53  PAGE 8   
+
+  443   6                    DRIVER_Key_SendEvent(scanInd, KEY_LONGLONGPRESS_RELEASE);
+  444   6                    break;
+  445   6      
+  446   6                  case DRIVER_KEY_NONE:
+  447   6                  case DRIVER_KEY_EXTREMELY_LONG:
+  448   6                    DRIVER_Key_SendEvent(scanInd, KEY_EXTREMELY_LONGPRESS_RELEASE);
+  449   6                    break;
+  450   6                }
+  451   5                DRIVER_Key_ReleaseKeyTimer(scanInd, DRIVER_KEY_NONE);
+  452   5                DRIVER_Key_SendEvent(scanInd, KEY_UP);
+  453   5              }
+  454   4              else if(scanInd < KEY5 && !MMI_NO_COMBO_KEY_NODE_FEAT)
+  455   4              {
+  456   5                
+  457   5                if(GET_CURRENT_PRESSED_KEY_COUNT == 1)
+  458   5                {
+  459   6                  gDriver_Key_Ctl.currentKeyStatus &= ~(KEY1_PRESS >> scanInd);
+  460   6                  gDriver_Key_Ctl.currentKeyStatus--;
+  461   6      
+  462   6                  if(gDriver_Key_Ctl.currentPressedKeyIndex == scanInd)
+  463   6                  {
+  464   7                    goto NORMAL_SINGLE_KEY_RELEASE;
+  465   7                  }
+  466   6                }
+  467   5                else
+  468   5                {
+  469   6                  if(gDriver_Key_Ctl.currentPressedKeyIndex != 0xFF)
+  470   6                  {
+  471   7                    switch(gDriver_Key_Ctl.keyPressTimer[gDriver_Key_Ctl.currentPressedKeyIndex].type)
+  472   7                    {
+  473   8                      case DRIVER_KEY_MULTI:
+  474   8                      case DRIVER_KEY_PRESS:
+  475   8                        DRIVER_Key_SendEvent(GET_CURRENT_PRESSED_KEY_MAP & 0XF0, KEY_TAP);
+  476   8                        DRIVER_Key_ReleaseKeyTimer(gDriver_Key_Ctl.currentPressedKeyIndex, DRIVER_KEY_NONE);
+  477   8                        break;
+  478   8      
+  479   8                      case DRIVER_KEY_LONG:
+  480   8                        DRIVER_Key_SendEvent(GET_CURRENT_PRESSED_KEY_MAP & 0XF0, KEY_PRESS_RELEASE);
+  481   8                        DRIVER_Key_ReleaseKeyTimer(gDriver_Key_Ctl.currentPressedKeyIndex, DRIVER_KEY_NONE);
+  482   8                        break;
+  483   8      
+  484   8                      case DRIVER_KEY_LONGLONG:
+  485   8                        DRIVER_Key_SendEvent(GET_CURRENT_PRESSED_KEY_MAP & 0XF0, KEY_LONGPRESS_RELEASE);
+  486   8                        DRIVER_Key_ReleaseKeyTimer(gDriver_Key_Ctl.currentPressedKeyIndex, DRIVER_KEY_NONE);
+  487   8                        break;
+  488   8      
+  489   8                      case DRIVER_KEY_EXTREMELY_LONG:
+  490   8                        DRIVER_Key_SendEvent(GET_CURRENT_PRESSED_KEY_MAP & 0XF0, KEY_LONGLONGPRESS_RELEASE);
+  491   8                        DRIVER_Key_ReleaseKeyTimer(gDriver_Key_Ctl.currentPressedKeyIndex, DRIVER_KEY_NONE);
+  492   8                        break;
+  493   8      
+  494   8                      case DRIVER_KEY_VERYLONG:
+  495   8                        DRIVER_Key_SendEvent(GET_CURRENT_PRESSED_KEY_MAP & 0XF0, KEY_EXTREMELY_LONGPRESS_RELEASE);
+  496   8                        DRIVER_Key_ReleaseKeyTimer(gDriver_Key_Ctl.currentPressedKeyIndex, DRIVER_KEY_NONE);
+  497   8                        break;
+  498   8      
+  499   8                      default:
+  500   8                        break;
+  501   8                    }
+  502   7                  }
+  503   6                  gDriver_Key_Ctl.currentPressedKeyIndex = 0xFF;
+  504   6                  gDriver_Key_Ctl.currentKeyStatus --;
+  505   6                  gDriver_Key_Ctl.currentKeyStatus &= ~(KEY1_PRESS >> scanInd);
+  506   6                }
+  507   5              }
+  508   4              else
+C251 COMPILER V5.57.0,  Driver_Key                                                         08/11/20  05:51:53  PAGE 9   
+
+  509   4              {         
+  510   5                NORMAL_SINGLE_KEY_RELEASE:
+  511   5                if(gDriver_Key_Ctl.currentPressedKeyIndex == scanInd)
+  512   5                {
+  513   6                  gDriver_Key_Ctl.currentPressedKeyIndex = 0xFF;
+  514   6                  DRIVER_Key_ReleaseContinueTimer();
+  515   6                }
+  516   5                //Send KEY_UP event as soon as we sense any key has been released
+  517   5                DRIVER_Key_SendEvent(scanInd, KEY_UP);
+  518   5      
+  519   5                gDriver_Key_Ctl.currentKeyStatus &= ~(KEY1_PRESS >> scanInd);
+  520   5      
+  521   5                switch(gDriver_Key_Ctl.keyPressTimer[scanInd].type)
+  522   5                {
+  523   6                  case DRIVER_KEY_PRESS:
+  524   6                    DRIVER_Key_SendEvent(scanInd, KEY_TAP);
+  525   6                    DRIVER_Key_ReleaseKeyTimer(scanInd, DRIVER_KEY_NONE);
+  526   6                    break;
+  527   6      
+  528   6                  case DRIVER_KEY_LONG:
+  529   6                    DRIVER_Key_SendEvent(scanInd, KEY_PRESS_RELEASE);
+  530   6                    DRIVER_Key_ReleaseKeyTimer(scanInd, DRIVER_KEY_NONE);
+  531   6                    break;
+  532   6      
+  533   6                  case DRIVER_KEY_LONGLONG:
+  534   6                    DRIVER_Key_SendEvent(scanInd, KEY_LONGPRESS_RELEASE);
+  535   6                    DRIVER_Key_ReleaseKeyTimer(scanInd, DRIVER_KEY_NONE);
+  536   6                    break;
+  537   6      
+  538   6                  case DRIVER_KEY_EXTREMELY_LONG:
+  539   6                    DRIVER_Key_SendEvent(scanInd, KEY_LONGLONGPRESS_RELEASE);
+  540   6                    DRIVER_Key_ReleaseKeyTimer(scanInd, DRIVER_KEY_NONE);
+  541   6                    break;
+  542   6                  case DRIVER_KEY_VERYLONG:
+  543   6                    DRIVER_Key_SendEvent(scanInd, KEY_EXTREMELY_LONGPRESS_RELEASE);
+  544   6                    DRIVER_Key_ReleaseKeyTimer(scanInd, DRIVER_KEY_NONE);
+  545   6                    break;
+  546   6      
+  547   6                  case DRIVER_KEY_MULTI:
+  548   6                    gDriver_Key_Ctl.keyPressTimer[scanInd].type = DRIVER_KEY_TAP;
+  549   6                    break;
+  550   6      
+  551   6                  case DRIVER_KEY_TAP:
+  552   6                    gDriver_Key_Ctl.keyPressTimer[scanInd].type = DRIVER_KEY_DOUBLE;
+  553   6                    break;
+  554   6      
+  555   6                  case DRIVER_KEY_DOUBLE:
+  556   6                    gDriver_Key_Ctl.keyPressTimer[scanInd].type = DRIVER_KEY_TRIPPLE;
+  557   6                    break;
+  558   6      
+  559   6                  default:
+  560   6                    // Keep for tap double and tripple
+  561   6                    break;
+  562   6                }
+  563   5              }
+  564   4            }
+  565   3          }
+  566   2          gDriver_Key_Ctl.oldKeyBitmap = gDriver_Key_Ctl.currKeyBitmap;
+  567   2        }
+  568   1        
+  569   1        if(SYS_IsTimerExpired(&gDriver_Key_Ctl.keyDelayPwrSavingTimer))
+  570   1        {
+  571   2          DRIVER_SetPowerSaving(TRUE, DRIVER_POWER_SAVING_KEY_TIMER);
+  572   2        }
+  573   1      }
+  574          
+C251 COMPILER V5.57.0,  Driver_Key                                                         08/11/20  05:51:53  PAGE 10  
+
+  575          PUBLIC void Driver_Key_CheckTimer(void)
+  576          {
+  577   1        U8 scanInd;
+  578   1        for(scanInd = KEY1; scanInd < TOTAL_KEY_NO; scanInd++)
+  579   1        {
+  580   2          //check key pressed debounce timer
+  581   2          if(SYS_IsTimerExpired(&gDriver_Key_Ctl.keyPressTimer[scanInd].ptr))
+  582   2          {
+  583   3            U8 pressType = gDriver_Key_Ctl.keyPressTimer[scanInd].type;
+  584   3      
+  585   3            DRIVER_Key_ReleaseKeyTimer(scanInd, DRIVER_KEY_NONE);
+  586   3      
+  587   3            switch (pressType)
+  588   3            {
+  589   4              case DRIVER_KEY_MULTI:
+  590   4                DRIVER_Key_MultiCheck(scanInd);
+  591   4                break;
+  592   4      
+  593   4              case DRIVER_KEY_TAP:
+  594   4                DRIVER_Key_TapCheck(scanInd);
+  595   4                break;
+  596   4      
+  597   4              case DRIVER_KEY_DOUBLE:
+  598   4                DRIVER_Key_DoubleCheck(scanInd);
+  599   4                break;
+  600   4      
+  601   4              case DRIVER_KEY_TRIPPLE:
+  602   4                DRIVER_Key_TrippleCheck(scanInd);
+  603   4                break;
+  604   4      
+  605   4              case DRIVER_KEY_PRESS:
+  606   4                DRIVER_Key_PressCheck(scanInd);
+  607   4                break;
+  608   4      
+  609   4              case DRIVER_KEY_LONG:
+  610   4                DRIVER_Key_LongpressCheck(scanInd);
+  611   4                break;
+  612   4      
+  613   4              case DRIVER_KEY_LONGLONG:
+  614   4                DRIVER_Key_LongLongPressCheck(scanInd);
+  615   4                break;
+  616   4      
+  617   4              case DRIVER_KEY_EXTREMELY_LONG:
+  618   4                DRIVER_Key_ExtremelyLongPressCheck(scanInd);
+  619   4                break;
+  620   4      
+  621   4              case DRIVER_KEY_INTERNAL_TOGGLE_LONG:
+  622   4                DRIVER_Key_ToggleLongpressCheck(scanInd);
+  623   4                break;
+  624   4      
+  625   4              case DRIVER_KEY_INTERNAL_TOGGLE_NONE:
+  626   4                DRIVER_Key_ToggleLongReleaseCheck(scanInd);
+  627   4                break;
+  628   4            }
+  629   3          }
+  630   2        }
+  631   1      
+  632   1        if(SYS_IsTimerExpired(&gDriver_Key_Ctl.keyContinuousPressTimer))
+  633   1        {
+  634   2          //it's a continuous key tap, send out the event
+  635   2          DRIVER_Key_SendEvent (gDriver_Key_Ctl.currentPressedKeyIndex, KEY_REPEAT);
+  636   2          SYS_SetTimer (&gDriver_Key_Ctl.keyContinuousPressTimer, GET_KEY_CONT_PRESS_TIME(gDriver_Key_Ctl.current
+             -PressedKeyIndex) * 320L);
+  637   2        }
+  638   1      }
+  639          
+C251 COMPILER V5.57.0,  Driver_Key                                                         08/11/20  05:51:53  PAGE 11  
+
+  640          PUBLIC void DRIVER_ResetLineInKeyTimer(void)
+  641          {
+  642   1        if(MMI_LINE_IN_DETECT_BY_GPIO)
+  643   1        {
+  644   2          DRIVER_Key_SetKeyTimer( gMMI_nvram.lineInAutoDetectKeyIndex, gDriver_Key_Ctl.keyPressTimer[gMMI_nvram.l
+             -ineInAutoDetectKeyIndex].type);
+  645   2        }
+  646   1      }
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =      2469     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =        51     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =        20     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

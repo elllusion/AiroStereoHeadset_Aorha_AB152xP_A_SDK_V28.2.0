@@ -1,0 +1,93 @@
+C251 COMPILER V5.57.0,  VendorProfile_ServiceRecord                                        08/11/20  06:34:40  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE VendorProfile_ServiceRecord
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\VendorProfile_ServiceRecord.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SDK\Profile\VendorProfile_ServiceRecord.c XSMALL HPTR FUNCTIONS
+                    -(REENTRANT) ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABS
+                    -DRIVER;.\source\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;
+                    -.\source\ROM\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM
+                    -\GAP;.\source\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1
+                    -;.\source\SECTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTO
+                    -R\ToolMisc) DEFINE(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1
+                    -520D_AiroStereoHeadset\VendorProfile_ServiceRecord.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\VendorProfile_
+                    -ServiceRecord.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #include "rc.h"
+    4          #include "..\SDK_Proxy\SDK_Proxy.h"
+    5          #include "..\SDK\include\SDK_Config.h"
+    6          
+    7          #if VENDOR_PROFILE
+               
+               #include "..\SDAP\SDAP_Interface.h"
+               #include "..\MMI\MMI_PSM.h"
+               #include "..\SDK\include\SDK_SCN.h"
+               
+               // ====================== Vendor Profile ======================
+               
+               ATTRDEF_ROM(vprofile, ServiceRecordHandle) = 
+                     { ATTRID(ATTRID_ServiceRecordHandle), ATTRLEN(5), SERVICE_HANDLE32(PROFILE_VENDOR_PROFILE) };
+               ATTRDEF_ROM(vprofile, ServiceClassIdList) = 
+                     { ATTRID(ATTRID_ServiceClassIdList), ATTRLEN(19), DEDEF_SEQU8(17),
+                                     DELEM_UUID128, 0xF2, 0x5E, 0x89, 0x35, 0xA7, 0x19, 0x32, 0xBB, 0x7C, 0x99, 0x0A, 0x20, 0x43, 0
+             -x69, 0x72, 0xFD}; // This is the vendor profile's UUID.
+               ATTRDEF_ROM(vprofile, ProtocolDescriptorList) = 
+                     { ATTRID(ATTRID_ProtocolDescriptorList), ATTRLEN(14), DEDEF_SEQU8(12),
+                                                 DEDEF_SEQU8(3), PROTOCOL_UUID16(PROTOCOL_UUID_L2CAP),
+                                                 DEDEF_SEQU8(5), PROTOCOL_UUID16(PROTOCOL_UUID_RFCOMM), DEDEF_U8(SCN_VENDOR_PROFILE) };
+               ATTRDEF_ROM(vprofile, ServiceName) = 
+                     { ATTRID(ATTRID_ServiceName), ATTRLEN(15), DEDEF_TEXT8(13), 'V', 'e', 'n', 'd', 'o', 'r', 'P', 'r', 'o
+             -', 'f', 'i', 'l', 'e' };
+               
+               ATTRLISTDEF_ROM(vprofile) =
+               {
+                 (SdpServiceAttributePtr) ATTRNAME(vprofile, ServiceRecordHandle),
+                 (SdpServiceAttributePtr) ATTRNAME(vprofile, ServiceClassIdList),
+                 (SdpServiceAttributePtr) ATTRNAME(vprofile, ProtocolDescriptorList),
+                 (SdpServiceAttributePtr) ATTRNAME(vprofile, ServiceName),
+               };
+               
+               SRECORDDEF_ROM(vprofile) =
+               {
+                 PROFILE_VENDOR_PROFILE,
+                 ATTRCOUNT(vprofile),
+                 (SdpServiceAttributeListPtr) ATTRLISTNAME(vprofile)
+               };
+               
+               SdpServiceNode gVProfile_ServiceNode = 
+               {
+                 (SdpServiceRecordPtr) SRECORDNAME(&vprofile),
+                 NULL
+               };
+               
+               #endif
+
+C251 COMPILER V5.57.0,  VendorProfile_ServiceRecord                                        08/11/20  06:34:40  PAGE 2   
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =    ------     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

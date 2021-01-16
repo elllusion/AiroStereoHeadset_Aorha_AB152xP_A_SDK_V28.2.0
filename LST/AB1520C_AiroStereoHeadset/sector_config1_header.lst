@@ -1,0 +1,120 @@
+C251 COMPILER V5.57.0,  sector_config1_header                                              08/11/20  05:51:20  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_config1_header
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\sector_config1_header.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\Config1\sector_config1_header.c XSMALL HPTR FUNCTIONS(RE
+                    -ENTRANT) ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRI
+                    -VER;.\source\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\s
+                    -ource\ROM\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GA
+                    -P;.\source\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\
+                    -source\SECTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\T
+                    -oolMisc) DEFINE(FLASH_INIT=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520
+                    -C_AiroStereoHeadset\sector_config1_header.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\sector_config1_header.o
+                    -bj) 
+
+stmt  level    source
+
+    1          /*
+    2           * AIROHA Bluetooth Device Firmware
+    3           * COPYRIGHT (C) 2014 AIROHA TECHNOLOGY CORP. CO., LTD. ALL RIGHTS RESERVED
+    4           *
+    5           * sector_config1_header.c defines the rest parameters.
+    6           *
+    7           * Programmer : DingaCheng@airoha.com.tw, Ext.2828
+    8           */
+    9           // -
+   10          #include "config.h"
+   11          #include "cpu.h"
+   12          #include "sectors.h"
+   13          #include "sector_config1.h"
+   14          #include "ctlr_config.h"
+   15          
+   16          #pragma userclass (HCONST = CFGHEAD)
+   17          
+   18          
+   19          EXTERN SECTOR_SYS_LOCAL_DEVICE_INFO_STRU CODE gSector_SysLocalDeviceInfo;
+   20          EXTERN SECTOR_SYS_LOCAL_DEVICE_EIR_STRU CODE gSector_SysLocalDeviceEIR;
+   21          EXTERN SECTOR_SYS_LOCAL_DEVICE_CONTROL_STRU CODE gSector_SysLocalDeviceControl;
+   22          EXTERN SECTOR_LC_MISC_CONTROL_STRU CODE gMISC_ctl_init;
+   23          EXTERN SECTOR_LM_PARAMETER_STRU CODE gSector_LmParameter;
+   24          EXTERN SECTOR_HC_PARAMETER_STRU CODE gHC_parameter_init;
+   25          EXTERN SECTOR_UART_PARAMETER_STRU CODE gSector_UartParameter;
+   26          EXTERN SECTOR_DSP_NVRAM_CTL_STRU CODE gMcu_dsp_parameter_init;
+   27          EXTERN SECTOR_A2DP_NVRAM_CTL_STRU CODE gA2DP_nvram_ctl_init;
+   28          EXTERN SECTOR_DRIVER_LED_DATA_STRU CODE gDriver_led_data_init;
+   29          EXTERN SECTOR_DRIVER_RESERVED_DATA_STRU CODE gDriver_reserved_data_init;
+   30          EXTERN U16/*SECTOR_DRIVER_RINGTONE_DATA_STRU*/ CODE gDriver_ringtone_data_init;
+   31          EXTERN SECTOR_MMI_DRIVER_NVRAM_BACKUP_STRU CODE gMMI_Driver_v_nvram_backup;
+   32          EXTERN SECTOR_MMI_NVRAM_STRU CODE gMMI_nvram_init;
+   33          EXTERN U8/*SECTOR_MMI_NVRAM_KEYMAP_STRU*/ CODE gMMI_nvram_keymap_init[];
+   34          EXTERN SECTOR_SYS_MEM_CONF_STRU CODE gSector_SysMemoryConfig;
+   35          EXTERN SECTOR_SM_NVRAM_STRU CODE gSM_nvram_init;
+   36          EXTERN SECTOR_GAP_NVRAM_STRU CODE gGAP_nvram_init;
+   37          EXTERN SECTOR_DRIVER_CTL_STRU CODE gDriver_ctl_init;
+   38          #ifdef AB1520B
+               EXTERN SECTOR_MMI_LE_NVRAM_STRU CODE gMMI_le_nvram_init;
+               #endif
+   41          EXTERN SECTOR_APPLICATION_STRU CODE gApplication_init;
+   42          #ifdef IAP2_Profile
+               EXTERN IAP2SyncPayload/*SECTOR_IAP2SyncPayload*/ CODE gIAP2_Sync_Payload;
+               EXTERN U8/*SECTOR_IAP2IdenParam*/ CODE gIAP2_Iden_Param[];
+               #endif
+   46          #ifndef AB1520B
+   47          EXTERN SECTOR_PATCH_CODE_INIT_STRU CODE gSector_SysPatchCodeInit;
+   48          #endif
+   49          
+   50          EXTERN SECTOR_LE_MISC_CTL_STRU CODE gLE_MISC_Ctl_Init;
+   51          #if (HW_SPI_SUPPORTED)
+C251 COMPILER V5.57.0,  sector_config1_header                                              08/11/20  05:51:20  PAGE 2   
+
+   52          EXTERN SECTOR_SPI_CONFIG_STRU CODE gSectorSpiConfig;
+   53          #endif
+   54          
+   55          
+   56          #undef SECTORS_ENUM_MACRO
+   57          #define SECTORS_ENUM_MACRO(SECTOR_NAME, SECTOR_INIT, SECTOR_SIZE, ATTR) {(U8 CODE_PTR)SECTOR_INIT, SECTOR
+             -_SIZE, ATTR},
+   58          
+   59          
+   60          ////////////////////////////////////////////////////////////////////////////////
+   61          // Global Variables ////////////////////////////////////////////////////////////
+   62          ////////////////////////////////////////////////////////////////////////////////
+   63          SECTOR_CFG1_HEADER_STRU CODE gSectorConfig1Header =
+   64          {
+   65              NUM_OF_SECTOR_CFG1,
+   66          
+   67              {
+   68                #include "sector_config1_member.h"
+   69            },
+   70          
+   71            //- CRC
+   72            {0,0}
+   73          };
+   74          
+   75          
+   76          
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       246     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

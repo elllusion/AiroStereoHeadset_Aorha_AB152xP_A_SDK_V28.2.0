@@ -1,0 +1,702 @@
+C251 COMPILER V5.57.0,  Driver_LED                                                         08/11/20  05:51:54  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE Driver_LED
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\Driver_LED.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\DRIVER\Driver_LED.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) 
+                    -WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\s
+                    -ource\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\sour
+                    -ce\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_
+                    -LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspDa
+                    -ta;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLA
+                    -SH_INIT=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520C_AiroStereoHeadset
+                    -\Driver_LED.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\Driver_LED.obj) 
+
+stmt  level    source
+
+    1          //////////////////////////////////////////////////////////
+    2          // Copyright@ 2016 Airoha.  All right reserved.
+    3          //////////////////////////////////////////////////////////
+    4          #include "reside_flash.inc"
+    5          
+    6          #define _DRIVER_LED_C_
+    7          
+    8          #include <rc.h>
+    9          #include "drv_led.h"
+   10          #include "..\MMI\MMI.h"
+   11          #include "..\MMI\MMI_Driver.h"
+   12          #include "sector_config1.h"
+   13          #include "Driver_LED.h"
+   14          #include "Driver.h"
+   15          
+   16          typedef struct
+   17          {
+   18            LedFilterSettingType filterSetting;
+   19          }LedFilterCtlType;
+   20          
+   21          extern struct driver_led_data_st;
+   22          
+   23          typedef struct
+   24          {
+   25            U8 isLedPwrSaving:1;
+   26            U8 ledPatternNo:7;
+   27            U8 ledFilterNo;
+   28            U8 ledFilterEableMask;
+   29            struct driver_led_data_st CODE_PTR pDriverLedData;
+   30            LedFilterCtlType XDATA_PTR ledFilterCtlPtr[LED_FILTER_DEFAULT_NO];
+   31            OST XDATA_PTR ledPowerSavingTimer;  
+   32            OST XDATA_PTR fgLedTimerPtr;
+   33            U8 fgLedMediaOpcode;
+   34            U8 fgLedOnOff[LED_NO];
+   35            
+   36            LedPatternType bgLedData;
+   37          }DriverLEDCtlType;
+   38          
+   39          DriverLEDCtlType XDATA gDriver_LED_ctl;
+   40          
+   41          OSMQ XDATA OSMQ_LED_Command;
+   42          #define OSMQ_LED_Command_ptr        &OSMQ_LED_Command
+   43          
+   44          #define LED_IS_PWR_SAVING (gDriver_LED_ctl.isLedPwrSaving);
+   45          PUBLIC BOOL DRIVER_LED_IsFGLEDOn(void);
+   46          #if !defined AB1520S && !defined AB1525S && !defined AB1520U
+   47          PUBLIC void DRIVER_LED_MapGpioSetup(void);
+   48          #endif
+   49          
+   50          PRIVATE BOOL DRIVER_LED_IsFilterOn(void)
+   51          {
+   52   1        if(gDriver_LED_ctl.ledFilterEableMask)
+C251 COMPILER V5.57.0,  Driver_LED                                                         08/11/20  05:51:54  PAGE 2   
+
+   53   1          return TRUE;
+   54   1      
+   55   1        return FALSE;
+   56   1      }
+   57          
+   58          PUBLIC BOOL DRIVER_LED_LoadPattern(U8 ledIndex, U8 XDATA_PTR destPtr)
+   59          {
+   60   1        if(ledIndex >= gDriver_LED_ctl.ledPatternNo)
+   61   1          return FALSE;
+   62   1      
+   63   1        OSMEM_memcpy_xdata_code(destPtr, (U8 CODE_PTR)&gDriver_LED_ctl.pDriverLedData->ledData[ledIndex], sizeof
+             -(LedPatternType));
+   64   1      
+   65   1        return TRUE;
+   66   1      }
+   67          
+   68          PRIVATE void DRIVER_LED_SetFilter(U8 type, U8 para)
+   69          {
+   70   1        LedFilterCtlType XDATA_PTR destPtr;
+   71   1      
+   72   1        if(type == LED_FILTER_CANCEL)
+   73   1        {
+   74   2          SYS_MemoryRelease(U8_XDATA_PTR_PTR_CASTING &gDriver_LED_ctl.ledFilterCtlPtr[para]);
+   75   2          gDriver_LED_ctl.ledFilterEableMask &= (~(U8_BIT_MASK(para)));
+   76   2        }
+   77   1        else
+   78   1        {
+   79   2          if(para >= gDriver_LED_ctl.ledFilterNo)
+   80   2            return;
+   81   2      
+   82   2          destPtr = (LedFilterCtlType XDATA_PTR)SYS_MemoryGet(sizeof(LedFilterCtlType));
+   83   2      
+   84   2          if(destPtr == (LedFilterCtlType XDATA_PTR)NULL)
+   85   2            return;
+   86   2      
+   87   2      
+   88   2          OSMEM_memcpy_xdata_code((U8 XDATA_PTR)destPtr,
+   89   2                      (U8 CODE_PTR)(&gDriver_LED_ctl.pDriverLedData->totalLedPatternNo)+((U16)gDriver_LED_ctl.ledPatter
+             -nNo * sizeof(LedPatternType))+1+1+(U16)para *sizeof(LedFilterCtlType),
+   90   2                      sizeof(LedFilterCtlType) );
+   91   2      
+   92   2          gDriver_LED_ctl.ledFilterEableMask |= type;
+   93   2      
+   94   2          SYS_MemoryRelease(U8_XDATA_PTR_PTR_CASTING &gDriver_LED_ctl.ledFilterCtlPtr[para]);
+   95   2          gDriver_LED_ctl.ledFilterCtlPtr[para] = destPtr;
+   96   2        }
+   97   1      }
+   98          
+   99          PRIVATE void DRIVER_LED_EnableBGLed(LedPatternType XDATA_PTR ledCtlPtr)
+  100          {
+  101   1        U8 i, ledIndex;
+  102   1        U8 rptT12, pwm;
+  103   1        U16 timeTemp;
+  104   1        LedSettingsType LDATA tempLedData;
+  105   1        LedPatternType LDATA ledData;
+  106   1      
+  107   1        OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&ledData.ledSettings[LED1_INDEX].ledFollowMultiplierControl, (U8 
+             -XDATA_PTR)&ledCtlPtr->ledSettings[LED1_INDEX].ledFollowMultiplierControl, sizeof(LedPatternType));
+  108   1      
+  109   1        for(i = 0; i < LED_FILTER_DEFAULT_NO && gDriver_LED_ctl.ledFilterEableMask; i++)
+  110   1        {
+  111   2          if(gDriver_LED_ctl.ledFilterCtlPtr[i])
+  112   2          {
+  113   3            switch(gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.filterType)
+  114   3            {
+  115   4              case FILTER_USER_DEF:
+C251 COMPILER V5.57.0,  Driver_LED                                                         08/11/20  05:51:54  PAGE 3   
+
+  116   4                for(ledIndex = LED1_INDEX; ledIndex < LED_NO; ledIndex++)
+  117   4                {
+  118   5                  if(gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.userDefineFilter.userdefData.ledSettings[ledIn
+             -dex].onOff  != LED_DONT_CARE)
+  119   5                  {
+  120   6                    OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&ledData.ledSettings[ledIndex].ledFollowMultiplierControl, 
+             -(U8 XDATA_PTR)&(gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.userDefineFilter.userdefData.ledSettings[ledIndex].led
+             -FollowMultiplierControl), sizeof(LedSettingsType));
+  121   6                  }
+  122   5                }
+  123   4                break;
+  124   4              case FILTER_MULTI_DIVIDE:
+  125   4                for(ledIndex = LED1_INDEX; ledIndex < LED_NO; ledIndex++)
+  126   4                {
+  127   5                  if(ledData.ledSettings[ledIndex].onOff != LED_DONT_CARE)
+  128   5                  {
+  129   6                    if(gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.multiDivideFilter.para[ledIndex].isDivide)
+  130   6                    {
+  131   7                      ledData.ledSettings[ledIndex].t1 /= gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.multiDivide
+             -Filter.para[ledIndex].t1;
+  132   7                      ledData.ledSettings[ledIndex].t2 /= gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.multiDivide
+             -Filter.para[ledIndex].t2;
+  133   7                      ledData.ledSettings[ledIndex].t3 /= gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.multiDivide
+             -Filter.para[ledIndex].t3;
+  134   7                      ledData.ledSettings[ledIndex].t4 /= gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.multiDivide
+             -Filter.para[ledIndex].t4;
+  135   7                      rptT12 = ledData.ledSettings[ledIndex].pwmSetting & 0x0F;
+  136   7                      pwm =  ledData.ledSettings[ledIndex].pwmSetting & 0xF0;
+  137   7                      rptT12 /= gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.multiDivideFilter.para[ledIndex].RptT
+             -12;
+  138   7                      ledData.ledSettings[ledIndex].pwmSetting = (pwm |rptT12 );
+  139   7                    }
+  140   6                    else if(gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.multiDivideFilter.para[ledIndex].isMulti
+             -ply)
+  141   6                    {
+  142   7                      if((0xFF / gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.multiDivideFilter.para[ledIndex].t1)
+             -  < ledData.ledSettings[ledIndex].t1)
+  143   7                        break;
+  144   7                      if((0xFF / gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.multiDivideFilter.para[ledIndex].t2)
+             -  < ledData.ledSettings[ledIndex].t2)
+  145   7                        break;
+  146   7                      if((0xFF / gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.multiDivideFilter.para[ledIndex].t2)
+             -  < ledData.ledSettings[ledIndex].t2)
+  147   7                        break;
+  148   7                      if((0xFF / gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.multiDivideFilter.para[ledIndex].t2)
+             -  < ledData.ledSettings[ledIndex].t2)
+  149   7                        break;
+  150   7      
+  151   7                      rptT12 = ledData.ledSettings[ledIndex].pwmSetting & 0x0F;
+  152   7                      if((0x0F / gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.multiDivideFilter.para[ledIndex].Rpt
+             -T12)  < rptT12)
+  153   7                        break;
+  154   7                      ledData.ledSettings[ledIndex].t1 *= gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.multiDivide
+             -Filter.para[ledIndex].t1;
+  155   7                      ledData.ledSettings[ledIndex].t2 *= gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.multiDivide
+             -Filter.para[ledIndex].t2;
+  156   7                      ledData.ledSettings[ledIndex].t3 *= gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.multiDivide
+             -Filter.para[ledIndex].t3;
+  157   7                      ledData.ledSettings[ledIndex].t4 *= gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.multiDivide
+             -Filter.para[ledIndex].t4;
+  158   7                      rptT12 = ledData.ledSettings[ledIndex].pwmSetting & 0x0F;
+  159   7                      pwm =  ledData.ledSettings[ledIndex].pwmSetting & 0xF0;
+  160   7                      rptT12 *= gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.multiDivideFilter.para[ledIndex].RptT
+             -12;
+  161   7                      ledData.ledSettings[ledIndex].pwmSetting = (pwm |rptT12 );
+  162   7                    }
+C251 COMPILER V5.57.0,  Driver_LED                                                         08/11/20  05:51:54  PAGE 4   
+
+  163   6                  }
+  164   5                }
+  165   4                break;
+  166   4              case FILTER_SWAP_CHANGE:
+  167   4                if(gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.swapChangeFilter.isSwap)
+  168   4                {
+  169   5                  OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&tempLedData.ledFollowMultiplierControl, (U8 XDATA_PTR)&ledD
+             -ata.ledSettings[gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.swapChangeFilter.swapTarget1].ledFollowMultiplierContr
+             -ol, sizeof(LedSettingsType));
+  170   5                  OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&ledData.ledSettings[gDriver_LED_ctl.ledFilterCtlPtr[i]->fil
+             -terSetting.swapChangeFilter.swapTarget1].ledFollowMultiplierControl, (U8 XDATA_PTR)&ledData.ledSettings[gDriver_LED_ctl.
+             -ledFilterCtlPtr[i]->filterSetting.swapChangeFilter.swapTarget2].ledFollowMultiplierControl, sizeof(LedSettingsType));
+  171   5                  OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&ledData.ledSettings[gDriver_LED_ctl.ledFilterCtlPtr[i]->fil
+             -terSetting.swapChangeFilter.swapTarget2].ledFollowMultiplierControl, (U8 XDATA_PTR)&tempLedData.ledFollowMultiplierContr
+             -ol, sizeof(LedSettingsType));
+  172   5                }
+  173   4                if(gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.swapChangeFilter.isChangeLED && ledData.ledSett
+             -ings[gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.swapChangeFilter.sourceLed].onOff == LED_ON)
+  174   4                {
+  175   5                  OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&ledData.ledSettings[gDriver_LED_ctl.ledFilterCtlPtr[i]->fil
+             -terSetting.swapChangeFilter.destinationLED].ledFollowMultiplierControl, (U8 XDATA_PTR)&ledData.ledSettings[gDriver_LED_c
+             -tl.ledFilterCtlPtr[i]->filterSetting.swapChangeFilter.sourceLed].ledFollowMultiplierControl, sizeof(LedSettingsType));
+  176   5                  ledData.ledSettings[gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.swapChangeFilter.sourceLed].o
+             -nOff = LED_OFF;
+  177   5                }
+  178   4                break;
+  179   4              case FILTER_ADD:
+  180   4                if(ledData.ledSettings[gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.ledIndex].onOff =
+             -= LED_DONT_CARE || ledData.ledSettings[gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.ledIndex].onOff == LE
+             -D_OFF)
+  181   4                {
+  182   5                  if(ledData.ledSettings[gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.targetLedForAdd]
+             -.onOff != LED_OFF && ledData.ledSettings[gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.targetLedForAdd].on
+             -Off != LED_DONT_CARE)
+  183   5                  {
+  184   6                    timeTemp = (gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.gapWithBgLed*2 + (gDriver_
+             -LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.t1 + gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.t2)
+             -*(gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.RptT12+1))*2;
+  185   6                    if((U16)(ledData.ledSettings[gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.targetLed
+             -ForAdd].t3*5L) < timeTemp)
+  186   6                      break;
+  187   6      
+  188   6                    timeTemp = ledData.ledSettings[gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.targetL
+             -edForAdd].t1 + ledData.ledSettings[gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.targetLedForAdd].t2;
+  189   6                    timeTemp= timeTemp *( (ledData.ledSettings[gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFi
+             -lter.targetLedForAdd].pwmSetting &0x0F)+1);
+  190   6                    timeTemp += gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.gapWithBgLed;
+  191   6                    timeTemp /= 2;
+  192   6      
+  193   6                    if(timeTemp > 0x00FF)
+  194   6                      break;
+  195   6      
+  196   6                    ledData.ledSettings[gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.targetLedForAdd].t
+             -4 = (U8)timeTemp;
+  197   6                    if(ledData.ledSettings[gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.targetLedForAdd
+             -].onOff == LED_ON)
+  198   6                      ledData.ledSettings[gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.targetLedForAdd].
+             -onOff = LED_ALT_FIRST;
+  199   6      
+  200   6                    ledData.ledSettings[gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.ledIndex].ledFollo
+             -wMultiplierControl = ledData.ledSettings[gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.targetLedForAdd].le
+             -dFollowMultiplierControl;
+  201   6                    ledData.ledSettings[gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.ledIndex].pwmSetti
+             -ng = (ledData.ledSettings[gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.targetLedForAdd].pwmSetting & 0xf0
+             -) |gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.RptT12 ;
+  202   6                    ledData.ledSettings[gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.ledIndex].t1 = gDr
+C251 COMPILER V5.57.0,  Driver_LED                                                         08/11/20  05:51:54  PAGE 5   
+
+             -iver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.t1;
+  203   6                    ledData.ledSettings[gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.ledIndex].t2 = gDr
+             -iver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.t2;
+  204   6                    ledData.ledSettings[gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.ledIndex].rampOnSt
+             -ep = gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.rampOnStep;
+  205   6                    ledData.ledSettings[gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.ledIndex].rampOffS
+             -tep =  gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.rampOffStep;
+  206   6                    ledData.ledSettings[gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.ledIndex].onOff = 
+             -ledData.ledSettings[gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.targetLedForAdd].onOff +1;
+  207   6      
+  208   6      
+  209   6                    timeTemp = ledData.ledSettings[gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.targetL
+             -edForAdd].t1 + ledData.ledSettings[gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.targetLedForAdd].t2;
+  210   6                    timeTemp= timeTemp * ((ledData.ledSettings[gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFi
+             -lter.targetLedForAdd].pwmSetting &0x0F)+1)*2 + (U16)ledData.ledSettings[gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSettin
+             -g.addFilter.targetLedForAdd].t3 * 2;
+  211   6                    timeTemp -= (((U16)gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.t1 + (U16)gDriver_L
+             -ED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.t2)*((U16)gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter
+             -.RptT12+1)*2);
+  212   6                    timeTemp /= 5;
+  213   6                    ledData.ledSettings[gDriver_LED_ctl.ledFilterCtlPtr[i]->filterSetting.addFilter.ledIndex].t3 = (U8
+             -)timeTemp;
+  214   6                  }
+  215   5                }
+  216   4                break;
+  217   4            }
+  218   3          }
+  219   2        }
+  220   1      
+  221   1      
+  222   1        if(gMMI_DRV_ctl.isMiscEnabled & IS_LED_DISABLED)
+  223   1        {
+  224   2          for(ledIndex = LED1_INDEX; ledIndex < LED_NO; ledIndex++)
+  225   2          {
+  226   3            ledData.ledSettings[ledIndex].onOff = LED_OFF;
+  227   3          }
+  228   2        }
+  229   1      
+  230   1        LED_SetPatternToHW(&ledData);
+  231   1      }
+  232          
+  233          PRIVATE void DRIVER_LED_EnableFGLed(LedPatternType XDATA_PTR ledCtlPtr)
+  234          {
+  235   1        U8 ledIndex;
+  236   1      
+  237   1        if(MMI_MEDIA_LED_WITH_FILTER_EFFECT_FEAT)
+  238   1        {
+  239   2          DRIVER_LED_EnableBGLed(ledCtlPtr);
+  240   2          return;
+  241   2        }
+  242   1        if(gMMI_DRV_ctl.isMiscEnabled & IS_LED_DISABLED)
+  243   1        {
+  244   2          for(ledIndex = 0; ledIndex < LED_NO; ledIndex++)
+  245   2          {
+  246   3            ledCtlPtr->ledSettings[ledIndex].onOff = LED_OFF;
+  247   3          }
+  248   2        }
+  249   1      
+  250   1        LED_SetPatternToHW(ledCtlPtr);
+  251   1      }
+  252          
+  253          PRIVATE void _DRIVER_LED_FGLEDEnded(U8 id)
+  254          {
+  255   1        if(gMMI_Drv_Handler.fDriverFGLedEndEvent)
+  256   1          gMMI_Drv_Handler.fDriverFGLedEndEvent(id);
+  257   1      }
+C251 COMPILER V5.57.0,  Driver_LED                                                         08/11/20  05:51:54  PAGE 6   
+
+  258          
+  259          PRIVATE void _DRIVER_LED_ClearQue(void)
+  260          {
+  261   1        DriverMsg XDATA_PTR msgPtr;
+  262   1      
+  263   1        while(OSMQ_Entries(OSMQ_LED_Command_ptr))
+  264   1        {
+  265   2          msgPtr= (DriverMsg XDATA_PTR)OSMQ_Get(OSMQ_LED_Command_ptr);
+  266   2          _DRIVER_LED_FGLEDEnded(msgPtr->msgBodyPtr.driverCmd.fgLEDCmd.eventCode);
+  267   2          OSMEM_Put((U8 XDATA_PTR)msgPtr);
+  268   2        }
+  269   1      }
+  270          
+  271          PRIVATE void _DRIVER_BGLedResume(void)
+  272          {
+  273   1        U8 i;
+  274   1        LedPatternType XDATA_PTR ledDataPtr;
+  275   1      
+  276   1        if(gDriver_LED_ctl.isLedPwrSaving )
+  277   1          return;
+  278   1      
+  279   1        ledDataPtr = (LedPatternType XDATA_PTR)SYS_MemoryGet(sizeof(LedPatternType));
+  280   1        if(ledDataPtr)
+  281   1        {
+  282   2          OSMEM_memset_xdata((U8 XDATA_PTR)ledDataPtr, 0, sizeof(LedPatternType));
+  283   2          for(i = LED1_INDEX; i < LED_NO; i++)
+  284   2          {
+  285   3            if(gDriver_LED_ctl.fgLedOnOff[i] !=LED_DONT_CARE)
+  286   3            {
+  287   4              OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&ledDataPtr->ledSettings[i].ledFollowMultiplierControl, (U8 XD
+             -ATA_PTR)&gDriver_LED_ctl.bgLedData.ledSettings[i].ledFollowMultiplierControl, sizeof(LedSettingsType));
+  288   4            }
+  289   3            else
+  290   3              ledDataPtr->ledSettings[i].onOff = LED_DONT_CARE;
+  291   3      
+  292   3          }
+  293   2          DRIVER_LED_EnableBGLed(ledDataPtr);
+  294   2          OSMEM_Put((U8 XDATA_PTR) ledDataPtr);
+  295   2        }
+  296   1        else
+  297   1          DRIVER_LED_EnableBGLed(&gDriver_LED_ctl.bgLedData);
+  298   1      }
+  299          
+  300          PUBLIC void DRIVER_LED_Init(void)
+  301          {
+  302   1        gDriver_LED_ctl.pDriverLedData = (DRIVER_LED_DATA_TYPE CODE_PTR) GET_SECTOR_CFG1_ADDR(SECTOR_DRIVER_LED_
+             -DATA_INIT);
+  303   1        gDriver_LED_ctl.ledPatternNo = gDriver_LED_ctl.pDriverLedData->totalLedPatternNo;
+  304   1        gDriver_LED_ctl.ledFilterNo = *((U8 CODE_PTR)&(gDriver_LED_ctl.pDriverLedData->totalLedPatternNo)+1+(siz
+             -eof(LedPatternType)*gDriver_LED_ctl.ledPatternNo));
+  305   1      }
+  306          
+  307          PUBLIC void DRIVER_LED_Scheduler(void)
+  308          {
+  309   1        U8 i;
+  310   1        DriverMsg XDATA_PTR msgPtr;
+  311   1        LedPatternType XDATA_PTR ledDataPtr;
+  312   1        U8 ledDisplayIndex, isOverrideFilter, timeout, eventCode;
+  313   1      
+  314   1        //////////////////////////
+  315   1        ////////FG LEd ///////////
+  316   1        //////////////////////////
+  317   1        if(DRIVER_LED_IsFGLEDOn()) // FG Led is playing
+  318   1        {
+  319   2          if(!MMI_QUEUE_LED_FEAT)
+  320   2            _DRIVER_LED_ClearQue();
+C251 COMPILER V5.57.0,  Driver_LED                                                         08/11/20  05:51:54  PAGE 7   
+
+  321   2      
+  322   2          if(SYS_IsTimerExpired(&gDriver_LED_ctl.fgLedTimerPtr))
+  323   2          {
+  324   3            _DRIVER_LED_FGLEDEnded(gDriver_LED_ctl.fgLedMediaOpcode);
+  325   3      
+  326   3            if(gMMI_nvram.timerCtl.PowerSavingLightTimer)
+  327   3              SYS_SetTimer(&gDriver_LED_ctl.ledPowerSavingTimer, gMMI_nvram.timerCtl.PowerSavingLightTimer*HALF_MIN
+             -);
+  328   3      
+  329   3            if(OSMQ_Entries(OSMQ_LED_Command_ptr))
+  330   3              goto DRIVER_PLAY_FG_LED;
+  331   3            else
+  332   3              _DRIVER_BGLedResume();
+  333   3          }
+  334   2        }
+  335   1        else  // No FG LED now
+  336   1        {
+  337   2          DRIVER_PLAY_FG_LED:
+  338   2          msgPtr= (DriverMsg XDATA_PTR)OSMQ_Get(OSMQ_LED_Command_ptr);
+  339   2          if(msgPtr)
+  340   2          {
+  341   3            // 1. Set Para
+  342   3            ledDisplayIndex = msgPtr->msgBodyPtr.driverCmd.fgLEDCmd.ledDisplayIndex;
+  343   3            timeout = msgPtr->msgBodyPtr.driverCmd.fgLEDCmd.timeout;
+  344   3            eventCode = msgPtr->msgBodyPtr.driverCmd.fgLEDCmd.eventCode;
+  345   3            isOverrideFilter= msgPtr->msgBodyPtr.driverCmd.fgLEDCmd.isOverrideFilter;
+  346   3            OSMEM_Put((U8 XDATA_PTR) msgPtr);
+  347   3      
+  348   3            if(eventCode == MEDIA_EVT_POWER_ON_UNDER_CHECKPOINT1 ||eventCode == MEDIA_EVT_POWER_ON_UNDER_CHECKPOIN
+             -T2 ||
+  349   3              eventCode == MEDIA_EVT_POWER_ON_UNDER_CHECKPOINT3||eventCode == MEDIA_EVT_POWER_ON)
+  350   3            {
+  351   4              if(gSYS_init_led_exist)
+  352   4              {
+  353   5                SYS_SetTimer(&gDriver_LED_ctl.fgLedTimerPtr,(timeout-5) * 320L);
+  354   5                gDriver_LED_ctl.fgLedMediaOpcode = eventCode;
+  355   5                return;
+  356   5              }
+  357   4            }
+  358   3      
+  359   3            // 2. Read LED stiings
+  360   3            ledDataPtr = (LedPatternType XDATA_PTR)SYS_MemoryGet(sizeof(LedPatternType));
+  361   3            if(ledDataPtr)
+  362   3            {
+  363   4              if(DRIVER_LED_LoadPattern(ledDisplayIndex,(U8 XDATA_PTR) ledDataPtr))
+  364   4              {
+  365   5                // 3. Check if Filter is on
+  366   5                if(!DRIVER_LED_IsFilterOn() ||isOverrideFilter)
+  367   5                {
+  368   6                  SYS_SetTimer(&gDriver_LED_ctl.fgLedTimerPtr,timeout * 320L);
+  369   6                  DRIVER_LED_EnableFGLed(ledDataPtr);
+  370   6                  gDriver_LED_ctl.fgLedMediaOpcode = eventCode;
+  371   6      
+  372   6                  //Keep OnoffSettings
+  373   6                  for(i = LED1_INDEX; i < LED_NO; i++)
+  374   6                  {
+  375   7                    gDriver_LED_ctl.fgLedOnOff[i] = ledDataPtr->ledSettings[i].onOff;
+  376   7                  }
+  377   6      
+  378   6                  // 4. Release power saving timer
+  379   6                  SYS_ReleaseTimer(&gDriver_LED_ctl.ledPowerSavingTimer);
+  380   6                  gDriver_LED_ctl.isLedPwrSaving = FALSE;
+  381   6                }
+  382   5              }
+  383   4              OSMEM_Put((U8 XDATA_PTR) ledDataPtr);
+  384   4            }
+C251 COMPILER V5.57.0,  Driver_LED                                                         08/11/20  05:51:54  PAGE 8   
+
+  385   3          }
+  386   2        }
+  387   1        
+  388   1        //////////////////////////
+  389   1        ////////Check Timer ///////////
+  390   1        //////////////////////////  
+  391   1        if(SYS_IsTimerExpired(&gDriver_LED_ctl.ledPowerSavingTimer))
+  392   1        {
+  393   2          if(!DRIVER_IsMiscCtrlTypeEnabled(DRIVER_IS_CHARGER_IN))
+  394   2          {
+  395   3            if(!gDriver_LED_ctl.isLedPwrSaving )
+  396   3              LED_TurnOffAllLeds();
+  397   3      
+  398   3            gDriver_LED_ctl.isLedPwrSaving = TRUE;
+  399   3          }
+  400   2          else
+  401   2          {
+  402   3            gDriver_LED_ctl.isLedPwrSaving = FALSE;
+  403   3          }
+  404   2        }
+  405   1      }
+  406          
+  407          PUBLIC void DRIVER_LED_PowerSavingExit(BOOL isResetTimer)
+  408          {
+  409   1        if(gDriver_LED_ctl.isLedPwrSaving )
+  410   1          DRIVER_LED_EnableBGLed(&gDriver_LED_ctl.bgLedData);
+  411   1          
+  412   1        if(isResetTimer)
+  413   1          SYS_SetTimer(&gDriver_LED_ctl.ledPowerSavingTimer, gMMI_nvram.timerCtl.PowerSavingLightTimer*HALF_MIN);
+  414   1          
+  415   1        gDriver_LED_ctl.isLedPwrSaving = FALSE;
+  416   1      }
+  417          
+  418          PUBLIC void DRIVER_Cmd_LED_UpdateDuration(U8 ledDuration)
+  419          {
+  420   1        if(!MMI_LED_PWM_COMPENSATE_IN_DIFFERENT_BATTERY_LEVEL)
+  421   1          return;
+  422   1          
+  423   1        LED_SetPwm(ledDuration);
+  424   1      }
+  425          
+  426          PUBLIC void DRIVER_Cmd_LED_Restart(U8 para)
+  427          {
+  428   1        _DRIVER_LED_ClearQue();
+  429   1        if(para == DRIVER_CMD_LED_RESTART_PARA_ONLY_FG)
+  430   1        {
+  431   2          if(DRIVER_LED_IsFGLEDOn())
+  432   2            DRIVER_LED_EnableBGLed(&gDriver_LED_ctl.bgLedData);
+  433   2        }
+  434   1        else if(para == DRIVER_CMD_LED_RESTART_PARA_FG_AND_BG)
+  435   1        {
+  436   2          DRIVER_LED_EnableBGLed(&gDriver_LED_ctl.bgLedData);
+  437   2        }
+  438   1        else
+  439   1        {
+  440   2          return;
+  441   2        }
+  442   1      
+  443   1        if(DRIVER_LED_IsFGLEDOn())
+  444   1        {
+  445   2          SYS_ReleaseTimer(&gDriver_LED_ctl.fgLedTimerPtr);
+  446   2          _DRIVER_LED_FGLEDEnded(gDriver_LED_ctl.fgLedMediaOpcode);
+  447   2        }
+  448   1      
+  449   1        if(gMMI_nvram.timerCtl.PowerSavingLightTimer)
+  450   1        {
+C251 COMPILER V5.57.0,  Driver_LED                                                         08/11/20  05:51:54  PAGE 9   
+
+  451   2          SYS_SetTimer(&gDriver_LED_ctl.ledPowerSavingTimer, gMMI_nvram.timerCtl.PowerSavingLightTimer*HALF_MIN);
+  452   2          gDriver_LED_ctl.isLedPwrSaving = FALSE;
+  453   2        }
+  454   1      }
+  455          
+  456          PUBLIC void DRIVER_Cmd_LED_FGLed(U8 ledDataIndex, U8 timeout, U16 id, U8 isOverrideFilter)
+  457          {
+  458   1        DriverMsg XDATA_PTR msgPtr;
+  459   1      
+  460   1        if((msgPtr = DRIVER_GetCmdMsg(DRIVER_FG_LED_CMD)) != (DriverMsg XDATA_PTR)NULL)
+  461   1        {
+  462   2          msgPtr->msgBodyPtr.driverCmd.fgLEDCmd.ledDisplayIndex = ledDataIndex;
+  463   2          msgPtr->msgBodyPtr.driverCmd.fgLEDCmd.timeout = timeout;
+  464   2          msgPtr->msgBodyPtr.driverCmd.fgLEDCmd.eventCode = id;
+  465   2          msgPtr->msgBodyPtr.driverCmd.fgLEDCmd.isOverrideFilter = isOverrideFilter;
+  466   2          OSMQ_Put(OSMQ_LED_Command_ptr, (U8 XDATA_PTR)msgPtr);
+  467   2        }
+  468   1      }
+  469          
+  470          PUBLIC void DRIVER_Cmd_LED_BGLed(U8 ledDataIndex)
+  471          {
+  472   1        U8 i;
+  473   1        BOOL isPlayBgNow;
+  474   1        LedPatternType XDATA_PTR ledDataPtr;
+  475   1        
+  476   1        if(ledDataIndex == LED_INVALID)
+  477   1          return;
+  478   1      
+  479   1        if((ledDataPtr = (LedPatternType XDATA_PTR)SYS_MemoryGet(sizeof(LedPatternType))) == (LedPatternType XDA
+             -TA_PTR)NULL)
+  480   1          return;
+  481   1        
+  482   1        if(DRIVER_LED_LoadPattern((ledDataIndex & (~LED_OVERRIDE_BIT)), (U8 XDATA_PTR)ledDataPtr))
+  483   1        {
+  484   2          //Keep settings
+  485   2          isPlayBgNow = TRUE;
+  486   2          for(i = LED1_INDEX; i < LED_NO; i++)
+  487   2          {
+  488   3            if(ledDataPtr->ledSettings[i].onOff != LED_DONT_CARE)
+  489   3            {
+  490   4              OSMEM_memcpy_xdata_xdata((U8 XDATA_PTR)&gDriver_LED_ctl.bgLedData.ledSettings[i].ledFollowMultiplierC
+             -ontrol, (U8 XDATA_PTR)&ledDataPtr->ledSettings[i].ledFollowMultiplierControl, sizeof(LedSettingsType));
+  491   4            }
+  492   3      
+  493   3            if(DRIVER_LED_IsFGLEDOn() && gDriver_LED_ctl.fgLedOnOff[i] !=LED_DONT_CARE && ledDataPtr->ledSettings[
+             -i].onOff != LED_DONT_CARE)
+  494   3              isPlayBgNow = FALSE;
+  495   3          }
+  496   2      
+  497   2          if (isPlayBgNow)
+  498   2          {
+  499   3            if(!gDriver_LED_ctl.isLedPwrSaving)
+  500   3              DRIVER_LED_EnableBGLed(ledDataPtr);
+  501   3          }
+  502   2          else
+  503   2          {
+  504   3            // Need to be resume
+  505   3            for(i = LED1_INDEX; i < LED_NO; i++)
+  506   3            {
+  507   4              if(ledDataPtr->ledSettings[i].onOff != LED_DONT_CARE)
+  508   4                gDriver_LED_ctl.fgLedOnOff[i] = LED_ON;
+  509   4            }
+  510   3          }
+  511   2      
+  512   2        }
+  513   1        OSMEM_Put((U8 XDATA_PTR) ledDataPtr);
+C251 COMPILER V5.57.0,  Driver_LED                                                         08/11/20  05:51:54  PAGE 10  
+
+  514   1      }
+  515          
+  516          PUBLIC void DRIVER_Cmd_LED_FilterLed(U8 type, U8 para)
+  517          {
+  518   1        // 1. SetLEdFilterData
+  519   1        DRIVER_LED_SetFilter(type, para);
+  520   1      
+  521   1        //2.
+  522   1        if(!DRIVER_LED_IsFGLEDOn() && !gDriver_LED_ctl.isLedPwrSaving)
+  523   1        {
+  524   2          DRIVER_LED_EnableBGLed(&gDriver_LED_ctl.bgLedData);
+  525   2        }
+  526   1      }
+  527          
+  528          PUBLIC BOOL DRIVER_LED_IsFGLEDOn(void)
+  529          {
+  530   1        return (gDriver_LED_ctl.fgLedTimerPtr) ? TRUE : FALSE;
+  531   1      }
+  532          #if !defined AB1520S && !defined AB1525S && !defined AB1520U
+  533          PUBLIC void DRIVER_LED_MapGpioSetup()
+  534          {
+  535   1        U8 setCount, sfrValue, offset, ledCnt;
+  536   1        LedMapSetting CODE_PTR ledIOSettingPtr;
+  537   1                 
+  538   1        ledCnt = *((U8 CODE_PTR)&(gDriver_LED_ctl.pDriverLedData->totalLedPatternNo) + 1 + (sizeof(LedPatternTyp
+             -e)*gDriver_LED_ctl.ledPatternNo) +
+  539   1          1 + (sizeof(LedFilterSettingType)*gDriver_LED_ctl.ledFilterNo));
+  540   1        //Set from Led Map GPIO
+  541   1        for (setCount = 0; setCount < ledCnt; setCount++)
+  542   1        {
+  543   2          ledIOSettingPtr = (LedMapSetting CODE_PTR)((&gDriver_LED_ctl.pDriverLedData) + 1 + (sizeof(LedPatternTy
+             -pe)*gDriver_LED_ctl.ledPatternNo) +
+  544   2            1 + (sizeof(LedFilterSettingType) * gDriver_LED_ctl.ledFilterNo) + 1 + (sizeof(LedMapSetting) * setCou
+             -nt));
+  545   2                            
+  546   2          if(gMMI_nvram.keypadGpioCtl.keyMask & BIT_MASK32(ledIOSettingPtr->mapGpio))
+  547   2          {
+  548   3            LightDbgPrint("DRV - LED CheckConflick:%d",(U32) ledIOSettingPtr->mapGpio);
+  549   3            continue;
+  550   3          }
+  551   2          
+  552   2          if (ledIOSettingPtr->outputType == PWM3 || ledIOSettingPtr->outputType == PWM4)
+  553   2          {
+  554   3            offset = E3OFFS_RW_SIG_SEL_0304 + ((ledIOSettingPtr->mapGpio - 3) / 2);
+  555   3            sfrValue = SFR_READ_BY_E3(offset);
+  556   3            if(ledIOSettingPtr->mapGpio & 1)
+  557   3            {
+  558   4              sfrValue &= 0xF0;
+  559   4              sfrValue |= ledIOSettingPtr->outputType;
+  560   4            }
+  561   3            else
+  562   3            {
+  563   4              sfrValue &= 0x0F;
+  564   4              sfrValue |= (ledIOSettingPtr->outputType << 4);
+  565   4            }
+  566   3            OS_ENTER_CRITICAL();
+  567   3            SFR_WRITE_BY_E3(offset, sfrValue);
+  568   3            OS_EXIT_CRITICAL();
+  569   3          }
+  570   2        }
+  571   1      }
+  572          #endif
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+C251 COMPILER V5.57.0,  Driver_LED                                                         08/11/20  05:51:54  PAGE 11  
+
+  ecode size           =      3647     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =        93     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =        27     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,583 @@
+C251 COMPILER V5.57.0,  Driver_FM                                                          08/11/20  05:51:51  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE Driver_FM
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\Driver_FM.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\DRIVER\Driver_FM.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) W
+                    -ARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\so
+                    -urce\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\sourc
+                    -e\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_L
+                    -E;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspDat
+                    -a;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLAS
+                    -H_INIT=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520C_AiroStereoHeadset\
+                    -Driver_FM.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\Driver_FM.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #define _DRIVER_FM_C_
+    4          
+    5          #include "rc.h"
+    6          #include "bt_config_profile.h"
+    7          
+    8          #include "..\MMI\MMI.h"
+    9          #include "Driver.h"
+   10          #include "..\MMI\MMI_FM.h"
+   11          
+   12          #ifdef RINGTONE_ENABLE
+   13            #include "ringtone.h"
+   14          #endif
+   15          #ifdef SUPPORT_VOICE_PROMPT
+   16            #include "VoicePrompt.h"
+   17          #endif
+   18          
+   19          #include "Audio_Mailbox.h"
+   20          #include "Driver_1520.h"
+   21          
+   22          #include "AudioControl.h"
+   23          #include "Driver_FM.h"
+   24          
+   25          #include "..\SDK_Proxy\SDK_Proxy.h"
+   26          
+   27          #ifdef FM_ENABLE
+   28          
+   29          extern VFUN XDATA api_iodrv_evt_func[API_GRP_IODRV_CB_CNT];
+   30          
+   31          enum
+   32          {
+   33            FM_OFF,
+   34            FM_WAITING_POWER_ON,
+   35            FM_ON,
+   36            FM_SEEK_UP,
+   37            FM_SEEK_DOWN,
+   38            FM_TUNE_UP,
+   39            FM_TUNE_DOWN,
+   40            FM_MUTE_ON,
+   41            FM_MUTE_OFF,
+   42            FM_WAITING_POWER_OFF,
+   43          };
+   44          
+   45          enum
+   46          {
+   47            FM_SUBSTATE_NONE,
+   48            FM_SUBSTATE_WAITING_ON_CLOSE_OTHER_AUDIOS,
+   49            FM_SUBSTATE_WAITING_ON_CHECK_OTHER_AUDIO_CLOSED,
+   50            FM_SUBSTATE_WAITING_ON_RESET,
+   51            FM_SUBSTATE_WAITING_ON_WAITING_DRV_READY,
+   52            FM_SUBSTATE_WAITING_ON_ABORT,
+C251 COMPILER V5.57.0,  Driver_FM                                                          08/11/20  05:51:51  PAGE 2   
+
+   53            FM_SUBSTATE_SEEK_TUNE_WAIT_VP_RING_END,
+   54            FM_SUBSTATE_SEEK_TUNE_WAITING_DRV_READY,
+   55            FM_SUBSTATE_MUTE_SET,
+   56          };
+   57          typedef struct
+   58          {
+   59            U8 fmState;
+   60            U8 fmSubState;
+   61          }DriverFMCtlType;
+   62          
+   63          DriverFMCtlType XDATA gDriver_FM_Ctl;
+   64          
+   65          OSMQ XDATA OSMQ_FM_Command_From_MMI;
+   66          #define OSMQ_FM_Command_From_MMI_ptr    &OSMQ_FM_Command_From_MMI
+   67          
+   68          PRIVATE void DRIVER_FM_ClearState(U8 fmState)
+   69          {
+   70   1        gDriver_FM_Ctl.fmState = fmState;
+   71   1        gDriver_FM_Ctl.fmSubState = FM_SUBSTATE_NONE;
+   72   1        DRIVER_SetPowerSaving(TRUE, DRIVER_POWER_SAVING_FM);
+   73   1        DRIVER_SetMiscCtrlMap(DRIVER_VP_RING_LOCKED_FOR_FM, FALSE);
+   74   1      }
+   75          
+   76          PRIVATE void DRIVER_FM_SwtchState(U8 fmState, U8 fmSubState)
+   77          {
+   78   1        gDriver_FM_Ctl.fmState = fmState;
+   79   1        gDriver_FM_Ctl.fmSubState = fmSubState;
+   80   1        DRIVER_SetMiscCtrlMap(DRIVER_VP_RING_LOCKED_FOR_FM, TRUE);
+   81   1      }
+   82          
+   83          PRIVATE void DRIVER_FM_OffHandler(void)
+   84          {
+   85   1        DriverMsg XDATA_PTR msgPtr;
+   86   1      
+   87   1        if ((msgPtr = (DriverMsg XDATA_PTR)OSMQ_Get (OSMQ_FM_Command_From_MMI_ptr)) != (DriverMsg XDATA_PTR)NULL
+             -)
+   88   1        {
+   89   2          if(msgPtr->msgOpcode == DRIVER_FM_POWERON_CMD)
+   90   2          {
+   91   3            if(api_iodrv_evt_func[API_GRP_IODRV_CB_FM_SETVOL])
+   92   3            {
+   93   4              ((API_IODRV_FM_SETVOL_FUNC)api_iodrv_evt_func[API_GRP_IODRV_CB_FM_SETVOL])(msgPtr->msgBodyPtr.driverC
+             -md.FMCmd.fmPoweronPara.historyVol);
+   94   4            }
+   95   3            if(api_iodrv_evt_func[API_GRP_IODRV_CB_FM_SETFREQ])
+   96   3            {
+   97   4              ((API_IODRV_FM_SETFREQ_FUNC)api_iodrv_evt_func[API_GRP_IODRV_CB_FM_SETFREQ])(msgPtr->msgBodyPtr.drive
+             -rCmd.FMCmd.fmPoweronPara.setFreq);
+   98   4            }
+   99   3            if(api_iodrv_evt_func[API_GRP_IODRV_CB_FM_SETMUTE])
+  100   3            {
+  101   4              ((API_IODRV_FM_SETMUTE_FUNC)api_iodrv_evt_func[API_GRP_IODRV_CB_FM_SETMUTE])(msgPtr->msgBodyPtr.drive
+             -rCmd.FMCmd.fmPoweronPara.isMute);
+  102   4            }
+  103   3            DRIVER_FM_SwtchState(FM_WAITING_POWER_ON, FM_SUBSTATE_WAITING_ON_CLOSE_OTHER_AUDIOS);
+  104   3          }
+  105   2          else if(msgPtr->msgOpcode == DRIVER_FM_POWEROFF_CMD)
+  106   2          {
+  107   3            DRIVER_SetMiscCtrlMap(DRIVER_IS_RESUME_FM, FALSE);
+  108   3      
+  109   3            if(gDriver_ctl.playingRingtoneId == MEDIA_EVT_FM_NOT_BUSY)
+  110   3            {
+  111   4              #ifdef RINGTONE_ENABLE
+  112   4              if(AUDIO_COMPONENT_IS_ACTIVE (AUDIO_RINGTONE) && !Ring_Pause())
+  113   4              {
+  114   5                OSMQ_PutFront (OSMQ_FM_Command_From_MMI_ptr, (U8 XDATA_PTR)msgPtr);
+C251 COMPILER V5.57.0,  Driver_FM                                                          08/11/20  05:51:51  PAGE 3   
+
+  115   5                return;
+  116   5              }
+  117   4              #endif
+  118   4              #ifdef SUPPORT_VOICE_PROMPT
+  119   4              if(AUDIO_COMPONENT_IS_ACTIVE (AUDIO_VOICEPROMPT) && !VoicePrompt_Pause())
+  120   4              {
+  121   5                OSMQ_PutFront (OSMQ_FM_Command_From_MMI_ptr, (U8 XDATA_PTR)msgPtr);
+  122   5                return;
+  123   5              }
+  124   4              #endif
+  125   4            }
+  126   3          }
+  127   2          else
+  128   2          {
+  129   3            if(DRIVER_IsMiscCtrlTypeEnabled(DRIVER_IS_RESUME_FM))
+  130   3            {
+  131   4              OSMQ_PutFront(OSMQ_FM_Command_From_MMI_ptr, (U8 XDATA_PTR)msgPtr);
+  132   4              return;
+  133   4            }
+  134   3          }
+  135   2          OSMEM_Put((U8 XDATA_PTR)msgPtr);
+  136   2        }
+  137   1      }
+  138          
+  139          
+  140          PRIVATE void DRIVER_FM_WaitingPowerOnHandler(void)
+  141          {
+  142   1        U8 cmdStatus;
+  143   1        
+  144   1        if(!api_iodrv_evt_func[API_GRP_IODRV_CB_FM_PWR_ON])
+  145   1        {
+  146   2          DRIVER_FM_ClearState(FM_OFF);
+  147   2          gMMI_FM_Drv_Handler.fDriverFMDisabledEvent();
+  148   2          return;   
+  149   2        }
+  150   1      
+  151   1        switch(gDriver_FM_Ctl.fmSubState)
+  152   1        {
+  153   2          case FM_SUBSTATE_WAITING_ON_CLOSE_OTHER_AUDIOS:
+  154   2            if(IS_DSP_BUSY)
+  155   2              break;
+  156   2      
+  157   2            gDriver_FM_Ctl.fmSubState =FM_SUBSTATE_WAITING_ON_RESET;
+  158   2            
+  159   2            if(DRIVER_IsDSPOgfAppOn())
+  160   2            {
+  161   3              DRIVER_SendAppIdleToMailBox();
+  162   3              gDriver_FM_Ctl.fmSubState = FM_SUBSTATE_WAITING_ON_CHECK_OTHER_AUDIO_CLOSED;
+  163   3            }
+  164   2            break;
+  165   2      
+  166   2          case FM_SUBSTATE_WAITING_ON_CHECK_OTHER_AUDIO_CLOSED:
+  167   2            if(IS_DSP_BUSY)
+  168   2              break;
+  169   2            if(!DRIVER_IsDSPOgfAppOn())
+  170   2            {
+  171   3              gDriver_FM_Ctl.fmSubState =FM_SUBSTATE_WAITING_ON_RESET;
+  172   3            }
+  173   2            break;
+  174   2          
+  175   2          case FM_SUBSTATE_WAITING_ON_RESET:
+  176   2            if(DRIVER_IsRingToneOrVPOrATPlaying() || AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICECOMMAND))
+  177   2               break;
+  178   2               
+  179   2            AUDIO_Close_AMP();
+  180   2            
+C251 COMPILER V5.57.0,  Driver_FM                                                          08/11/20  05:51:51  PAGE 4   
+
+  181   2            if(MEMORY_PUT != DRIVER_CloseAllAudioHandler1520((DriverMsg XDATA_PTR)NULL))
+  182   2              break;
+  183   2      
+  184   2            DRIVER_SetPowerSaving(FALSE, DRIVER_POWER_SAVING_FM);
+  185   2            gDriver_FM_Ctl.fmSubState = FM_SUBSTATE_WAITING_ON_WAITING_DRV_READY;
+  186   2            break;
+  187   2          case FM_SUBSTATE_WAITING_ON_WAITING_DRV_READY:
+  188   2            cmdStatus = ((API_IODRV_FM_PWR_ON_FUNC)api_iodrv_evt_func[API_GRP_IODRV_CB_FM_PWR_ON])();
+  189   2            if(cmdStatus == FM_CMD_STATUS_OK)
+  190   2            {
+  191   3              //Aurio Related 
+  192   3              AUDIO_SetAudioOn(AUDIO_FM);
+  193   3              if(api_iodrv_evt_func[API_GRP_IODRV_CB_FM_AUDIO_ON])
+  194   3              {
+  195   4                ((API_IODRV_FM_AUDIO_ON_FUNC)api_iodrv_evt_func[API_GRP_IODRV_CB_FM_AUDIO_ON])();
+  196   4              }
+  197   3              AUDIO_Open_AMP();       
+  198   3              DRIVER_FM_ClearState(FM_ON);      
+  199   3            }
+  200   2            else if(cmdStatus == FM_CMD_STATUS_FAIL)
+  201   2            {
+  202   3              gDriver_FM_Ctl.fmSubState = FM_SUBSTATE_WAITING_ON_ABORT;
+  203   3            }
+  204   2            break;
+  205   2            
+  206   2          case FM_SUBSTATE_WAITING_ON_ABORT:
+  207   2            if(api_iodrv_evt_func[API_GRP_IODRV_CB_FM_ABT_PWR_ON])
+  208   2            {
+  209   3              ((API_IODRV_FM_ABT_PWR_ON_FUNC)api_iodrv_evt_func[API_GRP_IODRV_CB_FM_ABT_PWR_ON])();
+  210   3            }
+  211   2            DRIVER_FM_ClearState(FM_OFF);
+  212   2            gMMI_FM_Drv_Handler.fDriverFMDisabledEvent();   
+  213   2            break;
+  214   2        }
+  215   1      }
+  216          
+  217          PRIVATE void DRIVER_FM_PowerOnHandler(void)
+  218          {
+  219   1        DriverMsg XDATA_PTR msgPtr;
+  220   1      
+  221   1        if ((msgPtr = (DriverMsg XDATA_PTR)OSMQ_Get (OSMQ_FM_Command_From_MMI_ptr)) != (DriverMsg XDATA_PTR)NULL
+             -)
+  222   1        {
+  223   2          switch(msgPtr->msgOpcode)
+  224   2          {
+  225   3            case DRIVER_FM_HWSEEKUP_CMD:
+  226   3              DRIVER_FM_SwtchState(FM_SEEK_UP, FM_SUBSTATE_SEEK_TUNE_WAIT_VP_RING_END);
+  227   3              break;
+  228   3            case DRIVER_FM_HWSEEKDN_CMD:
+  229   3              DRIVER_FM_SwtchState(FM_SEEK_DOWN, FM_SUBSTATE_SEEK_TUNE_WAIT_VP_RING_END);   
+  230   3              break;
+  231   3            case DRIVER_FM_TUNEUP_CMD:
+  232   3              DRIVER_FM_SwtchState(FM_TUNE_UP, FM_SUBSTATE_SEEK_TUNE_WAIT_VP_RING_END);
+  233   3              break;
+  234   3            case DRIVER_FM_TUNEDN_CMD:
+  235   3              DRIVER_FM_SwtchState(FM_TUNE_DOWN, FM_SUBSTATE_SEEK_TUNE_WAIT_VP_RING_END);   
+  236   3              break;
+  237   3            case DRIVER_FM_MUTETOGGLE_CMD:
+  238   3              if(api_iodrv_evt_func[API_GRP_IODRV_CB_FM_GETMUTE])
+  239   3              {
+  240   4                if(((API_IODRV_FM_GETMUTE_FUNC)api_iodrv_evt_func[API_GRP_IODRV_CB_FM_GETMUTE])())
+  241   4                  gMMI_FM_Drv_Handler.fDriverFMMuteOnEvent((MMIMsgType XDATA_PTR)DRIVER_GetGeneralEventMemory(DRIVER_
+             -FM_MUTE_ON_EVENT));
+  242   4                else
+  243   4                  gMMI_FM_Drv_Handler.fDriverFMMuteOffEvent((MMIMsgType XDATA_PTR)DRIVER_GetGeneralEventMemory(DRIVER
+             -_FM_MUTE_OFF_EVENT));  
+C251 COMPILER V5.57.0,  Driver_FM                                                          08/11/20  05:51:51  PAGE 5   
+
+  244   4              }   
+  245   3              break;
+  246   3            case DRIVER_FM_MUTE_ON_CMD:
+  247   3              DRIVER_FM_SwtchState(FM_MUTE_ON, FM_SUBSTATE_MUTE_SET);
+  248   3              break;
+  249   3            case DRIVER_FM_MUTE_OFF_CMD:
+  250   3              DRIVER_FM_SwtchState(FM_MUTE_OFF, FM_SUBSTATE_MUTE_SET);
+  251   3              break;
+  252   3            case DRIVER_FM_VOLUME_CMD:
+  253   3              if(api_iodrv_evt_func[API_GRP_IODRV_CB_FM_VOL])
+  254   3              {
+  255   4                ((API_IODRV_FM_VOL_FUNC)api_iodrv_evt_func[API_GRP_IODRV_CB_FM_VOL])(msgPtr->msgBodyPtr.driverCmd.FM
+             -Cmd.FMVolume);
+  256   4              }
+  257   3              gMMI_FM_Drv_Handler.fDriverFMCmdSetEvent();     
+  258   3              break;
+  259   3            case DRIVER_FM_POWEROFF_CMD:
+  260   3              DRIVER_SetMiscCtrlMap(DRIVER_IS_RESUME_FM, FALSE);
+  261   3            case DRIVER_FM_INTERNAL_POWEROFF_CMD:
+  262   3              DRIVER_FM_SwtchState(FM_WAITING_POWER_OFF, FM_SUBSTATE_NONE);
+  263   3              break;
+  264   3          }
+  265   2          OSMEM_Put((U8 XDATA_PTR)msgPtr);
+  266   2        }
+  267   1      }
+  268          
+  269          PRIVATE void DRIVER_FM_SeekTuneHandler(BOOL isSeek, BOOL isUp)
+  270          {
+  271   1        U8 cmdStatus;
+  272   1        
+  273   1        if(isSeek)
+  274   1        {
+  275   2          if(!api_iodrv_evt_func[API_GRP_IODRV_CB_FM_SEEK])
+  276   2          {
+  277   3            DRIVER_FM_ClearState(FM_ON);
+  278   3            return;   
+  279   3          } 
+  280   2        }
+  281   1        else
+  282   1        {
+  283   2          if(!api_iodrv_evt_func[API_GRP_IODRV_CB_FM_TUNE])
+  284   2          {
+  285   3            DRIVER_FM_ClearState(FM_ON);
+  286   3            return;   
+  287   3          } 
+  288   2        }
+  289   1      
+  290   1      
+  291   1        switch(gDriver_FM_Ctl.fmSubState)
+  292   1        {
+  293   2          case FM_SUBSTATE_SEEK_TUNE_WAIT_VP_RING_END:
+  294   2            if(DRIVER_IsRingToneOrVPOrATPlaying() || AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICECOMMAND))
+  295   2              break;
+  296   2      
+  297   2            gMMI_FM_Drv_Handler.fDriverFMBusyEvent((MMIMsgType XDATA_PTR)DRIVER_GetGeneralEventMemory(DRIVER_FM_BU
+             -SY_EVENT));
+  298   2            gDriver_FM_Ctl.fmSubState = FM_SUBSTATE_SEEK_TUNE_WAITING_DRV_READY;
+  299   2            break;
+  300   2      
+  301   2          case FM_SUBSTATE_SEEK_TUNE_WAITING_DRV_READY:
+  302   2            if(isSeek)
+  303   2              cmdStatus = ((API_IODRV_FM_SEEK_FUNC)api_iodrv_evt_func[API_GRP_IODRV_CB_FM_SEEK])(isUp);
+  304   2            else
+  305   2              cmdStatus = ((API_IODRV_FM_TUNE_FUNC)api_iodrv_evt_func[API_GRP_IODRV_CB_FM_TUNE])(isUp);
+  306   2              
+  307   2            if(cmdStatus == FM_CMD_STATUS_OK || cmdStatus == FM_CMD_STATUS_FAIL)
+C251 COMPILER V5.57.0,  Driver_FM                                                          08/11/20  05:51:51  PAGE 6   
+
+  308   2            {
+  309   3              DRIVER_FM_ClearState(FM_ON);
+  310   3              gMMI_FM_Drv_Handler.fDriverFMNotBusyEvent((MMIMsgType XDATA_PTR)DRIVER_GetGeneralEventMemory(DRIVER_F
+             -M_NOT_BUSY_EVENT));        
+  311   3            }
+  312   2            break;
+  313   2        }
+  314   1      }
+  315          
+  316          PRIVATE void DRIVER_FM_MuteOnOffHandler(BOOL isOn)
+  317          {
+  318   1        U8 cmdStatus;
+  319   1      
+  320   1        if(DRIVER_IsRingToneOrVPOrATPlaying() || AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICECOMMAND))
+  321   1          return;
+  322   1          
+  323   1        if(!api_iodrv_evt_func[API_GRP_IODRV_CB_FM_MUTE])
+  324   1        {
+  325   2          DRIVER_FM_ClearState(FM_ON);
+  326   2          return;   
+  327   2        } 
+  328   1          
+  329   1        cmdStatus = ((API_IODRV_FM_MUTE_FUNC)api_iodrv_evt_func[API_GRP_IODRV_CB_FM_MUTE])(isOn);
+  330   1        if(cmdStatus == FM_CMD_STATUS_OK || cmdStatus == FM_CMD_STATUS_FAIL)
+  331   1        { 
+  332   2          DRIVER_FM_ClearState(FM_ON);
+  333   2          gMMI_FM_Drv_Handler.fDriverFMCmdSetEvent(); 
+  334   2        }
+  335   1      }
+  336          
+  337          
+  338          PRIVATE void DRIVER_FM_WaitingPowerOffHandler(void)
+  339          {
+  340   1        if(DRIVER_IsRingToneOrVPOrATPlaying() || AUDIO_COMPONENT_IS_ACTIVE(AUDIO_VOICECOMMAND))
+  341   1          return;
+  342   1      
+  343   1        AUDIO_Close_AMP();
+  344   1        if(api_iodrv_evt_func[API_GRP_IODRV_CB_FM_AUDIO_OFF])
+  345   1        {
+  346   2          ((API_IODRV_FM_AUDIO_OFF_FUNC)api_iodrv_evt_func[API_GRP_IODRV_CB_FM_AUDIO_OFF])();
+  347   2        }
+  348   1        AUDIO_SetAudioOff(AUDIO_FM);
+  349   1        
+  350   1        if(api_iodrv_evt_func[API_GRP_IODRV_CB_FM_PWR_OFF])
+  351   1        {
+  352   2          ((API_IODRV_FM_PWR_OFF_FUNC)api_iodrv_evt_func[API_GRP_IODRV_CB_FM_PWR_OFF])();
+  353   2        }
+  354   1        
+  355   1        DRIVER_FM_ClearState(FM_OFF);
+  356   1        if(!DRIVER_IsMiscCtrlTypeEnabled(DRIVER_IS_RESUME_FM))
+  357   1        { 
+  358   2          gMMI_FM_Drv_Handler.fDriverFMDisabledEvent();
+  359   2        }
+  360   1      }
+  361          
+  362          PUBLIC void DRIVER_FM_Handler(void)
+  363          { 
+  364   1        DriverMsg XDATA_PTR msgPtr;
+  365   1        
+  366   1        if ((msgPtr = (DriverMsg XDATA_PTR)OSMQ_Get (OSMQ_FM_Command_From_MMI_ptr)) != (DriverMsg XDATA_PTR)NULL
+             -)
+  367   1        {
+  368   2          if(msgPtr->msgOpcode == DRIVER_FM_POWEROFF_CMD)
+  369   2          {
+  370   3            if(gDriver_FM_Ctl.fmState == FM_WAITING_POWER_ON)
+  371   3            {
+C251 COMPILER V5.57.0,  Driver_FM                                                          08/11/20  05:51:51  PAGE 7   
+
+  372   4              gDriver_FM_Ctl.fmSubState = FM_SUBSTATE_WAITING_ON_ABORT;
+  373   4            }
+  374   3            else if(gDriver_FM_Ctl.fmState == FM_SEEK_UP || gDriver_FM_Ctl.fmState == FM_SEEK_DOWN || gDriver_FM_C
+             -tl.fmState == FM_TUNE_UP || gDriver_FM_Ctl.fmState == FM_TUNE_DOWN)
+  375   3            {
+  376   4              DRIVER_FM_ClearState(FM_ON);
+  377   4              gMMI_FM_Drv_Handler.fDriverFMNotBusyEvent((MMIMsgType XDATA_PTR)DRIVER_GetGeneralEventMemory(DRIVER_F
+             -M_NOT_BUSY_EVENT));
+  378   4            }
+  379   3            else if(gDriver_FM_Ctl.fmState == FM_MUTE_ON || gDriver_FM_Ctl.fmState == FM_MUTE_OFF)
+  380   3            {
+  381   4              DRIVER_FM_ClearState(FM_ON);
+  382   4              gMMI_FM_Drv_Handler.fDriverFMCmdSetEvent();
+  383   4            }
+  384   3          }
+  385   2          OSMQ_PutFront(OSMQ_FM_Command_From_MMI_ptr,(U8 XDATA_PTR)msgPtr);
+  386   2        }
+  387   1      
+  388   1        switch(gDriver_FM_Ctl.fmState)
+  389   1        {
+  390   2          case FM_OFF:
+  391   2            DRIVER_FM_OffHandler();
+  392   2            break;
+  393   2          case FM_WAITING_POWER_ON:
+  394   2            DRIVER_FM_WaitingPowerOnHandler();
+  395   2            break;
+  396   2          case FM_ON:
+  397   2            DRIVER_FM_PowerOnHandler();
+  398   2            break;
+  399   2          case FM_SEEK_UP:
+  400   2            DRIVER_FM_SeekTuneHandler(TRUE, TRUE);
+  401   2            break;
+  402   2          case FM_SEEK_DOWN:
+  403   2            DRIVER_FM_SeekTuneHandler(TRUE, FALSE);
+  404   2            break;
+  405   2          case FM_TUNE_UP:
+  406   2            DRIVER_FM_SeekTuneHandler(FALSE, TRUE);
+  407   2            break;
+  408   2          case FM_TUNE_DOWN:
+  409   2            DRIVER_FM_SeekTuneHandler(FALSE, FALSE);
+  410   2            break;
+  411   2          case FM_MUTE_ON:
+  412   2            DRIVER_FM_MuteOnOffHandler(TRUE);
+  413   2            break;
+  414   2          case FM_MUTE_OFF:
+  415   2            DRIVER_FM_MuteOnOffHandler(FALSE);
+  416   2            break;
+  417   2          case FM_WAITING_POWER_OFF:
+  418   2            DRIVER_FM_WaitingPowerOffHandler();
+  419   2            break;
+  420   2        }
+  421   1      }
+  422          
+  423          PUBLIC S16 DRIVER_FM_GetFreq(void)
+  424          {
+  425   1        if(api_iodrv_evt_func[API_GRP_IODRV_CB_FM_GETFREQ])
+  426   1        {
+  427   2          return (((API_IODRV_FM_GETFREQ_FUNC)api_iodrv_evt_func[API_GRP_IODRV_CB_FM_GETFREQ])());
+  428   2        }
+  429   1        return 0;
+  430   1      }
+  431          
+  432          PUBLIC void DRIVER_FM_Resume(void)
+  433          {
+  434   1        if(!DRIVER_IsDSPOgfAppOn())
+  435   1        {
+C251 COMPILER V5.57.0,  Driver_FM                                                          08/11/20  05:51:51  PAGE 8   
+
+  436   2          if(DRIVER_IsMiscCtrlTypeEnabled(DRIVER_IS_RESUME_FM) && !AUDIO_COMPONENT_IS_ACTIVE(AUDIO_FM) )
+  437   2          {
+  438   3            DRIVER_FM_SwtchState(FM_WAITING_POWER_ON, FM_SUBSTATE_WAITING_ON_CLOSE_OTHER_AUDIOS);
+  439   3            DRIVER_SetMiscCtrlMap(DRIVER_IS_RESUME_FM, FALSE);
+  440   3          }
+  441   2        }
+  442   1        else
+  443   1        {
+  444   2          DRIVER_SetMiscCtrlMap(DRIVER_IS_RESUME_FM, FALSE);
+  445   2        }
+  446   1      }
+  447          
+  448          PUBLIC void DRIVER_FM_InternalPowerOff(void)
+  449          {
+  450   1        DriverMsg XDATA_PTR msgPtr;
+  451   1        msgPtr = (DriverMsg XDATA_PTR)OSMEM_Get(OSMEM_ptr1);
+  452   1        msgPtr->msgOpcode = DRIVER_FM_INTERNAL_POWEROFF_CMD;
+  453   1        OSMQ_PutFront(OSMQ_FM_Command_From_MMI_ptr, (U8 XDATA_PTR)msgPtr);
+  454   1      }
+  455          
+  456          PUBLIC void DRIVER_FM_PowerOnCmd(S16 setFreq, U8 historyVol)
+  457          {
+  458   1        DriverMsg XDATA_PTR msgPtr;
+  459   1        msgPtr = (DriverMsg XDATA_PTR)OSMEM_Get(OSMEM_ptr1);
+  460   1        msgPtr->msgOpcode = DRIVER_FM_POWERON_CMD;
+  461   1        msgPtr->msgBodyPtr.driverCmd.FMCmd.fmPoweronPara.setFreq = setFreq;
+  462   1        msgPtr->msgBodyPtr.driverCmd.FMCmd.fmPoweronPara.historyVol = historyVol;
+  463   1        msgPtr->msgBodyPtr.driverCmd.FMCmd.fmPoweronPara.isMute = 0;
+  464   1        OSMQ_Put(OSMQ_FM_Command_From_MMI_ptr, (U8 XDATA_PTR)msgPtr);
+  465   1      }
+  466          
+  467          PUBLIC void DRIVER_FM_PowerOffCmd(void)
+  468          {
+  469   1        DriverMsg XDATA_PTR msgPtr;
+  470   1        msgPtr = (DriverMsg XDATA_PTR)OSMEM_Get(OSMEM_ptr1);
+  471   1        msgPtr->msgOpcode = DRIVER_FM_POWEROFF_CMD;
+  472   1        OSMQ_PutFront(OSMQ_FM_Command_From_MMI_ptr, (U8 XDATA_PTR)msgPtr);
+  473   1      }
+  474          
+  475          PUBLIC void DRIVER_FM_TuneCmd(BOOL isUp)
+  476          {
+  477   1        DriverMsg XDATA_PTR msgPtr;
+  478   1        msgPtr = (DriverMsg XDATA_PTR)OSMEM_Get(OSMEM_ptr1);
+  479   1        msgPtr->msgOpcode = (isUp)?DRIVER_FM_TUNEUP_CMD:DRIVER_FM_TUNEDN_CMD;
+  480   1        OSMQ_Put(OSMQ_FM_Command_From_MMI_ptr, (U8 XDATA_PTR)msgPtr);
+  481   1      }
+  482          
+  483          PUBLIC void DRIVER_FM_SeekCmd(BOOL isUp)
+  484          {
+  485   1        DriverMsg XDATA_PTR msgPtr;
+  486   1        msgPtr = (DriverMsg XDATA_PTR)OSMEM_Get(OSMEM_ptr1);
+  487   1        msgPtr->msgOpcode = (isUp)?DRIVER_FM_HWSEEKUP_CMD:DRIVER_FM_HWSEEKDN_CMD;
+  488   1        OSMQ_Put(OSMQ_FM_Command_From_MMI_ptr, (U8 XDATA_PTR)msgPtr);
+  489   1      }
+  490          
+  491          PUBLIC void DRIVER_FM_MuteCmd(U8 muteMode)
+  492          {
+  493   1        DriverMsg XDATA_PTR msgPtr;
+  494   1        msgPtr = (DriverMsg XDATA_PTR)OSMEM_Get(OSMEM_ptr1);
+  495   1        if(muteMode == FM_MUTE_MODE_OFF)
+  496   1          msgPtr->msgOpcode = DRIVER_FM_MUTE_OFF_CMD;
+  497   1        else if(muteMode == FM_MUTE_MODE_ON)
+  498   1          msgPtr->msgOpcode = DRIVER_FM_MUTE_ON_CMD;
+  499   1        else
+  500   1          msgPtr->msgOpcode = DRIVER_FM_MUTETOGGLE_CMD;
+  501   1      
+C251 COMPILER V5.57.0,  Driver_FM                                                          08/11/20  05:51:51  PAGE 9   
+
+  502   1        OSMQ_Put(OSMQ_FM_Command_From_MMI_ptr, (U8 XDATA_PTR)msgPtr);
+  503   1      }
+  504          
+  505          PUBLIC void DRIVER_FM_VolumeCmd(U8 FMVolume)
+  506          {
+  507   1        DriverMsg XDATA_PTR msgPtr;
+  508   1        msgPtr = (DriverMsg XDATA_PTR)OSMEM_Get(OSMEM_ptr1);
+  509   1        msgPtr->msgOpcode = DRIVER_FM_VOLUME_CMD;
+  510   1        msgPtr->msgBodyPtr.driverCmd.FMCmd.FMVolume = FMVolume;
+  511   1        OSMQ_Put(OSMQ_FM_Command_From_MMI_ptr, (U8 XDATA_PTR)msgPtr);
+  512   1        LightDbgPrint("FM SoundLevel:%d", (U8)gMMI_FM_ctl.curFMSoundLevel);
+  513   1      }
+  514          #endif //FM_ENABLE
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =      1666     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =        12     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =        17     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,85 @@
+C251 COMPILER V5.57.0,  SDK_Profile                                                        08/11/20  06:34:42  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE SDK_Profile
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\SDK_Profile.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SDK\Profile\SDK_Profile.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(
+                    -HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\
+                    -OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;
+                    -.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\RO
+                    -M\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR
+                    -\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFI
+                    -NE(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoH
+                    -eadset\SDK_Profile.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\SDK_Profile.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #include "rc.h"
+    4          #include "..\SDK_Proxy\SDK_Proxy.h"
+    5          #include "..\SDK\include\SDK_Config.h"
+    6          
+    7          #define SDK_PROFILE_CONNECTED   TRUE
+    8          #define SDK_PROFILE_DISCONNECTED  FALSE
+    9          
+   10          #if SDK_PROFILE
+               
+               #if SDK_HFP_AT_XEVENT_SAMPLE_CODE
+               #include "..\SDK\include\SDK_HFP.h"
+               #include "..\MMI\MMI_SCN.h"
+               #endif
+               
+               PUBLIC void SDK_Profile_ConnectStatus(U8 linkIndex, U8 profileID, U8 status)
+               {
+                 UNUSED(linkIndex);
+                 if(status == SDK_PROFILE_CONNECTED)
+                 {
+                   LightDbgPrint("SDK Profile[%x] is connected",(U8)profileID);
+                   #if SDK_HFP_AT_XEVENT_SAMPLE_CODE
+                   if(profileID == PROFILE_HANDSFREE)
+                   {
+                     SDK_HFP_SendATCmd(linkIndex, SDK_HFP_CMD_XEVENT);
+                   }
+                   #endif
+                 }
+                 else if(status == SDK_PROFILE_DISCONNECTED)
+                 {
+                   LightDbgPrint("SDK Profile[%x] is disconnected",(U8)profileID);
+                 }
+               }
+               #endif
+   36          
+   37          PUBLIC void SDK_Profile_Init(void)
+   38          {
+   39   1        #if SDK_PROFILE
+                 SDK_Proxy_RegisterAPI( API_GRP_PF_CB_CONNECTION_STATUS, API_GRP_PROFILE, (VFUN)SDK_Profile_ConnectStatus
+             -);
+                 #endif
+   42   1      }
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =         1     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+C251 COMPILER V5.57.0,  SDK_Profile                                                        08/11/20  06:34:42  PAGE 2   
+
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =    ------     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

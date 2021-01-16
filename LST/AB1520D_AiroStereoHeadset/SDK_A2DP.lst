@@ -1,0 +1,136 @@
+C251 COMPILER V5.57.0,  SDK_A2DP                                                           08/11/20  06:34:40  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE SDK_A2DP
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\SDK_A2DP.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SDK\Profile\SDK_A2DP.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUG
+                    -E) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;
+                    -.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\s
+                    -ource\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\M
+                    -MI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\Ds
+                    -pData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(
+                    -FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoHead
+                    -set\SDK_A2DP.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\SDK_A2DP.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #include "rc.h"
+    4          #include "..\SDK_Proxy\SDK_Proxy.h"
+    5          #include "..\SDK\include\SDK_Config.h"
+    6          
+    7          #if SDK_A2DP
+               #include "..\A2DP\A2DP_Interface.h"
+               #include "..\MMI\MMI_A2DP.h"
+               
+               
+               PUBLIC BOOL SDK_A2DP_IsInStreaming(U8 linkIndex)
+               {
+                 return MMI_A2DP_IsInStreaming(linkIndex);
+               }
+               
+               PRIVATE void SDK_A2DP_StatusChanged(U8 linkIndex, U8 newStatus)
+               {
+                 switch(newStatus)
+                 {
+                   case PROFILE_DISCONNECTED:
+                     LightDbgPrint("SDK A2DP[%d]: PROFILE_DISCONNECTED", (U8)linkIndex);
+                     break;
+                   case PROFILE_CONNECTING:
+                     LightDbgPrint("SDK A2DP[%d]: PROFILE_CONNECTING", (U8)linkIndex);
+                     break;
+                   case PROFILE_CONNECTED:
+                     LightDbgPrint("SDK A2DP[%d]: PROFILE_CONNECTED", (U8)linkIndex);
+                     break;
+                   case PROFILE_DISCONNECTING:
+                     LightDbgPrint("SDK A2DP[%d]: PROFILE_DISCONNECTING", (U8)linkIndex);
+                     break;
+                   case A2DP_CONFIGURED:
+                     LightDbgPrint("SDK A2DP[%d]: A2DP_CONFIGURED", (U8)linkIndex);
+                     break;
+                   case A2DP_OPEN:
+                     LightDbgPrint("SDK A2DP[%d]: A2DP_OPEN", (U8)linkIndex);
+                     break;
+                   case A2DP_STREAMING:
+                     LightDbgPrint("SDK A2DP[%d]: A2DP_STREAMING", (U8)linkIndex);
+                     break;
+                   case A2DP_CLOSING:
+                     LightDbgPrint("SDK A2DP[%d]: A2DP_CLOSING", (U8)linkIndex);
+                     break;
+                   case A2DP_ABORTING:
+                     LightDbgPrint("SDK A2DP[%d]: A2DP_ABORTING", (U8)linkIndex);
+                     break;  
+                 }
+               }
+               
+               U8 XDATA gSDK_A2DP_status[MAX_MULTI_POINT_NO];
+               PRIVATE void SDK_A2DP_CheckStatus(void)
+C251 COMPILER V5.57.0,  SDK_A2DP                                                           08/11/20  06:34:40  PAGE 2   
+
+               {
+                 U8 linkIndex;
+                 for(linkIndex = 0; linkIndex < MAX_MULTI_POINT_NO; linkIndex++)
+                 {
+                   if(gSDK_A2DP_status[linkIndex] != A2DP_GetState(linkIndex))
+                   {
+                     gSDK_A2DP_status[linkIndex] = A2DP_GetState(linkIndex);
+                     SDK_A2DP_StatusChanged(linkIndex, gSDK_A2DP_status[linkIndex]);
+                   }
+                 }
+               }
+               
+               PUBLIC void SDK_A2DP_CB_AudioStatus(U8 linkIndex, U8 status)
+               {
+                 if(status)
+                 {
+                   LightDbgPrint("A2DP Audio is On",(U8)linkIndex);
+                 }
+                 else
+                 {
+                   LightDbgPrint("A2DP Audio is Off",(U8)linkIndex);
+                 }
+               }
+               
+               PUBLIC BOOL SDK_A2DP_IsAudioOn(U8 linkIndex)
+               {
+                 return MMI_A2DP_IsAudioOn(linkIndex);
+               }
+               
+               PUBLIC void SDK_A2DP_Polling(void)
+               {
+                 SDK_A2DP_CheckStatus();
+               }
+               #endif
+   87          
+   88          
+   89          PUBLIC void SDK_A2DP_Init(void)
+   90          {
+   91   1        #if SDK_A2DP
+                 SDK_Proxy_RegisterAPI( API_GRP_PF_CB_A2DP_AUDIO_STATUS, API_GRP_PROFILE, (VFUN)SDK_A2DP_CB_AudioStatus);
+                 #endif
+   94   1      }
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =         1     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =    ------     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,33 @@
+#ifndef _MSG_OFFSET_H_
+#define _MSG_OFFSET_H_
+/*
+ * AIROHA Bluetooth Device Firmware
+ * COPYRIGHT (C) 2014 AIROHA TECHNOLOGY CORP. CO., LTD. ALL RIGHTS RESERVED
+ *
+ * msg_offset.h is the file defines offset value for message generation in lower
+ * layer.
+ *
+ * Programmer : CharlesSu@airoha.com.tw, Ext.2882
+ */
+#include "config.h"
+#include "cpu.h"
+#include "os.h"
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Message Offset //////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+EXTERN U8 DATA HC_CMD_MSG_OFFSET_FROM_UART;
+EXTERN U8 DATA HC_EVT_MSG_OFFSET_TO_HOST;
+EXTERN U8 DATA RX_PDU_MSG_DATA_OFFSET;
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Function Prototypees ////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+EXTERN OS_DATA_PTR SYS_NewMsg(U8 Offset, SIZE Size);
+
+#endif /* _MSG_OFFSET_H_ */
+

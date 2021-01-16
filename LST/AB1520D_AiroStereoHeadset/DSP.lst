@@ -1,0 +1,329 @@
+C251 COMPILER V5.57.0,  DSP                                                                08/11/20  06:34:06  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE DSP
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\DSP.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\DSP\DSP.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) WARNINGLEV
+                    -EL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\source\HC;.
+                    -\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\source\ROM\LC;
+                    -.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_LE;.\sourc
+                    -e\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspData;.\sourc
+                    -e\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLASH_INIT=1,
+                    -AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoHeadset\DSP.lst) 
+                    -TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\DSP.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #define _DSP_C_
+    4          
+    5          
+    6          #include "config.h"
+    7          #include <srom.h>
+    8          #include "rc_flash.h"
+    9          #include "DSP_Interface.h"
+   10          #include "sector_dsp_data.h"
+   11          #include "sector_boundary.h"
+   12          #include "align_flash.h"
+   13          #include "sector_config1.h"
+   14          
+   15          #include "../HC/HC_Interface.h"
+   16          #include "../Driver/Driver_Interface.h"
+   17          
+   18          #ifdef AB1520S
+                 #include "../DSP/AB1520S_DSP/DSP_ROM_AB1520S_VERSION.h"
+               #else
+   21            #include "../DSP/AB1520_DSP/DSP_ROM_AB1520_VERSION.h"
+   22          #endif
+   23          
+   24          
+   25          #define DSP_PARA_SECTOR_DATA_OFFSET_IN_BYTE (2)
+   26          
+   27          
+   28          #ifdef DSP_ENABLE
+   29          
+   30          #ifndef AB1528C_ONLY
+   31          SROM_MC(HCONST_DSP_ROM) // Create external declarations for the HCONST_DSP_ROM Class
+   32          #endif
+   33          
+   34          PUBLIC void DSP_Init (void)
+   35          {
+   36   1        FOUR_BYTE_UNION_TYPE address;
+   37   1        U8 CODE_PTR dsp_para_address;
+   38   1      
+   39   1          LightDbgPrint("DSP - DSP Revision: %D", (U32)DSP_ROM_VERSION);
+   40   1      
+   41   1          gAlignOSMEM.pAlignDSP = (U8 XDATA_PTR)&gAlignDSP;
+   42   1      
+   43   1          #ifdef AB1520B
+                   dsp_para_address = DSP_GetCODEAddr( GET_SECTOR_DSP_DATA_ADDR(SECTOR_DSP_FUNC_PARAMETER) );
+                   #else
+   46   1          dsp_para_address = DSP_GetCODEAddr( GET_SECTOR_BOUNDARY_ADDR(SECTOR_DSP_FUNC_PARAMETER) );
+   47   1          #endif
+   48   1      
+   49   1          gAlignDSP.DSP_FUNC_PARA_START_ADDR = (U32)dsp_para_address;
+   50   1      
+   51   1          gAlignDSP.MCU_DSP_PARA_START_ADDR = ((U32)dsp_para_address) + sizeof(DSP_FUNC_PARA_STRU);
+   52   1      
+C251 COMPILER V5.57.0,  DSP                                                                08/11/20  06:34:06  PAGE 2   
+
+   53   1      
+   54   1        SFR_WR_TEST_AND_SET = 0;
+   55   1      
+   56   1        //- load sector
+   57   1        OSMEM_memcpy_xdata_code ((U8 XDATA_PTR) &gAlignDSP.DSP_nvram, GET_SECTOR_CFG1_ADDR(SECTOR_MCU_DSP_PARAME
+             -TER_INIT), sizeof (DSP_NVRAM_CTL_TYPE));
+   58   1      
+   59   1      
+   60   1          #ifdef AB1520B
+                 gDSP_ctl.dspSectorPtr = (DSP_FUNC_PARA_CTL_STRU CODE_PTR)GET_SECTOR_DSP_DATA_ADDR(SECTOR_DSP_FUNC_PARAME
+             -TER);
+                   #else
+   63   1          gDSP_ctl.dspSectorPtr = (DSP_FUNC_PARA_CTL_STRU CODE_PTR)GET_SECTOR_BOUNDARY_ADDR(SECTOR_DSP_FUNC_PAR
+             -AMETER);
+   64   1          #endif
+   65   1      
+   66   1        if(((DRIVER_CTL_TYPE CODE_PTR)(GET_SECTOR_CFG1_ADDR(SECTOR_DRIVER_CTL_INIT)))->zsp_enable)
+   67   1        {
+   68   2          //- DSP
+   69   2            HC_SFR_WRITE_BY_FB (FBOFFS_WO_DSP_CKSEL, (gAlignDSP.DSP_nvram.mcu_parameter.dsp_cksel&0x3));  //  1 D
+             -SP: 24M
+   70   2      
+   71   2          //- Read chip select
+   72   2      //    gAlignDSP.DSP_nvram.dsp_stereo_parameter.CHIP_SEL = LC_SFR_READ_BY_C2(C2OFFS_RO_VERSION_NUMBER) & 0x4
+             -0;
+   73   2      
+   74   2          //- SMALL TRX MEMORY
+   75   2        }
+   76   1      
+   77   1        #ifdef AB1528C_ONLY
+                 address.value = FLASH_MEMORY_MAP(GET_SECTOR_DSP_DATA_ADDR(SECTOR_DSP_ROM));
+                 #else
+   80   1        address.value = FLASH_MEMORY_MAP(SROM_MC_TRG(HCONST_DSP_ROM));
+   81   1        #endif
+   82   1      
+   83   1        if(((DRIVER_CTL_TYPE CODE_PTR)(GET_SECTOR_CFG1_ADDR(SECTOR_DRIVER_CTL_INIT)))->zsp_enable)
+   84   1        {
+   85   2          HC_SFR_WRITE_BY_FB(FBOFFS_WO_DSP_RST, 0);     // ZSP disable
+   86   2      
+   87   2          LC_SFR_WRITE_BY_FE(FEOFFS_RW_SFR_DIV_ADDR_B0, address.in_byte.B0);
+   88   2          LC_SFR_CONT_WRITE_BY_FE(address.in_byte.B1);
+   89   2          LC_SFR_CONT_WRITE_BY_FE(address.in_byte.B2);
+   90   2      
+   91   2          HC_SFR_WRITE_BY_FB(FBOFFS_WO_DSP_BOOT_CLK, 1);    // 0 = external jtag or flash boot
+   92   2          HC_SFR_WRITE_BY_FB(FBOFFS_WO_DSP_DMEM_SIZE, 11);  // 7 means DSP internal memory is 32K words
+   93   2      
+   94   2          //- for DSP ice debug
+   95   2          if(((DRIVER_CTL_TYPE CODE_PTR)(GET_SECTOR_CFG1_ADDR(SECTOR_DRIVER_CTL_INIT)))->DSP_always_on)
+   96   2          {
+   97   3            //DSP_PTR_TO_XDATA = 0; sys init will reset all XDATA
+   98   3            DSP_Enable (gAlignDSP.DSP_nvram.mcu_parameter.dsp_cksel);
+   99   3            SetPowerSavingForDevice(FALSE, PWRSAV_DSP); //- Need to disable power saving when using DSP ice
+  100   3          }
+  101   2        }
+  102   1      }
+  103          
+  104          PUBLIC U8 XDATA Enable_DSP;
+  105          
+  106          PUBLIC void DSP_Enable (U16 dspClk)
+  107          {
+  108   1        OST LDATA dspWaitingTimer;
+  109   1      
+  110   1        if (!Enable_DSP)
+  111   1        {
+  112   2          gAlignDSP.DSP_nvram.mcu_parameter.dsp_cksel = dspClk;
+  113   2          dspClk &= 0x0003;
+C251 COMPILER V5.57.0,  DSP                                                                08/11/20  06:34:06  PAGE 3   
+
+  114   2          OS_ENTER_CRITICAL ();
+  115   2          HC_SFR_WRITE_BY_FB (FBOFFS_WO_DSP_CKSEL, (U8)dspClk);
+  116   2          _nop_();
+  117   2          _nop_();
+  118   2          _nop_();
+  119   2          _nop_();
+  120   2          _nop_();
+  121   2          HC_SFR_WRITE_BY_FB(FBOFFS_WO_DSP_RST, 1);     // enable DSP circuit
+  122   2          _nop_();
+  123   2          _nop_();
+  124   2          _nop_();
+  125   2          _nop_();
+  126   2          _nop_();
+  127   2          OS_EXIT_CRITICAL();
+  128   2      
+  129   2          gSYS_allow_updating = FALSE;
+  130   2          Enable_DSP = TRUE;
+  131   2          DRIVER_SetBusyMask(TRUE, DRIVER_BUSY_DSP_ON);
+  132   2      
+  133   2          OST_SetTimer(&dspWaitingTimer, 8L);
+  134   2          while(!OST_TimerExpired(&dspWaitingTimer));
+  135   2      
+  136   2          LightDbgPrint("DSP - DSP Enable:%x",(U8)dspClk);
+  137   2        }
+  138   1      }
+  139          
+  140          PUBLIC void DSP_Disable (void)
+  141          {
+  142   1        LightDbgPrint("DSP - DSP Will be Disabled");
+  143   1      
+  144   1          OS_delay_ms(5);
+  145   1      
+  146   1        OS_ENTER_CRITICAL ();
+  147   1        _nop_();
+  148   1          _nop_();
+  149   1          _nop_();
+  150   1          _nop_();
+  151   1          _nop_();
+  152   1          _nop_();
+  153   1          _nop_();
+  154   1          _nop_();
+  155   1          _nop_();
+  156   1          _nop_();
+  157   1          _nop_();
+  158   1          _nop_();
+  159   1          _nop_();
+  160   1          _nop_();
+  161   1          _nop_();
+  162   1          _nop_();
+  163   1          HC_SFR_WRITE_BY_FB(FBOFFS_WO_DSP_RST, 0);               // ZSP disable
+  164   1          HC_SFR_WRITE_BY_FB(FBOFFS_WO_MCU_CACHE_FLUSH, 1);       // MCU cache flush
+  165   1        _nop_();
+  166   1          _nop_();
+  167   1          _nop_();
+  168   1          _nop_();
+  169   1          _nop_();
+  170   1          _nop_();
+  171   1          _nop_();
+  172   1          _nop_();
+  173   1          _nop_();
+  174   1          _nop_();
+  175   1          _nop_();
+  176   1          _nop_();
+  177   1          _nop_();
+  178   1          _nop_();
+  179   1          _nop_();
+C251 COMPILER V5.57.0,  DSP                                                                08/11/20  06:34:06  PAGE 4   
+
+  180   1          _nop_();
+  181   1        OS_EXIT_CRITICAL();
+  182   1      
+  183   1        Enable_DSP = FALSE;
+  184   1        gSYS_allow_updating = TRUE;
+  185   1        DRIVER_SetBusyMask(FALSE, DRIVER_BUSY_DSP_ON);
+  186   1      
+  187   1        LightDbgPrint("DSP - DSP Disabled");
+  188   1      }
+  189          
+  190          PUBLIC void DSP_EnableDSPInterruptForAudio(void)
+  191          {
+  192   1        U8 mask;
+  193   1        //enable DSP interrupt
+  194   1        OS_ENTER_CRITICAL ();
+  195   1        mask = LC_SFR_READ_BY_FE(FEOFFS_RW_INTF_INT_MASK);
+  196   1        if(!(mask & INT1_ENABLE_DSP))
+  197   1        {
+  198   2          mask |= INT1_ENABLE_DSP; //0x80
+  199   2          LC_SFR_WRITE_BY_FE(FEOFFS_RW_INTF_INT_MASK, mask); //dsp debug
+  200   2        }
+  201   1        OS_EXIT_CRITICAL ();
+  202   1      }
+  203          
+  204          PUBLIC void DSP_DisableDSPInterruptForAudio(void)
+  205          {
+  206   1        U8 mask;
+  207   1        OS_ENTER_CRITICAL ();
+  208   1        //stop the voice prompt automatically;
+  209   1        mask = LC_SFR_READ_BY_FE(FEOFFS_RW_INTF_INT_MASK);
+  210   1        mask &= (~INT1_ENABLE_DSP); //0x80
+  211   1        LC_SFR_WRITE_BY_FE(FEOFFS_RW_INTF_INT_MASK, mask); //dsp debug
+  212   1        OS_EXIT_CRITICAL ();
+  213   1      }
+  214          
+  215          PUBLIC U8 CODE_PTR DSP_GetCODEAddr(U8 CODE_PTR dsp_para_address)
+  216          {
+  217   1        #ifdef AB1528C_ONLY
+                   return (U8 CODE_PTR)((U32)dsp_para_address - (U32)GET_SECTOR_DSP_DATA_ADDR(SECTOR_DSP_ROM));
+                 #else
+  220   1        return (U8 CODE_PTR)((U32)dsp_para_address - (U32)SROM_MC_TRG(HCONST_DSP_ROM));
+  221   1        #endif
+  222   1      }
+  223          
+  224          PUBLIC VOID DSP_TrapNotifier(VOID)
+  225          {
+  226   1          U16 DebugMsg = gAlignDSP.debug_var_trap;
+  227   1      
+  228   1          if (DebugMsg == 0xFFFF)
+  229   1          {
+  230   2              LightDbgPrint("DSP - DSP Is In D-Sleep");
+  231   2          }
+  232   1          else if (DebugMsg >= 1000)
+  233   1          {
+  234   2              DebugMsg -= 1000;
+  235   2              LightDbgPrint("DSP - DSP Warning Msg: %D", (U32)DebugMsg);
+  236   2          LightDbgPrint("DSP - %D,%D,%D", (U32)gAlignDSP.debug_var01,
+  237   2                                              (U32)gAlignDSP.debug_var02,
+  238   2                                              (U32)gAlignDSP.debug_var03);
+  239   2          }
+  240   1          else
+  241   1          {
+  242   2              LightDbgPrint("DSPTrap%D,%D,%D,%D", (U32)DebugMsg,
+  243   2                                                  (U32)gAlignDSP.debug_var01,
+  244   2                                                  (U32)gAlignDSP.debug_var02,
+  245   2                                                  (U32)gAlignDSP.debug_var03);
+C251 COMPILER V5.57.0,  DSP                                                                08/11/20  06:34:06  PAGE 5   
+
+  246   2              ASSERT(FALSE);
+  247   2          }
+  248   1      }
+  249          
+  250          PUBLIC VOID DSP_DebugPrint(VOID)
+  251          {
+  252   1          U8 XDATA_PTR ptr1;
+  253   1      
+  254   1          while (ptr1 = (U8 XDATA_PTR)OSMQ_MCU_DSP_Get(OSMQ_DSP_DebugDataOut_ptr))
+  255   1          {
+  256   2              LightDbgPrintDsp(ptr1);
+  257   2            OSMEM_Put(ptr1);
+  258   2          }
+  259   1      }
+  260          
+  261          
+  262          PUBLIC U16 DSP_GetCurrentClock(void)
+  263          {
+  264   1        return gAlignDSP.DSP_nvram.mcu_parameter.dsp_cksel;
+  265   1      }
+  266          
+  267          #endif //DSP_ENABLE
+  268          
+  269          PUBLIC BOOL DSP_IsDSPEnabled(void)
+  270          {
+  271   1        #ifdef DSP_ENABLE
+  272   1        return (Enable_DSP) ? TRUE : FALSE;
+  273   1        #else
+                 return FALSE;
+                 #endif
+  276   1      }
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =      1019     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =         5     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       173     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,9 @@
+
+#define IS_DSP_BUSY	(FALSE)
+
+PUBLIC U8 DRIVER_SCOCmdHandler1500(DriverMsg XDATA_PTR msgPtr);
+PUBLIC U8 DRIVER_A2DPCmdHandler1500(DriverMsg XDATA_PTR msgPtr);
+PUBLIC U8 DRIVER_LineInCmdHandler1500(DriverMsg XDATA_PTR msgPtr);
+PUBLIC U8 DRIVER_StopDSPCmdHandler1500(DriverMsg XDATA_PTR msgPtr);
+PUBLIC U8 DRIVER_StopLineInCmdHandler1500(DriverMsg XDATA_PTR msgPtr);
+PUBLIC U8 DRIVER_StopDSPPowerOffCmdHandler1500(DriverMsg XDATA_PTR msgPtr);

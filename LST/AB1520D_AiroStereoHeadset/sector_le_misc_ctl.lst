@@ -1,0 +1,71 @@
+C251 COMPILER V5.57.0,  sector_le_misc_ctl                                                 08/11/20  06:32:19  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_le_misc_ctl
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\sector_le_misc_ctl.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\sector_le_misc_ctl.c XSMALL HPTR FUNCTIONS(REENTRANT) RO
+                    -M(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\sourc
+                    -e\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\L
+                    -L;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\
+                    -ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECT
+                    -OR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DE
+                    -FINE(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStere
+                    -oHeadset\sector_le_misc_ctl.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\sector_le_misc_ctl.obj) 
+
+stmt  level    source
+
+    1          #include "cpu.h"
+    2          #include "sector_le_misc_ctl.h"
+    3          #include "ctlr_config.h"
+    4          
+    5          #pragma userclass (HCONST = CONFIG)
+    6          
+    7          
+    8          #if LE_SUPPORTED_CONTROLLER
+    9          
+   10          ////////////////////////////////////////////////////////////////////////////////
+   11          // Global Variables ////////////////////////////////////////////////////////////
+   12          ////////////////////////////////////////////////////////////////////////////////
+   13          
+   14          SECTOR_LE_MISC_CTL_STRU CODE gLE_MISC_Ctl_Init =
+   15          {
+   16          
+   17              {
+   18                  0,       //- U8 autoInitiateLenUpdateReq;
+   19                  246,     //- U16 connInitMaxRxOctets; 
+   20                  2080,    //- U16 connInitMaxRxTime;  
+   21                  246,     //- U16 connInitMaxTxOctets;
+   22                  2080,    //- U16 connInitMaxTxTime;  
+   23                  246,     //- U16 supportedMaxRxOctets;
+   24                  2080,    //- U16 supportedMaxRxTime;
+   25                  251,     //- U16 supportedMaxTxOctets;
+   26                  2120     //- U16 supportedMaxTxTime;    
+   27               },
+   28              //- CRC
+   29              {0,0}
+   30          };
+   31          #endif
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =        19     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

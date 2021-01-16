@@ -1,0 +1,130 @@
+C251 COMPILER V5.57.0,  sector_a2dp_nvram_ctl_type                                         08/11/20  05:51:24  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_a2dp_nvram_ctl_type
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\sector_a2dp_nvram_ctl_type.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\sector_a2dp_nvram_ctl_type.c XSMALL HPTR FUNCTIONS(REENT
+                    -RANT) ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER
+                    -;.\source\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\sour
+                    -ce\ROM\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.
+                    -\source\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\sou
+                    -rce\SECTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\Tool
+                    -Misc) DEFINE(FLASH_INIT=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520C_A
+                    -iroStereoHeadset\sector_a2dp_nvram_ctl_type.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\sector_a2dp_nvram_ctl
+                    -_type.obj) 
+
+stmt  level    source
+
+    1          //////////////////////////////////////////////////////////
+    2          // Copyright@ 2011 Airoha.  All right reserved.
+    3          //////////////////////////////////////////////////////////
+    4          
+    5          #include "sector_a2dp_nvram_ctl.h"
+    6          
+    7          #pragma userclass (HCONST = CONFIG)
+    8          
+    9          
+   10          #ifdef A2DP_Profile
+   11          
+   12          SECTOR_A2DP_NVRAM_CTL_STRU CODE gA2DP_nvram_ctl_init =
+   13          {
+   14            {
+   15              100,  //defaultDelayReport, unit: 0.1ms
+   16              //- capabilities
+   17              {
+   18                A2DP_SEID_NUM,  //a2dp_sep_num
+   19                { //asepidCtl
+   20                  #if SUPPORT_SBC_SNK
+   21                  {0x00, 0x00, SBC_SNK_SEID, 0x00, A2DP_SEP_SNK, A2DP_AUDIO},
+   22                  #endif
+   23                  #if SUPPORT_AAC_SNK
+   24                  {0x00, 0x00, AAC_SNK_SEID, 0x00, A2DP_SEP_SNK, A2DP_AUDIO},
+   25                  #endif
+   26                  #if SUPPORT_SBC_SRC
+                       {0x00, 0x00, SBC_SRC_SEID, 0x00, A2DP_SEP_SRC, A2DP_AUDIO},
+                       #endif
+   29                },
+   30          
+   31                { //sbcServiceCapabilities
+   32                  MEDIA_TRANSPORT, 0x00,  // media transport : 0x01, length is 0x00
+   33                  CONTENT_PROTECTION, 02, // content protection: 0x04
+   34                  (U8)(A2DP_CP_SCMS_T), (U8)(A2DP_CP_SCMS_T >> 8),
+   35                  MEDIA_CODEC, 0x06,    // media codec  : 0x07, length is 0x06
+   36                  AUDIO_TYPE,       // Audio type
+   37                  SBC_CODEC,        // Codec type
+   38                  (A2DP_SBC_SAMPLE_FREQ_32000|A2DP_SBC_SAMPLE_FREQ_44100|A2DP_SBC_SAMPLE_FREQ_48000|A2DP_SBC_CHANNEL_MO
+             -DE_MONO|A2DP_SBC_CHANNEL_MODE_DUAL|A2DP_SBC_CHANNEL_MODE_STEREO|A2DP_SBC_CHANNEL_MODE_JOINT_STEREO), // sample freq and 
+             -channel mode
+   39                  (A2DP_SBC_BLOCK_LENGTH_4|A2DP_SBC_BLOCK_LENGTH_8|A2DP_SBC_BLOCK_LENGTH_12|A2DP_SBC_BLOCK_LENGTH_16|A2
+             -DP_SBC_SUBBAND_NUMBER_4|A2DP_SBC_SUBBAND_NUMBER_8|A2DP_SBC_ALLOCATION_SNR|A2DP_SBC_ALLOCATION_LOUDNESS), // subband numb
+             -er and allocation mode
+   40                  A2DP_SBC_MIN_BITPOOL_VALUE,   // min bit pool value
+   41                  A2DP_SBC_MAX_BITPOOL_VALUE, // max bit pool value
+   42                  DELAY_REPORTING, 0x00,  // delay reporting
+   43                },
+   44                { //sbcDefaultSettings
+   45                  (A2DP_SBC_SAMPLE_FREQ_44100|A2DP_SBC_CHANNEL_MODE_JOINT_STEREO), // sample freq and channel mode
+   46                  (A2DP_SBC_BLOCK_LENGTH_16|A2DP_SBC_SUBBAND_NUMBER_8|A2DP_SBC_ALLOCATION_LOUDNESS), // subband number 
+             -and allocation mode
+C251 COMPILER V5.57.0,  sector_a2dp_nvram_ctl_type                                         08/11/20  05:51:24  PAGE 2   
+
+   47                  A2DP_SBC_MIN_BITPOOL_VALUE,   // min bit pool value
+   48                  A2DP_SBC_MAX_BITPOOL_VALUE  // max bit pool value
+   49                },
+   50                
+   51                { //aacServiceCapabilities
+   52                  MEDIA_TRANSPORT, 0x00, // media transport : 0x01, length is 0x00
+   53                  CONTENT_PROTECTION, 02, // content protection: 0x04
+   54                  (U8)(A2DP_CP_SCMS_T), (U8)(A2DP_CP_SCMS_T >> 8),
+   55                  MEDIA_CODEC , 0x08,
+   56                  AUDIO_TYPE,
+   57                  AAC_CODEC,
+   58                  A2DP_AAC_OBJECT_TYPE_MPEG2_AAC_LC,  //ObjectType
+   59                  A2DP_AAC_SAMPLE_FREQ_44100|A2DP_AAC_SAMPLE_FREQ_32000|A2DP_AAC_SAMPLE_FREQ_24000|A2DP_AAC_SAMPLE_FREQ
+             -_22050|A2DP_AAC_SAMPLE_FREQ_16000|A2DP_AAC_SAMPLE_FREQ_12000|A2DP_AAC_SAMPLE_FREQ_11025|A2DP_AAC_SAMPLE_FREQ_8000,  // S
+             -ample Freq
+   60                  A2DP_AAC_SAMPLE_FREQ_48000|A2DP_AAC_CHANNELS_1|A2DP_AAC_CHANNELS_2,// Sample Freq + Channels
+   61                  A2DP_AAC_VARIABLE_BIT_RATE|((U8)(A2DP_AAC_BIT_RATE>>16)),
+   62                  (U8)(A2DP_AAC_BIT_RATE>>8),
+   63                  (U8)A2DP_AAC_BIT_RATE,
+   64                  DELAY_REPORTING, 0x00,  // delay reporting
+   65                },
+   66                { //aacDefaultSettings
+   67                  A2DP_AAC_OBJECT_TYPE_MPEG2_AAC_LC,  //ObjectType
+   68                  A2DP_AAC_SAMPLE_FREQ_44100,  // Sample Freq
+   69                  A2DP_AAC_CHANNELS_2,// Sample Freq + Channels
+   70                  A2DP_AAC_VARIABLE_BIT_RATE|((U8)(A2DP_AAC_BIT_RATE>>16)),
+   71                  (U8)(A2DP_AAC_BIT_RATE>>8),
+   72                  (U8)A2DP_AAC_BIT_RATE,
+   73                },
+   74              },
+   75            },
+   76              //- CRC
+   77              {0,0}
+   78          };
+   79          
+   80          #endif
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =        57     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

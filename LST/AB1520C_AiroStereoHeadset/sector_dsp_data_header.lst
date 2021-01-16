@@ -1,0 +1,86 @@
+C251 COMPILER V5.57.0,  sector_dsp_data_header                                             08/11/20  05:51:21  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_dsp_data_header
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\sector_dsp_data_header.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\DspData\sector_dsp_data_header.c XSMALL HPTR FUNCTIONS(R
+                    -EENTRANT) ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDR
+                    -IVER;.\source\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\
+                    -source\ROM\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\G
+                    -AP;.\source\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.
+                    -\source\SECTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\
+                    -ToolMisc) DEFINE(FLASH_INIT=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB152
+                    -0C_AiroStereoHeadset\sector_dsp_data_header.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\sector_dsp_data_heade
+                    -r.obj) 
+
+stmt  level    source
+
+    1          /*
+    2           * AIROHA Bluetooth Device Firmware
+    3           * COPYRIGHT (C) 2014 AIROHA TECHNOLOGY CORP. CO., LTD. ALL RIGHTS RESERVED
+    4           *
+    5           * sector_dsp_data_header.c defines DSP parameters.
+    6           *
+    7           * Programmer : DingaCheng@airoha.com.tw, Ext.2828
+    8           */
+    9           // -
+   10          #include "config.h"
+   11          #include "cpu.h"
+   12          #include "sectors.h"
+   13          #include "sector_dsp_data.h"
+   14          #include "srom.h"
+   15          
+   16          #pragma userclass (HCONST = CFGHEAD)
+   17          
+   18          SROM_MC(HCONST_DSP_ROM)
+   19          
+   20          
+   21          #undef SECTORS_ENUM_MACRO
+   22          #define SECTORS_ENUM_MACRO(SECTOR_NAME, SECTOR_INIT, SECTOR_SIZE, ATTR) {(U8 CODE_PTR)SECTOR_INIT, SECTOR
+             -_SIZE, ATTR},
+   23          
+   24          
+   25          
+   26          ////////////////////////////////////////////////////////////////////////////////
+   27          // Global Variables ////////////////////////////////////////////////////////////
+   28          ////////////////////////////////////////////////////////////////////////////////
+   29          SECTOR_DSP_DATA_HEADER_STRU CODE gSectorDspDataHeader =
+   30          {
+   31              NUM_OF_SECTOR_DSP_DATA,
+   32          
+   33              {
+   34                #include "sector_dsp_data_member.h"
+   35            },
+   36          
+   37            //- CRC
+   38            {0,0}
+   39          };
+   40          
+   41          
+   42          
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+C251 COMPILER V5.57.0,  sector_dsp_data_header                                             08/11/20  05:51:21  PAGE 2   
+
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =        21     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

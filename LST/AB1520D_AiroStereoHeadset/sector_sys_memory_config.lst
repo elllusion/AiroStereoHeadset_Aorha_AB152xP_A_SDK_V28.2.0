@@ -1,0 +1,163 @@
+C251 COMPILER V5.57.0,  sector_sys_memory_config                                           08/11/20  06:32:14  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_sys_memory_config
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\sector_sys_memory_config.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\sector_sys_memory_config.c XSMALL HPTR FUNCTIONS(REENTRA
+                    -NT) ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.
+                    -\source\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source
+                    -\ROM\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\s
+                    -ource\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\sourc
+                    -e\SECTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMi
+                    -sc) DEFINE(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_Air
+                    -oStereoHeadset\sector_sys_memory_config.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\sector_sys_memory_config.
+                    -obj) 
+
+stmt  level    source
+
+    1          /*
+    2           * AIROHA Bluetooth Device Firmware
+    3           * COPYRIGHT (C) 2014 AIROHA TECHNOLOGY CORP. CO., LTD. ALL RIGHTS RESERVED
+    4           *
+    5           * sector_sys_memory_config.c defines the system memory configurations.
+    6           *
+    7           * Programmer : CharlesSu@airoha.com.tw, Ext.2882
+    8           */
+    9          #include "config.h"
+   10          #include "cpu.h"
+   11          #include "bt_config_profile.h"
+   12          #include "sector_sys_memory_config.h"
+   13          
+   14          #pragma userclass (HCONST = CONFIG)
+   15          
+   16          
+   17          ////////////////////////////////////////////////////////////////////////////////
+   18          // Global Variables ////////////////////////////////////////////////////////////
+   19          ////////////////////////////////////////////////////////////////////////////////
+   20          SECTOR_SYS_MEM_CONF_STRU CODE gSector_SysMemoryConfig =
+   21          {
+   22              {
+   23          /* CallArrayEntries */          16,
+   24          /* CallArrayEntrySize */        4,
+   25          /* TimerArrayEntries */         50,
+   26          /* TimerArrayEntrySize */       4,
+   27          #if defined SCO_WOOFER || defined SOUND_BAR || defined TWS_SETTINGS
+   28          #ifdef APP_ANCS_C
+               /* OSMEM1ArrayEntries */         45,
+               #else
+   31          /* OSMEM1ArrayEntries */         45,
+   32          #endif
+   33          #else
+               /* OSMEM1ArrayEntries */         45,
+               #endif
+   36          /* OSMEM1ArrayEntrySize */      50,
+   37          
+   38          
+   39          #if defined FAST_CONNECT_DONGLE
+               /* OSMEM2SmallTxEntries */      9,
+               /* OSMEM2SmallTxEntrySize */    702,
+               #else
+   43          #if defined TWS_SETTINGS
+   44          #if defined AB1520D
+   45          /* OSMEM2SmallTxEntries */      7,
+   46          #else
+               /* OSMEM2SmallTxEntries */      4,
+               #endif
+   49          #else
+               /* OSMEM2SmallTxEntries */      8,
+               #endif
+C251 COMPILER V5.57.0,  sector_sys_memory_config                                           08/11/20  06:32:14  PAGE 2   
+
+   52          /* OSMEM2SmallTxEntrySize */    390,
+   53          #endif
+   54          
+   55          
+   56          /* OSMEM2TinyRxEntries */       3,
+   57          /* OSMEM2TinyRxEntrySize */     62,
+   58          
+   59          #if defined TWS_SETTINGS || defined FAST_CONNECT_DONGLE
+   60          #if defined AB1520D
+   61          /* OSMEM2SmallRxEntries */      4,
+   62          #else
+               /* OSMEM2SmallRxEntries */      3,
+               #endif
+   65          #else
+               /* OSMEM2SmallRxEntries */      6,
+               #endif
+   68          
+   69          #if 0
+               #if 0//SUPPORT_AAC_SNK
+               /* OSMEM2SmallRxEntrySize */    1100, //For AAC of Lenovo K3 NOTE
+               #else
+               /* OSMEM2SmallRxEntrySize */    1100,//702,
+               #endif
+               #endif
+   76          
+   77          #if defined FAST_CONNECT_DONGLE
+               /* OSMEM2SmallRxEntrySize */    702,
+               #else
+   80          #if defined AB1520D
+   81          /* OSMEM2SmallRxEntrySize */    1050,
+   82          #else
+               /* OSMEM2SmallRxEntrySize */    702,
+               #endif
+   85          #endif
+   86          
+   87          
+   88          /* OSMEM2LargeRxEntries */      2,
+   89          /* OSMEM2LargeRxEntrySize */    1100,
+   90          
+   91          #ifdef AIR_UPDATE_DONGLE
+               /* UartDmaRxBufSize */          1400,
+               #else
+   94          /* UartDmaRxBufSize */          380,
+   95          #endif
+   96          
+   97          /* new add large TX */
+   98          #if defined TWS_SETTINGS
+   99          #if defined AB1520D
+  100          /* OSMEM2LargeTxEntries */      8,
+  101          /* OSMEM2LargeTxEntrySize */    1050,
+  102          #else
+               /* OSMEM2LargeTxEntries */      8,
+               /* OSMEM2LargeTxEntrySize */    702,
+               #endif
+  106          
+  107          #else
+               /* OSMEM2LargeTxEntries */      0,
+               /* OSMEM2LargeTxEntrySize */    390,
+               #endif
+  111          
+  112          
+  113              },
+  114          
+  115              //- CRC
+  116              {0,0}
+  117          };
+C251 COMPILER V5.57.0,  sector_sys_memory_config                                           08/11/20  06:32:14  PAGE 3   
+
+  118          
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =        25     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

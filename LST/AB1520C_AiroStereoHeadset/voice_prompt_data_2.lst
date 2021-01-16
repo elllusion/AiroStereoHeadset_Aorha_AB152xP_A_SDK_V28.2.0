@@ -1,0 +1,281 @@
+C251 COMPILER V5.57.0,  voice_prompt_data_2                                                08/11/20  05:51:42  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE voice_prompt_data_2
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\voice_prompt_data_2.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\DRIVER\voice_prompt_data_2.c XSMALL HPTR FUNCTIONS(REENTRANT) R
+                    -OM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\sour
+                    -ce\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\
+                    -LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source
+                    -\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SEC
+                    -TOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) D
+                    -EFINE(FLASH_INIT=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520C_AiroSter
+                    -eoHeadset\voice_prompt_data_2.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\voice_prompt_data_2.obj) 
+
+stmt  level    source
+
+    1          
+    2          #include "voice_prompt_ctl.h"
+    3          
+    4          #ifdef SUPPORT_VOICE_PROMPT
+    5          
+    6          #pragma userclass (HCONST = VO_DAT)
+    7          
+    8          
+    9          #if VP_WB_ENABLE
+               #pragma INCDIR(.\source\DRIVER\VP_DATA\WB)
+               #else
+   12          #pragma INCDIR(.\source\DRIVER\VP_DATA\NB)
+   13          #endif
+   14          
+   15          
+   16          ///////////////////////////////////////////////////////////////////////////
+   17          //
+   18          // Voice Prompt Data - English
+   19          //
+   20          ///////////////////////////////////////////////////////////////////////////
+   21          #if VOICE_LANG_ENG
+   22          
+   23          U8 CODE VP_DAT_DEF(_E, 0)[] = {
+   24            #include <E_0.wav.txt>
+   25          };
+   26          U8 CODE VP_DAT_DEF(_E, 1)[] = {
+   27            #include <E_1.wav.txt>
+   28          };
+   29          U8 CODE VP_DAT_DEF(_E, 2)[] = {
+   30            #include <E_2.wav.txt>
+   31          };
+   32          U8 CODE VP_DAT_DEF(_E, 3)[] = {
+   33            #include <E_3.wav.txt>
+   34          };
+   35          U8 CODE VP_DAT_DEF(_E, 4)[] = {
+   36            #include <E_4.wav.txt>
+   37          };
+   38          U8 CODE VP_DAT_DEF(_E, 5)[] = {
+   39            #include <E_5.wav.txt>
+   40          };
+   41          U8 CODE VP_DAT_DEF(_E, 6)[] = {
+   42            #include <E_6.wav.txt>
+   43          };
+   44          U8 CODE VP_DAT_DEF(_E, 7)[] = {
+   45            #include <E_7.wav.txt>
+   46          };
+   47          U8 CODE VP_DAT_DEF(_E, 8)[] = {
+   48            #include <E_8.wav.txt>
+   49          };
+   50          U8 CODE VP_DAT_DEF(_E, 9)[] = {
+   51            #include <E_9.wav.txt>
+   52          };
+C251 COMPILER V5.57.0,  voice_prompt_data_2                                                08/11/20  05:51:42  PAGE 2   
+
+   53          U8 CODE VP_DAT_DEF(_E, BATTERY)[] = {
+   54            #include <E_Battery.wav.txt>
+   55          };
+   56          U8 CODE VP_DAT_DEF(_E, BLUETOOTH)[] = {
+   57            #include <E_Bluetooth.wav.txt>
+   58          };
+   59          U8 CODE VP_DAT_DEF(_E, CALL)[] = {
+   60            #include <E_Call.wav.txt>
+   61          };
+   62          U8 CODE VP_DAT_DEF(_E, CALLER_ID_PREFIX)[] = {
+   63            #include <E_CallerId_Prefix.wav.txt>
+   64          };
+   65          U8 CODE VP_DAT_DEF(_E, CALLER_ID_SUFFIX)[] = {
+   66            #include <E_CallerId_Suffix.wav.txt>
+   67          };
+   68          U8 CODE VP_DAT_DEF(_E, CANCELLED)[] = {
+   69            #include <E_Cancelled.wav.txt>
+   70          };
+   71          U8 CODE VP_DAT_DEF(_E, CHANNEL)[] = {
+   72            #include <E_Channel.wav.txt>
+   73          };
+   74          U8 CODE VP_DAT_DEF(_E, CONNECTED)[] = {
+   75            #include <E_Connected.wav.txt>
+   76          };
+   77          U8 CODE VP_DAT_DEF(_E, DEVICE)[] = {
+   78            #include <E_Device.wav.txt>
+   79          };
+   80          U8 CODE VP_DAT_DEF(_E, DISCONNECTED)[] = {
+   81            #include <E_Disconnected.wav.txt>
+   82          };
+   83          U8 CODE VP_DAT_DEF(_E, DOWN)[] = {
+   84            #include <E_Down.wav.txt>
+   85          };
+   86          U8 CODE VP_DAT_DEF(_E, ENDED)[] = {
+   87            #include <E_Ended.wav.txt>
+   88          };
+   89          U8 CODE VP_DAT_DEF(_E, ENGLISH)[] = {
+   90            #include <E_English.wav.txt>
+   91          };
+   92          U8 CODE VP_DAT_DEF(_E, FM_CHANN_PREFIX)[] = {
+   93            #include <E_FM_Chann_Prefix.wav.txt>
+   94          };
+   95          U8 CODE VP_DAT_DEF(_E, FM_CHANN_SUFFIX)[] = {
+   96            #include <E_FM_Chann_Suffix.wav.txt>
+   97          };
+   98          U8 CODE VP_DAT_DEF(_E, FM_RADIO)[] = {
+   99            #include <E_FM_Radio.wav.txt>
+  100          };
+  101          U8 CODE VP_DAT_DEF(_E, HIGH)[] = {
+  102            #include <E_High.wav.txt>
+  103          };
+  104          U8 CODE VP_DAT_DEF(_E, INCOMING)[] = {
+  105            #include <E_Incoming.wav.txt>
+  106          };
+  107          U8 CODE VP_DAT_DEF(_E, LEFT)[] = {
+  108            #include <E_Left.wav.txt>
+  109          };
+  110          U8 CODE VP_DAT_DEF(_E, LEVEL)[] = {
+  111            #include <E_Level.wav.txt>
+  112          };
+  113          U8 CODE VP_DAT_DEF(_E, LINE_IN)[] = {
+  114            #include <E_Line_in.wav.txt>
+  115          };
+  116          U8 CODE VP_DAT_DEF(_E, LOW)[] = {
+  117            #include <E_Low.wav.txt>
+  118          };
+C251 COMPILER V5.57.0,  voice_prompt_data_2                                                08/11/20  05:51:42  PAGE 3   
+
+  119          U8 CODE VP_DAT_DEF(_E, MAXIMUM)[] = {
+  120            #include <E_Maximum.wav.txt>
+  121          };
+  122          U8 CODE VP_DAT_DEF(_E, MEDIAN)[] = {
+  123            #include <E_Median.wav.txt>
+  124          };
+  125          U8 CODE VP_DAT_DEF(_E, MODE)[] = {
+  126            #include <E_Mode.wav.txt>
+  127          };
+  128          U8 CODE VP_DAT_DEF(_E, MULTI_POINT)[] = {
+  129            #include <E_Multi_point.wav.txt>
+  130          };
+  131          U8 CODE VP_DAT_DEF(_E, MUTE)[] = {
+  132            #include <E_Mute.wav.txt>
+  133          };
+  134          U8 CODE VP_DAT_DEF(_E, OFF)[] = {
+  135            #include <E_Off.wav.txt>
+  136          };
+  137          U8 CODE VP_DAT_DEF(_E, ON)[] = {
+  138            #include <E_On.wav.txt>
+  139          };
+  140          U8 CODE VP_DAT_DEF(_E, PAIRING)[] = {
+  141            #include <E_Pairing.wav.txt>
+  142          };
+  143          U8 CODE VP_DAT_DEF(_E, PAUSE)[] = {
+  144            #include <E_Pause.wav.txt>
+  145          };
+  146          U8 CODE VP_DAT_DEF(_E, PLEASE_CHARGE)[] = {
+  147            #include <E_Please_charge.wav.txt>
+  148          };
+  149          U8 CODE VP_DAT_DEF(_E, POINT)[] = {
+  150            #include <E_Point.wav.txt>
+  151          };
+  152          U8 CODE VP_DAT_DEF(_E, POWER)[] = {
+  153            #include <E_Power.wav.txt>
+  154          };
+  155          U8 CODE VP_DAT_DEF(_E, RE_DIALING)[] = {
+  156            #include <E_Re_dialing.wav.txt>
+  157          };
+  158          U8 CODE VP_DAT_DEF(_E, REJECTED)[] = {
+  159            #include <E_Rejected.wav.txt>
+  160          };
+  161          U8 CODE VP_DAT_DEF(_E, RIGHT)[] = {
+  162            #include <E_Right.wav.txt>
+  163          };
+  164          U8 CODE VP_DAT_DEF(_E, SECOND)[] = {
+  165            #include <E_Second.wav.txt>
+  166          };
+  167          U8 CODE VP_DAT_DEF(_E, SEEK)[] = {
+  168            #include <E_Seek.wav.txt>
+  169          };
+  170          U8 CODE VP_DAT_DEF(_E, SUCCESSFUL)[] = {
+  171            #include <E_Successful.wav.txt>
+  172          };
+  173          U8 CODE VP_DAT_DEF(_E, UP)[] = {
+  174            #include <E_Up.wav.txt>
+  175          };
+  176          U8 CODE VP_DAT_DEF(_E, VOICE_PROMPT)[] = {
+  177            #include <E_Voice_prompt.wav.txt>
+  178          };
+  179          U8 CODE VP_DAT_DEF(_E, VOLUME)[] = {
+  180            #include <E_Volume.wav.txt>
+  181          };
+  182          #ifdef SUPPORT_VOICE_COMMAND
+  183          U8 CODE VP_DAT_DEF(_E, WHAT_CAN_I_SAY)[] = {
+  184            #include <E_What_Can_I_Say.wav.txt>
+C251 COMPILER V5.57.0,  voice_prompt_data_2                                                08/11/20  05:51:42  PAGE 4   
+
+  185          };
+  186          U8 CODE VP_DAT_DEF(_E, CONNECTION_STATUS)[] = {
+  187            #include <E_Connection_Status.wav.txt>
+  188          };
+  189          U8 CODE VP_DAT_DEF(_E, CHECK_BATTERY)[] = {
+  190            #include <E_Check_Battery.wav.txt>
+  191          };
+  192          U8 CODE VP_DAT_DEF(_E, CANCEL)[] = {
+  193            #include <E_Cancel.wav.txt>
+  194          };
+  195          U8 CODE VP_DAT_DEF(_E, VOICE_PROMPT_EXAMPLE)[] = {
+  196            #include <E_Voice_Prompt_Example.wav.txt>
+  197          };
+  198          U8 CODE VP_DAT_DEF(_E, TAKE_THE_CALL)[] = {
+  199            #include <E_Take_The_Call.wav.txt>
+  200          };
+  201          U8 CODE VP_DAT_DEF(_E, REJECT)[] = {
+  202            #include <E_Reject.wav.txt>
+  203          };
+  204          U8 CODE VP_DAT_DEF(_E, REJECT_PHONE_CALL)[] = {
+  205            #include <E_Reject_Phone_Call.wav.txt>
+  206          };
+  207          U8 CODE VP_DAT_DEF(_E, PAIRING_FOR_VC)[] = {
+  208            #include <E_Pairing_For_VC.wav.txt>
+  209          };
+  210          U8 CODE VP_DAT_DEF(_E, LAST_CALL_OUT)[] = {
+  211            #include <E_Last_Call_Out.wav.txt>
+  212          };
+  213          U8 CODE VP_DAT_DEF(_E, VOICE_DIAL_FOR_VC)[] = {
+  214            #include <E_Voice_Dial_For_VC.wav.txt>
+  215          };
+  216          U8 CODE VP_DAT_DEF(_E, MAKE_A_CALL)[] = {
+  217            #include <E_Make_A_Call.wav.txt>
+  218          };
+  219          U8 CODE VP_DAT_DEF(_E, CHECK_STATUS)[] = {
+  220            #include <E_Check_Status.wav.txt>
+  221          };
+  222          U8 CODE VP_DAT_DEF(_E, RING_BACK)[] = {
+  223            #include <E_Ring_Back.wav.txt>
+  224          };
+  225          U8 CODE VP_DAT_DEF(_E, BEEP)[] = {
+  226            #include <E_BEEP.wav.txt>
+  227          };
+  228          
+  229          #endif //SUPPORT_VOICE_COMMAND
+  230          
+  231          #endif //VOICE_LANG_ENG
+  232          
+  233          #endif //SUPPORT_VOICE_PROMPT
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+C251 COMPILER V5.57.0,  voice_prompt_data_2                                                08/11/20  05:51:42  PAGE 5   
+
+  const size           =    ------     ------
+  hconst size          =     39091     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

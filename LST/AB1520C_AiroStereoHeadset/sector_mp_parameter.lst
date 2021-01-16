@@ -1,0 +1,358 @@
+C251 COMPILER V5.57.0,  sector_mp_parameter                                                08/11/20  05:51:31  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_mp_parameter
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\sector_mp_parameter.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\sector_mp_parameter.c XSMALL HPTR FUNCTIONS(REENTRANT) R
+                    -OM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\sour
+                    -ce\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\
+                    -LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source
+                    -\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SEC
+                    -TOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) D
+                    -EFINE(FLASH_INIT=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520C_AiroSter
+                    -eoHeadset\sector_mp_parameter.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\sector_mp_parameter.obj) 
+
+stmt  level    source
+
+    1          /*
+    2           * AIROHA Bluetooth Device Firmware
+    3           * COPYRIGHT (C) 2014 AIROHA TECHNOLOGY CORP. CO., LTD. ALL RIGHTS RESERVED
+    4           *
+    5           * sector_mp_parameter.c defines the calibration parameters and Rom code may uses.
+    6           *
+    7           * Programmer : DingaCheng@airoha.com.tw, Ext.2828
+    8           */
+    9          #include "config.h"
+   10          #include "cpu.h"
+   11          #include "bt_config_profile.h"
+   12          #include "sector_mp_parameter.h"
+   13          
+   14          #pragma userclass (HCONST = MP_PARAM)
+   15          
+   16          
+   17          ////////////////////////////////////////////////////////////////////////////////
+   18          // Global Variables ////////////////////////////////////////////////////////////
+   19          ////////////////////////////////////////////////////////////////////////////////
+   20          SECTOR_MP_PARAMETER_STRU CODE gSector_MpParameter =
+   21          {
+   22              {
+   23                  {
+   24                  #ifdef LC_TEST_CASE_CONFIG
+                         {0x21, 0x43, 0x65, 0x00, 0x00, 0x00}, //for BT Qualification
+                       #else
+   27                    #if defined(HID_IIM_SOC)
+                         {0x18, 0x13 , 0x00 , 0xA1 , 0x12 ,0x00 },
+                         #elif defined(HID_SOC)
+                         {0x21, 0x22 , 0x22 , 0x22 , 0x22 ,0x22 },
+                         #elif defined SOUND_BAR
+                         {0x7E, 0x96, 0xC6, 0x6A, 0x00, 0x00},
+                         #elif defined SCO_WOOFER
+                         {0x70, 0x94, 0xC6, 0x6A, 0x00, 0x00},
+                         #elif defined FAST_CONNECT_DONGLE
+                         {0x88, 0x99, 0xCC, 0x66, 0x00, 0x00},
+                         #else
+   38                  //- {0x7E, 0x96, 0xC6, 0x6B, 0x00, 0x00},
+   39                  //- {0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+   40                  //- {0x11, 0x11, 0x11, 0x11, 0x11, 0x11},
+   41                  //- {0x66, 0x66, 0x66, 0x66, 0x66, 0x66},
+   42                  //- {0x77, 0x77, 0x77, 0x77, 0x77, 0x77},
+   43                  //- {0x88, 0x88, 0x88, 0x88, 0x88, 0x88},
+   44                  //- {0x0b, 0xcd, 0xe3, 0x60, 0x10, 0x00},
+   45                  //- {0x33, 0x8B, 0x9E, 0x00, 0x00, 0x00},
+   46                  //- {0x21, 0x43, 0x65, 0x21, 0x43, 0x65},
+   47                  //- {0x55, 0x55, 0x55, 0xee, 0xee, 0xee},
+   48                  //- {0x55, 0x44, 0x33, 0x22, 0x11, 0x00},
+   49                    {0x22, 0x33, 0x22, 0x33, 0x03, 0x00}, //for BT Qualification
+   50                    #endif
+   51                  #endif
+   52          
+C251 COMPILER V5.57.0,  sector_mp_parameter                                                08/11/20  05:51:31  PAGE 2   
+
+   53                  #ifdef USING_SIMPLE_PAIRING_DEBUG_PRIVATE_KEY
+                           {0x07, 0x91, 0x5f, 0x86, 0x91, 0x8d, 0xdc, 0x27,    //Private key: Big Endian
+                           0x00, 0x5d, 0xf1, 0xd6, 0xcf, 0x0c, 0x14, 0x2b,
+                           0x62, 0x5e, 0xd2, 0xef, 0xf4, 0xa5, 0x18, 0xff},
+                           #else
+   58                      {0xff, 0x91, 0x5f, 0x86, 0x91, 0x8d, 0xdc, 0x27,    //Private key: Big Endian
+   59                      0x00, 0x5d, 0xf1, 0xd6, 0xcf, 0x0c, 0x14, 0x2b,
+   60                      0x62, 0x5e, 0xd2, 0xef, 0xf4, 0xa5, 0x18, 0xff},
+   61                      #endif
+   62                  },
+   63              {//MP_AfeInit
+   64                1,
+   65                {
+   66                    {0xAC,0x00,0x01,0xFF,0xFF},  //workaround for issue 5039
+   67                }
+   68              },
+   69              {//MP_SfrInit
+   70                0,
+   71                {
+   72                    {0x00,0x00,0x00},
+   73                }
+   74              },
+   75              {//MP_RfMiscCtl
+   76                {//mp_bt_tx_pwr_cfg
+   77                      #ifdef OPERATION_IN_BB_ASIC_VERSION
+   78                          #if (defined OPERATION_IN_RF_AB1520S)
+                               0x85,   //- tx_default_gfsk_gc1
+                               0x78,   //- tx_default_gfsk_gc2
+                               0x09,   //- tx_default_edr_gc1
+                               0x73,   //- tx_default_edr_gc2
+                               49,             //- tx_gfsk_max_gain
+                               38,             //- tx_edr_max_gain
+                               #else
+   86                              #ifdef AB1122
+                                   0x85, //- tx_default_gfsk_gc1
+                                   0x78, //- tx_default_gfsk_gc2
+                                   0x0D, //- tx_default_edr_gc1
+                                   0x73, //- tx_default_edr_gc2
+                                   49,                 //- tx_gfsk_max_gain
+                                   38,                 //- tx_edr_max_gain
+                                   #else
+   94                                  #if (defined AB1520C)
+   95                                      #ifdef AB1528C_ONLY
+                                               #ifdef BLUETOOTH_SPEAKER
+                                               0x8D, //-tx_default_gfsk_gc1
+                                               0x79, //- tx_default_gfsk_gc2
+                                               0x8D, //- tx_default_edr_gc1
+                                               0x77, //- tx_default_edr_gc2
+                                               51,     //- tx_gfsk_max_gain
+                                               47,     //- tx_edr_max_gain
+                                               #else
+                                               0x0D, //-tx_default_gfsk_gc1
+                                               0x79, //- tx_default_gfsk_gc2
+                                               0x8D, //- tx_default_edr_gc1
+                                               0x77, //- tx_default_edr_gc2
+                                               50,     //- tx_gfsk_max_gain
+                                               47,     //- tx_edr_max_gain
+                                               #endif
+                                           #else
+  112                                          #ifdef BLUETOOTH_SPEAKER
+                                               0x85, //- tx_default_gfsk_gc1
+                                               0x78, //- tx_default_gfsk_gc2
+                                               0x0D, //- tx_default_edr_gc1
+                                               0x73, //- tx_default_edr_gc2
+                                               49,     //- tx_gfsk_max_gain
+                                               38,     //- tx_edr_max_gain
+C251 COMPILER V5.57.0,  sector_mp_parameter                                                08/11/20  05:51:31  PAGE 3   
+
+                                               #else
+  120                                          0x0D, //-tx_default_gfsk_gc1
+  121                                          0x79, //- tx_default_gfsk_gc2
+  122                                          0x8D, //- tx_default_edr_gc1
+  123                                          0x77, //- tx_default_edr_gc2
+  124                                          50,     //- tx_gfsk_max_gain
+  125                                          47,     //- tx_edr_max_gain
+  126                                          #endif
+  127                                      #endif
+  128                                  #elif (defined AB1520D)
+                                           #ifdef AB1528C_ONLY
+                                               #ifdef BLUETOOTH_SPEAKER
+                                               0x8D, //-tx_default_gfsk_gc1
+                                               0x79, //- tx_default_gfsk_gc2
+                                               0x8D, //- tx_default_edr_gc1
+                                               0x77, //- tx_default_edr_gc2
+                                               51,     //- tx_gfsk_max_gain
+                                               47,     //- tx_edr_max_gain
+                                               #else
+                                               0x0D, //-tx_default_gfsk_gc1
+                                               0x99, //- tx_default_gfsk_gc2
+                                               0x0D, //- tx_default_edr_gc1
+                                               0x99, //- tx_default_edr_gc2
+                                               50,     //- tx_gfsk_max_gain
+                                               50,     //- tx_edr_max_gain
+                                               #endif
+                                           #else
+                                               #ifdef BLUETOOTH_SPEAKER
+                                               0x85, //- tx_default_gfsk_gc1
+                                               0x78, //- tx_default_gfsk_gc2
+                                               0x0D, //- tx_default_edr_gc1
+                                               0x73, //- tx_default_edr_gc2
+                                               49,     //- tx_gfsk_max_gain
+                                               38,     //- tx_edr_max_gain
+                                               #else
+                                               0x0D, //-tx_default_gfsk_gc1
+                                               0x99, //- tx_default_gfsk_gc2
+                                               0x0D, //- tx_default_edr_gc1
+                                               0x99, //- tx_default_edr_gc2
+                                               50,     //- tx_gfsk_max_gain
+                                               50,     //- tx_edr_max_gain
+                                               #endif
+                                           #endif
+                                       #endif //AB1520C
+  163                              #endif //AB1122
+  164                          #endif //AB1520S
+  165                      #else
+                           0x01,               //- tx_default_gfsk_gc1
+                           0x7C,               //- tx_default_gfsk_gc2
+                           0x01,               //- tx_default_edr_gc1
+                           0x78,               //- tx_default_edr_gc2
+                           56,                 //- tx_gfsk_max_gain
+                           48,                 //- tx_edr_max_gain
+                           #endif
+  173                },
+  174                {//mp_mod_gain_comp_cfg
+  175                #ifdef OPERATION_IN_BB_ASIC_VERSION
+  176                  #if (defined OPERATION_IN_RF_AB1520S)
+                       //{671, 704, 739, 781, 825, 866, 898}, //1.35V
+                       {671, 699, 728, 772, 816, 852, 877}, //1.25V
+                       {0xFE, 0xFC, 0xFB, 0xFB, 0x00, 0x00, 0x00, 0x04}, // New BDR (signed) delta of txagc_gc b/w BDR d4 va
+             -lue
+                       {0x05, 0x03, 0x00, 0x00, 0x00, 0x00, 0x03, 0x06}, // New EDR (signed) delta of txagc_gc b/w EDR d4 va
+             -lue
+                       #else
+  182                    #ifdef AB1122
+C251 COMPILER V5.57.0,  sector_mp_parameter                                                08/11/20  05:51:31  PAGE 4   
+
+                         {671, 699, 728, 772, 816, 852, 877}, //1.25V
+                         {0xFF, 0xFE, 0xFE, 0xFE, 0x00, 0x02, 0x04, 0x07}, // New BDR (signed) delta of txagc_gc b/w BDR d4 v
+             -alue
+                         {0x08, 0x05, 0x02, 0xFE, 0x00, 0x03, 0x05, 0x07}, // New EDR (signed) delta of txagc_gc b/w EDR d4 v
+             -alue
+                         #else
+  187                                  #if (defined AB1520C)
+  188                          #ifdef AB1528C_ONLY
+                                 #ifdef BLUETOOTH_SPEAKER
+                                 {671, 699, 728, 772, 816, 852, 877}, //1.25V
+                                 {0x04, 0x00, 0x01, 0xFE, 0x00, 0x02, 0x04, 0x05}, // New BDR (signed) delta of txagc_gc b/w BD
+             -R d4 value
+                                 {0x07, 0x01, 0x02, 0xFE, 0x00, 0x02, 0x04, 0x05}, // New EDR (signed) delta of txagc_gc b/w ED
+             -R d4 value
+                                 #else
+                                 {672, 672, 737, 776, 830, 844, 844}, //1.2V
+                                 {0x06, 0x03, 0x00, 0xFD, 0x00, 0x03, 0x06, 0x0A}, // New BDR (signed) delta of txagc_gc b/w BD
+             -R d4 value
+                                 {0x07, 0x05, 0x02, 0xFE, 0x00, 0x03, 0x05, 0x0A}, // New EDR (signed) delta of txagc_gc b/w ED
+             -R d4 value
+                                 #endif
+                               #else
+  199                            #ifdef BLUETOOTH_SPEAKER
+                                 {671, 699, 728, 772, 816, 852, 877}, //1.25V
+                                 {0xFF, 0xFE, 0xFE, 0xFE, 0x00, 0x02, 0x04, 0x07}, // New BDR (signed) delta of txagc_gc b/w BD
+             -R d4 value
+                                 {0x08, 0x05, 0x02, 0xFE, 0x00, 0x03, 0x05, 0x07}, // New EDR (signed) delta of txagc_gc b/w ED
+             -R d4 v
+                                 #else
+  204                            {672, 672, 737, 776, 830, 844, 844}, //1.2V
+  205                            {0x06, 0x03, 0x00, 0xFD, 0x00, 0x03, 0x06, 0x0A}, // New BDR (signed) delta of txagc_gc
+             - b/w BDR d4 value
+  206                            {0x07, 0x05, 0x02, 0xFE, 0x00, 0x03, 0x05, 0x0A}, // New EDR (signed) delta of txagc_gc
+             - b/w EDR d4 value
+  207                            #endif
+  208                          #endif
+  209                                  #elif (defined AB1520D)
+                               #ifdef AB1528C_ONLY
+                                 #ifdef BLUETOOTH_SPEAKER
+                                 {671, 699, 728, 772, 816, 852, 877}, //1.25V
+                                 {0x04, 0x00, 0x01, 0xFE, 0x00, 0x02, 0x04, 0x05}, // New BDR (signed) delta of txagc_gc b/w BD
+             -R d4 value
+                                 {0x07, 0x01, 0x02, 0xFE, 0x00, 0x02, 0x04, 0x05}, // New EDR (signed) delta of txagc_gc b/w ED
+             -R d4 value
+                                 #else
+                                 {641, 641, 708, 754, 809, 842, 842}, //1.2V
+                                 {0x07, 0x07, 0x05, 0x01, 0x00, 0x05, 0x08, 0x08}, // New BDR (signed) delta of txagc_gc b/w BD
+             -R d4 value
+                                 {0x07, 0x07, 0x05, 0x01, 0x00, 0x05, 0x0B, 0x0B},  // New EDR (signed) delta of txagc_gc b/w E
+             -DR d4 value
+                                 #endif
+                               #else
+                                 #ifdef BLUETOOTH_SPEAKER
+                                 {671, 699, 728, 772, 816, 852, 877}, //1.25V
+                                 {0xFF, 0xFE, 0xFE, 0xFE, 0x00, 0x02, 0x04, 0x07}, // New BDR (signed) delta of txagc_gc b/w BD
+             -R d4 value
+                                 {0x08, 0x05, 0x02, 0xFE, 0x00, 0x03, 0x05, 0x07}, // New EDR (signed) delta of txagc_gc b/w ED
+             -R d4 v
+                                 #else
+                                 {641, 641, 708, 754, 809, 842, 842}, //1.2V
+                                 {0x07, 0x07, 0x05, 0x01, 0x00, 0x05, 0x08, 0x08}, // New BDR (signed) delta of txagc_gc b/w BD
+             -R d4 value
+                                 {0x07, 0x07, 0x05, 0x01, 0x00, 0x05, 0x0B, 0x0B},  // New EDR (signed) delta of txagc_gc b/w E
+             -DR d4 value
+                                 #endif
+                               #endif
+C251 COMPILER V5.57.0,  sector_mp_parameter                                                08/11/20  05:51:31  PAGE 5   
+
+                                       #endif //1520C
+  232                    #endif //1122
+  233                  #endif //1520S
+  234                #else
+                       {750, 770, 810, 850, 880, 910, 925},  // tx_mod_temp_step
+                       {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},   // BDR (signed) delta of txagc_gc b/w BDR d4 valu
+             -e
+                       {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},   // EDR (signed) delta of txagc_gc b/w EDR d4 valu
+             -e
+                     #endif //ASIC_VERSION
+  239                },
+  240              },
+  241              {//MP_BatteryPara : Low Battery Threshold 1(U16), Low Battery Threshold 2(U16)
+  242                540, //initBatVolt
+  243                #ifdef OPERATION_IN_BB_FPGA_VERSION
+                     717, 654,     //lowBatVolt, shutdownBatVolt
+                     724, 776, 828,    //Checkpoints
+                     #else
+  247                580, 500,     //lowBatVolt, shutdownBatVolt
+  248                724, 776, 828,    //Checkpoints
+  249                #endif
+  250          
+  251                900, //S16 chargingRiskHighBound;
+  252                700, //S16 chargingSecureHighBound;
+  253                600, //S16 chargingRechargeHighBound;
+  254                500, //S16 chargingRechargeLowBound;
+  255                400, //S16 chargingSecureLowBound;
+  256                300, //S16 chargingRiskLowBound;
+  257          
+  258                3800,//873, //s16 dischargingRiskHighBound;
+  259                -3800, //s16 dischargingRiskLowBound;
+  260          
+  261                #ifdef OPERATION_IN_BB_FPGA_VERSION
+                     {677, 700, 723, 746, 769, 792, 815, 838, 884},
+                     #else
+  264                {523, 546, 569, 592, 615, 638, 661, 684, 707},
+  265                #endif
+  266              },
+  267              {  //MP_ChargerDiscountCtl
+  268                {0x72F6, 0x430C, 0x330C, },   //normalChargerDacCurrent, normalCCAdcCurrent, normalCCAdcCurrent2
+  269                {0x72F6, 0x430C, 0x330C, },   //abnormalChargerDacCurrent, abnormalCCAdcCurrent, abnormalCCAdcCurrent2
+  270                {0x0000, 0x0000, 0x0000, },     //stopChargerDacCurrent, stopCCAdcCurrent, stopCCAdcCurrent2
+  271              },
+  272              {//MP_AdcField
+  273                0,
+  274              },
+  275              {//CalibrationInfo
+  276                0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+  277              },
+  278              {//ManufacturingInfo
+  279                0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+  280              },
+  281          
+  282            },
+  283          
+  284            //- CRC
+  285            {0,0}
+  286          };
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+C251 COMPILER V5.57.0,  sector_mp_parameter                                                08/11/20  05:51:31  PAGE 6   
+
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       366     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

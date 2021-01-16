@@ -1,0 +1,15 @@
+?EP?P008_f1_0xFEBED0?P008 SEGMENT 'ECODE_FLASH'
+PUBLIC P008_f1_0xFEBED0??
+RSEG ?EP?P008_f1_0xFEBED0?P008	;program segment
+
+P008_f1_0xFEBED0??:
+DB		0xD0, 0xBE, 0xFE
+DB		0
+EJMP	P008_f1_patch
+
+P008_f1_patch:
+ECALL    0xFE0520   //LC_SetupRxBuffer()
+
+MOV      WR6,#0x8028
+
+EJMP     0xFEBED4

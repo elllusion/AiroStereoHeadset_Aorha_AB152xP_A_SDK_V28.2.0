@@ -1,0 +1,185 @@
+C251 COMPILER V5.57.0,  sector_dsp_func_para                                               08/11/20  06:32:26  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_dsp_func_para
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\sector_dsp_func_para.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\sector_dsp_func_para.c XSMALL HPTR FUNCTIONS(REENTRANT) 
+                    -ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\sou
+                    -rce\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM
+                    -\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\sourc
+                    -e\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SE
+                    -CTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) 
+                    -DEFINE(FLASH_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroSte
+                    -reoHeadset\sector_dsp_func_para.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\sector_dsp_func_para.obj) 
+
+stmt  level    source
+
+    1          /*
+    2           * AIROHA Bluetooth Device Firmware
+    3           * COPYRIGHT (C) 2014 AIROHA TECHNOLOGY CORP. CO., LTD. ALL RIGHTS RESERVED
+    4           *
+    5           * sector_dsp_func_para.c defines the function parameters of DSP.
+    6           *
+    7           * Programmer : CharlesSu@airoha.com.tw, Ext.2882
+    8           */
+    9          #include "sector_dsp_func_para.h"
+   10          
+   11          #ifdef AB1520B
+               #pragma userclass (HCONST = CONFIG)
+               #else
+   14          #pragma userclass (HCONST = DSP_FUNCPARA)
+   15          #endif
+   16          
+   17          
+   18          #define ENDIAN_RVRS(A)  (((U16)((A) & 0x00FF) << 8) | ((U16)(A) >> 8))
+   19          
+   20          
+   21          
+   22          ////////////////////////////////////////////////////////////////////////////////
+   23          // Global Variables ////////////////////////////////////////////////////////////
+   24          ////////////////////////////////////////////////////////////////////////////////
+   25          SECTOR_DSP_FUNC_PARA_INIT_STRU CODE gSector_DspFuncParameter ALIGN(2)=
+   26          {
+   27              {
+   28                  {
+   29                      #ifdef AB1520S
+                           #ifdef BLUETOOTH_SPEAKER
+                         #include "..\DSP\AB1520S_DSP\DSP_PARA_AB1520S_MUSICBOX_TARGET.txt"
+                       #else
+                         #include "..\DSP\AB1520S_DSP\DSP_PARA_AB1520S_HEADSET_TARGET.txt"
+                       #endif
+                           #else
+   36                  #ifdef BLUETOOTH_SPEAKER
+                         #include "..\DSP\AB1520_DSP\DSP_PARA_AB1520_MUSICBOX_TARGET.txt"
+                       #else
+   39                    #include "..\DSP\AB1520_DSP\DSP_PARA_AB1520_HEADSET_TARGET.txt"
+   40                  #endif
+   41                      #endif
+   42                  },
+   43          
+   44                  {
+   45                      ENDIAN_RVRS(60),          // SNDR_THRESHOLD;
+   46                      ENDIAN_RVRS(50),          // SNR_THRESHOLD;
+   47                  },
+   48          
+   49                  {
+   50                      ENDIAN_RVRS(0x4000),    //- aud_fade_out_target_ratio   (original:VP_RATIO)
+   51                                                  //- Mute : 0x7FFF (Max volume:0x0000)
+   52                      ENDIAN_RVRS(70),          // DSPGainLv_Default;
+C251 COMPILER V5.57.0,  sector_dsp_func_para                                               08/11/20  06:32:26  PAGE 2   
+
+   53                      ENDIAN_RVRS(70),          // VPGainLv_Default;
+   54                      ENDIAN_RVRS(0),           // MinAnalogGain
+   55                  },
+   56          
+   57                  {
+   58                      ENDIAN_RVRS(1),             //PLC_ENABLE
+   59                      ENDIAN_RVRS(14),            //PLC_OFFSET
+   60                      ENDIAN_RVRS(28),            //PLC_OFFSET_mSBC
+   61                      ENDIAN_RVRS(1),             //PLC_FramePartEn
+   62                      ENDIAN_RVRS(0),             //PLC_FramePartMethod
+   63                      ENDIAN_RVRS(0),             //PLC_CRCChkMethod, 0 = by HW, 1 = by SW
+   64                  },
+   65          
+   66                  {
+   67                      ENDIAN_RVRS(0),             // woofer_feature_func_sel 1:ENABLE_WOOFER_PEQ, 2:ENABLE_WOOFER_D
+             -RC, 3:ENABLE_WOOFER_PEQ&ENABLE_WOOFER_DRC
+   68                  },
+   69                  {
+   70                      0,                  //I2S_DebugMask[0], offset = 0 // remember!!! set U8 I2SDumpEnable:1; in sect
+             -or_driver_ctl_type.c
+   71                      0,                //I2S_DebugMask[1], offset = 16// remember!!! set U8 I2SDumpEnable:1; in sector_d
+             -river_ctl_type.c
+   72                      0,                //I2S_DebugMask[2], offset = 32// remember!!! set U8 I2SDumpEnable:1; in sector_d
+             -river_ctl_type.c
+   73                      0,                //I2S_DebugMask[3], offset = 48// remember!!! set U8 I2SDumpEnable:1; in sector_d
+             -river_ctl_type.c
+   74                  },
+   75          
+   76                  {
+   77                      ENDIAN_RVRS(32),    //- SBC_DA_buffer_size
+   78                    ENDIAN_RVRS(0),         //- soundbar_delay_out
+   79                    ENDIAN_RVRS(0x0080),  //- aud_fade_rate  (fade in/out per 128bits)
+   80                                            //- MAX value: 0x7FFF (off:0x0000)
+   81                    ENDIAN_RVRS(1),       //- aud_fade_enable  Enable the Fade in/out when vp/rt/audio coexist
+   82                    ENDIAN_RVRS(0),       //- Audio_Recovery_Smoother
+   83                    ENDIAN_RVRS(38),      //- AiroLineIn_Induce_Aux_Sample_Cnt
+   84                    ENDIAN_RVRS(0),         //- DSP_Reserved_Para_2
+   85                    #ifdef AB1520D
+   86                      ENDIAN_RVRS(1),       //- DSP_ConfigForD
+   87                    #else
+                         ENDIAN_RVRS(0),       //- DSP_ConfigForD
+                         #endif
+   90                  },
+   91          
+   92                      // new parameter
+   93                      ENDIAN_RVRS(BITFORM_I2S_MODE),      //I2S_BIT_FORMAT
+   94                      ENDIAN_RVRS(I2S_32BIT_FORMAT),      //I2S_BCLK_RATE
+   95          
+   96                  { // voice parameter
+   97                      ENDIAN_RVRS(0),                 //- Mic_LR_Switch;
+   98                    ENDIAN_RVRS(0),                 //- SideTone_Enable;
+   99                      ENDIAN_RVRS(0),               //- SideTone_Gain;
+  100                  },
+  101          
+  102                  { // air_dump_parameter
+  103                      ENDIAN_RVRS(0),                 //- DumpEnable;
+  104                    ENDIAN_RVRS(0),                 //- DefaultPathMaskBit;
+  105                      ENDIAN_RVRS(0),               //- UserDefinedPath[0].DspAddr;
+  106                      ENDIAN_RVRS(0),               //- UserDefinedPath[0].Length;
+  107                      ENDIAN_RVRS(0),               //- UserDefinedPath[1].DspAddr;
+  108                      ENDIAN_RVRS(0),               //- UserDefinedPath[1].Length;
+  109                      ENDIAN_RVRS(0),               //- UserDefinedPath[2].DspAddr;
+  110                      ENDIAN_RVRS(0),               //- UserDefinedPath[2].Length;
+  111                      ENDIAN_RVRS(0),               //- UserDefinedPath[3].DspAddr;
+  112                      ENDIAN_RVRS(0),               //- UserDefinedPath[3].Length;
+  113                      ENDIAN_RVRS(0),               //- UserDefinedPath[4].DspAddr;
+C251 COMPILER V5.57.0,  sector_dsp_func_para                                               08/11/20  06:32:26  PAGE 3   
+
+  114                      ENDIAN_RVRS(0),               //- UserDefinedPath[4].Length;
+  115                      ENDIAN_RVRS(0),               //- UserDefinedPath[5].DspAddr;
+  116                      ENDIAN_RVRS(0),               //- UserDefinedPath[5].Length;
+  117                      ENDIAN_RVRS(0),               //- UserDefinedPath[6].DspAddr;
+  118                      ENDIAN_RVRS(0),               //- UserDefinedPath[6].Length;
+  119                      ENDIAN_RVRS(0),               //- UserDefinedPath[7].DspAddr;
+  120                      ENDIAN_RVRS(0),               //- UserDefinedPath[7].Length;
+  121                      ENDIAN_RVRS(0),               //- UserDefinedPath[8].DspAddr;
+  122                      ENDIAN_RVRS(0),               //- UserDefinedPath[8].Length;
+  123                      ENDIAN_RVRS(0),               //- UserDefinedPath[9].DspAddr;
+  124                      ENDIAN_RVRS(0),               //- UserDefinedPath[9].Length;
+  125                  },
+  126          
+  127                  { // AT howling parameter
+  128                      ENDIAN_RVRS(1000),              //- Howling_Level_UpBND;
+  129                    ENDIAN_RVRS(1000),               //- Howling_Level_LowBND;
+  130                      ENDIAN_RVRS(3),             //- Howling_Debounce_FRAME_NUM;
+  131                  },
+  132              },
+  133          
+  134              //- CRC
+  135              {0,0}
+  136          };
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =      4094     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,66 @@
+C251 COMPILER V5.57.0,  AmpDrv                                                             08/11/20  06:34:39  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE AmpDrv
+OBJECT MODULE PLACED IN .\output\AB1520D_AiroStereoHeadset\AmpDrv.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SDK\IODrv\AmpDrv.c XSMALL HPTR FUNCTIONS(REENTRANT) ROM(HUGE) W
+                    -ARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\source\OS;.\so
+                    -urce\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM\LL;.\sourc
+                    -e\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\source\ROM\MMI_L
+                    -E;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SECTOR\DspDat
+                    -a;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) DEFINE(FLAS
+                    -H_INIT=1,AB1520D,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520D_AiroStereoHeadset\
+                    -AmpDrv.lst) TABS(2) OBJECT(.\output\AB1520D_AiroStereoHeadset\AmpDrv.obj) 
+
+stmt  level    source
+
+    1          #include "reside_flash.inc"
+    2          
+    3          #include "rc.h"
+    4          #include "..\SDK_Proxy\SDK_Proxy.h"
+    5          #include "..\SDK\include\SDK_Config.h"
+    6          #include "..\SDK\include\Pio.h"
+    7          
+    8          #if AMP_ENABLE
+               PUBLIC void SDK_AMP_On(void)
+               {
+                 SDK_GPIO_SetIO(PIN_SET_OUTPUT, LEVEL_HIGH, AMP_PIO);
+               }
+               
+               PUBLIC void SDK_AMP_Off(void)
+               {
+                 SDK_GPIO_SetIO(PIN_SET_OUTPUT, LEVEL_LOW, AMP_PIO);
+               }
+               #endif //AMP_ENABLE
+   19          
+   20          PUBLIC void SDK_AMP_DRV_Init(void)
+   21          {
+   22   1      #if AMP_ENABLE
+                 SDK_Proxy_RegisterAPI(API_GRP_IODRV_CB_AMP_ON, API_GRP_IODRV, (VFUN)SDK_AMP_On);
+                 SDK_Proxy_RegisterAPI(API_GRP_IODRV_CB_AMP_OFF, API_GRP_IODRV, (VFUN)SDK_AMP_Off);  
+               #endif
+   26   1      }
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =         1     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =    ------     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

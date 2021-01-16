@@ -1,0 +1,76 @@
+C251 COMPILER V5.57.0,  sector_dual_mic_data                                               08/11/20  05:51:34  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_dual_mic_data
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\sector_dual_mic_data.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\sector_dual_mic_data.c XSMALL HPTR FUNCTIONS(REENTRANT) 
+                    -ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\ABSDRIVER;.\sou
+                    -rce\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\HC;.\source\ROM
+                    -\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\ROM\GAP;.\sourc
+                    -e\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Config1;.\source\SE
+                    -CTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SECTOR\ToolMisc) 
+                    -DEFINE(FLASH_INIT=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\AB1520C_AiroSte
+                    -reoHeadset\sector_dual_mic_data.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\sector_dual_mic_data.obj) 
+
+stmt  level    source
+
+    1          /*
+    2           * AIROHA Bluetooth Device Firmware
+    3           * COPYRIGHT (C) 2014 AIROHA TECHNOLOGY CORP. CO., LTD. ALL RIGHTS RESERVED
+    4           *
+    5           * sector_dual_mic_data.c defines the data calculated by runtime.
+    6           *
+    7           * Programmer : DingaCheng@airoha.com.tw, Ext.2828
+    8           */
+    9          #include "config.h"
+   10          #include "cpu.h"
+   11          #include "bt_config_profile.h"
+   12          #include "sector_dual_mic_data.h"
+   13          
+   14          //#ifdef DUAL_MIC_ENABLE
+   15          
+   16          #pragma userclass (HCONST = DUAL_MIC)
+   17          
+   18          
+   19          ////////////////////////////////////////////////////////////////////////////////
+   20          // Global Variables ////////////////////////////////////////////////////////////
+   21          ////////////////////////////////////////////////////////////////////////////////
+   22          //#ifdef DSP_ENABLE
+   23          SECTOR_DUAL_MIC_DATA_STRU CODE gSector_DualMicData ALIGN(2)=
+   24          {
+   25              {
+   26                  0
+   27              },
+   28          
+   29              //- CRC
+   30              {0,0}
+   31          };
+   32          //#endif
+   33          
+   34          //#endif // DUAL_MIC_ENABLE
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+C251 COMPILER V5.57.0,  sector_dual_mic_data                                               08/11/20  05:51:34  PAGE 2   
+
+  hconst size          =       302     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

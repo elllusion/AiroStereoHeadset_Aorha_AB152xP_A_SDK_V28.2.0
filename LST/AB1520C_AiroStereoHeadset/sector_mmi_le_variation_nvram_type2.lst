@@ -1,0 +1,233 @@
+C251 COMPILER V5.57.0,  sector_mmi_le_variation_nvram_type2                                08/11/20  05:51:32  PAGE 1   
+
+
+C251 COMPILER V5.57.0, COMPILATION OF MODULE sector_mmi_le_variation_nvram_type2
+OBJECT MODULE PLACED IN .\output\AB1520C_AiroStereoHeadset\sector_mmi_le_variation_nvram_type2.obj
+COMPILER INVOKED BY: C:\Keil_v5\C251\BIN\C251.EXE source\SECTOR\sector_mmi_le_variation_nvram_type2.c XSMALL HPTR FUNCTI
+                    -ONS(REENTRANT) ROM(HUGE) WARNINGLEVEL(3) OPTIMIZE(9,SPEED) BROWSE ORDER INCDIR(.\source\COMMON;.\source\SECTOR;.\source\
+                    -ABSDRIVER;.\source\OS;.\source\HC;.\source\LM;.\source\LC;.\source\ROM;.\source\ROM\COMMON;.\source\ROM\OS;.\source\ROM\
+                    -HC;.\source\ROM\LL;.\source\ROM\LC;.\source\ROM\HAL;.\source\ROM\KERNEL;.\source\ROM\DRIVER;.\source\ROM\L2CAP;.\source\
+                    -ROM\GAP;.\source\ROM\MMI_LE;.\source\ROM\SECTOR;.\source\ROM\SECTOR\Config0;.\source\SECTOR\Config0;.\source\SECTOR\Conf
+                    -ig1;.\source\SECTOR\DspData;.\source\SECTOR\Runtime;.\source\SECTOR\VoiceData;.\source\SECTOR\SectorBoundary;.\source\SE
+                    -CTOR\ToolMisc) DEFINE(FLASH_INIT=1,AB1520C,MIGRATE_ROM_TO_FLASH,DFU_LOADER_IN_BOOT_CODE,TWS_SETTINGS) DEBUG PRINT(.\LST\
+                    -AB1520C_AiroStereoHeadset\sector_mmi_le_variation_nvram_type2.lst) TABS(2) OBJECT(.\output\AB1520C_AiroStereoHeadset\sec
+                    -tor_mmi_le_variation_nvram_type2.obj) 
+
+stmt  level    source
+
+    1          //////////////////////////////////////////////////////////
+    2          // Copyright@ 2011 Airoha.  All rights reserved.
+    3          //////////////////////////////////////////////////////////
+    4          #include <config.h>
+    5          #include <cpu.h>
+    6          
+    7          #include "bt_config_profile.h"
+    8          #include "sector_mmi_le_variation_nvram.h"
+    9          
+   10          //#ifdef LE_SUPPORTED_HOST_FLASH
+   11          
+   12          #pragma userclass (HCONST = LE_V_NVRAM2)
+   13          
+   14          
+   15          PUBLIC NVRAM_MMI_LINK_RECORD_STRU CODE gMMI_LE_v_nvram_init2 =
+   16          {
+   17              {
+   18                {        
+   19                    {{0}, 0, 0, 0, 0, {0}, {0}, {0}, {0}, {0}, {0}, {0}, 0, 0, 0, 0, 0, 0},
+   20                    {{0}, 0, 0, 0, 0, {0}, {0}, {0}, {0}, {0}, {0}, {0}, 0, 0, 0, 0, 0, 0},
+   21                    #ifdef AB1600
+                         {{0}, 0, 0, 0, 0, {0}, {0}, {0}, {0}, {0}, {0}, {0}, 0, 0, 0, 0, 0, 0},
+                         {{0}, 0, 0, 0, 0, {0}, {0}, {0}, {0}, {0}, {0}, {0}, 0, 0, 0, 0, 0, 0},
+                         {{0}, 0, 0, 0, 0, {0}, {0}, {0}, {0}, {0}, {0}, {0}, 0, 0, 0, 0, 0, 0},
+                         {{0}, 0, 0, 0, 0, {0}, {0}, {0}, {0}, {0}, {0}, {0}, 0, 0, 0, 0, 0, 0},
+                         {{0}, 0, 0, 0, 0, {0}, {0}, {0}, {0}, {0}, {0}, {0}, 0, 0, 0, 0, 0, 0},
+                         {{0}, 0, 0, 0, 0, {0}, {0}, {0}, {0}, {0}, {0}, {0}, 0, 0, 0, 0, 0, 0},
+                         {{0}, 0, 0, 0, 0, {0}, {0}, {0}, {0}, {0}, {0}, {0}, 0, 0, 0, 0, 0, 0},
+                         {{0}, 0, 0, 0, 0, {0}, {0}, {0}, {0}, {0}, {0}, {0}, 0, 0, 0, 0, 0, 0}
+                         #endif
+   31                },
+   32                0,    // U8 nextRecordIdx;
+   33          
+   34                  /* advData */
+   35                  {
+   36          #if defined(SUPPORT_LE_XPORT)
+                           0x0D,                                               //adv_data_Len;
+               
+                           {   //adv_data
+                               0x02,                                           //flags Len;
+                               0x01, 0x05,                                     //flags: limited discoverable ; doesn't s
+             -upport BR/EDR
+               
+                               0x09,                                           //localName Len;
+                               0x09, 'D', 'u', 'a', 'l', '-', 'B', 'L', 'E',   //localNameData
+               
+                               0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                               0, 0, 0, 0, 0, 0, 0, 0,
+                           },
+               #elif defined (SUPPORT_LE_PROFILE_HOGP)
+                           0x16,                                                   //adv_data_Len;
+C251 COMPILER V5.57.0,  sector_mmi_le_variation_nvram_type2                                08/11/20  05:51:32  PAGE 2   
+
+               
+                           {   //adv_data
+                               0x0A,                                               //localName Len;
+                               0x09, 'A', 'i', 'r', 'o', 'h', 'a', 'B', 'L', 'E',  //localNameData
+               
+                               0x03,                                               //appearance Len;
+                               0x19, 0xC2, 0x03,                                   //appearance: 03 C2 = mouse, 03 C0 = 
+             -Generic HID
+               
+                               0x02,                                               //flags Len;
+                               0x01, 0x05,                                         //flags: general discoverable ; suppo
+             -rt BR/EDR controller/host
+               
+                               0x03,                                               //sUUID Len;
+                               0x03, 0x12, 0x18,                                   //sUUID
+               
+                               0, 0, 0, 0, 0, 0, 0, 0, 0,
+                           },
+               #else
+   68                      0x1C,                                                   //adv_data_Len;
+   69          
+   70                      {   //adv_data
+   71                          0x02,                                               //flags Len;
+   72                          0x01, 0x1A,                                         //flags: general discoverable ; suppo
+             -rt BR/EDR controller/host
+   73          
+   74                          0x0A,                                               //localName Len;
+   75                          0x09, 'A', 'i', 'r', 'o', 'h', 'a', 'B', 'L', 'E',  //localNameData
+   76          
+   77                          0x05,                                               //sInterval Len;
+   78                          0x12, 0xFF, 0xFF, 0xFF, 0xFF,                       //sInterval: Min(2bytes), Max(2bytes)
+   79          
+   80                          0x03,                                               //sUUID Len;
+   81                          0x03, 0x12, 0x18,                                   //sUUID
+   82          
+   83                          0x03,                                               //appearance Len;
+   84                          0x19, 0xC0, 0x03,                                   //appearance: 03 C2 = mouse, 03 C0 = 
+             -Generic HID
+   85          
+   86                          0, 0, 0,
+   87                      },
+   88          #endif            
+   89                  },
+   90          
+   91                  /* advPara */
+   92                  {
+   93                #if defined(SUPPORT_LE_XPORT)
+                         0x0801,                 //U16 advIntMin 165ms
+                         0x1001,                                 //U16 advIntMax 170ms
+                     #elif defined (SUPPORT_LE_PROFILE_HOGP)
+                         0x2000,                 //U16 advIntMin 20ms
+                         0x3000,                 //U16 advIntMax 30ms
+                     #else
+  100                    0x4006,                                 //U16 advIntMin 20ms
+  101                    0x0008,                                 //U16 advIntMax 30ms
+  102                #endif
+  103          
+  104                      #ifdef MMI_LE_ENABLE
+  105                      0,                                      //U8 advType 0:MMI_LE_ADV_TYPE_ADV_IND
+  106                      #else
+                         0x02,                                   //U8 advType 0x02:MMI_LE_ADV_TYPE_ADV_SCAN_IND
+                           #endif
+  109          
+  110                      #ifdef SUPPORT_STATIC_RANDOM_ADDRESS
+  111                    0x01,                                   //U8 ownAddrType
+  112                    #else
+C251 COMPILER V5.57.0,  sector_mmi_le_variation_nvram_type2                                08/11/20  05:51:32  PAGE 3   
+
+                         0x00,                                   //U8 ownAddrType
+                         #endif
+  115          
+  116                    0x00,                                   //U8 peerAddrType
+  117                    {0x00, 0x00, 0x00, 0x00, 0x00, 0x00},   //U8 peerAddr[6]  direct_addr, don't care when undirected
+             - advertising
+  118                    0x07,                                   //U8 channelMap
+  119                    0x00,                                   //U8 filterPolicy   
+  120                      
+  121                  },
+  122          
+  123                  /* connSetting */
+  124                  #if defined(SUPPORT_LE_XPORT)
+                     {
+                           0x0800,                                 //U16 intMin
+                           0x9001,                                 //U16 intMax
+                           0x0200,                                 //U16 slaveLatency
+                           0x0002,                                 //U16 timeout
+                     },
+                     #elif defined (SUPPORT_LE_PROFILE_HOGP)
+                     {
+                           0x0800,
+                           0x0800,
+                           0x0000,
+                           0x2C01,
+                     },
+                     #else
+  139                {
+  140                      0x6800,
+  141                      0x7800,
+  142                      0x0000,
+  143                      0x0002,
+  144                },
+  145                  #endif
+  146          
+  147                  /* scanRsp */
+  148                  {
+  149                      0x03,                                   //scan_rsp_data_len
+  150          
+  151                      {   //scan_rsp_data
+  152                          0x02, 0x0A, 0x00,                   //TX power = 0dbm (temporarily)
+  153                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  154                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  155                          0, 0, 0, 0, 0, 0, 0, 0
+  156                      }
+  157                  },
+  158          
+  159              #ifdef SUPPORT_LE_XPORT
+                       30,                                         //U8 advTimout
+                   #else
+  162              0,                                          //U8 advTimout
+  163              #endif
+  164          
+  165                  0x4006,                                     //U16 rPowerAdvIntMin
+  166                  0x0008,                                     //U16 rPowerAdvIntMax
+  167                  //U8 vibrationSetting[6];
+  168                  {
+  169                      0xFF, 0x0F, 0x00, 0x00, 0x00, 0x00,
+  170                  },
+  171                  //U8 leFeatureCtl;
+  172                {
+  173                  0x00,
+  174                },
+  175              },
+  176          
+  177            {0,0}   // CRC16 crc;
+C251 COMPILER V5.57.0,  sector_mmi_le_variation_nvram_type2                                08/11/20  05:51:32  PAGE 4   
+
+  178          };
+  179          
+  180          //#endif /* LE_SUPPORTED_HOST_FLASH */
+
+
+Module Information          Static   Overlayable
+------------------------------------------------
+  code size            =    ------     ------
+  ecode size           =    ------     ------
+  data size            =    ------     ------
+  idata size           =    ------     ------
+  pdata size           =    ------     ------
+  xdata size           =    ------     ------
+  xdata-const size     =    ------     ------
+  edata size           =    ------     ------
+  bit size             =    ------     ------
+  ebit size            =    ------     ------
+  bitaddressable size  =    ------     ------
+  ebitaddressable size =    ------     ------
+  far data size        =    ------     ------
+  huge data size       =    ------     ------
+  const size           =    ------     ------
+  hconst size          =       340     ------
+End of Module Information.
+
+
+C251 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
