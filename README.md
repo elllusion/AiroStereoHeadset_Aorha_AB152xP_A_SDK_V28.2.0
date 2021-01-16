@@ -1,1 +1,1 @@
-"# AiroStereoHeadset_Aorha_AB152xP_A_SDK_V28.2.0" 
+Aorha AB152xP AiroStereoHeadset SDK V28.2.0
